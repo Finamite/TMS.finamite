@@ -1,0 +1,64 @@
+I want to implement a fully functional Purchase & Sales Module with proper workflow, data management, and UI logic. Here's what I need:
+
+📦 Purchase Workflow:
+Indent (Initial Draft):
+
+Allow users to create a purchase indent as a draft.
+
+Should not affect stock.
+
+Can be saved, edited, or deleted.
+
+Indent Approval:
+
+Once the draft is reviewed, it can be approved. here we will map the SKUs to the Vendor, once the SKU is selected it will show from which vendor it is mapped and show them in the Dropdown for that SKU.
+
+Upon approval, it should become editable.
+
+PO (Purchase Order) Generation:
+
+Based on approved indents, generate POs vendor-wise.
+
+After confirmation, POs Should be exportable as PDF & also share to Vendor on Email Open Gmail on chrome with Preloaded Details
+
+Credit Note & Debit Note :
+
+
+💰 Sales Workflow:
+Sales Order:
+
+Allows creating a sales order entry.
+
+Invoice Generation:
+
+After order confirmation, generate invoice.
+
+Should be exportable as PDF & also share to Email Open Gmail on chrome with Preloaded Details
+
+Debit Note:
+
+📂 UI/UX Requirements:
+Use a sidebar navigation menu:
+
+When clicking on "Purchase", show nested items: Indent, Indent Approval, PO etc.
+
+When clicking on "Sales", show nested items: Sales Order, Invoice, etc.
+📊 Data Handling Requirements:
+If backend data is available, load and display actual records.
+
+If no backend data, show mock data placeholders.
+
+All entries (indent, PO, invoice, etc.) should be timestamped and recorded properly.
+
+🏷️ Inventory Integration:
+All purchase entries should increase stock of the SKU.
+
+All sales entries should decrease stock of the SKU.
+
+Cancellations (via credit/debit note) should adjust the stock back accordingly.
+If any order is cancelled or return generate a credit/debit note and adjust records accordingly.
+If product is returned or an order is cancelled, generate debit note to adjust the sale.
+
+
+Code should be modular, maintainable, and extendable, ensuring all components are data-driven and fully linked to SKU Master and Inventory.
+

@@ -1,0 +1,141 @@
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
+import Layout from './components/Layout';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import PendingTasks from './pages/PendingTasks';
+import PendingRecurringTasks from './pages/PendingRecurringTasks';
+import MasterTasks from './pages/MasterTasks';
+import MasterRecurringTasks from './pages/MasterRecurringTasks';
+import AssignTask from './pages/AssignTask';
+import AdminPanel from './pages/AdminPanel';
+import SuperAdminPanel from './pages/SuperAdminPanel';
+import ProtectedRoute from './components/ProtectedRoute';
+import Performance from './pages/Performance';
+import Chat from './pages/Chat';
+import SettingsPage from './pages/SettingsPage';
+import { ToastContainer } from 'react-toastify';
+
+function App() {
+  return (
+    <ThemeProvider>
+      <AuthProvider>
+        <Router>
+          <div className="min-h-screen" style={{ backgroundColor: 'var(--color-background)', color: 'var(--color-text)' }}>
+            <Routes>
+
+              <Route path="/login" element={<Login />} />
+
+              <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+
+                <Route index element={<Navigate to="/dashboard" replace />} />
+
+                {/* Permission-protected routes */}
+                <Route
+                  path="dashboard"
+                  element={
+                    <ProtectedRoute requirePermission="dashboard">
+                      <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="performance"
+                  element={
+                    <ProtectedRoute requirePermission="performance">
+                      <Performance />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="pending-tasks"
+                  element={
+                    <ProtectedRoute requirePermission="pendingTasks">
+                      <PendingTasks />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="pending-recurring"
+                  element={
+                    <ProtectedRoute requirePermission="pendingRecurringTasks">
+                      <PendingRecurringTasks />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="master-tasks"
+                  element={
+                    <ProtectedRoute requirePermission="masterTasks">
+                      <MasterTasks />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="master-recurring"
+                  element={
+                    <ProtectedRoute requirePermission="masterRecurringTasks">
+                      <MasterRecurringTasks />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="assign-task"
+                  element={
+                    <ProtectedRoute requirePermission="assignTask">
+                      <AssignTask />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="chat"
+                  element={
+                    <ProtectedRoute requirePermission="chat">
+                      <Chat />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="settings-page"
+                  element={
+                    <ProtectedRoute requirePermission="settingspage">
+                      <SettingsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin"
+                  element={
+                    <ProtectedRoute requireAdmin requirePermission="adminPanel">
+                      <AdminPanel />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="superadmin"
+                  element={
+                    <ProtectedRoute requireSuperAdmin>
+                      <SuperAdminPanel />
+                    </ProtectedRoute>
+                  }
+                />
+
+              </Route>
+            </Routes>
+
+            <ToastContainer position="top-right" autoClose={3000} />
+          </div>
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
+  );
+}
+
+export default App;
