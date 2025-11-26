@@ -248,7 +248,8 @@ Title: ${taskData.title}
 Description: ${taskData.description}
 Due Date: ${new Date(taskData.dueDate).toDateString()}
 
-Please check your Task Dashboard.
+Please check your Task Dashboard:
+https://tms.finamite.in
 `;
 
     await sendSystemEmail(taskData.companyId, assignedUser.email, subject, text);
@@ -912,6 +913,10 @@ router.post('/:id/complete', async (req, res) => {
       const completedByName = completingUser?.username || assignedToUser?.username || 'Unknown User';
 
       const subject = `Task Completed: ${task.title}`;
+      const attachmentsText =
+  task.completionAttachments?.length > 0
+    ? `\nAttached Files:\n${task.completionAttachments.map(a => "- " + a).join("\n")}\n`
+    : '';
       const text = `
 The following task has been completed:
 
@@ -923,7 +928,10 @@ Completed at: ${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
 
 ${completionRemarks ? `Completion Remarks: ${completionRemarks}` : ''}
 
-Please check the Task Dashboard for more details.
+${attachmentsText}
+
+Please check the Task Dashboard for more details:
+https://tms.finamite.in
 `;
 
       for (const admin of admins) {
@@ -1066,7 +1074,8 @@ Revision Count: ${task.revisionCount}
 
 ${remarks ? `Revision Remarks: ${remarks}` : ''}
 
-Please review the revision in the Task Dashboard.
+Please review the revision in the Task Dashboard:
+https://tms.finamite.in
 `;
 
       for (const admin of admins) {
