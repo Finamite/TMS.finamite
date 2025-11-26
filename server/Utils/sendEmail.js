@@ -16,86 +16,81 @@ const createOAuthClient = () =>
     GOOGLE_REDIRECT_URI
   );
 
-// 🔥 Helper function: Create MIME email with attachments
-const createMimeEmail = ({ to, subject, text, attachments = [] }) => {
-  let boundary = "----=_Part_" + Math.random().toString(36).substring(2);
+function createMimeMessage({ to, from, subject, text, attachments }) {
+  const boundary = "__BOUNDARY__" + Date.now();
 
-  let message = `
-Content-Type: multipart/mixed; boundary="${boundary}"
-MIME-Version: 1.0
-To: ${to}
-Subject: ${subject}
+  let mime = "";
+  mime += `From: ${from}\r\n`;
+  mime += `To: ${to}\r\n`;
+  mime += `Subject: ${subject}\r\n`;
+  mime += `MIME-Version: 1.0\r\n`;
+  mime += `Content-Type: multipart/mixed; boundary="${boundary}"\r\n`;
+  mime += `\r\n`;
+  mime += `--${boundary}\r\n`;
+  mime += `Content-Type: text/plain; charset="UTF-8"\r\n`;
+  mime += `Content-Transfer-Encoding: 7bit\r\n\r\n`;
+  mime += `${text}\r\n\r\n`;
 
---${boundary}
-Content-Type: text/plain; charset="UTF-8"
-
-${text}
-`;
-
-  // Add attachments
+  // Attach files
   for (const file of attachments) {
     try {
       const fileData = fs.readFileSync(file.path);
       const base64File = fileData.toString("base64");
 
-      message += `
---${boundary}
-Content-Type: application/octet-stream; name="${file.filename}"
-Content-Disposition: attachment; filename="${file.filename}"
-Content-Transfer-Encoding: base64
-
-${base64File}
-`;
-    } catch (err) {
-      console.error("Attachment read error:", err);
+      mime += `--${boundary}\r\n`;
+      mime += `Content-Type: application/octet-stream; name="${file.filename}"\r\n`;
+      mime += `Content-Disposition: attachment; filename="${file.filename}"\r\n`;
+      mime += `Content-Transfer-Encoding: base64\r\n\r\n`;
+      mime += `${base64File}\r\n\r\n`;
+    } catch (e) {
+      console.error("Attachment error:", e);
     }
   }
 
-  message += `\n--${boundary}--`;
+  mime += `--${boundary}--`;
 
-  return Buffer.from(message)
+  return Buffer.from(mime)
     .toString("base64")
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/, "");
-};
+}
 
-// 🚀 Main reusable email function (Supports Attachments)
+// MAIN EMAIL FUNCTION
 export async function sendSystemEmail(companyId, to, subject, text, attachments = []) {
   try {
-    const emailSettings = await Settings.findOne({ type: "email", companyId });
+    const settings = await Settings.findOne({ type: "email", companyId });
 
-    if (!emailSettings?.data?.enabled || !emailSettings?.data?.googleTokens) {
-      console.log("Email not enabled or Gmail not connected.");
+    if (!settings?.data?.enabled || !settings?.data?.googleTokens) {
+      console.log("Email disabled or Gmail not connected.");
       return;
     }
 
     const oauth = createOAuthClient();
-    oauth.setCredentials(emailSettings.data.googleTokens);
+    oauth.setCredentials(settings.data.googleTokens);
+
     const gmail = google.gmail({ version: "v1", auth: oauth });
 
-    // Prepare attachments in correct format
     const formattedAttachments = attachments.map((fileUrl) => ({
       filename: fileUrl.split("/").pop(),
       path: fileUrl
     }));
 
-    // Create the raw MIME email
-    const rawMessage = createMimeEmail({
+    const raw = createMimeMessage({
       to,
+      from: settings.data.email,
       subject,
       text,
       attachments: formattedAttachments
     });
 
-    // Send email with Gmail API
     await gmail.users.messages.send({
       userId: "me",
-      resource: { raw: rawMessage }
+      resource: { raw }
     });
 
-    console.log("Email sent to:", to);
-  } catch (error) {
-    console.error("Email sending failed:", error);
+    console.log("Email SENT to:", to);
+  } catch (err) {
+    console.error("SEND EMAIL FAILED:", err);
   }
 }
