@@ -24,23 +24,28 @@ export async function sendSystemEmail(companyId, to, subject, text) {
     return;
   }
 
-  const oauth = createOAuthClient();
-  oauth.setCredentials(emailSettings.data.googleTokens);
+  try {
+    const oauth = createOAuthClient();
+    oauth.setCredentials(emailSettings.data.googleTokens);
 
-  const gmail = google.gmail({ version: "v1", auth: oauth });
+    const gmail = google.gmail({ version: "v1", auth: oauth });
 
-  const rawMessage = Buffer.from(
-    `To: ${to}\r\nSubject: ${subject}\r\n\r\n${text}`
-  )
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
+    const rawMessage = Buffer.from(
+      `To: ${to}\r\nSubject: ${subject}\r\n\r\n${text}`
+    )
+      .toString("base64")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
 
-  await gmail.users.messages.send({
-    userId: "me",
-    resource: { raw: rawMessage }
-  });
+    await gmail.users.messages.send({
+      userId: "me",
+      resource: { raw: rawMessage }
+    });
 
-  console.log("Email sent to:", to);
+    console.log("Email sent to:", to);
+  } catch (error) {
+    console.error("Failed to send email:", error);
+    // Fail silently - don't throw, so task creation doesn't fail
+  }
 }
