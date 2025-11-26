@@ -289,15 +289,23 @@ router.get('/google/callback', async (req, res) => {
 // POST /email/test - send a test email using Gmail API and stored tokens
 router.post('/email/test', async (req, res) => {
   try {
+    const { companyId, to: bodyTo, subject: bodySubject, text: bodyText } = req.body;
+
+    if (!companyId) {
+      return res.status(400).json({ message: "companyId is required" });
+    }
+
+    // Get admin (fallback email)
     const admin = await User.findOne({
       companyId,
       role: "admin",
       isActive: true
     });
 
-    const to = admin.email;
-    const subject = "Test Email - System Working";
-    const text = "Your Gmail integration is working successfully!";
+    // Use provided values OR fallback
+    const to = bodyTo || admin?.email;
+    const subject = bodySubject || "Test Email - System Working";
+    const text = bodyText || "Your Gmail integration is working successfully!";
     if (!companyId || !to || !subject || !text) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
