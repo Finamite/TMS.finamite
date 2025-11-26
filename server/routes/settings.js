@@ -2,6 +2,8 @@
 import express from 'express';
 import { google } from 'googleapis';
 import Settings from '../models/Settings.js';
+import User from '../models/User.js'; // ✅ ADD MISSING IMPORT
+import { sendSystemEmail } from '../Utils/sendEmail.js'; // ✅ ADD MISSING IMPORT
 
 const router = express.Router();
 
@@ -13,6 +15,7 @@ const {
 } = process.env;
 
 if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_REDIRECT_URI) {
+  console.warn("Missing Google OAuth environment variables");
 }
 
 // Helper to create a new OAuth2 client
@@ -162,6 +165,16 @@ router.get('/email', async (req, res) => {
           enabled: false,
           email: '',
           // googleTokens will be added on successful OAuth
+          sendOnTaskCreate: true,
+          sendOnTaskComplete: true,
+          sendOnTaskRevision: true,
+          sendToUsers: [],
+          morningReportTime: '09:00',
+          eveningReportTime: '18:00',
+          enableMorningReport: false,
+          enableEveningReport: false,
+          enableReports: false,
+          reportRecipients: []
         }
       });
       await settings.save();
@@ -204,6 +217,7 @@ router.post('/email', async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
+
 // GET /email/google-auth - returns Google OAuth URL
 router.get('/email/google-auth', (req, res) => {
   try {
@@ -286,76 +300,39 @@ router.get('/google/callback', async (req, res) => {
   }
 });
 
-// POST /email/test - send a test email using Gmail API and stored tokens
+// ✅ FIXED: POST /email/test - send a test email using Gmail API and stored tokens
 router.post('/email/test', async (req, res) => {
   try {
-    const { companyId, to: bodyTo, subject: bodySubject, text: bodyText } = req.body;
+    const { companyId, to, subject, text } = req.body;
 
     if (!companyId) {
       return res.status(400).json({ message: "companyId is required" });
     }
 
-    // Get admin (fallback email)
+    // ✅ Check if email is enabled and configured
+    const emailSettings = await Settings.findOne({ type: 'email', companyId });
+    if (!emailSettings?.data?.enabled || !emailSettings?.data?.googleTokens) {
+      return res.status(400).json({ message: "Email not enabled or Gmail not connected" });
+    }
+
+    // ✅ Get admin user for fallback email
     const admin = await User.findOne({
       companyId,
       role: "admin",
       isActive: true
     });
 
-    // Use provided values OR fallback
-    const to = bodyTo || admin?.email;
-    const subject = bodySubject || "Test Email - System Working";
-    const text = bodyText || "Your Gmail integration is working successfully!";
-    if (!companyId || !to || !subject || !text) {
-      return res.status(400).json({ message: 'Missing required fields' });
-    }
+    const emailTo = to || admin?.email || emailSettings.data.email;
+    const emailSubject = subject || "Test Email from Task Management System";
+    const emailText = text || "This is a test email to verify your Gmail configuration. Your email settings are working correctly!";
 
-    const emailSettings = await Settings.findOne({ type: 'email', companyId });
-    if (!emailSettings?.data) {
-      return res.status(400).json({ message: 'Email settings not configured' });
-    }
+    // ✅ Use the centralized email function
+    await sendSystemEmail(companyId, emailTo, emailSubject, emailText);
 
-    const tokens = emailSettings.data.googleTokens;
-    if (!tokens) {
-      return res.status(400).json({ message: 'Google account not connected. Please connect first.' });
-    }
-
-    // create oauth client and set credentials from DB
-    const oauth2Client = createOAuthClient();
-    oauth2Client.setCredentials(tokens);
-
-    // Create Gmail client
-    const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
-
-    // Build the raw email message and base64url encode it
-    const raw = [
-      `To: ${to}`,
-      `Subject: ${subject}`,
-      'Content-Type: text/plain; charset="UTF-8"',
-      '',
-      text
-    ].join('\r\n');
-
-    const encodedMessage = Buffer.from(raw)
-      .toString('base64')
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '');
-
-    await gmail.users.messages.send({
-      userId: 'me',
-      requestBody: {
-        raw: encodedMessage
-      }
-    });
-
-    res.json({ message: 'Test email sent successfully' });
+    res.json({ message: "Test email sent successfully" });
   } catch (error) {
-    console.error('Error sending test email:', error);
-
-    // If token expired or invalid, give a helpful message
-    const errMsg = (error && error.response && error.response.data) ? JSON.stringify(error.response.data) : String(error);
-    res.status(500).json({ message: 'Failed to send email', error: errMsg });
+    console.error("Test email failed:", error);
+    res.status(500).json({ message: "Test email failed", error: error.message });
   }
 });
 

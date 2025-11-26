@@ -208,6 +208,55 @@ const calculateNextDueDate = (task) => {
   return nextDueDate;
 };
 
+// ✅ HELPER FUNCTION: Send task assignment email
+const sendTaskAssignmentEmail = async (taskData) => {
+  try {
+    const emailSettings = await Settings.findOne({
+      type: "email",
+      companyId: taskData.companyId
+    });
+
+    if (!emailSettings?.data?.enabled || !emailSettings?.data?.sendOnTaskCreate) {
+      return; // Email not enabled or task creation emails disabled
+    }
+
+    const assignedUser = await User.findById(taskData.assignedTo);
+    if (!assignedUser) return;
+
+    const isRecurring = taskData.taskType !== "one-time";
+
+    const subject = isRecurring
+      ? `New Recurring Task Assigned: ${taskData.title}`
+      : `New Task Assigned: ${taskData.title}`;
+
+    const text = isRecurring
+      ? `
+A new recurring task has been assigned to you:
+
+Title: ${taskData.title}
+Description: ${taskData.description}
+
+Start Date: ${taskData.startDate}
+End Date: ${taskData.endDate || 'Ongoing'}
+
+Please check your Task Dashboard.
+`
+      : `
+A new task has been assigned to you:
+
+Title: ${taskData.title}
+Description: ${taskData.description}
+Due Date: ${new Date(taskData.dueDate).toDateString()}
+
+Please check your Task Dashboard.
+`;
+
+    await sendSystemEmail(taskData.companyId, assignedUser.email, subject, text);
+  } catch (error) {
+    console.error('Error sending task assignment email:', error);
+  }
+};
+
 // --- API Endpoints ---
 
 // Get all tasks with filters
@@ -719,49 +768,8 @@ router.post('/create-scheduled', async (req, res) => {
       createdTasks.push(task);
     }
 
-    // -------------------------------------------------------
-    // ✅ EMAIL BLOCK — ADD IT RIGHT HERE (AFTER SAVING TASKS)
-    // -------------------------------------------------------
-    const emailSettings = await Settings.findOne({
-      type: "email",
-      companyId: taskData.companyId
-    });
-
-    if (emailSettings?.data?.sendOnTaskCreate) {
-      const assignedUser = await User.findById(taskData.assignedTo);
-
-      const isRecurring = taskData.taskType !== "one-time";
-
-      const subject = isRecurring
-        ? `New Recurring Task Assigned: ${taskData.title}`
-        : `New Task Assigned: ${taskData.title}`;
-
-      const text = isRecurring
-        ? `
-A new recurring task has been assigned to you:
-
-Title: ${taskData.title}
-Description: ${taskData.description}
-
-Start Date: ${taskData.startDate}
-End Date: ${taskData.endDate}
-
-Please check your Task Dashboard.
-`
-        : `
-A new task has been assigned to you.
-
-Title: ${taskData.title}
-Description: ${taskData.description}
-Due Date: ${taskData.dueDate}
-
-Please check your Task Dashboard.
-`;
-
-      await sendSystemEmail(taskData.companyId, assignedUser.email, subject, text);
-    }
-
-    // -------------------------------------------------------
+    // ✅ SEND EMAIL NOTIFICATION
+    await sendTaskAssignmentEmail(taskData);
 
     // RESPONSE
     res.status(201).json({
@@ -778,7 +786,7 @@ Please check your Task Dashboard.
 });
 
 
-// Create task (original endpoint - kept for backward compatibility for single task creation)
+// ✅ FIXED: Create task (original endpoint - now with email)
 router.post('/', async (req, res) => {
   try {
     const taskData = req.body;
@@ -805,6 +813,9 @@ router.post('/', async (req, res) => {
       attachments: taskData.attachments || [] // Pass attachments here
     });
     await task.save();
+
+    // ✅ SEND EMAIL NOTIFICATION FOR SINGLE TASK CREATION
+    await sendTaskAssignmentEmail(taskData);
 
     const populatedTask = await Task.findById(task._id)
       .populate('assignedBy', 'username email companyId')
@@ -846,10 +857,10 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Complete task - UPDATED TO HANDLE COMPLETION ATTACHMENTS
+// ✅ FIXED: Complete task - with proper email notification
 router.post('/:id/complete', async (req, res) => {
   try {
-    const { completionRemarks, completionAttachments, companyId } = req.body;
+    const { completionRemarks, completionAttachments, companyId, userId } = req.body;
     const findQuery = { _id: req.params.id };
     
     // Add company filter for security
@@ -880,23 +891,22 @@ router.post('/:id/complete', async (req, res) => {
     // SAVE TASK FIRST
     await task.save();
 
-
-    // -----------------------------------------------------
-    // ✅ EMAIL: SEND ON TASK COMPLETION (INSERT HERE)
-    // -----------------------------------------------------
+    // ✅ EMAIL: SEND ON TASK COMPLETION
     const emailSettings = await Settings.findOne({
       type: "email",
       companyId: task.companyId
     });
 
-    if (emailSettings?.data?.sendOnTaskComplete) {
-
+    if (emailSettings?.data?.enabled && emailSettings?.data?.sendOnTaskComplete) {
       // Get all admins + managers of same company
       const admins = await User.find({
         companyId: task.companyId,
         role: { $in: ["admin", "manager"] },
         isActive: true
       });
+
+      // Get user who completed the task
+      const completingUser = userId ? await User.findById(userId) : null;
 
       const subject = `Task Completed: ${task.title}`;
       const text = `
@@ -905,16 +915,18 @@ The following task has been completed:
 Title: ${task.title}
 Description: ${task.description}
 
-Completed by: ${req.user.username}
+Completed by: ${completingUser?.username || 'Unknown User'}
 Completed at: ${new Date().toLocaleString()}
+
+${completionRemarks ? `Completion Remarks: ${completionRemarks}` : ''}
+
+Please check the Task Dashboard for more details.
 `;
 
-      for (const u of admins) {
-        await sendSystemEmail(task.companyId, u.email, subject, text);
+      for (const admin of admins) {
+        await sendSystemEmail(task.companyId, admin.email, subject, text);
       }
     }
-    // -----------------------------------------------------
-
 
     // Populate for frontend response
     const populatedTask = await Task.findById(task._id)
@@ -930,11 +942,11 @@ Completed at: ${new Date().toLocaleString()}
 });
 
 
-// Revise task
+// ✅ FIXED: Revise task - with proper email notification
 router.post('/:id/revise', async (req, res) => {
   try {
     console.log('Revise request body:', req.body); // Debug log - remove in production
-    const { newDate, remarks, revisedBy, companyId } = req.body;
+    const { newDate, remarks, revisedBy, companyId, userId } = req.body;
 
     if (!newDate) {
       console.log('Missing newDate'); // Debug log - remove in production
@@ -1020,40 +1032,41 @@ router.post('/:id/revise', async (req, res) => {
 
     await task.save();
 
-    // -----------------------------------------------------
-    // ✅ EMAIL: SEND ON TASK REVISION (INSERTED HERE)
-    // -----------------------------------------------------
+    // ✅ EMAIL: SEND ON TASK REVISION
     const emailSettings = await Settings.findOne({
       type: "email",
       companyId: task.companyId
     });
 
-    if (emailSettings?.data?.sendOnTaskRevision) {
+    if (emailSettings?.data?.enabled && emailSettings?.data?.sendOnTaskRevision) {
       const admins = await User.find({
         companyId: task.companyId,
         role: { $in: ["admin", "manager"] },
         isActive: true
       });
 
+      // Get user who requested the revision
+      const revisingUser = userId ? await User.findById(userId) : null;
+
       const subject = `Task Revision Requested: ${task.title}`;
       const text = `
-A task revision has been taken:
+A task revision has been requested:
 
 Title: ${task.title}
 Description: ${task.description}
 
-User: ${req.user?.username || revisedBy || 'Unknown'}
+User: ${revisingUser?.username || 'Unknown User'}
 Revision Count: ${task.revisionCount}
 
-Please review the revision.
+${remarks ? `Revision Remarks: ${remarks}` : ''}
+
+Please review the revision in the Task Dashboard.
 `;
 
-      for (const u of admins) {
-        // sendSystemEmail(companyId, to, subject, text)
-        await sendSystemEmail(task.companyId, u.email, subject, text);
+      for (const admin of admins) {
+        await sendSystemEmail(task.companyId, admin.email, subject, text);
       }
     }
-    // -----------------------------------------------------
 
     // 8️⃣ Populate and Return Updated Task
     const result = await Task.findById(task._id)
@@ -1270,9 +1283,6 @@ router.put('/reschedule/:taskGroupId', async (req, res) => {
     return res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
-
-
-
 
 // Delete task (soft delete by setting isActive to false)
 router.delete('/:id', async (req, res) => {

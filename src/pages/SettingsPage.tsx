@@ -1,17 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-    Settings,
-    Mail,
-    AlertTriangle,
-    Save,
-    X,
-    Loader2,
-    Send,
-    Calendar,
-    Plus,
-    Pencil,
-    Trash
-} from 'lucide-react';
+import { Settings, Mail, AlertTriangle, Save, X, Loader as Loader2, Send, Calendar, Plus, Pencil, Trash } from 'lucide-react';
 import axios from 'axios';
 import { address } from '../../utils/ipAddress';
 import { useAuth } from '../contexts/AuthContext';
@@ -169,6 +157,11 @@ const SettingsPage: React.FC = () => {
                             enabled: true
                         }
                     }));
+                    
+                    setMessage({
+                        type: "success",
+                        text: "Google connected successfully!"
+                    });
                 });
             }
         };
@@ -304,10 +297,10 @@ const SettingsPage: React.FC = () => {
                     email: {
                         ...prev.email,
                         ...emailRes.data,
-                        enabled: emailRes.data.enabled ?? true,
+                        enabled: emailRes.data.enabled ?? false, // ✅ FIXED: Don't default to true
                         // Set defaults for new fields if not present
                         sendOnTaskCreate: emailRes.data.sendOnTaskCreate ?? true,
-                        sendOnTaskComplete: emailRes.data.sendOnTaskComplete ?? false,
+                        sendOnTaskComplete: emailRes.data.sendOnTaskComplete ?? true, // ✅ FIXED: Default to true
                         sendOnTaskRevision: emailRes.data.sendOnTaskRevision ?? true,
                         sendToUsers: emailRes.data.sendToUsers || [],
                         morningReportTime: emailRes.data.morningReportTime || '09:00',
@@ -359,6 +352,7 @@ const SettingsPage: React.FC = () => {
             });
 
             setHasUnsavedChanges(false);
+            setMessage({ type: 'success', text: 'Settings saved successfully!' });
         } catch (error: any) {
             setMessage({ type: 'error', text: error.response?.data?.message || 'Failed to save settings' });
         } finally {
@@ -433,7 +427,7 @@ const SettingsPage: React.FC = () => {
     };
 
     const handleTestEmail = async () => {
-        if (!currentUser?.companyId || !settings.email.email) return;
+        if (!currentUser?.companyId) return;
         setTestingEmail(true);
         try {
             await axios.post(`${address}/api/settings/email/test`, {
@@ -1118,9 +1112,6 @@ const SettingsPage: React.FC = () => {
                                             </div>
 
                                             <div className="md:col-span-2">
-                                                <label className="block text-sm font-semibold text-[var(--color-text)] mb-3">
-                                                    Email Recipients
-                                                </label>
                                                 <div
                                                     className={`max-h-48 overflow-y-auto bg-[color:var(--color-border)/10] rounded-xl p-4 space-y-2 ${!emailEnabled ? 'opacity-50' : ''
                                                         }`}
@@ -1170,12 +1161,11 @@ const SettingsPage: React.FC = () => {
                                         <button
                                             onClick={handleTestEmail}
                                             disabled={
-                                                !settings.email.email ||
-                                                !settings.email.appPassword ||
-                                                testingEmail ||
-                                                !emailEnabled
+                                                !settings.email.enabled ||  // ✅ FIXED: Check enabled instead of email/password
+                                                !settings.email.email ||    // ✅ FIXED: Check if Google email is connected
+                                                testingEmail
                                             }
-                                            className="px-6 py-3 bg-[var(--color-primary)] hover:bg-[var(--color-secondary)] disabled:bg-[var(--color-border)] text-[var(--color-background)] rounded-xl font-medium transition-colors flex items-center"
+                                            className="px-6 py-3 bg-[var(--color-primary)] hover:bg-[var(--color-secondary)] disabled:bg-[var(--color-border)] disabled:cursor-not-allowed text-[var(--color-background)] rounded-xl font-medium transition-colors flex items-center"
                                         >
                                             {testingEmail ? (
                                                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
