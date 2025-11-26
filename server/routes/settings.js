@@ -205,12 +205,10 @@ router.post('/email', async (req, res) => {
   }
 });
 // GET /email/google-auth - returns Google OAuth URL
-router.get('/email/google-auth', async (req, res) => {
+router.get('/email/google-auth', (req, res) => {
   try {
-    const { companyId } = req.query;
-    if (!companyId) return res.status(400).json({ message: 'companyId required' });
-
     const oauth2Client = createOAuthClient();
+
     const scopes = [
       'https://www.googleapis.com/auth/gmail.send',
       'https://www.googleapis.com/auth/userinfo.email',

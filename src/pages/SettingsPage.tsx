@@ -433,18 +433,18 @@ const SettingsPage: React.FC = () => {
     };
 
     const handleTestEmail = async () => {
-        if (!settings.email.enabled || !settings.email.email) {
-            setMessage({ type: 'error', text: 'Connect Google account first.' });
-            return;
-        }
+        if (!currentUser?.companyId || !settings.email.email) return;
         setTestingEmail(true);
         try {
             await axios.post(`${address}/api/settings/email/test`, {
-                companyId: currentUser?.companyId,
+                companyId: currentUser.companyId,
+                to: currentUser.email,
+                subject: 'Test Email from Task Management System',
+                text: 'This is a test email to verify your Gmail configuration. Your email settings are working correctly!'
             });
-            setMessage({ type: 'success', text: 'Test email sent!' });
-        } catch (err) {
-            setMessage({ type: 'error', text: 'Test email failed.' });
+            setMessage({ type: 'success', text: 'Test email sent successfully! Check your inbox.' });
+        } catch (error: any) {
+            setMessage({ type: 'error', text: error.response?.data?.message || 'Failed to send test email' });
         } finally {
             setTestingEmail(false);
         }
@@ -1168,12 +1168,21 @@ const SettingsPage: React.FC = () => {
 
                                     <div className="flex space-x-4">
                                         <button
-                                            onClick={handleTestEmail}  // Or whatever the handler is
-                                            disabled={!settings.email.enabled || !settings.email.email}
-                                            className="px-4 py-2 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-secondary)] text-sm font-semibold text-white shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                                            onClick={handleTestEmail}
+                                            disabled={
+                                                !settings.email.email ||
+                                                !settings.email.appPassword ||
+                                                testingEmail ||
+                                                !emailEnabled
+                                            }
+                                            className="px-6 py-3 bg-[var(--color-primary)] hover:bg-[var(--color-secondary)] disabled:bg-[var(--color-border)] text-[var(--color-background)] rounded-xl font-medium transition-colors flex items-center"
                                         >
-                                            {testingEmail ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
-                                            Send Test Email
+                                            {testingEmail ? (
+                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                            ) : (
+                                                <Send className="h-4 w-4 mr-2" />
+                                            )}
+                                            Test Email Configuration
                                         </button>
                                     </div>
                                 </div>
