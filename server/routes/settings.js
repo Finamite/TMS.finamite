@@ -229,11 +229,9 @@ router.get('/email/google-auth', (req, res) => {
 });
 
 // GET /google/callback - Google redirects here after user consents
-// The frontend should open the auth URL in a popup and this endpoint will store tokens and close the popup.
 router.get('/google/callback', async (req, res) => {
   try {
     const { code, state } = req.query;
-    // `state` will be used to pass companyId from frontend (we append it on client)
     const companyId = state || req.query.companyId;
 
     if (!code || !companyId) {
@@ -242,47 +240,46 @@ router.get('/google/callback', async (req, res) => {
 
     const oauth2Client = createOAuthClient();
 
+    // 1️⃣ Exchange code for tokens
     const { tokens } = await oauth2Client.getToken(String(code));
     oauth2Client.setCredentials(tokens);
 
-    // Use Google OAuth2 API to fetch the authenticated user's email
+    // 2️⃣ Get Google user email
     const oauth2 = google.oauth2({ auth: oauth2Client, version: 'v2' });
     const userinfo = await oauth2.userinfo.get();
-
     const userEmail = userinfo?.data?.email || '';
 
-    // Save tokens into Settings (do not expose these in GET)
-    const settings = await Settings.findOneAndUpdate(
-      { type: 'email', companyId: String(companyId) },
-      {
-        $set: {
-          data: {
-            ...settings?.data,
-            enabled: true,
-            email: userEmail,
-            googleTokens: tokens
-          }
-        }
-      },
+    // 3️⃣ Fetch existing settings FIRST
+    const existing = await Settings.findOne({ type: 'email', companyId });
+
+    // 4️⃣ Merge token + preserve automation fields
+    const updatedData = {
+      ...(existing?.data || {}),
+      enabled: true,
+      email: userEmail,
+      googleTokens: tokens
+    };
+
+    // 5️⃣ Save into DB
+    await Settings.findOneAndUpdate(
+      { type: 'email', companyId },
+      { $set: { data: updatedData } },
       { upsert: true, new: true }
     );
 
-    // Notify opener (frontend) and close popup
-    // small HTML page that posts message to parent and closes
+    // 6️⃣ Close popup and notify frontend
     res.send(`
       <html>
         <body>
           <script>
-            try {
-              window.opener.postMessage({ type: 'googleConnected' }, '*');
-            } catch(e) {}
-            // show a tiny message then close
+            window.opener.postMessage({ type: 'googleConnected' }, '*');
             document.write('<p>Google connected. You can close this window.</p>');
-            setTimeout(function(){ window.close(); }, 800);
+            setTimeout(()=>window.close(), 800);
           </script>
         </body>
       </html>
     `);
+
   } catch (error) {
     console.error('Google callback error:', error);
     res.status(500).json({ message: 'Google authentication failed', error: String(error) });
