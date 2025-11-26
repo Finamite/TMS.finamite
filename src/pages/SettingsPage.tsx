@@ -161,11 +161,12 @@ const SettingsPage: React.FC = () => {
         const handleGoogleMessage = (event: any) => {
             if (event.data?.type === "googleConnected") {
                 fetchSettings().then(() => {
+                    // ⭐ Ensure UI toggle immediately shows enabled
                     setSettings(prev => ({
                         ...prev,
                         email: {
                             ...prev.email,
-                            enabled: true   // ⭐ FORCE UI TO REFLECT DB
+                            enabled: true
                         }
                     }));
                 });
@@ -303,6 +304,7 @@ const SettingsPage: React.FC = () => {
                     email: {
                         ...prev.email,
                         ...emailRes.data,
+                        enabled: emailRes.data.enabled ?? true,
                         // Set defaults for new fields if not present
                         sendOnTaskCreate: emailRes.data.sendOnTaskCreate ?? true,
                         sendOnTaskComplete: emailRes.data.sendOnTaskComplete ?? false,
