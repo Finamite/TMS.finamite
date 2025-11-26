@@ -183,13 +183,11 @@ router.post('/email', async (req, res) => {
     const { companyId, ...settingsData } = req.body;
     if (!companyId) return res.status(400).json({ message: 'companyId required' });
 
-    // Keep existing googleTokens if present in DB; don't overwrite tokens from frontend
     const existing = await Settings.findOne({ type: 'email', companyId });
-    const tokens = existing?.data?.googleTokens;
 
     const newData = {
-      ...settingsData,
-      ...(tokens ? { googleTokens: tokens } : {})
+      ...existing?.data,  // ← preserve Google tokens + automation
+      ...settingsData     // ← update UI fields (sendOnTaskCreate etc)
     };
 
     const settings = await Settings.findOneAndUpdate(
@@ -198,15 +196,14 @@ router.post('/email', async (req, res) => {
       { upsert: true, new: true }
     );
 
-    const safeData = { ...settings.data };
-    if (safeData.googleTokens) delete safeData.googleTokens;
-    res.json({ message: 'Email settings saved successfully', data: safeData });
+    const safe = { ...settings.data };
+    delete safe.googleTokens;
+
+    res.json({ message: 'Email settings saved successfully', data: safe });
   } catch (error) {
-    console.error('Error saving email settings:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
-
 // GET /email/google-auth - returns Google OAuth URL
 router.get('/email/google-auth', (req, res) => {
   try {
@@ -260,6 +257,7 @@ router.get('/google/callback', async (req, res) => {
       {
         $set: {
           data: {
+            ...settings?.data,
             enabled: true,
             email: userEmail,
             googleTokens: tokens
