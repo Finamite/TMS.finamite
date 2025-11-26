@@ -11,17 +11,17 @@ const getDailyTaskDates = (startDate, endDate, includeSunday, weekOffDays = []) 
   const dates = [];
   const current = new Date(startDate);
   const end = new Date(endDate);
-  
+
   while (current <= end) {
     const dayOfWeek = current.getDay();
-    
-   if ((!weekOffDays.includes(dayOfWeek)) && (includeSunday || dayOfWeek !== 0)) {
-  dates.push(new Date(current));
-}
-    
+
+    if ((!weekOffDays.includes(dayOfWeek)) && (includeSunday || dayOfWeek !== 0)) {
+      dates.push(new Date(current));
+    }
+
     current.setDate(current.getDate() + 1); // Move to the next day
   }
-  
+
   return dates;
 };
 
@@ -30,17 +30,17 @@ const getWeeklyTaskDates = (startDate, endDate, selectedDays, weekOffDays = []) 
   const dates = [];
   const current = new Date(startDate);
   const end = new Date(endDate);
-  
+
   while (current <= end) {
     const dayOfWeek = current.getDay();
-    
+
     if (selectedDays.includes(dayOfWeek) && !weekOffDays.includes(dayOfWeek)) {
       dates.push(new Date(current));
     }
-    
+
     current.setDate(current.getDate() + 1);
   }
-  
+
   return dates;
 };
 
@@ -50,20 +50,20 @@ const getMonthlyTaskDates = (startDate, endDate, monthlyDay, includeSunday, week
   const dates = [];
   const start = new Date(startDate);
   const end = new Date(endDate);
-  
+
   // Start from the first day of the start month
   const current = new Date(start.getFullYear(), start.getMonth(), 1);
-  
+
   while (current <= end) {
     // Set to the target day of month
     let targetDate = new Date(current.getFullYear(), current.getMonth(), monthlyDay);
-    
+
     // Handle case where monthlyDay doesn't exist in this month (e.g., Feb 30th)
     if (targetDate.getMonth() !== current.getMonth()) {
       // If the day is out of bounds for the current month, set to the last day of the month
       targetDate = new Date(current.getFullYear(), current.getMonth() + 1, 0);
     }
-    
+
     // Check if the target date is within our overall date range
     if (targetDate >= start && targetDate <= end) {
       // Handle Sunday exclusion
@@ -81,10 +81,10 @@ const getMonthlyTaskDates = (startDate, endDate, monthlyDay, includeSunday, week
         dates.push(new Date(targetDate));
       }
     }
-    
+
     current.setMonth(current.getMonth() + 1); // Move to the next month
   }
-  
+
   return dates;
 };
 
@@ -92,12 +92,12 @@ const getMonthlyTaskDates = (startDate, endDate, monthlyDay, includeSunday, week
 const getQuarterlyTaskDates = (startDate, includeSunday = true, weekOffDays = []) => {
   const dates = [];
   const start = new Date(startDate);
-  
+
   // Create 4 quarterly tasks (every 3 months)
   for (let i = 0; i < 4; i++) {
     const quarterlyDate = new Date(start);
     quarterlyDate.setMonth(start.getMonth() + (i * 3)); // Add 3 months for each quarter
-    
+
     // Handle Sunday exclusion
     if (!includeSunday && quarterlyDate.getDay() === 0) { // 0 is Sunday
       quarterlyDate.setDate(quarterlyDate.getDate() - 1); // Move to Saturday
@@ -107,10 +107,10 @@ const getQuarterlyTaskDates = (startDate, includeSunday = true, weekOffDays = []
     while (weekOffDays.includes(quarterlyDate.getDay())) {
       quarterlyDate.setDate(quarterlyDate.getDate() - 1);
     }
-    
+
     dates.push(quarterlyDate);
   }
-  
+
   return dates;
 };
 
@@ -118,11 +118,11 @@ const getQuarterlyTaskDates = (startDate, includeSunday = true, weekOffDays = []
 const getYearlyTaskDates = (startDate, yearlyDuration, includeSunday = true, weekOffDays = []) => {
   const dates = [];
   const start = new Date(startDate);
-  
+
   for (let i = 0; i < yearlyDuration; i++) {
     const yearlyDate = new Date(start);
     yearlyDate.setFullYear(start.getFullYear() + i); // Increment year
-    
+
     // Handle Sunday exclusion
     if (!includeSunday && yearlyDate.getDay() === 0) { // 0 is Sunday
       yearlyDate.setDate(yearlyDate.getDate() - 1); // Move to Saturday
@@ -132,10 +132,10 @@ const getYearlyTaskDates = (startDate, yearlyDuration, includeSunday = true, wee
     while (weekOffDays.includes(yearlyDate.getDay())) {
       yearlyDate.setDate(yearlyDate.getDate() - 1);
     }
-    
+
     dates.push(yearlyDate);
   }
-  
+
   return dates;
 };
 
@@ -290,7 +290,7 @@ router.get('/', async (req, res) => {
         query.taskType = taskType;
       }
     }
-    
+
     if (status) {
       if (status.includes(',')) {
         query.status = { $in: status.split(',') };
@@ -298,7 +298,7 @@ router.get('/', async (req, res) => {
         query.status = status;
       }
     }
-    
+
     if (assignedTo) query.assignedTo = assignedTo;
     if (assignedBy) query.assignedBy = assignedBy;
     if (priority) query.priority = priority;
@@ -449,9 +449,9 @@ router.get('/master-recurring', async (req, res) => {
     if (priority) matchStage.priority = priority;
 
     if (dateFrom && dateTo) {
-      matchStage.dueDate = { 
-        $gte: new Date(dateFrom), 
-        $lte: new Date(dateTo) 
+      matchStage.dueDate = {
+        $gte: new Date(dateFrom),
+        $lte: new Date(dateTo)
       };
     }
 
@@ -499,13 +499,13 @@ router.get('/master-recurring', async (req, res) => {
         description: { $first: '$description' },
         taskType: { $first: '$taskType' },
         priority: { $first: '$priority' },
-        assignedBy: { 
+        assignedBy: {
           $first: {
             username: '$assignedByUser.username',
             email: '$assignedByUser.email'
           }
         },
-        assignedTo: { 
+        assignedTo: {
           $first: {
             _id: '$assignedToUser._id',
             username: '$assignedToUser.username',
@@ -603,7 +603,7 @@ router.get('/recurring-instances', async (req, res) => {
       companyId
     } = req.query;
 
-    const query = { 
+    const query = {
       isActive: true,
       taskType: { $in: ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'] }
     };
@@ -621,7 +621,7 @@ router.get('/recurring-instances', async (req, res) => {
         query.taskType = taskType;
       }
     }
-    
+
     if (status) {
       if (status.includes(',')) {
         query.status = { $in: status.split(',') };
@@ -629,7 +629,7 @@ router.get('/recurring-instances', async (req, res) => {
         query.status = status;
       }
     }
-    
+
     if (assignedTo) query.assignedTo = assignedTo;
     if (assignedBy) query.assignedBy = assignedBy;
     if (priority) query.priority = priority;
@@ -790,7 +790,7 @@ router.post('/create-scheduled', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const taskData = req.body;
-    
+
     // Validate companyId is provided (except for superadmin)
     if (!taskData.companyId && taskData.assignedBy) {
       const assignedByUser = await User.findById(taskData.assignedBy);
@@ -798,7 +798,7 @@ router.post('/', async (req, res) => {
         return res.status(400).json({ message: 'Company ID is required for task creation' });
       }
     }
-    
+
     // If 'isForever' is true for a non-scheduled endpoint, set an arbitrary end date
     // This part might need re-evaluation if this endpoint is only for one-time tasks
     // or if scheduled tasks are exclusively created via /create-scheduled
@@ -833,7 +833,7 @@ router.put('/:id', async (req, res) => {
   try {
     const { companyId } = req.query;
     const updateQuery = { _id: req.params.id };
-    
+
     // Add company filter for security
     if (companyId) {
       updateQuery.companyId = companyId;
@@ -844,7 +844,7 @@ router.put('/:id', async (req, res) => {
       req.body, // req.body should now correctly include the attachments array if it's being updated
       { new: true } // Return the updated document
     ).populate('assignedBy', 'username email companyId')
-     .populate('assignedTo', 'username email companyId');
+      .populate('assignedTo', 'username email companyId');
 
     if (!task) {
       return res.status(404).json({ message: 'Task not found' });
@@ -862,7 +862,7 @@ router.post('/:id/complete', async (req, res) => {
   try {
     const { completionRemarks, completionAttachments, companyId, userId } = req.body;
     const findQuery = { _id: req.params.id };
-    
+
     // Add company filter for security
     if (companyId) {
       findQuery.companyId = companyId;
@@ -877,15 +877,15 @@ router.post('/:id/complete', async (req, res) => {
     // 1. Mark the current task instance as completed
     task.status = 'completed';
     task.completedAt = new Date();
-    
+
     if (completionRemarks && completionRemarks.trim()) {
       task.completionRemarks = completionRemarks.trim();
     }
-    
+
     if (completionAttachments && completionAttachments.length > 0) {
       task.completionAttachments = completionAttachments;
     }
-    
+
     task.lastCompletedDate = new Date(); // Record when this instance was completed
 
     // SAVE TASK FIRST
@@ -907,6 +907,9 @@ router.post('/:id/complete', async (req, res) => {
 
       // Get user who completed the task
       const completingUser = userId ? await User.findById(userId) : null;
+      const assignedToUser = await User.findById(task.assignedTo);
+
+      const completedByName = completingUser?.username || assignedToUser?.username || 'Unknown User';
 
       const subject = `Task Completed: ${task.title}`;
       const text = `
@@ -915,8 +918,8 @@ The following task has been completed:
 Title: ${task.title}
 Description: ${task.description}
 
-Completed by: ${completingUser?.username || 'Unknown User'}
-Completed at: ${new Date().toLocaleString()}
+Completed by: ${assignedToUser?.username || 'Unknown User'}
+Completed at: ${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
 
 ${completionRemarks ? `Completion Remarks: ${completionRemarks}` : ''}
 
@@ -999,7 +1002,7 @@ router.post('/:id/revise', async (req, res) => {
     }
 
     // 4️⃣ Determine Base Date
-    const baseDate = task.lastPlannedDate 
+    const baseDate = task.lastPlannedDate
       ? new Date(task.lastPlannedDate)
       : new Date(task.dueDate);
 
@@ -1047,15 +1050,18 @@ router.post('/:id/revise', async (req, res) => {
 
       // Get user who requested the revision
       const revisingUser = userId ? await User.findById(userId) : null;
+const assignedToUser = await User.findById(task.assignedTo);
 
-      const subject = `Task Revision Requested: ${task.title}`;
+const requestedByName = revisingUser?.username || assignedToUser?.username || 'Unknown User';
+
+      const subject = `Task Revision Updated: ${task.title}`;
       const text = `
-A task revision has been requested:
+A task revision has been updated:
 
 Title: ${task.title}
 Description: ${task.description}
 
-User: ${revisingUser?.username || 'Unknown User'}
+User: ${assignedToUser?.username || 'Unknown User'}
 Revision Count: ${task.revisionCount}
 
 ${remarks ? `Revision Remarks: ${remarks}` : ''}
@@ -1139,8 +1145,8 @@ router.put('/reschedule/:taskGroupId', async (req, res) => {
     const startDate = cfg.startDate
       ? new Date(cfg.startDate)
       : (existingParent.originalStartDate
-          ? new Date(existingParent.originalStartDate)
-          : new Date(tasks[0].dueDate));
+        ? new Date(existingParent.originalStartDate)
+        : new Date(tasks[0].dueDate));
 
     let endDate;
     if (cfg.isForever) {
@@ -1154,8 +1160,8 @@ router.put('/reschedule/:taskGroupId', async (req, res) => {
       endDate = cfg.endDate
         ? new Date(cfg.endDate)
         : (existingParent.originalEndDate
-            ? new Date(existingParent.originalEndDate)
-            : new Date(tasks[tasks.length - 1].dueDate));
+          ? new Date(existingParent.originalEndDate)
+          : new Date(tasks[tasks.length - 1].dueDate));
     }
 
     // 4️⃣ Config values
@@ -1290,7 +1296,7 @@ router.delete('/:id', async (req, res) => {
   try {
     const { companyId } = req.query;
     const updateQuery = { _id: req.params.id };
-    
+
     // Add company filter for security
     if (companyId) {
       updateQuery.companyId = companyId;
