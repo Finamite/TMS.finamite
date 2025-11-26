@@ -13,9 +13,6 @@ const {
 } = process.env;
 
 if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_REDIRECT_URI) {
-  console.warn(
-    'WARNING: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET or GOOGLE_REDIRECT_URI not set in env. Google OAuth will not work until these are configured.'
-  );
 }
 
 // Helper to create a new OAuth2 client
@@ -297,7 +294,15 @@ router.get('/google/callback', async (req, res) => {
 // POST /email/test - send a test email using Gmail API and stored tokens
 router.post('/email/test', async (req, res) => {
   try {
-    const { companyId, to, subject, text } = req.body;
+    const admin = await User.findOne({
+      companyId,
+      role: "admin",
+      isActive: true
+    });
+
+    const to = admin.email;
+    const subject = "Test Email - System Working";
+    const text = "Your Gmail integration is working successfully!";
     if (!companyId || !to || !subject || !text) {
       return res.status(400).json({ message: 'Missing required fields' });
     }

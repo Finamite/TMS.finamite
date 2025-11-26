@@ -173,15 +173,6 @@ const SettingsPage: React.FC = () => {
         try {
             setGoogleLoading(true);
 
-            const res = await axios.get(`${address}/api/settings/email/google-auth`);
-            const authUrl = res.data.url + `&state=${currentUser.companyId}`;
-
-            const popup = window.open(
-                authUrl,
-                "_blank",
-                "width=500,height=650"
-            );
-
         } catch (err) {
             console.error("Google auth error:", err);
         } finally {
@@ -190,9 +181,12 @@ const SettingsPage: React.FC = () => {
     };
 
     const disconnectGoogle = async () => {
+        const companyId = currentUser?.companyId;
+        if (!companyId) return;
+
         try {
             await axios.post(`${address}/api/settings/email/disconnect`, {
-                companyId: currentUser.companyId
+                companyId
             });
             fetchSettings();
         } catch (err) {
@@ -552,7 +546,7 @@ const SettingsPage: React.FC = () => {
         <div className="min-h-screen bg-gradient-to-br from-[var(--color-background)] to-[var(--color-surface)] p-6">
             <div className="max-w-15xl mx-auto">
                 {/* Header */}
-                <div className="sticky top-0 z-50 bg-[var(--color-background)] bg-opacity-80 backdrop-blur-md 
+                <div className="sticky top-0 z-40 bg-[var(--color-background)] bg-opacity-80 backdrop-blur-md 
                 px-1 py-4 mb-6 border-b border-[var(--color-border)] flex items-center justify-between">
 
                     {/* LEFT SIDE */}

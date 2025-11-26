@@ -2,6 +2,7 @@ import express from 'express';
 import Task from '../models/Task.js';
 import User from '../models/User.js';
 import Settings from '../models/Settings.js';
+import { sendSystemEmail } from '../Utils/sendEmail.js';
 
 const router = express.Router();
 
@@ -637,95 +638,77 @@ router.post('/create-scheduled', async (req, res) => {
     }
 
     if (taskData.taskType === 'one-time') {
-      // For one-time tasks, just use the provided due date
       taskDates = [new Date(taskData.dueDate)];
     } else {
-      // Handle recurring tasks based on start/end dates or forever
       const startDate = new Date(taskData.startDate);
       let endDate;
 
       if (taskData.isForever) {
-        // If forever, set end date based on task type
         endDate = new Date(startDate);
         if (taskData.taskType === 'yearly') {
-          // For yearly tasks, use the configured duration
           endDate.setFullYear(endDate.getFullYear() + (taskData.yearlyDuration || 3));
         } else {
-          // For daily, weekly, monthly tasks, always use 1 year
           endDate.setFullYear(endDate.getFullYear() + 1);
         }
       } else {
         endDate = new Date(taskData.endDate);
       }
 
-      // Generate task dates based on task type
       switch (taskData.taskType) {
         case 'daily':
-  taskDates = getDailyTaskDates(startDate, endDate, taskData.includeSunday, taskData.weekOffDays);
-  break;
+          taskDates = getDailyTaskDates(startDate, endDate, taskData.includeSunday, taskData.weekOffDays);
+          break;
+
         case 'weekly':
-  taskDates = getWeeklyTaskDates(startDate, endDate, taskData.weeklyDays, taskData.weekOffDays);
-  break;
+          taskDates = getWeeklyTaskDates(startDate, endDate, taskData.weeklyDays, taskData.weekOffDays);
+          break;
 
         case 'monthly':
-  taskDates = getMonthlyTaskDates(startDate, endDate, taskData.monthlyDay || 1, taskData.includeSunday, taskData.weekOffDays);
-  break;
+          taskDates = getMonthlyTaskDates(startDate, endDate, taskData.monthlyDay || 1, taskData.includeSunday, taskData.weekOffDays);
+          break;
 
         case 'quarterly':
-  taskDates = getQuarterlyTaskDates(startDate, taskData.includeSunday, taskData.weekOffDays);
-  break;
+          taskDates = getQuarterlyTaskDates(startDate, taskData.includeSunday, taskData.weekOffDays);
+          break;
 
-       case 'yearly':
-  // For yearly tasks, use the exact yearlyDuration specified
-  if (taskData.isForever) {
-    // Use the specified yearlyDuration (3, 5, or 10 years)
-    taskDates = getYearlyTaskDates(
-      startDate,
-      taskData.yearlyDuration,
-      taskData.includeSunday,
-      taskData.weekOffDays || []
-    );
-  } else {
-    // Single yearly task
-    taskDates = getYearlyTaskDates(
-      startDate,
-      1,
-      taskData.includeSunday,
-      taskData.weekOffDays || []
-    );
-  }
-  break;
+        case 'yearly':
+          if (taskData.isForever) {
+            taskDates = getYearlyTaskDates(startDate, taskData.yearlyDuration, taskData.includeSunday, taskData.weekOffDays || []);
+          } else {
+            taskDates = getYearlyTaskDates(startDate, 1, taskData.includeSunday, taskData.weekOffDays || []);
+          }
+          break;
       }
     }
 
-    // Generate a unique task group ID for all related tasks in this series
+    // GROUP ID for recurring
     const taskGroupId = new Date().getTime().toString() + '-' + Math.random().toString(12).substr(2, 9);
 
-    // Create individual task documents for each generated date
+    // CREATE ALL TASK INSTANCES
     for (let i = 0; i < taskDates.length; i++) {
       const taskDate = taskDates[i];
+
       const individualTaskData = {
         title: taskData.title,
         description: taskData.description,
-        taskType: taskData.taskType, // Store the original recurring type
+        taskType: taskData.taskType,
         assignedBy: taskData.assignedBy,
         assignedTo: taskData.assignedTo,
         priority: taskData.priority,
-        dueDate: taskDate, // Set the specific due date for this instance
-        companyId: taskData.companyId, // Include company ID for proper filtering
-        attachments: taskData.attachments || [], // Pass attachments here
+        dueDate: taskDate,
+        companyId: taskData.companyId,
+        attachments: taskData.attachments || [],
         isActive: true,
-        status: 'pending', // New tasks are always pending
-        taskGroupId: taskGroupId, // Link to the recurring task series
-        sequenceNumber: i + 1, // Order within the series
-        // Store the full parent task info for calculating subsequent occurrences
+        status: 'pending',
+        taskGroupId: taskGroupId,
+        sequenceNumber: i + 1,
         parentTaskInfo: {
           originalStartDate: taskData.startDate,
           originalEndDate: taskData.endDate,
           isForever: taskData.isForever,
           includeSunday: taskData.includeSunday,
           weeklyDays: taskData.weeklyDays,
-           weekOffDays: taskData.weekOffDays || [],
+          weekOffDays: taskData.weekOffDays || [],
           monthlyDay: taskData.monthlyDay,
           yearlyDuration: taskData.yearlyDuration
         }
@@ -736,17 +719,64 @@ router.post('/create-scheduled', async (req, res) => {
       createdTasks.push(task);
     }
 
+    // -------------------------------------------------------
+    // ✅ EMAIL BLOCK — ADD IT RIGHT HERE (AFTER SAVING TASKS)
+    // -------------------------------------------------------
+    const emailSettings = await Settings.findOne({
+      type: "email",
+      companyId: taskData.companyId
+    });
+
+    if (emailSettings?.data?.sendOnTaskCreate) {
+      const assignedUser = await User.findById(taskData.assignedTo);
+
+      const isRecurring = taskData.taskType !== "one-time";
+
+      const subject = isRecurring
+        ? `New Recurring Task Assigned: ${taskData.title}`
+        : `New Task Assigned: ${taskData.title}`;
+
+      const text = isRecurring
+        ? `
+A new recurring task has been assigned to you:
+
+Title: ${taskData.title}
+Description: ${taskData.description}
+
+Start Date: ${taskData.startDate}
+End Date: ${taskData.endDate}
+
+Please check your Task Dashboard.
+`
+        : `
+A new task has been assigned to you.
+
+Title: ${taskData.title}
+Description: ${taskData.description}
+Due Date: ${taskData.dueDate}
+
+Please check your Task Dashboard.
+`;
+
+      await sendSystemEmail(taskData.companyId, assignedUser.email, subject, text);
+    }
+
+    // -------------------------------------------------------
+
+    // RESPONSE
     res.status(201).json({
       message: `Successfully created ${createdTasks.length} tasks`,
       tasksCreated: createdTasks.length,
       taskGroupId: taskGroupId,
-      tasks: createdTasks.slice(0, 5) // Return first 5 tasks as a sample
+      tasks: createdTasks.slice(0, 5)
     });
+
   } catch (error) {
     console.error('Error creating scheduled tasks:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
+
 
 // Create task (original endpoint - kept for backward compatibility for single task creation)
 router.post('/', async (req, res) => {
@@ -847,18 +877,58 @@ router.post('/:id/complete', async (req, res) => {
     
     task.lastCompletedDate = new Date(); // Record when this instance was completed
 
-    await task.save(); // Save the current task with its updated status and completion info
+    // SAVE TASK FIRST
+    await task.save();
 
+
+    // -----------------------------------------------------
+    // ✅ EMAIL: SEND ON TASK COMPLETION (INSERT HERE)
+    // -----------------------------------------------------
+    const emailSettings = await Settings.findOne({
+      type: "email",
+      companyId: task.companyId
+    });
+
+    if (emailSettings?.data?.sendOnTaskComplete) {
+
+      // Get all admins + managers of same company
+      const admins = await User.find({
+        companyId: task.companyId,
+        role: { $in: ["admin", "manager"] },
+        isActive: true
+      });
+
+      const subject = `Task Completed: ${task.title}`;
+      const text = `
+The following task has been completed:
+
+Title: ${task.title}
+Description: ${task.description}
+
+Completed by: ${req.user.username}
+Completed at: ${new Date().toLocaleString()}
+`;
+
+      for (const u of admins) {
+        await sendSystemEmail(task.companyId, u.email, subject, text);
+      }
+    }
+    // -----------------------------------------------------
+
+
+    // Populate for frontend response
     const populatedTask = await Task.findById(task._id)
       .populate('assignedBy', 'username email companyId')
       .populate('assignedTo', 'username email companyId');
 
-    res.json(populatedTask); // Respond with the completed task
+    res.json(populatedTask);
+
   } catch (error) {
     console.error('Error completing task:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
+
 
 // Revise task
 router.post('/:id/revise', async (req, res) => {
@@ -871,16 +941,13 @@ router.post('/:id/revise', async (req, res) => {
       return res.status(400).json({ message: "New revision date is required" });
     }
 
-    // Validate newDate is a valid date string
     const pickedDateTest = new Date(newDate);
     if (isNaN(pickedDateTest.getTime())) {
-      console.log('Invalid newDate format:', newDate); // Debug log - remove in production
+      console.log('Invalid newDate format:', newDate);
       return res.status(400).json({ message: "Invalid date format for new due date" });
     }
 
-    // -------------------------------
     // 1️⃣ Fetch Task
-    // -------------------------------
     const findQuery = { _id: req.params.id };
     if (companyId) findQuery.companyId = companyId;
 
@@ -889,9 +956,7 @@ router.post('/:id/revise', async (req, res) => {
       return res.status(404).json({ message: "Task not found" });
     }
 
-    // -------------------------------
-    // 2️⃣ Fetch Revision Settings (but only apply restrictions if enabled)
-    // -------------------------------
+    // 2️⃣ Fetch Revision Settings
     const revisionSettings = await Settings.findOne({
       type: "revision",
       companyId: task.companyId
@@ -901,35 +966,27 @@ router.post('/:id/revise', async (req, res) => {
     let limit = revisionSettings?.data?.limit ?? 3;
     let maxDays = revisionSettings?.data?.maxDays ?? 7;
 
-    // If revisions are disabled, bypass all restrictions (unlimited revisions, no day limits)
     if (!enableRevisions) {
-      limit = Infinity; // No limit
-      maxDays = Infinity; // No day restriction
+      limit = Infinity;
+      maxDays = Infinity;
     } else {
-      // Apply per-revision day rules only if enabled
       const enableDaysRule = revisionSettings?.data?.enableDaysRule ?? false;
       const days = revisionSettings?.data?.days || {};
-      
-      // Use index starting from 1 for revisions (0 is initial)
       const revisionIndex = task.revisionCount + 1;
-      
+
       if (enableDaysRule && days[revisionIndex] !== undefined && days[revisionIndex] !== null) {
         maxDays = days[revisionIndex];
       }
-      // If days[revisionIndex] is null/undefined, fallback to maxDays (already set)
     }
-    // -------------------------------
-    // 3️⃣ Check Revision Limit (skip if disabled)
-    // -------------------------------
+
+    // 3️⃣ Check Revision Limit
     if (enableRevisions && task.revisionCount >= limit) {
       return res.status(400).json({
         message: `Maximum ${limit} revisions allowed`
       });
     }
 
-    // -------------------------------
     // 4️⃣ Determine Base Date
-    // -------------------------------
     const baseDate = task.lastPlannedDate 
       ? new Date(task.lastPlannedDate)
       : new Date(task.dueDate);
@@ -939,18 +996,14 @@ router.post('/:id/revise', async (req, res) => {
 
     const pickedDate = new Date(newDate);
 
-    // -------------------------------
-    // 5️⃣ Validate Selected Date Range (skip if disabled)
-    // -------------------------------
+    // 5️⃣ Validate Selected Date Range
     if (enableRevisions && pickedDate > allowedMaxDate) {
       return res.status(400).json({
         message: `You can only revise up to ${maxDays} days from the planned date`
       });
     }
 
-    // -------------------------------
-    // 6️⃣ Save Revision History (always save, even if disabled)
-    // -------------------------------
+    // 6️⃣ Save Revision History
     const oldDate = task.dueDate;
 
     task.revisions.push({
@@ -960,18 +1013,49 @@ router.post('/:id/revise', async (req, res) => {
       revisedBy
     });
 
-    // -------------------------------
-    // 7️⃣ Update Task Fields (always update, even if disabled)
-    // -------------------------------
+    // 7️⃣ Update Task Fields
     task.revisionCount += 1; // Increment even if disabled (for tracking)
     task.dueDate = pickedDate;
     task.lastPlannedDate = pickedDate; // Next revision starts from this
 
     await task.save();
 
-    // -------------------------------
+    // -----------------------------------------------------
+    // ✅ EMAIL: SEND ON TASK REVISION (INSERTED HERE)
+    // -----------------------------------------------------
+    const emailSettings = await Settings.findOne({
+      type: "email",
+      companyId: task.companyId
+    });
+
+    if (emailSettings?.data?.sendOnTaskRevision) {
+      const admins = await User.find({
+        companyId: task.companyId,
+        role: { $in: ["admin", "manager"] },
+        isActive: true
+      });
+
+      const subject = `Task Revision Requested: ${task.title}`;
+      const text = `
+A task revision has been taken:
+
+Title: ${task.title}
+Description: ${task.description}
+
+User: ${req.user?.username || revisedBy || 'Unknown'}
+Revision Count: ${task.revisionCount}
+
+Please review the revision.
+`;
+
+      for (const u of admins) {
+        // sendSystemEmail(companyId, to, subject, text)
+        await sendSystemEmail(task.companyId, u.email, subject, text);
+      }
+    }
+    // -----------------------------------------------------
+
     // 8️⃣ Populate and Return Updated Task
-    // -------------------------------
     const result = await Task.findById(task._id)
       .populate("assignedBy", "username email companyId")
       .populate("assignedTo", "username email companyId")
@@ -987,6 +1071,7 @@ router.post('/:id/revise', async (req, res) => {
     });
   }
 });
+
 
 // PUT /api/tasks/reschedule/:taskGroupId
 router.put('/reschedule/:taskGroupId', async (req, res) => {

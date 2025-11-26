@@ -20,7 +20,9 @@ const Login: React.FC = () => {
     setIsLoading(true);
     setError('');
 
-    const success = await login(email, password);
+    const cleanedEmail = email.trim().toLowerCase();
+  
+    const success = await login(cleanedEmail, password);
 
     if (!success) {
       setError('Invalid email or password');

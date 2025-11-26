@@ -6,10 +6,15 @@ const router = express.Router();
 // Login
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    let { email, password } = req.body;
 
-    // Find user
-    const user = await User.findOne({ email, isActive: true });
+    // Normalize email
+    email = email.trim().toLowerCase();
+
+    const user = await User.findOne({
+      email: email,
+      isActive: true
+    });
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
@@ -18,7 +23,7 @@ router.post('/login', async (req, res) => {
     if (user.role !== 'superadmin' && user.companyId) {
       const Company = (await import('../models/Company.js')).default;
       const company = await Company.findOne({ companyId: user.companyId });
-      
+
       if (!company || !company.isActive) {
         return res.status(401).json({ message: 'Company account is inactive. Please contact support.' });
       }

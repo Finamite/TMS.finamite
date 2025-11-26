@@ -592,7 +592,7 @@ const PendingTasks: React.FC = () => {
                     </button>
                   )}
                 </h3>
-                <div className="flex space-x-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex space-x-1 ml-2 group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={() => setShowCompleteModal(task._id)}
                     className="p-2 rounded-lg transition-all transform hover:scale-110 hover:bg-[--color-success] hover:text-[--color-background] text-[--color-success]"

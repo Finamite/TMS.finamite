@@ -34,6 +34,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const [subTab, setSubTab] = useState<'today' | 'overdue'>('today');
 
   const canViewAll = user?.permissions?.canViewAllTeamTasks;
+  const canAssignTasks = user?.permissions?.canAssignTasks;
 
   /* ---------------- DATE HELPERS ------------------ */
   const normalize = (date: string | Date) => {
@@ -203,9 +204,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
             )}
           </button>
 
-         {notifOpen && (
-  <div
-    className={`
+          {notifOpen && (
+            <div
+              className={`
       z-50
 
       /* DESKTOP: attach to bell */
@@ -220,9 +221,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
       max-sm:-translate-x-1/2
       max-sm:mt-0
     `}
-  >
-    <div
-      className="
+            >
+              <div
+                className="
         rounded-2xl shadow-2xl border
 
         /* Desktop width */
@@ -231,257 +232,255 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
         /* Mobile width */
         max-sm:w-[92vw]
       "
-      style={{
-        background: "var(--color-background)",
-        borderColor: "var(--color-border)",
-        animation: "notifDrop .25s ease-out",
-        pointerEvents: "auto"
-      }}
-    >
-      <style>{`
+                style={{
+                  background: "var(--color-background)",
+                  borderColor: "var(--color-border)",
+                  animation: "notifDrop .25s ease-out",
+                  pointerEvents: "auto"
+                }}
+              >
+                <style>{`
         @keyframes notifDrop {
           0% { opacity: 0; transform: translateY(-8px) scale(.95); }
           100% { opacity: 1; transform: translateY(0) scale(1); }
         }
       `}</style>
 
-      {/* HEADER */}
-      <div
-        className="p-4 border-b flex items-center justify-between"
-        style={{ borderColor: "var(--color-border)" }}
-      >
-        <div className="flex items-center gap-2">
-          <Clock size={18} className="text-[var(--color-primary)]" />
-          <div>
-            <p className="font-semibold text-[var(--color-text)] text-sm">
-              Task Notifications
-            </p>
-            <p className="text-xs text-[var(--color-textSecondary)]">
-              Today & Overdue
-            </p>
-          </div>
-        </div>
+                {/* HEADER */}
+                <div
+                  className="p-4 border-b flex items-center justify-between"
+                  style={{ borderColor: "var(--color-border)" }}
+                >
+                  <div className="flex items-center gap-2">
+                    <Clock size={18} className="text-[var(--color-primary)]" />
+                    <div>
+                      <p className="font-semibold text-[var(--color-text)] text-sm">
+                        Task Notifications
+                      </p>
+                      <p className="text-xs text-[var(--color-textSecondary)]">
+                        Today & Overdue
+                      </p>
+                    </div>
+                  </div>
 
-        <span className="text-xs text-[var(--color-textSecondary)]">
-          {initialLoading ? "Loading..." : `${totalCount} tasks`}
-        </span>
-      </div>
+                  <span className="text-xs text-[var(--color-textSecondary)]">
+                    {initialLoading ? "Loading..." : `${totalCount} tasks`}
+                  </span>
+                </div>
 
-      {/* TOP TABS */}
-      <div
-        className="
+                {/* TOP TABS */}
+                <div
+                  className="
           px-4 mt-3 
           grid grid-cols-2 gap-3
           max-[600px]:grid-cols-1
         "
-      >
-        {/* ONE-TIME */}
-        <button
-          onClick={() => { setMainTab("one"); setSubTab("today"); }}
-          className="relative w-full py-2 flex flex-col items-center"
-        >
-          <div className="flex items-center gap-1">
-            <span className={`text-sm font-semibold ${
-              mainTab === "one"
-                ? "text-[var(--color-primary)]"
-                : "text-[var(--color-textSecondary)]"
-            }`}>
-              One-Time
-            </span>
+                >
+                  {/* ONE-TIME */}
+                  <button
+                    onClick={() => { setMainTab("one"); setSubTab("today"); }}
+                    className="relative w-full py-2 flex flex-col items-center"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span className={`text-sm font-semibold ${mainTab === "one"
+                          ? "text-[var(--color-primary)]"
+                          : "text-[var(--color-textSecondary)]"
+                        }`}>
+                        One-Time
+                      </span>
 
-            <span
-              className={`
+                      <span
+                        className={`
                 text-xs font-semibold px-2 py-[2px] rounded-full
                 ${mainTab === "one"
-                  ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
-                  : "bg-[var(--color-surface)] text-[var(--color-textSecondary)] border border-[var(--color-border)]"
-                }
+                            ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
+                            : "bg-[var(--color-surface)] text-[var(--color-textSecondary)] border border-[var(--color-border)]"
+                          }
               `}
-            >
-              {oneTimeTotal}
-            </span>
-          </div>
+                      >
+                        {oneTimeTotal}
+                      </span>
+                    </div>
 
-          <div
-            className={`
+                    <div
+                      className={`
               h-[2px] w-full mt-2 rounded-full transition-all
               ${mainTab === "one"
-                ? "bg-[var(--color-primary)] scale-100"
-                : "bg-transparent scale-0"}
+                          ? "bg-[var(--color-primary)] scale-100"
+                          : "bg-transparent scale-0"}
             `}
-          />
-        </button>
+                    />
+                  </button>
 
-        {/* RECURRING */}
-        <button
-          onClick={() => { setMainTab("rec"); setSubTab("today"); }}
-          className="relative w-full py-2 flex flex-col items-center"
-        >
-          <div className="flex items-center gap-1">
-            <span className={`text-sm font-semibold ${
-              mainTab === "rec"
-                ? "text-[var(--color-primary)]"
-                : "text-[var(--color-textSecondary)]"
-            }`}>
-              Recurring
-            </span>
+                  {/* RECURRING */}
+                  <button
+                    onClick={() => { setMainTab("rec"); setSubTab("today"); }}
+                    className="relative w-full py-2 flex flex-col items-center"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span className={`text-sm font-semibold ${mainTab === "rec"
+                          ? "text-[var(--color-primary)]"
+                          : "text-[var(--color-textSecondary)]"
+                        }`}>
+                        Recurring
+                      </span>
 
-            <span
-              className={`
+                      <span
+                        className={`
                 text-xs font-semibold px-2 py-[2px] rounded-full
                 ${mainTab === "rec"
-                  ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
-                  : "bg-[var(--color-surface)] text-[var(--color-textSecondary)] border border-[var(--color-border)]"
-                }
+                            ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
+                            : "bg-[var(--color-surface)] text-[var(--color-textSecondary)] border border-[var(--color-border)]"
+                          }
               `}
-            >
-              {recTotal}
-            </span>
-          </div>
+                      >
+                        {recTotal}
+                      </span>
+                    </div>
 
-          <div
-            className={`
+                    <div
+                      className={`
               h-[2px] w-full mt-2 rounded-full transition-all
               ${mainTab === "rec"
-                ? "bg-[var(--color-primary)] scale-100"
-                : "bg-transparent scale-0"}
+                          ? "bg-[var(--color-primary)] scale-100"
+                          : "bg-transparent scale-0"}
             `}
-          />
-        </button>
-      </div>
+                    />
+                  </button>
+                </div>
 
-      {/* DIVIDER */}
-      <div className="px-4 py-2">
-        <div className="w-full h-[1px]" style={{ background: "var(--color-border)" }} />
-      </div>
+                {/* DIVIDER */}
+                <div className="px-4 py-2">
+                  <div className="w-full h-[1px]" style={{ background: "var(--color-border)" }} />
+                </div>
 
-      {/* SECOND TABS */}
-      <div
-        className="
+                {/* SECOND TABS */}
+                <div
+                  className="
           px-4 mt-1 
           grid grid-cols-2 gap-3
           max-[600px]:grid-cols-1
         "
-      >
-        {/* TODAY */}
-        <button
-          onClick={() => setSubTab("today")}
-          className="relative w-full py-2 rounded-full border text-sm font-medium"
-          style={{
-            color: subTab === "today" ? "var(--color-accent)" : "var(--color-textSecondary)",
-            borderColor: subTab === "today" ? "var(--color-accent)" : "var(--color-border)",
-            background: subTab === "today" ? "var(--color-accent)/10" : "transparent",
-          }}
-        >
-          Today / Daily
-          <span className="
+                >
+                  {/* TODAY */}
+                  <button
+                    onClick={() => setSubTab("today")}
+                    className="relative w-full py-2 rounded-full border text-sm font-medium"
+                    style={{
+                      color: subTab === "today" ? "var(--color-accent)" : "var(--color-textSecondary)",
+                      borderColor: subTab === "today" ? "var(--color-accent)" : "var(--color-border)",
+                      background: subTab === "today" ? "var(--color-accent)/10" : "transparent",
+                    }}
+                  >
+                    Today / Daily
+                    <span className="
             absolute -top-1 -right-1
             text-[10px] font-semibold text-white
             bg-[var(--color-accent)]
             px-2 py-[2px] rounded-full shadow
           ">
-            {currentTodayCount}
-          </span>
-        </button>
+                      {currentTodayCount}
+                    </span>
+                  </button>
 
-        {/* OVERDUE */}
-        <button
-          onClick={() => setSubTab("overdue")}
-          className="relative w-full py-2 rounded-full border text-sm font-medium"
-          style={{
-            color: subTab === "overdue" ? "var(--color-error)" : "var(--color-textSecondary)",
-            borderColor: subTab === "overdue" ? "var(--color-error)" : "var(--color-border)",
-            background: subTab === "overdue" ? "var(--color-error)/10" : "transparent",
-          }}
-        >
-          Overdue
-          <span className="
+                  {/* OVERDUE */}
+                  <button
+                    onClick={() => setSubTab("overdue")}
+                    className="relative w-full py-2 rounded-full border text-sm font-medium"
+                    style={{
+                      color: subTab === "overdue" ? "var(--color-error)" : "var(--color-textSecondary)",
+                      borderColor: subTab === "overdue" ? "var(--color-error)" : "var(--color-border)",
+                      background: subTab === "overdue" ? "var(--color-error)/10" : "transparent",
+                    }}
+                  >
+                    Overdue
+                    <span className="
             absolute -top-1 -right-1
             text-[10px] font-semibold text-white
             bg-[var(--color-error)]
             px-2 py-[2px] rounded-full shadow
           ">
-            {currentOverdueCount}
-          </span>
-        </button>
-      </div>
+                      {currentOverdueCount}
+                    </span>
+                  </button>
+                </div>
 
-      {/* TASK LIST */}
-      <div className="mt-4 px-4 pb-3 max-h-[300px] overflow-y-auto">
+                {/* TASK LIST */}
+                <div className="mt-4 px-4 pb-3 max-h-[300px] overflow-y-auto">
 
-        {initialLoading && (
-          <p className="text-center py-4 text-sm text-[var(--color-textSecondary)]">
-            Loading...
-          </p>
-        )}
+                  {initialLoading && (
+                    <p className="text-center py-4 text-sm text-[var(--color-textSecondary)]">
+                      Loading...
+                    </p>
+                  )}
 
-        {!initialLoading && currentList.length === 0 && (
-          <p className="text-center py-4 text-sm text-[var(--color-textSecondary)]">
-            No tasks found
-          </p>
-        )}
+                  {!initialLoading && currentList.length === 0 && (
+                    <p className="text-center py-4 text-sm text-[var(--color-textSecondary)]">
+                      No tasks found
+                    </p>
+                  )}
 
-        {!initialLoading &&
-          currentList.map((t: any) => (
-            <div
-              key={t._id}
-              className="p-3 mb-2 rounded-lg border flex justify-between items-start hover:bg-[var(--color-surface)] transition"
-              style={{ borderColor: "var(--color-border)" }}
-            >
-              <div className="flex-1 mr-3">
-                <p className="text-sm font-medium text-[var(--color-text)]">
-                  {t.title}
-                </p>
-                <p className="text-xs text-[var(--color-textSecondary)]">
-                  {t.assignedBy?.username}
-                </p>
+                  {!initialLoading &&
+                    currentList.map((t: any) => (
+                      <div
+                        key={t._id}
+                        className="p-3 mb-2 rounded-lg border flex justify-between items-start hover:bg-[var(--color-surface)] transition"
+                        style={{ borderColor: "var(--color-border)" }}
+                      >
+                        <div className="flex-1 mr-3">
+                          <p className="text-sm font-medium text-[var(--color-text)]">
+                            {t.title}
+                          </p>
+                          <p className="text-xs text-[var(--color-textSecondary)]">
+                            {t.assignedBy?.username}
+                          </p>
+                        </div>
+
+                        {/* COMPLETE ICON */}
+                        <button
+                          onClick={() => {
+                            const path =
+                              t.taskType === "one-time"
+                                ? "/pending-tasks"
+                                : "/pending-recurring";
+
+                            navigate(path, {
+                              state: {
+                                highlightTaskId: t._id,
+                                openCompleteModal: true,
+                              },
+                            });
+
+                            setNotifOpen(false);
+                          }}
+                          className="p-1.5 rounded-md border text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 transition"
+                          style={{ borderColor: "var(--color-border)" }}
+                        >
+                          <CheckSquare size={16} />
+                        </button>
+                      </div>
+                    ))}
+                </div>
+
+                {/* FOOTER */}
+                <div
+                  className="p-3 border-t flex justify-between items-center"
+                  style={{ borderColor: "var(--color-border)" }}
+                >
+                  <button
+                    onClick={() => {
+                      navigate(mainTab === "one" ? "/pending-tasks" : "/pending-recurring");
+                      setNotifOpen(false);
+                    }}
+                    className="px-3 py-1 text-xs rounded-md border"
+                    style={{ borderColor: "var(--color-border)" }}
+                  >
+                    View All
+                  </button>
+                </div>
               </div>
-
-              {/* COMPLETE ICON */}
-              <button
-                onClick={() => {
-                  const path =
-                    t.taskType === "one-time"
-                      ? "/pending-tasks"
-                      : "/pending-recurring";
-
-                  navigate(path, {
-                    state: {
-                      highlightTaskId: t._id,
-                      openCompleteModal: true,
-                    },
-                  });
-
-                  setNotifOpen(false);
-                }}
-                className="p-1.5 rounded-md border text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 transition"
-                style={{ borderColor: "var(--color-border)" }}
-              >
-                <CheckSquare size={16} />
-              </button>
             </div>
-          ))}
-      </div>
-
-      {/* FOOTER */}
-      <div
-        className="p-3 border-t flex justify-between items-center"
-        style={{ borderColor: "var(--color-border)" }}
-      >
-        <button
-          onClick={() => {
-            navigate(mainTab === "one" ? "/pending-tasks" : "/pending-recurring");
-            setNotifOpen(false);
-          }}
-          className="px-3 py-1 text-xs rounded-md border"
-          style={{ borderColor: "var(--color-border)" }}
-        >
-          View All
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+          )}
 
 
 
@@ -489,18 +488,19 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
         </div>
 
         {/* Assign Task */}
-        <button
-          onClick={() => navigate('/assign-task')}
-          className="p-2 rounded-xl shadow-sm hover:scale-105 transition"
-          style={{
-            backgroundColor: "var(--color-surface)",
-            border: "1px solid var(--color-border)",
-            color: "var(--color-primary)"
-          }}
-        >
-          <UserPlus size={20} />
-        </button>
-
+        {canAssignTasks &&
+          <button
+            onClick={() => navigate('/assign-task')}
+            className="p-2 rounded-xl shadow-sm hover:scale-105 transition"
+            style={{
+              backgroundColor: "var(--color-surface)",
+              border: "1px solid var(--color-border)",
+              color: "var(--color-primary)"
+            }}
+          >
+            <UserPlus size={20} />
+          </button>
+        }
         {/* Theme Toggle */}
         <div className="relative">
           <button
