@@ -160,7 +160,15 @@ const SettingsPage: React.FC = () => {
     useEffect(() => {
         const handleGoogleMessage = (event: any) => {
             if (event.data?.type === "googleConnected") {
-                fetchSettings();
+                fetchSettings().then(() => {
+                    setSettings(prev => ({
+                        ...prev,
+                        email: {
+                            ...prev.email,
+                            enabled: true   // ⭐ FORCE UI TO REFLECT DB
+                        }
+                    }));
+                });
             }
         };
 
@@ -170,63 +178,63 @@ const SettingsPage: React.FC = () => {
 
 
     const connectGoogle = async () => {
-    try {
-        setGoogleLoading(true);
+        try {
+            setGoogleLoading(true);
 
-        const companyId = currentUser?.companyId;
-        if (!companyId) {
-            alert("Company ID missing");
-            return;
-        }
-
-        // 1️⃣ Ask backend to generate OAuth URL
-        const res = await axios.get(`${address}/api/settings/email/google-auth`, {
-            params: { companyId }
-        });
-
-        if (!res.data.url) {
-            alert("Failed to load Google authentication URL");
-            return;
-        }
-
-        // 2️⃣ Append companyId to state param
-        const authUrl = res.data.url + `&state=${companyId}`;
-
-        // 3️⃣ Open Popup Window
-        const popup = window.open(
-            authUrl,
-            "_blank",
-            "width=500,height=600"
-        );
-
-        if (!popup) {
-            alert("Popup blocked! Please enable popups.");
-            return;
-        }
-
-        // 4️⃣ Listen for message from backend callback
-        const listener = (event: MessageEvent) => {
-            if (event.data?.type === "googleConnected") {
-                popup.close();
-                window.removeEventListener("message", listener);
-
-                // Reload settings
-                fetchSettings();
-                setMessage({
-                    type: "success",
-                    text: "Google connected successfully!"
-                });
+            const companyId = currentUser?.companyId;
+            if (!companyId) {
+                alert("Company ID missing");
+                return;
             }
-        };
 
-        window.addEventListener("message", listener);
+            // 1️⃣ Ask backend to generate OAuth URL
+            const res = await axios.get(`${address}/api/settings/email/google-auth`, {
+                params: { companyId }
+            });
 
-    } catch (err) {
-        console.error("Google auth error:", err);
-    } finally {
-        setGoogleLoading(false);
-    }
-};
+            if (!res.data.url) {
+                alert("Failed to load Google authentication URL");
+                return;
+            }
+
+            // 2️⃣ Append companyId to state param
+            const authUrl = res.data.url + `&state=${companyId}`;
+
+            // 3️⃣ Open Popup Window
+            const popup = window.open(
+                authUrl,
+                "_blank",
+                "width=500,height=600"
+            );
+
+            if (!popup) {
+                alert("Popup blocked! Please enable popups.");
+                return;
+            }
+
+            // 4️⃣ Listen for message from backend callback
+            const listener = (event: MessageEvent) => {
+                if (event.data?.type === "googleConnected") {
+                    popup.close();
+                    window.removeEventListener("message", listener);
+
+                    // Reload settings
+                    fetchSettings();
+                    setMessage({
+                        type: "success",
+                        text: "Google connected successfully!"
+                    });
+                }
+            };
+
+            window.addEventListener("message", listener);
+
+        } catch (err) {
+            console.error("Google auth error:", err);
+        } finally {
+            setGoogleLoading(false);
+        }
+    };
 
     const disconnectGoogle = async () => {
         if (!currentUser?.companyId) return;
