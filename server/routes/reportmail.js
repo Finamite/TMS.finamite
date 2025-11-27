@@ -350,9 +350,8 @@ export async function startReportCron() {
 
     // Morning
     if (data.enableMorningReport && data.morningReportTime) {
-      const [hour, minute] = data.morningReportTime.split(':');
-      const cronTime = `${minute} ${hour} * * *`;
-      console.log(`⏰ Morning cron: ${cronTime} (IST)`);
+      const cronTime = convertToCron(data.morningReportTime);
+      console.log(`⏰ Morning cron (UTC): ${cronTime}`);
       cron.schedule(cronTime, async () => {
         console.log(`🚀 Sending morning report for ${companyId}`);
         try {
@@ -361,16 +360,14 @@ export async function startReportCron() {
         } catch (error) {
           console.error(`Error sending morning report for ${companyId}:`, error);
         }
-      }, {
-        timezone: "Asia/Kolkata"
       });
+      // No timezone option - using UTC cron
     }
 
     // Evening
     if (data.enableEveningReport && data.eveningReportTime) {
-      const [hour, minute] = data.eveningReportTime.split(':');
-      const cronTime = `${minute} ${hour} * * *`;
-      console.log(`⏰ Evening cron: ${cronTime} (IST)`);
+      const cronTime = convertToCron(data.eveningReportTime);
+      console.log(`⏰ Evening cron (UTC): ${cronTime}`);
       cron.schedule(cronTime, async () => {
         console.log(`🌙 Sending evening report for ${companyId}`);
         try {
@@ -379,11 +376,9 @@ export async function startReportCron() {
         } catch (error) {
           console.error(`Error sending evening report for ${companyId}:`, error);
         }
-      }, {
-        timezone: "Asia/Kolkata"
       });
+      // No timezone option - using UTC cron
     }
   });
 }
-
 export default router;
