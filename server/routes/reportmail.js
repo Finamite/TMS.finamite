@@ -307,11 +307,29 @@ async function setupReportCron() {
 
 function convertToCron(timeString) {
   if (!timeString || !timeString.includes(":")) return null;
-  const [hour, minute] = timeString.split(":");
-  return `${minute} ${hour} * * *`;
+  
+  const [localHour, localMinute] = timeString.split(":").map(Number);
+  const localMinutes = localHour * 60 + localMinute;
+  
+  // IST offset in minutes (+5:30)
+  const istOffsetMinutes = 5 * 60 + 30;
+  
+  // Convert to UTC minutes
+  let utcMinutes = localMinutes - istOffsetMinutes;
+  
+  // Normalize to 0-1439 (one day in minutes)
+  if (utcMinutes < 0) {
+    utcMinutes += 24 * 60;
+  } else if (utcMinutes >= 24 * 60) {
+    utcMinutes -= 24 * 60;
+  }
+  
+  const utcHour = Math.floor(utcMinutes / 60);
+  const utcMinute = utcMinutes % 60;
+  
+  return `${utcMinute} ${utcHour} * * *`;
 }
 
-// Exported function to start cron
 export async function startReportCron() {
   console.log("⏳ Initializing report cron...");
 
@@ -334,10 +352,10 @@ export async function startReportCron() {
     if (data.enableMorningReport && data.morningReportTime) {
       const cronTime = convertToCron(data.morningReportTime);
       console.log(`⏰ Morning cron: ${cronTime}`);
-      cron.schedule(cronTime, () => {
+      cron.schedule(cronTime, async () => {
         console.log(`🚀 Sending morning report for ${companyId}`);
-        sendAdminManagerReport(companyId);
-        sendUserReports(companyId);
+        await sendAdminManagerReport(companyId);
+        await sendUserReports(companyId);
       });
     }
 
@@ -345,15 +363,13 @@ export async function startReportCron() {
     if (data.enableEveningReport && data.eveningReportTime) {
       const cronTime = convertToCron(data.eveningReportTime);
       console.log(`⏰ Evening cron: ${cronTime}`);
-      cron.schedule(cronTime, () => {
+      cron.schedule(cronTime, async () => {
         console.log(`🌙 Sending evening report for ${companyId}`);
-        sendAdminManagerReport(companyId);
-        sendUserReports(companyId);
+        await sendAdminManagerReport(companyId);
+        await sendUserReports(companyId);
       });
     }
   });
 }
 
-
-setupReportCron();  // MUST BE OUTSIDE ROUTER
 export default router;
