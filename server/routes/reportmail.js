@@ -107,105 +107,261 @@ async function buildReportData(companyId, forUserId = null) {
    2. HTML TEMPLATE GENERATOR
 ============================================================ */
 function generateHtmlReport({ companyName, title, generatedAt, data, forUser }) {
-    return `
-  <html>
-  <body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;">
-    
-    <div style="max-width:780px;margin:auto;background:#ffffff;border-radius:14px;padding:30px;box-shadow:0 4px 25px rgba(0,0,0,0.08);">
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-      <!-- HEADER -->
-      <div style="display:flex;align-items:center;gap:15px;margin-bottom:25px;">
-        <div style="background:#2563eb;color:white;padding:18px 22px;border-radius:12px;font-size:22px;font-weight:bold;">
-          TMS
-        </div>
-        <div>
-          <h2 style="margin:0;font-size:22px;color:#111">${title}</h2>
-          <p style="margin:2px 0;color:#666;font-size:14px">${companyName}</p>
-          ${forUser ? `<p style="margin:2px 0;color:#777;font-size:14px">User: <b>${forUser}</b></p>` : ""}
-          <p style="margin:2px 0;color:#999;font-size:12px">Generated at: ${generatedAt}</p>
-        </div>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .header {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    .header h1 {
+      color: #1a202c;
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+      font-weight: 700;
+    }
+
+    .company {
+      color: #667eea;
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+
+    .meta-info {
+      display: flex;
+      gap: 2rem;
+      color: #4a5568;
+      font-size: 0.9rem;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    .stat-card h3 {
+      font-size: 0.875rem;
+      color: #718096;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+
+    .stat-card .value {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: #1a202c;
+    }
+
+    .stat-card.pending .value { color: #3182ce; }
+    .stat-card.overdue .value { color: #e53e3e; }
+    .stat-card.completed .value { color: #38a169; }
+
+    .section {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    .section h2 {
+      font-size: 1.25rem;
+      color: #1a202c;
+      margin-bottom: 1.5rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .task-list, .user-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .task-item, .user-item {
+      background: #f7fafc;
+      border-radius: 8px;
+      padding: 1rem;
+      border-left: 4px solid #667eea;
+      transition: all 0.2s;
+    }
+
+    .task-item:hover, .user-item:hover {
+      background: #edf2f7;
+      transform: translateX(4px);
+    }
+
+    .task-item strong, .user-item strong {
+      color: #1a202c;
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+
+    .task-item small, .user-item small {
+      color: #718096;
+      font-size: 0.875rem;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: #a0aec0;
+      padding: 2rem;
+      font-style: italic;
+    }
+
+    .dashboard-link {
+      display: inline-block;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 1rem 2rem;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      margin-top: 2rem;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+    }
+
+    .dashboard-link:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(102, 126, 234, 0.6);
+    }
+
+    @media (max-width: 768px) {
+      body { padding: 1rem; }
+      .stats-grid { grid-template-columns: 1fr; }
+      .header h1 { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>${title}</h1>
+      <div class="company">${companyName}</div>
+      <div class="meta-info">
+        ${forUser ? `<div><strong>User:</strong> ${forUser}</div>` : ''}
+        <div><strong>Generated:</strong> ${generatedAt}</div>
       </div>
-
-      <!-- SUMMARY CARDS -->
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:15px;margin-top:25px;">
-        
-        <div style="background:#eef2ff;padding:18px;border-radius:10px;">
-          <h4 style="margin:0;color:#4338ca;font-size:15px;">Pending Tasks</h4>
-          <div style="font-size:28px;font-weight:bold;color:#1e1b4b;">${data.totalPending}</div>
-        </div>
-
-        <div style="background:#ffe4e6;padding:18px;border-radius:10px;">
-          <h4 style="margin:0;color:#b91c1c;font-size:15px;">Overdue Tasks</h4>
-          <div style="font-size:28px;font-weight:bold;color:#7f1d1d;">${data.totalOverdue}</div>
-        </div>
-
-        <div style="background:#dcfce7;padding:18px;border-radius:10px;">
-          <h4 style="margin:0;color:#166534;font-size:15px;">Completed Today</h4>
-          <div style="font-size:28px;font-weight:bold;color:#14532d;">${data.completedToday}</div>
-        </div>
-
-        <div style="background:#fef9c3;padding:18px;border-radius:10px;">
-          <h4 style="margin:0;color:#854d0e;font-size:15px;">Completed Yesterday</h4>
-          <div style="font-size:28px;font-weight:bold;color:#713f12;">${data.completedYesterday}</div>
-        </div>
-
-      </div>
-
-      <!-- UPCOMING TASKS -->
-      <h3 style="margin-top:35px;color:#111;">📅 Due in Next 7 Days</h3>
-      <div style="background:#f9fafb;padding:18px;border-radius:10px;">
-        ${data.dueNext7Days.length
-            ? data.dueNext7Days.map(t => `
-              <div style="padding:8px 0;border-bottom:1px solid #eee;">
-                <b>${t.title}</b>
-                <br/>
-                <span style="color:#666;font-size:13px;">
-                  Due: ${new Date(t.dueDate).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
-                </span>
-              </div>
-            `).join("")
-            : `<p style="color:#666;margin:0;">No upcoming tasks.</p>`
-        }
-      </div>
-
-      <!-- TOP DELAYED USERS -->
-      <h3 style="margin-top:35px;color:#111;">⚠ Top Delayed Users</h3>
-      <div style="background:#fef2f2;padding:18px;border-radius:10px;">
-        ${data.topDelayed.length
-            ? data.topDelayed.map(u => `
-              <p style="margin:6px 0;font-size:14px;color:#7f1d1d;">
-                • <b>${u.username}</b> — ${u.overdueCount} overdue tasks
-              </p>
-            `).join("")
-            : `<p style="color:#7f1d1d;margin:0;">No delayed users.</p>`
-        }
-      </div>
-
-      <!-- High Priority Pending -->
-      <h3 style="margin-top:35px;color:#111;">🔥 High Priority Pending Tasks</h3>
-      <div style="background:#fff7ed;padding:18px;border-radius:10px;">
-        ${data.highPriorityPending.length
-            ? data.highPriorityPending.map(t => `
-              <p style="margin:6px 0;font-size:14px;color:#9a3412;">
-                • <b>${t.title}</b> — Priority: ${t.priority}
-              </p>
-            `).join("")
-            : `<p style="color:#9a3412;margin:0;">No high priority tasks.</p>`
-        }
-      </div>
-
-      <!-- BUTTON -->
-      <div style="text-align:center;margin-top:35px;">
-        <a href="https://tms.finamite.in"
-          style="background:#2563eb;color:white;padding:14px 24px;border-radius:8px;font-size:15px;text-decoration:none;font-weight:bold;">
-          Open Dashboard →
-        </a>
-      </div>
-
     </div>
 
-  </body>
-  </html>
+    <div class="stats-grid">
+      <div class="stat-card pending">
+        <h3>Pending Tasks</h3>
+        <div class="value">${data.totalPending}</div>
+      </div>
+      <div class="stat-card overdue">
+        <h3>Overdue Tasks</h3>
+        <div class="value">${data.totalOverdue}</div>
+      </div>
+      <div class="stat-card completed">
+        <h3>Completed Today</h3>
+        <div class="value">${data.completedToday}</div>
+      </div>
+      <div class="stat-card completed">
+        <h3>Completed Yesterday</h3>
+        <div class="value">${data.completedYesterday}</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>📅 Due in Next 7 Days</h2>
+      ${data.dueNext7Days.length ? `
+        <div class="task-list">
+          ${data.dueNext7Days.map(t => `
+            <div class="task-item">
+              <strong>${t.title}</strong>
+              <small>Due: ${new Date(t.dueDate).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</small>
+            </div>
+          `).join('')}
+        </div>
+      ` : '<div class="empty-state">No upcoming tasks.</div>'}
+    </div>
+
+    <div class="section">
+      <h2>⚠️ Top Delayed Users</h2>
+      ${data.topDelayed.length ? `
+        <div class="user-list">
+          ${data.topDelayed.map(u => `
+            <div class="user-item">
+              <strong>${u.username}</strong>
+              <small>${u.overdueCount} overdue tasks</small>
+            </div>
+          `).join('')}
+        </div>
+      ` : '<div class="empty-state">No delayed users.</div>'}
+    </div>
+
+    <div class="section">
+      <h2>🔥 High Priority Pending Tasks</h2>
+      ${data.highPriorityPending.length ? `
+        <div class="task-list">
+          ${data.highPriorityPending.map(t => `
+            <div class="task-item">
+              <strong>${t.title}</strong>
+              <small>Priority: ${t.priority}</small>
+            </div>
+          `).join('')}
+        </div>
+      ` : '<div class="empty-state">No high priority tasks.</div>'}
+    </div>
+
+    <center>
+      <a href="/dashboard" class="dashboard-link">Open Dashboard →</a>
+    </center>
+  </div>
+</body>
+</html>
   `;
 }
 
