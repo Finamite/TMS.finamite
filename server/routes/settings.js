@@ -4,6 +4,7 @@ import { google } from 'googleapis';
 import Settings from '../models/Settings.js';
 import User from '../models/User.js'; // ✅ ADD MISSING IMPORT
 import { sendSystemEmail } from '../Utils/sendEmail.js'; // ✅ ADD MISSING IMPORT
+import { restartReportCron } from '../routes/reportmail.js';
 
 const router = express.Router();
 
@@ -208,6 +209,9 @@ router.post('/email', async (req, res) => {
       { $set: { data: newData } },
       { upsert: true, new: true }
     );
+
+    // ✅ RESTART CRON TO PICK UP NEW REPORT TIMES/ENABLED STATES
+    await restartReportCron();
 
     const safe = { ...settings.data };
     delete safe.googleTokens;
