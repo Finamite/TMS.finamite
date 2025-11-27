@@ -16,7 +16,8 @@ const createOAuthClient = () =>
     GOOGLE_REDIRECT_URI
   );
 
-function createMimeMessage({ to, from, subject, text, attachments }) {
+// build multipart MIME with both text and html parts and attachments
+function createMimeMessage({ to, from, subject, text, html, attachments = [] }) {
   const boundary = "__BOUNDARY__" + Date.now();
 
   let mime = "";
@@ -24,16 +25,42 @@ function createMimeMessage({ to, from, subject, text, attachments }) {
   mime += `To: ${to}\r\n`;
   mime += `Subject: ${subject}\r\n`;
   mime += `MIME-Version: 1.0\r\n`;
-  mime += `Content-Type: multipart/mixed; boundary="${boundary}"\r\n`;
-  mime += `\r\n`;
+  mime += `Content-Type: multipart/mixed; boundary="${boundary}"\r\n\r\n`;
+
+  // Start alternative part (text + html)
+  const altBoundary = "__ALT__" + Date.now();
   mime += `--${boundary}\r\n`;
+  mime += `Content-Type: multipart/alternative; boundary="${altBoundary}"\r\n\r\n`;
+
+  // plain text
+  mime += `--${altBoundary}\r\n`;
   mime += `Content-Type: text/plain; charset="UTF-8"\r\n`;
   mime += `Content-Transfer-Encoding: 7bit\r\n\r\n`;
-  mime += `${text}\r\n\r\n`;
+  mime += `${text || (html ? "Please view this email in HTML capable client." : "")}\r\n\r\n`;
+
+  // html part (if provided)
+  if (html) {
+    mime += `--${altBoundary}\r\n`;
+    mime += `Content-Type: text/html; charset="UTF-8"\r\n`;
+    mime += `Content-Transfer-Encoding: 7bit\r\n\r\n`;
+    mime += `${html}\r\n\r\n`;
+  }
+
+  mime += `--${altBoundary}--\r\n\r\n`;
 
   // Attach files
-  for (const file of attachments) {
+  for (const file of attachments || []) {
     try {
+      // file should be { filename, path }
+      if (!file || !file.path) {
+        console.error("Skipping invalid attachment:", file);
+        continue;
+      }
+      if (!fs.existsSync(file.path)) {
+        console.error("Attachment path missing on disk, skipping:", file.path);
+        continue;
+      }
+
       const fileData = fs.readFileSync(file.path);
       const base64File = fileData.toString("base64");
 
@@ -57,7 +84,7 @@ function createMimeMessage({ to, from, subject, text, attachments }) {
 }
 
 // MAIN EMAIL FUNCTION
-export async function sendSystemEmail(companyId, to, subject, text, attachments = []) {
+export async function sendSystemEmail(companyId, to, subject, text = "", html = "", attachments = []) {
   try {
     const settings = await Settings.findOne({ type: "email", companyId });
 
@@ -71,27 +98,26 @@ export async function sendSystemEmail(companyId, to, subject, text, attachments 
 
     const gmail = google.gmail({ version: "v1", auth: oauth });
 
-    const formattedAttachments = attachments.map((file) => {
+    const formattedAttachments = (attachments || []).map((file) => {
       if (typeof file === "string") {
         return {
           filename: file.split("/").pop(),
           path: file
         };
       }
-
       // If already object format
       return {
-        filename: file.filename || file.name || "attachment",
+        filename: file.filename || file.originalName || file.name || "attachment",
         path: file.path || file.url
       };
     });
-
 
     const raw = createMimeMessage({
       to,
       from: settings.data.email,
       subject,
       text,
+      html,
       attachments: formattedAttachments
     });
 

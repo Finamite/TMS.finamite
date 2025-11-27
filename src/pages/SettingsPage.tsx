@@ -1330,9 +1330,6 @@ const SettingsPage: React.FC = () => {
 
                                     {/* Report Recipients */}
                                     <div>
-                                        <label className="block text-sm font-semibold text-[var(--color-text)] mb-3">
-                                            Report Recipients
-                                        </label>
                                         <div
                                             className={`max-h-48 overflow-y-auto bg-[color:var(--color-border)/10] rounded-xl p-4 space-y-2 ${!reportsEnabled ? 'opacity-50' : ''
                                                 }`}

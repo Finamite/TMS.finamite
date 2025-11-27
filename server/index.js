@@ -16,6 +16,7 @@ import dashboardRoutes from './routes/dashboard.js';
 import settingsRoutes from './routes/settings.js';
 import performanceRoutes from './routes/performance.js';
 import chat from './routes/chat.js';
+import reportMailRoutes from "./routes/reportmail.js";
 
 
 dotenv.config();
@@ -90,6 +91,7 @@ app.use('/api/companies', companyRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/chat', chat);
+app.use('/api/reports', reportMailRoutes);
 
 // Serve frontend in production
 if (process.env.NODE_ENV === 'production') {
