@@ -71,10 +71,21 @@ export async function sendSystemEmail(companyId, to, subject, text, attachments 
 
     const gmail = google.gmail({ version: "v1", auth: oauth });
 
-    const formattedAttachments = attachments.map((fileUrl) => ({
-      filename: fileUrl.split("/").pop(),
-      path: fileUrl
-    }));
+    const formattedAttachments = attachments.map((file) => {
+      if (typeof file === "string") {
+        return {
+          filename: file.split("/").pop(),
+          path: file
+        };
+      }
+
+      // If already object format
+      return {
+        filename: file.filename || file.name || "attachment",
+        path: file.path || file.url
+      };
+    });
+
 
     const raw = createMimeMessage({
       to,
