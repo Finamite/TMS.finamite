@@ -45,12 +45,21 @@ async function buildReportData(companyId, forUserId = null) {
         completedAt: { $gte: new Date(startOfDay.getTime() - 86400000), $lt: startOfDay }
     });
 
+    const dueToday = await Task.find({
+        ...baseQuery,
+        status: "pending",
+        dueDate: { $gte: startOfDay, $lte: endOfDay }
+    })
+        .limit(10)
+        .sort({ dueDate: 1 })
+        .lean();
+
     const dueNext7Days = await Task.find({
         ...baseQuery,
         status: "pending",
         dueDate: { $gte: now, $lte: new Date(now.getTime() + 7 * 86400000) }
     })
-        .limit(30)
+        .limit(15)
         .sort({ dueDate: 1 })
         .lean();
 
@@ -59,7 +68,8 @@ async function buildReportData(companyId, forUserId = null) {
             $match: {
                 companyId,
                 status: { $in: ["pending", "overdue"] },
-                dueDate: { $lt: now }
+                dueDate: { $lt: now },
+                ...(forUserId ? { assignedTo: forUserId } : {})
             }
         },
         { $group: { _id: "$assignedTo", overdueCount: { $sum: 1 } } },
@@ -88,289 +98,402 @@ async function buildReportData(companyId, forUserId = null) {
         status: "pending",
         priority: { $in: ["high", "urgent"] }
     })
-        .limit(20)
+        .limit(10)
         .sort({ dueDate: 1 })
         .lean();
+
+    // Weekly progress (last 7 days completion rate)
+    const weekAgo = new Date(now.getTime() - 7 * 86400000);
+    const weeklyCompleted = await Task.countDocuments({
+        ...baseQuery,
+        status: "completed",
+        completedAt: { $gte: weekAgo, $lte: now }
+    });
+
+    const weeklyTotal = await Task.countDocuments({
+        ...baseQuery,
+        dueDate: { $gte: weekAgo, $lte: now }
+    });
+
+    const completionRate = weeklyTotal > 0 ? Math.round((weeklyCompleted / weeklyTotal) * 100) : 0;
 
     return {
         totalPending,
         totalOverdue,
         completedToday,
         completedYesterday,
+        dueToday,
         dueNext7Days,
         topDelayed,
-        highPriorityPending
+        highPriorityPending,
+        weeklyCompleted,
+        completionRate
     };
 }
 
 /* ============================================================
-   2. HTML TEMPLATE GENERATOR
+   2. MODERN HTML TEMPLATE GENERATOR
 ============================================================ */
-function generateHtmlReport({ companyName, title, generatedAt, data, forUser }) {
-  return `
+function generateModernHtmlReport({ companyName, title, generatedAt, data, forUser, reportType = "daily" }) {
+    const isEvening = reportType === "evening";
+    const greeting = isEvening ? "Good Evening" : "Good Morning";
+    const timeIcon = isEvening ? "🌙" : "☀️";
+    
+    return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title}</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      padding: 2rem;
-    }
-
-    .container {
-      max-width: 1400px;
-      margin: 0 auto;
-    }
-
-    .header {
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(10px);
-      border-radius: 16px;
-      padding: 2rem;
-      margin-bottom: 2rem;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    }
-
-    .header h1 {
-      color: #1a202c;
-      font-size: 2rem;
-      margin-bottom: 0.5rem;
-      font-weight: 700;
-    }
-
-    .company {
-      color: #667eea;
-      font-size: 1.25rem;
-      font-weight: 600;
-      margin-bottom: 1rem;
-    }
-
-    .meta-info {
-      display: flex;
-      gap: 2rem;
-      color: #4a5568;
-      font-size: 0.9rem;
-    }
-
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 1.5rem;
-      margin-bottom: 2rem;
-    }
-
-    .stat-card {
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(10px);
-      border-radius: 16px;
-      padding: 1.5rem;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-
-    .stat-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-    }
-
-    .stat-card h3 {
-      font-size: 0.875rem;
-      color: #718096;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 0.5rem;
-      font-weight: 600;
-    }
-
-    .stat-card .value {
-      font-size: 2.5rem;
-      font-weight: 700;
-      color: #1a202c;
-    }
-
-    .stat-card.pending .value { color: #3182ce; }
-    .stat-card.overdue .value { color: #e53e3e; }
-    .stat-card.completed .value { color: #38a169; }
-
-    .section {
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(10px);
-      border-radius: 16px;
-      padding: 2rem;
-      margin-bottom: 1.5rem;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    }
-
-    .section h2 {
-      font-size: 1.25rem;
-      color: #1a202c;
-      margin-bottom: 1.5rem;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .task-list, .user-list {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-
-    .task-item, .user-item {
-      background: #f7fafc;
-      border-radius: 8px;
-      padding: 1rem;
-      border-left: 4px solid #667eea;
-      transition: all 0.2s;
-    }
-
-    .task-item:hover, .user-item:hover {
-      background: #edf2f7;
-      transform: translateX(4px);
-    }
-
-    .task-item strong, .user-item strong {
-      color: #1a202c;
-      display: block;
-      margin-bottom: 0.25rem;
-    }
-
-    .task-item small, .user-item small {
-      color: #718096;
-      font-size: 0.875rem;
-    }
-
-    .empty-state {
-      text-align: center;
-      color: #a0aec0;
-      padding: 2rem;
-      font-style: italic;
-    }
-
-    .dashboard-link {
-      display: inline-block;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 1rem 2rem;
-      border-radius: 8px;
-      text-decoration: none;
-      font-weight: 600;
-      margin-top: 2rem;
-      transition: transform 0.2s, box-shadow 0.2s;
-      box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
-    }
-
-    .dashboard-link:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 24px rgba(102, 126, 234, 0.6);
-    }
-
-    @media (max-width: 768px) {
-      body { padding: 1rem; }
-      .stats-grid { grid-template-columns: 1fr; }
-      .header h1 { font-size: 1.5rem; }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        .greeting {
+            background: #f8fafc;
+            padding: 25px 30px;
+            border-left: 4px solid #667eea;
+        }
+        .greeting h2 {
+            color: #1e293b;
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        .greeting p {
+            color: #64748b;
+            font-size: 16px;
+        }
+        .content {
+            padding: 30px;
+        }
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .metric-card {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+            transition: transform 0.2s ease;
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        .metric-number {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .metric-label {
+            color: #64748b;
+            font-size: 14px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .pending { color: #3b82f6; background: #eff6ff; }
+        .overdue { color: #ef4444; background: #fef2f2; }
+        .completed { color: #10b981; background: #f0fdf4; }
+        .rate { color: #8b5cf6; background: #faf5ff; }
+        .section {
+            margin-bottom: 30px;
+        }
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .task-list {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+        }
+        .task-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .task-item:last-child {
+            border-bottom: none;
+        }
+        .task-title {
+            font-weight: 500;
+            color: #1e293b;
+            flex: 1;
+        }
+        .task-date {
+            color: #64748b;
+            font-size: 14px;
+        }
+        .priority-badge {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        .priority-high { background: #fef2f2; color: #dc2626; }
+        .priority-urgent { background: #fef2f2; color: #b91c1c; }
+        .priority-medium { background: #fef3c7; color: #d97706; }
+        .priority-low { background: #f0fdf4; color: #16a34a; }
+        .user-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .user-item:last-child {
+            border-bottom: none;
+        }
+        .user-name {
+            font-weight: 500;
+            color: #1e293b;
+        }
+        .overdue-count {
+            background: #fef2f2;
+            color: #dc2626;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .cta-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 30px;
+            text-align: center;
+            margin-top: 30px;
+        }
+        .cta-button {
+            display: inline-block;
+            background: white;
+            color: #667eea;
+            padding: 15px 30px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+            transition: transform 0.2s ease;
+        }
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        }
+        .footer {
+            background: #f8fafc;
+            padding: 20px 30px;
+            text-align: center;
+            color: #64748b;
+            font-size: 14px;
+            border-top: 1px solid #e2e8f0;
+        }
+        .no-data {
+            text-align: center;
+            color: #64748b;
+            font-style: italic;
+            padding: 20px;
+        }
+        .progress-bar {
+            background: #e2e8f0;
+            border-radius: 10px;
+            height: 8px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            background: linear-gradient(90deg, #10b981, #059669);
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>${title}</h1>
-      <div class="company">${companyName}</div>
-      <div class="meta-info">
-        ${forUser ? `<div><strong>User:</strong> ${forUser}</div>` : ''}
-        <div><strong>Generated:</strong> ${generatedAt}</div>
-      </div>
-    </div>
-
-    <div class="stats-grid">
-      <div class="stat-card pending">
-        <h3>Pending Tasks</h3>
-        <div class="value">${data.totalPending}</div>
-      </div>
-      <div class="stat-card overdue">
-        <h3>Overdue Tasks</h3>
-        <div class="value">${data.totalOverdue}</div>
-      </div>
-      <div class="stat-card completed">
-        <h3>Completed Today</h3>
-        <div class="value">${data.completedToday}</div>
-      </div>
-      <div class="stat-card completed">
-        <h3>Completed Yesterday</h3>
-        <div class="value">${data.completedYesterday}</div>
-      </div>
-    </div>
-
-    <div class="section">
-      <h2>📅 Due in Next 7 Days</h2>
-      ${data.dueNext7Days.length ? `
-        <div class="task-list">
-          ${data.dueNext7Days.map(t => `
-            <div class="task-item">
-              <strong>${t.title}</strong>
-              <small>Due: ${new Date(t.dueDate).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</small>
-            </div>
-          `).join('')}
+    <div class="container">
+        <div class="header">
+            <h1>${timeIcon} ${title}</h1>
+            <p>${companyName}</p>
+            ${forUser ? `<p style="margin-top: 8px; opacity: 0.8;">Personal Report for ${forUser}</p>` : ""}
         </div>
-      ` : '<div class="empty-state">No upcoming tasks.</div>'}
-    </div>
 
-    <div class="section">
-      <h2>⚠️ Top Delayed Users</h2>
-      ${data.topDelayed.length ? `
-        <div class="user-list">
-          ${data.topDelayed.map(u => `
-            <div class="user-item">
-              <strong>${u.username}</strong>
-              <small>${u.overdueCount} overdue tasks</small>
-            </div>
-          `).join('')}
+        <div class="greeting">
+            <h2>${greeting}!</h2>
+            <p>Generated on ${generatedAt}</p>
         </div>
-      ` : '<div class="empty-state">No delayed users.</div>'}
-    </div>
 
-    <div class="section">
-      <h2>🔥 High Priority Pending Tasks</h2>
-      ${data.highPriorityPending.length ? `
-        <div class="task-list">
-          ${data.highPriorityPending.map(t => `
-            <div class="task-item">
-              <strong>${t.title}</strong>
-              <small>Priority: ${t.priority}</small>
+        <div class="content">
+            <!-- Metrics Overview -->
+            <div class="section">
+                <h3 class="section-title">📊 Today's Overview</h3>
+                <div class="metrics-grid">
+                    <div class="metric-card pending">
+                        <div class="metric-number">${data.totalPending}</div>
+                        <div class="metric-label">Pending Tasks</div>
+                    </div>
+                    <div class="metric-card overdue">
+                        <div class="metric-number">${data.totalOverdue}</div>
+                        <div class="metric-label">Overdue Tasks</div>
+                    </div>
+                    <div class="metric-card completed">
+                        <div class="metric-number">${data.completedToday}</div>
+                        <div class="metric-label">Completed Today</div>
+                    </div>
+                    <div class="metric-card rate">
+                        <div class="metric-number">${data.completionRate}%</div>
+                        <div class="metric-label">Weekly Rate</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${data.completionRate}%"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
-          `).join('')}
-        </div>
-      ` : '<div class="empty-state">No high priority tasks.</div>'}
-    </div>
 
-    <center>
-      <a href="/dashboard" class="dashboard-link">Open Dashboard →</a>
-    </center>
-  </div>
+            ${data.dueToday && data.dueToday.length > 0 ? `
+            <!-- Due Today -->
+            <div class="section">
+                <h3 class="section-title">🎯 Due Today</h3>
+                <div class="task-list">
+                    ${data.dueToday.map(task => `
+                        <div class="task-item">
+                            <div class="task-title">${task.title}</div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="priority-badge priority-${task.priority || 'medium'}">${task.priority || 'medium'}</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            ` : ''}
+
+            <!-- Upcoming Tasks -->
+            <div class="section">
+                <h3 class="section-title">📅 Upcoming (Next 7 Days)</h3>
+                ${data.dueNext7Days && data.dueNext7Days.length > 0 ? `
+                <div class="task-list">
+                    ${data.dueNext7Days.slice(0, 8).map(task => `
+                        <div class="task-item">
+                            <div class="task-title">${task.title}</div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="task-date">${new Date(task.dueDate).toLocaleDateString("en-IN", { 
+                                    month: 'short', 
+                                    day: 'numeric',
+                                    timeZone: "Asia/Kolkata" 
+                                })}</span>
+                                <span class="priority-badge priority-${task.priority || 'medium'}">${task.priority || 'medium'}</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                    ${data.dueNext7Days.length > 8 ? `
+                        <div class="task-item">
+                            <div class="task-title" style="color: #64748b; font-style: italic;">
+                                +${data.dueNext7Days.length - 8} more tasks...
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+                ` : '<div class="no-data">No upcoming tasks in the next 7 days</div>'}
+            </div>
+
+            ${!forUser && data.topDelayed && data.topDelayed.length > 0 ? `
+            <!-- Top Delayed Users -->
+            <div class="section">
+                <h3 class="section-title">⚠️ Users with Overdue Tasks</h3>
+                <div class="task-list">
+                    ${data.topDelayed.map(user => `
+                        <div class="user-item">
+                            <div class="user-name">${user.username}</div>
+                            <span class="overdue-count">${user.overdueCount} overdue</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            ` : ''}
+
+            ${data.highPriorityPending && data.highPriorityPending.length > 0 ? `
+            <!-- High Priority Tasks -->
+            <div class="section">
+                <h3 class="section-title">🔥 High Priority Pending</h3>
+                <div class="task-list">
+                    ${data.highPriorityPending.map(task => `
+                        <div class="task-item">
+                            <div class="task-title">${task.title}</div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="task-date">${new Date(task.dueDate).toLocaleDateString("en-IN", { 
+                                    month: 'short', 
+                                    day: 'numeric',
+                                    timeZone: "Asia/Kolkata" 
+                                })}</span>
+                                <span class="priority-badge priority-${task.priority}">${task.priority}</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            ` : ''}
+        </div>
+
+        <div class="cta-section">
+            <h3 style="color: white; margin-bottom: 15px; font-size: 20px;">Ready to tackle your tasks?</h3>
+            <a href="https://tms.finamite.in" class="cta-button">
+                Open Task Dashboard →
+            </a>
+        </div>
+
+        <div class="footer">
+            <p>This is an automated report from your Task Management System</p>
+            <p style="margin-top: 4px;">© ${new Date().getFullYear()} ${companyName}. All rights reserved.</p>
+        </div>
+    </div>
 </body>
-</html>
-  `;
+</html>`;
 }
 
 /* ============================================================
-   3. SEND REPORT — Admin/Managers
+   3. SEND MORNING REPORT — Admin/Managers
 ============================================================ */
-async function sendAdminManagerReport(companyId) {
+async function sendMorningAdminManagerReport(companyId) {
     const settings = await Settings.findOne({ type: "email", companyId });
-    if (!settings?.data?.enabled || !settings?.data?.enableReports) return;
+    if (!settings?.data?.enabled || !settings?.data?.enableMorningReport) return;
 
     const admins = await User.find({
         companyId,
@@ -380,19 +503,24 @@ async function sendAdminManagerReport(companyId) {
 
     const data = await buildReportData(companyId);
 
-    const html = generateHtmlReport({
-        companyName: settings.data.companyName || "Company",
-        title: "Daily Report — Admin / Manager",
-        generatedAt: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
-        data
+    const html = generateModernHtmlReport({
+        companyName: settings.data.companyName || "Your Company",
+        title: "Morning Task Report",
+        generatedAt: new Date().toLocaleString("en-IN", { 
+            timeZone: "Asia/Kolkata",
+            dateStyle: "full",
+            timeStyle: "short"
+        }),
+        data,
+        reportType: "morning"
     });
 
     for (const admin of admins) {
         await sendSystemEmail(
             companyId,
             admin.email,
-            "Daily Task Report",
-            "Please view the HTML email.",
+            "☀️ Morning Task Report - Ready to Start the Day!",
+            "Please view this email in HTML format for the best experience.",
             html,
             []
         );
@@ -400,34 +528,74 @@ async function sendAdminManagerReport(companyId) {
 }
 
 /* ============================================================
-   4. SEND REPORT — Each User
+   4. SEND EVENING REPORT — Admin/Managers
 ============================================================ */
-async function sendUserReports(companyId) {
+async function sendEveningAdminManagerReport(companyId) {
     const settings = await Settings.findOne({ type: "email", companyId });
-    if (!settings?.data?.enabled || !settings?.data?.enableReports) return;
+    if (!settings?.data?.enabled || !settings?.data?.enableEveningReport) return;
+
+    const admins = await User.find({
+        companyId,
+        role: { $in: ["admin", "manager"] },
+        isActive: true
+    });
+
+    const data = await buildReportData(companyId);
+
+    const html = generateModernHtmlReport({
+        companyName: settings.data.companyName || "Your Company",
+        title: "Evening Task Summary",
+        generatedAt: new Date().toLocaleString("en-IN", { 
+            timeZone: "Asia/Kolkata",
+            dateStyle: "full",
+            timeStyle: "short"
+        }),
+        data,
+        reportType: "evening"
+    });
+
+    for (const admin of admins) {
+        await sendSystemEmail(
+            companyId,
+            admin.email,
+            "🌙 Evening Task Summary - Day's Progress Report",
+            "Please view this email in HTML format for the best experience.",
+            html,
+            []
+        );
+    }
+}
+
+/* ============================================================
+   5. SEND MORNING REPORT — Each User
+============================================================ */
+async function sendMorningUserReports(companyId) {
+    const settings = await Settings.findOne({ type: "email", companyId });
+    if (!settings?.data?.enabled || !settings?.data?.enableMorningReport) return;
 
     const users = await User.find({ companyId, isActive: true });
 
     for (const user of users) {
-
-        // ❌ Skip admins & managers
-        if (user.role === "admin" || user.role === "manager") continue;
-
         const data = await buildReportData(companyId, user._id);
 
-        const html = generateHtmlReport({
-            companyName: settings.data.companyName || "Company",
-            title: "Your Daily Task Summary",
-            generatedAt: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
+        const html = generateModernHtmlReport({
+            companyName: settings.data.companyName || "Your Company",
+            title: "Your Morning Task Briefing",
+            generatedAt: new Date().toLocaleString("en-IN", { 
+                timeZone: "Asia/Kolkata",
+                dateStyle: "full",
+                timeStyle: "short"
+            }),
             data,
-            forUser: user.username
+            forUser: user.username,
+            reportType: "morning"
         });
 
         await sendSystemEmail(
             companyId,
             user.email,
-            "Your Daily Task Summary",
-            "Please view the HTML email.",
+            "☀️ Good Morning! Your Daily Task Briefing",
+            "Please view this email in HTML format for the best experience.",
             html,
             []
         );
@@ -435,16 +603,82 @@ async function sendUserReports(companyId) {
 }
 
 /* ============================================================
-   5. PUBLIC API ENDPOINTS
+   6. SEND EVENING REPORT — Each User
+============================================================ */
+async function sendEveningUserReports(companyId) {
+    const settings = await Settings.findOne({ type: "email", companyId });
+    if (!settings?.data?.enabled || !settings?.data?.enableEveningReport) return;
+
+    const users = await User.find({ companyId, isActive: true });
+
+    for (const user of users) {
+        const data = await buildReportData(companyId, user._id);
+
+        const html = generateModernHtmlReport({
+            companyName: settings.data.companyName || "Your Company",
+            title: "Your Evening Task Summary",
+            generatedAt: new Date().toLocaleString("en-IN", { 
+                timeZone: "Asia/Kolkata",
+                dateStyle: "full",
+                timeStyle: "short"
+            }),
+            data,
+            forUser: user.username,
+            reportType: "evening"
+        });
+
+        await sendSystemEmail(
+            companyId,
+            user.email,
+            "🌙 Evening Summary - Your Day's Accomplishments",
+            "Please view this email in HTML format for the best experience.",
+            html,
+            []
+        );
+    }
+}
+
+/* ============================================================
+   7. PUBLIC API ENDPOINTS
 ============================================================ */
 
-// Manual trigger
+// Manual trigger for morning reports
+router.post("/send-morning-report", async (req, res) => {
+    try {
+        const { companyId } = req.body;
+
+        await sendMorningAdminManagerReport(companyId);
+        await sendMorningUserReports(companyId);
+
+        res.json({ message: "Morning reports sent successfully" });
+    } catch (err) {
+        console.error("Morning report error:", err);
+        res.status(500).json({ message: "Error sending morning reports" });
+    }
+});
+
+// Manual trigger for evening reports
+router.post("/send-evening-report", async (req, res) => {
+    try {
+        const { companyId } = req.body;
+
+        await sendEveningAdminManagerReport(companyId);
+        await sendEveningUserReports(companyId);
+
+        res.json({ message: "Evening reports sent successfully" });
+    } catch (err) {
+        console.error("Evening report error:", err);
+        res.status(500).json({ message: "Error sending evening reports" });
+    }
+});
+
+// Legacy endpoint for backward compatibility
 router.post("/send-report", async (req, res) => {
     try {
         const { companyId } = req.body;
 
-        await sendAdminManagerReport(companyId);
-        await sendUserReports(companyId);
+        await sendMorningAdminManagerReport(companyId);
+        await sendMorningUserReports(companyId);
 
         res.json({ message: "Reports sent successfully" });
     } catch (err) {
@@ -454,110 +688,120 @@ router.post("/send-report", async (req, res) => {
 });
 
 /* ============================================================
-   6. CRON SCHEDULER (runs automatically)
+   8. IMPROVED CRON SCHEDULER
 ============================================================ */
-async function setupReportCron() {
-    const companies = await Settings.find({
-        type: "email", $or: [
-            { "data.enableReports": true },
-            { "data.enableMorningReport": true },
-            { "data.enableEveningReport": true }
-        ]
-    });
 
-    companies.forEach((s) => {
-        const companyId = s.companyId;
-        const morning = s.data.morningReportTime || "09:00";
-        const evening = s.data.eveningReportTime || "18:00";
-
-        const [mh, mm] = morning.split(":");
-        cron.schedule(`${mm} ${mh} * * *`, async () => {
-            await sendAdminManagerReport(companyId);
-            await sendUserReports(companyId);
-        });
-
-        const [eh, em] = evening.split(":");
-        cron.schedule(`${em} ${eh} * * *`, async () => {
-            await sendAdminManagerReport(companyId);
-            await sendUserReports(companyId);
-        });
-    });
-}
-
+// Convert IST time to UTC cron format
 function convertToCron(timeString) {
     if (!timeString || !timeString.includes(":")) return null;
-
+    
     const [localHour, localMinute] = timeString.split(":").map(Number);
     const localMinutes = localHour * 60 + localMinute;
-
+    
     // IST offset in minutes (+5:30)
     const istOffsetMinutes = 5 * 60 + 30;
-
+    
     // Convert to UTC minutes
     let utcMinutes = localMinutes - istOffsetMinutes;
-
+    
     // Normalize to 0-1439 (one day in minutes)
     if (utcMinutes < 0) {
         utcMinutes += 24 * 60;
     } else if (utcMinutes >= 24 * 60) {
         utcMinutes -= 24 * 60;
     }
-
+    
     const utcHour = Math.floor(utcMinutes / 60);
     const utcMinute = utcMinutes % 60;
-
+    
     return `${utcMinute} ${utcHour} * * *`;
 }
 
+// Store active cron jobs for cleanup
+const activeCronJobs = new Map();
+
 export async function startReportCron() {
-    console.log("⏳ Initializing report cron...");
+    console.log("⏳ Initializing enhanced report cron scheduler...");
+
+    // Clear existing cron jobs
+    activeCronJobs.forEach((job, key) => {
+        job.destroy();
+        console.log(`🗑️ Cleared existing cron job: ${key}`);
+    });
+    activeCronJobs.clear();
 
     const companies = await Settings.find({
         type: "email",
         $or: [
-            { "data.enableReports": true },
             { "data.enableMorningReport": true },
             { "data.enableEveningReport": true }
         ]
     });
 
+    console.log(`📊 Found ${companies.length} companies with report settings enabled`);
+
     companies.forEach((s) => {
         const companyId = s.companyId;
         const data = s.data;
 
-        console.log(`📌 Setting up cron for company: ${companyId}`);
+        console.log(`📌 Setting up cron jobs for company: ${companyId}`);
 
-        // Morning
+        // Morning Report
         if (data.enableMorningReport && data.morningReportTime) {
             const cronTime = convertToCron(data.morningReportTime);
-            console.log(`⏰ Morning cron (UTC): ${cronTime}`);
-            cron.schedule(cronTime, async () => {
-                console.log(`🚀 Sending morning report for ${companyId}`);
-                try {
-                    await sendAdminManagerReport(companyId);
-                    await sendUserReports(companyId);
-                } catch (error) {
-                    console.error(`Error sending morning report for ${companyId}:`, error);
-                }
-            });
-            // No timezone option - using UTC cron
+            if (cronTime) {
+                console.log(`⏰ Morning report cron (UTC): ${cronTime} for IST: ${data.morningReportTime}`);
+                
+                const morningJob = cron.schedule(cronTime, async () => {
+                    console.log(`🌅 Sending morning reports for company: ${companyId}`);
+                    try {
+                        await sendMorningAdminManagerReport(companyId);
+                        await sendMorningUserReports(companyId);
+                        console.log(`✅ Morning reports sent successfully for: ${companyId}`);
+                    } catch (error) {
+                        console.error(`❌ Error sending morning reports for ${companyId}:`, error);
+                    }
+                }, {
+                    scheduled: true,
+                    timezone: "UTC"
+                });
+
+                activeCronJobs.set(`${companyId}-morning`, morningJob);
+            }
         }
 
-        // Evening
+        // Evening Report
         if (data.enableEveningReport && data.eveningReportTime) {
             const cronTime = convertToCron(data.eveningReportTime);
-            console.log(`⏰ Evening cron (UTC): ${cronTime}`);
-            cron.schedule(cronTime, async () => {
-                console.log(`🌙 Sending evening report for ${companyId}`);
-                try {
-                    await sendAdminManagerReport(companyId);
-                    await sendUserReports(companyId);
-                } catch (error) {
-                    console.error(`Error sending evening report for ${companyId}:`, error);
-                }
-            });
-            // No timezone option - using UTC cron
+            if (cronTime) {
+                console.log(`⏰ Evening report cron (UTC): ${cronTime} for IST: ${data.eveningReportTime}`);
+                
+                const eveningJob = cron.schedule(cronTime, async () => {
+                    console.log(`🌆 Sending evening reports for company: ${companyId}`);
+                    try {
+                        await sendEveningAdminManagerReport(companyId);
+                        await sendEveningUserReports(companyId);
+                        console.log(`✅ Evening reports sent successfully for: ${companyId}`);
+                    } catch (error) {
+                        console.error(`❌ Error sending evening reports for ${companyId}:`, error);
+                    }
+                }, {
+                    scheduled: true,
+                    timezone: "UTC"
+                });
+
+                activeCronJobs.set(`${companyId}-evening`, eveningJob);
+            }
         }
     });
+
+    console.log(`🚀 Report cron scheduler initialized with ${activeCronJobs.size} active jobs`);
 }
+
+// Function to restart cron jobs (useful when settings change)
+export async function restartReportCron() {
+    console.log("🔄 Restarting report cron scheduler...");
+    await startReportCron();
+}
+
 export default router;
