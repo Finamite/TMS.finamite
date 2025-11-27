@@ -937,7 +937,7 @@ https://tms.finamite.in
 `;
 
       for (const admin of admins) {
-        await sendSystemEmail(task.companyId, admin.email, subject, text, task.completionAttachments || []);
+        await sendSystemEmail(task.companyId, admin.email, subject, text, "",task.completionAttachments || []);
       }
     }
 

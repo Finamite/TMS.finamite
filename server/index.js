@@ -7,6 +7,7 @@ import multer from 'multer';
 import fs from 'fs';
 import dotenv from 'dotenv';
 
+
 // Import routes
 import authRoutes from './routes/auth.js';
 import taskRoutes from './routes/tasks.js';
@@ -17,6 +18,7 @@ import settingsRoutes from './routes/settings.js';
 import performanceRoutes from './routes/performance.js';
 import chat from './routes/chat.js';
 import reportMailRoutes from "./routes/reportmail.js";
+import { startReportCron } from "./routes/reportmail.js";
 
 
 dotenv.config();
@@ -137,10 +139,14 @@ mongoose.connect(process.env.MONGO_URI)
       })
       .catch(err => console.error('Error checking for superadmin user:', err));
 
-    // Start server
-    app.listen(PORT, '0.0.0.0', () => {
+      app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
+
+      // START CRON AFTER SERVER START
+      startReportCron();
+      console.log("⏰ Report Cron Started Successfully");
     });
+
   })
   .catch((error) => {
     console.error('❌ MongoDB connection error:', error);

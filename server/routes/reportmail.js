@@ -305,5 +305,55 @@ async function setupReportCron() {
     });
 }
 
+function convertToCron(timeString) {
+  if (!timeString || !timeString.includes(":")) return null;
+  const [hour, minute] = timeString.split(":");
+  return `${minute} ${hour} * * *`;
+}
+
+// Exported function to start cron
+export async function startReportCron() {
+  console.log("⏳ Initializing report cron...");
+
+  const companies = await Settings.find({
+    type: "email",
+    $or: [
+      { "data.enableReports": true },
+      { "data.enableMorningReport": true },
+      { "data.enableEveningReport": true }
+    ]
+  });
+
+  companies.forEach((s) => {
+    const companyId = s.companyId;
+    const data = s.data;
+
+    console.log(`📌 Setting up cron for company: ${companyId}`);
+
+    // Morning
+    if (data.enableMorningReport && data.morningReportTime) {
+      const cronTime = convertToCron(data.morningReportTime);
+      console.log(`⏰ Morning cron: ${cronTime}`);
+      cron.schedule(cronTime, () => {
+        console.log(`🚀 Sending morning report for ${companyId}`);
+        sendAdminManagerReport(companyId);
+        sendUserReports(companyId);
+      });
+    }
+
+    // Evening
+    if (data.enableEveningReport && data.eveningReportTime) {
+      const cronTime = convertToCron(data.eveningReportTime);
+      console.log(`⏰ Evening cron: ${cronTime}`);
+      cron.schedule(cronTime, () => {
+        console.log(`🌙 Sending evening report for ${companyId}`);
+        sendAdminManagerReport(companyId);
+        sendUserReports(companyId);
+      });
+    }
+  });
+}
+
+
 setupReportCron();  // MUST BE OUTSIDE ROUTER
 export default router;
