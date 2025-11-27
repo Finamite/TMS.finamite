@@ -350,23 +350,37 @@ export async function startReportCron() {
 
     // Morning
     if (data.enableMorningReport && data.morningReportTime) {
-      const cronTime = convertToCron(data.morningReportTime);
-      console.log(`⏰ Morning cron: ${cronTime}`);
+      const [hour, minute] = data.morningReportTime.split(':');
+      const cronTime = `${minute} ${hour} * * *`;
+      console.log(`⏰ Morning cron: ${cronTime} (IST)`);
       cron.schedule(cronTime, async () => {
         console.log(`🚀 Sending morning report for ${companyId}`);
-        await sendAdminManagerReport(companyId);
-        await sendUserReports(companyId);
+        try {
+          await sendAdminManagerReport(companyId);
+          await sendUserReports(companyId);
+        } catch (error) {
+          console.error(`Error sending morning report for ${companyId}:`, error);
+        }
+      }, {
+        timezone: "Asia/Kolkata"
       });
     }
 
     // Evening
     if (data.enableEveningReport && data.eveningReportTime) {
-      const cronTime = convertToCron(data.eveningReportTime);
-      console.log(`⏰ Evening cron: ${cronTime}`);
+      const [hour, minute] = data.eveningReportTime.split(':');
+      const cronTime = `${minute} ${hour} * * *`;
+      console.log(`⏰ Evening cron: ${cronTime} (IST)`);
       cron.schedule(cronTime, async () => {
         console.log(`🌙 Sending evening report for ${companyId}`);
-        await sendAdminManagerReport(companyId);
-        await sendUserReports(companyId);
+        try {
+          await sendAdminManagerReport(companyId);
+          await sendUserReports(companyId);
+        } catch (error) {
+          console.error(`Error sending evening report for ${companyId}:`, error);
+        }
+      }, {
+        timezone: "Asia/Kolkata"
       });
     }
   });
