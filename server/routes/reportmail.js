@@ -14,100 +14,100 @@ const router = express.Router();
    Generates metrics for admin/manager or per-user reports.
 ============================================================ */
 async function buildReportData(companyId, forUserId = null) {
-  const now = new Date();
+    const now = new Date();
 
-  const startOfDay = new Date(now);
-  startOfDay.setHours(0, 0, 0, 0);
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
 
-  const endOfDay = new Date(now);
-  endOfDay.setHours(23, 59, 59, 999);
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 59, 999);
 
-  const baseQuery = { companyId, isActive: true };
-  if (forUserId) baseQuery.assignedTo = forUserId;
+    const baseQuery = { companyId, isActive: true };
+    if (forUserId) baseQuery.assignedTo = forUserId;
 
-  const totalPending = await Task.countDocuments({ ...baseQuery, status: "pending" });
+    const totalPending = await Task.countDocuments({ ...baseQuery, status: "pending" });
 
-  const totalOverdue = await Task.countDocuments({
-    ...baseQuery,
-    status: { $in: ["pending", "overdue"] },
-    dueDate: { $lt: now }
-  });
-
-  const completedToday = await Task.countDocuments({
-    ...baseQuery,
-    status: "completed",
-    completedAt: { $gte: startOfDay, $lte: endOfDay }
-  });
-
-  const completedYesterday = await Task.countDocuments({
-    ...baseQuery,
-    status: "completed",
-    completedAt: { $gte: new Date(startOfDay.getTime() - 86400000), $lt: startOfDay }
-  });
-
-  const dueNext7Days = await Task.find({
-    ...baseQuery,
-    status: "pending",
-    dueDate: { $gte: now, $lte: new Date(now.getTime() + 7 * 86400000) }
-  })
-    .limit(30)
-    .sort({ dueDate: 1 })
-    .lean();
-
-  const topDelayed = await Task.aggregate([
-    {
-      $match: {
-        companyId,
+    const totalOverdue = await Task.countDocuments({
+        ...baseQuery,
         status: { $in: ["pending", "overdue"] },
         dueDate: { $lt: now }
-      }
-    },
-    { $group: { _id: "$assignedTo", overdueCount: { $sum: 1 } } },
-    { $sort: { overdueCount: -1 } },
-    { $limit: 5 },
-    {
-      $lookup: {
-        from: "users",
-        localField: "_id",
-        foreignField: "_id",
-        as: "user"
-      }
-    },
-    { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
-    {
-      $project: {
-        overdueCount: 1,
-        username: "$user.username",
-        email: "$user.email"
-      }
-    }
-  ]);
+    });
 
-  const highPriorityPending = await Task.find({
-    ...baseQuery,
-    status: "pending",
-    priority: { $in: ["high", "urgent"] }
-  })
-    .limit(20)
-    .sort({ dueDate: 1 })
-    .lean();
+    const completedToday = await Task.countDocuments({
+        ...baseQuery,
+        status: "completed",
+        completedAt: { $gte: startOfDay, $lte: endOfDay }
+    });
 
-  return {
-    totalPending,
-    totalOverdue,
-    completedToday,
-    completedYesterday,
-    dueNext7Days,
-    topDelayed,
-    highPriorityPending
-  };
+    const completedYesterday = await Task.countDocuments({
+        ...baseQuery,
+        status: "completed",
+        completedAt: { $gte: new Date(startOfDay.getTime() - 86400000), $lt: startOfDay }
+    });
+
+    const dueNext7Days = await Task.find({
+        ...baseQuery,
+        status: "pending",
+        dueDate: { $gte: now, $lte: new Date(now.getTime() + 7 * 86400000) }
+    })
+        .limit(30)
+        .sort({ dueDate: 1 })
+        .lean();
+
+    const topDelayed = await Task.aggregate([
+        {
+            $match: {
+                companyId,
+                status: { $in: ["pending", "overdue"] },
+                dueDate: { $lt: now }
+            }
+        },
+        { $group: { _id: "$assignedTo", overdueCount: { $sum: 1 } } },
+        { $sort: { overdueCount: -1 } },
+        { $limit: 5 },
+        {
+            $lookup: {
+                from: "users",
+                localField: "_id",
+                foreignField: "_id",
+                as: "user"
+            }
+        },
+        { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
+        {
+            $project: {
+                overdueCount: 1,
+                username: "$user.username",
+                email: "$user.email"
+            }
+        }
+    ]);
+
+    const highPriorityPending = await Task.find({
+        ...baseQuery,
+        status: "pending",
+        priority: { $in: ["high", "urgent"] }
+    })
+        .limit(20)
+        .sort({ dueDate: 1 })
+        .lean();
+
+    return {
+        totalPending,
+        totalOverdue,
+        completedToday,
+        completedYesterday,
+        dueNext7Days,
+        topDelayed,
+        highPriorityPending
+    };
 }
 
 /* ============================================================
    2. HTML TEMPLATE GENERATOR
 ============================================================ */
 function generateHtmlReport({ companyName, title, generatedAt, data, forUser }) {
-  return `
+    return `
   <html>
   <body style="font-family:Arial;background:#f6f7fb;padding:20px;">
     <div style="max-width:800px;margin:auto;background:white;border-radius:12px;padding:20px;box-shadow:0 4px 20px rgba(0,0,0,0.1)">
@@ -149,36 +149,33 @@ function generateHtmlReport({ companyName, title, generatedAt, data, forUser }) 
       </div>
 
       <h3 style="margin-top:25px;">📅 Due in next 7 days</h3>
-      ${
-        data.dueNext7Days.length
-          ? data.dueNext7Days
-              .map(
-                (t) =>
-                  `<p>• <b>${t.title}</b> — ${new Date(
-                    t.dueDate
-                  ).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</p>`
-              )
-              .join("")
-          : "<p>No upcoming tasks</p>"
-      }
+      ${data.dueNext7Days.length
+            ? data.dueNext7Days
+                .map(
+                    (t) =>
+                        `<p>• <b>${t.title}</b> — ${new Date(
+                            t.dueDate
+                        ).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</p>`
+                )
+                .join("")
+            : "<p>No upcoming tasks</p>"
+        }
 
       <h3 style="margin-top:25px;">⚠ Top Delayed Users</h3>
-      ${
-        data.topDelayed.length
-          ? data.topDelayed
-              .map((u) => `<p>• ${u.username} — ${u.overdueCount} overdue tasks</p>`)
-              .join("")
-          : "<p>No delayed users</p>"
-      }
+      ${data.topDelayed.length
+            ? data.topDelayed
+                .map((u) => `<p>• ${u.username} — ${u.overdueCount} overdue tasks</p>`)
+                .join("")
+            : "<p>No delayed users</p>"
+        }
 
       <h3 style="margin-top:25px;">🔥 High Priority Pending</h3>
-      ${
-        data.highPriorityPending.length
-          ? data.highPriorityPending
-              .map((t) => `<p>• <b>${t.title}</b> — priority: ${t.priority}</p>`)
-              .join("")
-          : "<p>No high priority tasks</p>"
-      }
+      ${data.highPriorityPending.length
+            ? data.highPriorityPending
+                .map((t) => `<p>• <b>${t.title}</b> — priority: ${t.priority}</p>`)
+                .join("")
+            : "<p>No high priority tasks</p>"
+        }
 
       <div style="text-align:center;margin-top:20px;">
         <a href="https://tms.finamite.in"
@@ -197,65 +194,65 @@ function generateHtmlReport({ companyName, title, generatedAt, data, forUser }) 
    3. SEND REPORT — Admin/Managers
 ============================================================ */
 async function sendAdminManagerReport(companyId) {
-  const settings = await Settings.findOne({ type: "email", companyId });
-  if (!settings?.data?.enabled || !settings?.data?.enableReports) return;
+    const settings = await Settings.findOne({ type: "email", companyId });
+    if (!settings?.data?.enabled || !settings?.data?.enableReports) return;
 
-  const admins = await User.find({
-    companyId,
-    role: { $in: ["admin", "manager"] },
-    isActive: true
-  });
+    const admins = await User.find({
+        companyId,
+        role: { $in: ["admin", "manager"] },
+        isActive: true
+    });
 
-  const data = await buildReportData(companyId);
+    const data = await buildReportData(companyId);
 
-  const html = generateHtmlReport({
-    companyName: settings.data.companyName || "Company",
-    title: "Daily Report — Admin / Manager",
-    generatedAt: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
-    data
-  });
+    const html = generateHtmlReport({
+        companyName: settings.data.companyName || "Company",
+        title: "Daily Report — Admin / Manager",
+        generatedAt: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
+        data
+    });
 
-  for (const admin of admins) {
-    await sendSystemEmail(
-      companyId,
-      admin.email,
-      "Daily Task Report",
-      "Please view the HTML email.",
-      html,
-      []
-    );
-  }
+    for (const admin of admins) {
+        await sendSystemEmail(
+            companyId,
+            admin.email,
+            "Daily Task Report",
+            "Please view the HTML email.",
+            html,
+            []
+        );
+    }
 }
 
 /* ============================================================
    4. SEND REPORT — Each User
 ============================================================ */
 async function sendUserReports(companyId) {
-  const settings = await Settings.findOne({ type: "email", companyId });
-  if (!settings?.data?.enabled || !settings?.data?.enableReports) return;
+    const settings = await Settings.findOne({ type: "email", companyId });
+    if (!settings?.data?.enabled || !settings?.data?.enableReports) return;
 
-  const users = await User.find({ companyId, isActive: true });
+    const users = await User.find({ companyId, isActive: true });
 
-  for (const user of users) {
-    const data = await buildReportData(companyId, user._id);
+    for (const user of users) {
+        const data = await buildReportData(companyId, user._id);
 
-    const html = generateHtmlReport({
-      companyName: settings.data.companyName || "Company",
-      title: "Your Daily Task Summary",
-      generatedAt: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
-      data,
-      forUser: user.username
-    });
+        const html = generateHtmlReport({
+            companyName: settings.data.companyName || "Company",
+            title: "Your Daily Task Summary",
+            generatedAt: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
+            data,
+            forUser: user.username
+        });
 
-    await sendSystemEmail(
-      companyId,
-      user.email,
-      "Your Daily Task Summary",
-      "Please view the HTML email.",
-      html,
-      []
-    );
-  }
+        await sendSystemEmail(
+            companyId,
+            user.email,
+            "Your Daily Task Summary",
+            "Please view the HTML email.",
+            html,
+            []
+        );
+    }
 }
 
 /* ============================================================
@@ -264,44 +261,49 @@ async function sendUserReports(companyId) {
 
 // Manual trigger
 router.post("/send-report", async (req, res) => {
-  try {
-    const { companyId } = req.body;
+    try {
+        const { companyId } = req.body;
 
-    await sendAdminManagerReport(companyId);
-    await sendUserReports(companyId);
+        await sendAdminManagerReport(companyId);
+        await sendUserReports(companyId);
 
-    res.json({ message: "Reports sent successfully" });
-  } catch (err) {
-    console.error("Report error:", err);
-    res.status(500).json({ message: "Error sending reports" });
-  }
+        res.json({ message: "Reports sent successfully" });
+    } catch (err) {
+        console.error("Report error:", err);
+        res.status(500).json({ message: "Error sending reports" });
+    }
 });
 
 /* ============================================================
    6. CRON SCHEDULER (runs automatically)
 ============================================================ */
 async function setupReportCron() {
-  const companies = await Settings.find({ type: "email", "data.enableReports": true });
-
-  companies.forEach((s) => {
-    const companyId = s.companyId;
-    const morning = s.data.morningReportTime || "09:00";
-    const evening = s.data.eveningReportTime || "18:00";
-
-    const [mh, mm] = morning.split(":");
-    cron.schedule(`${mm} ${mh} * * *`, async () => {
-      await sendAdminManagerReport(companyId);
-      await sendUserReports(companyId);
+    const companies = await Settings.find({
+        type: "email", $or: [
+            { "data.enableReports": true },
+            { "data.enableMorningReport": true },
+            { "data.enableEveningReport": true }
+        ]
     });
 
-    const [eh, em] = evening.split(":");
-    cron.schedule(`${em} ${eh} * * *`, async () => {
-      await sendAdminManagerReport(companyId);
-      await sendUserReports(companyId);
+    companies.forEach((s) => {
+        const companyId = s.companyId;
+        const morning = s.data.morningReportTime || "09:00";
+        const evening = s.data.eveningReportTime || "18:00";
+
+        const [mh, mm] = morning.split(":");
+        cron.schedule(`${mm} ${mh} * * *`, async () => {
+            await sendAdminManagerReport(companyId);
+            await sendUserReports(companyId);
+        });
+
+        const [eh, em] = evening.split(":");
+        cron.schedule(`${em} ${eh} * * *`, async () => {
+            await sendAdminManagerReport(companyId);
+            await sendUserReports(companyId);
+        });
     });
-  });
 }
 
-setupReportCron();
-
+setupReportCron();  // MUST BE OUTSIDE ROUTER
 export default router;
