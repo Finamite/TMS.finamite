@@ -915,7 +915,9 @@ router.post('/:id/complete', async (req, res) => {
       const subject = `Task Completed: ${task.title}`;
       const attachmentsText =
   task.completionAttachments?.length > 0
-    ? `\nAttached Files:\n${task.completionAttachments.map(a => "- " + a).join("\n")}\n`
+    ? `\nAttached Files:\n${task.completionAttachments
+        .map(a => "- " + (a.filename || a.originalName || a.name || "file"))
+        .join("\n")}\n`
     : '';
       const text = `
 The following task has been completed:
