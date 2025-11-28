@@ -21,6 +21,8 @@ interface RevisionSettings {
     enableDaysRule: boolean;
     days: Record<number, number>;
     scoringRules: ScoringRule[];
+    enableMaxRevision: boolean;
+    restrictHighPriorityRevision: boolean,
 }
 
 interface EmailSettings {
@@ -96,8 +98,10 @@ const SettingsPage: React.FC = () => {
             limit: 3,
             scoringModel: "stepped",
             enableRevisions: false,
+            enableMaxRevision: true,
             maxDays: 7,
             enableDaysRule: false,
+            restrictHighPriorityRevision: false,
             days: {},                          // <---- ✔ ADD THIS
             scoringRules: [buildDefaultScoringRule(3)]
         },
@@ -117,7 +121,7 @@ const SettingsPage: React.FC = () => {
             reportRecipients: []
         }
     });
-    const [expandedRevision, setExpandedRevision] = useState(true);
+    const [expandedRevision, setExpandedRevision] = useState(false);
     const [expandedEmail, setExpandedEmail] = useState(false);
     const [expandedReports, setExpandedReports] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
@@ -157,7 +161,7 @@ const SettingsPage: React.FC = () => {
                             enabled: true
                         }
                     }));
-                    
+
                     setMessage({
                         type: "success",
                         text: "Google connected successfully!"
@@ -284,6 +288,8 @@ const SettingsPage: React.FC = () => {
                         enableRevisions: revRes.data.enableRevisions ?? false,
                         maxDays: revRes.data.maxDays ?? 7,
                         enableDaysRule: revRes.data.enableDaysRule ?? false,
+                        enableMaxRevision: revRes.data.enableMaxRevision ?? true,
+                        restrictHighPriorityRevision: revRes.data.restrictHighPriorityRevision ?? false,
                         days: revRes.data.days ?? {},
                         scoringRules: existingRules
                     }
@@ -327,21 +333,24 @@ const SettingsPage: React.FC = () => {
                 companyId: currentUser.companyId,
                 limit: settings.revision.limit,
                 scoringModel: settings.revision.scoringModel,
-                enableRevisions: settings.revision.enableRevisions,
-                maxDays: settings.revision.maxDays,
 
-                // 🔥 send actual days data
+                enableRevisions: settings.revision.enableRevisions,
+                enableMaxRevision: settings.revision.enableMaxRevision,  // ✅ FIXED
+                enableDaysRule: settings.revision.enableDaysRule,        // ✅ FIXED
+                restrictHighPriorityRevision: settings.revision.restrictHighPriorityRevision ?? false,
+
+                maxDays: settings.revision.enableDaysRule
+                    ? settings.revision.maxDays
+                    : Infinity,
+
                 days: settings.revision.enableDaysRule
                     ? settings.revision.days
                     : {},
 
                 scoringRules: settings.revision.scoringRules.map(rule => ({
                     ...rule,
-                    // send per-rule days only if enabled
                     days: settings.revision.enableDaysRule ? rule.days : undefined
-                })),
-
-                enableDaysRule: settings.revision.enableDaysRule
+                }))
             };
 
             await axios.post(`${address}/api/settings/revision`, revisionPayload);;
@@ -670,10 +679,10 @@ const SettingsPage: React.FC = () => {
 
                 <div className="space-y-8">
                     {/* Revision Settings */}
-                    <div className="bg-[var(--color-surface)] rounded-2xl shadow-lg border border-[var(--color-border)] overflow-hidden">
+                    <div className="bg-[var(--color-surface)] rounded-2xl shadow-xl border border-[var(--color-border)] overflow-hidden transition-all duration-300">
                         {/* Header */}
                         <div
-                            className="flex items-center justify-between p-6 cursor-pointer hover:bg-[var(--color-surface)]/80 transition-colors"
+                            className="flex items-center justify-between p-6 cursor-pointer hover:bg-[var(--color-background)] transition-colors"
                             onClick={() => setExpandedRevision(!expandedRevision)}
                         >
                             <div className="flex items-center gap-4">
@@ -681,50 +690,64 @@ const SettingsPage: React.FC = () => {
                                     <AlertTriangle className="h-6 w-6 text-[var(--color-accent)]" />
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-semibold text-[var(--color-text)]">Revision & Scoring</h2>
-                                    <p className="text-[var(--color-textSecondary)] text-sm mt-0.5">
+                                    <h2 className="text-xl font-semibold text-[var(--color-text)]">
+                                        Revision & Scoring
+                                    </h2>
+                                    <p className="text-[var(--color-textSecondary)] text-sm mt-1">
                                         Configure task revision limits and scoring impact on performance
                                     </p>
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-4">
-                                {/* Toggle Switch */}
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleInputChange('revision', 'enableRevisions', !revisionEnabled);
-                                        setExpandedRevision(true);
-                                    }}
-                                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-200 ${revisionEnabled ? 'bg-[var(--color-accent)]' : 'bg-gray-300'
+                            {/* Toggle Switch */}
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleInputChange('revision', 'enableRevisions', !revisionEnabled);
+                                    setExpandedRevision(!revisionEnabled);
+                                }}
+                                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-200 shadow-inner ${revisionEnabled ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border)]'
+                                    }`}
+                            >
+                                <span
+                                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${revisionEnabled ? 'translate-x-6' : 'translate-x-1'
                                         }`}
-                                >
-                                    <span
-                                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${revisionEnabled ? 'translate-x-6' : 'translate-x-1'
-                                            }`}
-                                    />
-                                </button>
-                            </div>
+                                />
+                            </button>
                         </div>
 
                         {/* Expanded Content */}
                         {expandedRevision && (
-                            <div className="px-6 pb-6 pt-4 border-t border-[var(--color-border)]">
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <div className="px-6 pb-6 pt-2 border-t border-[var(--color-border)] bg-[var(--color-background)]">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6">
 
                                     {/* LEFT COLUMN */}
-                                    <div className="space-y-6">
+                                    <div className="space-y-8">
                                         {/* Configuration Section */}
-                                        <div className="space-y-4">
-                                            <h3 className="text-sm font-semibold text-[var(--color-text)] uppercase tracking-wide">
+                                        <div className="space-y-5">
+                                            <h3 className="text-xs font-bold text-[var(--color-text)] uppercase tracking-wider flex items-center gap-2">
+                                                <span className="w-1 h-4 bg-[var(--color-primary)] rounded-full"></span>
                                                 Configuration
                                             </h3>
 
                                             <div className="grid grid-cols-2 gap-4">
                                                 {/* Max Revision */}
-                                                <div>
-                                                    <label className="block text-sm font-medium text-[var(--color-text)] mb-2">
-                                                        Max Revisions
+                                                <div className="space-y-2">
+                                                    <label className="flex items-center justify-between text-sm font-medium text-[var(--color-text)]">
+                                                        <span>Max Revisions</span>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleInputChange('revision', 'enableMaxRevision', !settings.revision.enableMaxRevision);
+                                                            }}
+                                                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-all duration-200 ${settings.revision.enableMaxRevision ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border)]'
+                                                                }`}
+                                                        >
+                                                            <span
+                                                                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${settings.revision.enableMaxRevision ? 'translate-x-4' : 'translate-x-1'
+                                                                    }`}
+                                                            />
+                                                        </button>
                                                     </label>
                                                     <input
                                                         type="number"
@@ -732,18 +755,31 @@ const SettingsPage: React.FC = () => {
                                                         max={20}
                                                         value={settings.revision.limit}
                                                         onChange={(e) => handleLimitChange(parseInt(e.target.value))}
-                                                        disabled={!revisionEnabled}
-                                                        className={`w-full px-4 py-2.5 border border-[var(--color-border)] rounded-xl text-sm
-                                        focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)]
-                                        bg-[var(--color-surface)] text-[var(--color-text)]
-                                        ${!revisionEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                        disabled={!settings.revision.enableMaxRevision}
+                                                        className={`w-full px-4 py-3 border border-[var(--color-border)] rounded-lg text-sm
+                    bg-[var(--color-surface)] text-[var(--color-text)]
+                    focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] transition-all
+                    ${!settings.revision.enableMaxRevision ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                     />
                                                 </div>
 
                                                 {/* Max Days */}
-                                                <div>
-                                                    <label className="block text-sm font-medium text-[var(--color-text)] mb-2">
-                                                        Max Days
+                                                <div className="space-y-2">
+                                                    <label className="flex items-center justify-between text-sm font-medium text-[var(--color-text)]">
+                                                        <span>Max Days</span>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleInputChange('revision', 'enableDaysRule', !settings.revision.enableDaysRule);
+                                                            }}
+                                                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-all duration-200 ${settings.revision.enableDaysRule ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border)]'
+                                                                }`}
+                                                        >
+                                                            <span
+                                                                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${settings.revision.enableDaysRule ? 'translate-x-4' : 'translate-x-1'
+                                                                    }`}
+                                                            />
+                                                        </button>
                                                     </label>
                                                     <div className="flex items-center gap-2">
                                                         <input
@@ -758,63 +794,69 @@ const SettingsPage: React.FC = () => {
                                                                 }))
                                                             }
                                                             disabled={!revisionEnabled}
-                                                            className={`flex-1 px-4 py-2.5 border border-[var(--color-border)] rounded-xl text-sm
-                                            focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)]
-                                            bg-[var(--color-surface)] text-[var(--color-text)]
-                                            ${!revisionEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                            className={`flex-1 px-4 py-3 border border-[var(--color-border)] rounded-lg text-sm
+                      bg-[var(--color-surface)] text-[var(--color-text)]
+                      focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] transition-all
+                      ${!revisionEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                         />
                                                         <button
                                                             onClick={() => setOpenEditMaxDays(true)}
                                                             disabled={!revisionEnabled}
-                                                            className={`p-2.5 rounded-xl border border-[var(--color-border)] hover:bg-[var(--color-border)]/20 transition-colors
-                                            ${!revisionEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                            className={`p-3 rounded-lg border border-[var(--color-border)] 
+                      hover:bg-[var(--color-border)]/30 transition-colors
+                      ${!revisionEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                         >
-                                                            <Pencil className="w-4 h-4 text-[var(--color-text)]" />
+                                                            <Pencil className="w-4 h-4 text-[var(--color-textSecondary)]" />
                                                         </button>
                                                     </div>
                                                 </div>
                                             </div>
 
-                                            {/* Enable Days Rule Checkbox */}
-                                            <label className="flex items-center gap-2.5 cursor-pointer pt-1">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={settings.revision.enableDaysRule}
-                                                    onChange={(e) =>
-                                                        setSettings(prev => ({
-                                                            ...prev,
-                                                            revision: { ...prev.revision, enableDaysRule: e.target.checked }
-                                                        }))
+                                            {/* Restrict High Priority Toggle */}
+                                            <div className="flex items-center justify-between p-4 bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)] hover:border-[var(--color-primary)]/30 transition-all">
+                                                <label className="text-sm font-medium text-[var(--color-text)]">
+                                                    Restrict High Priority Revisions
+                                                </label>
+                                                <button
+                                                    onClick={() =>
+                                                        handleInputChange('revision', 'restrictHighPriorityRevision', !settings.revision.restrictHighPriorityRevision)
                                                     }
-                                                    disabled={!revisionEnabled}
-                                                    className="w-4 h-4 text-[var(--color-primary)] border-[var(--color-border)] rounded focus:ring-2 focus:ring-[var(--color-primary)]"
-                                                />
-                                                <span className="text-sm text-[var(--color-text)]">Enable Days Rule</span>
-                                            </label>
+                                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-200 ${settings.revision.restrictHighPriorityRevision ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border)]'
+                                                        }`}
+                                                >
+                                                    <span
+                                                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${settings.revision.restrictHighPriorityRevision ? 'translate-x-6' : 'translate-x-1'
+                                                            }`}
+                                                    />
+                                                </button>
+                                            </div>
                                         </div>
 
                                         {/* Scoring Rules */}
-                                        <div>
-                                            <h3 className="text-sm font-semibold text-[var(--color-text)] uppercase tracking-wide mb-4">
+                                        <div className="space-y-4">
+                                            <h3 className="text-xs font-bold text-[var(--color-text)] uppercase tracking-wider flex items-center gap-2">
+                                                <span className="w-1 h-4 bg-[var(--color-success)] rounded-full"></span>
                                                 Scoring Rules
                                             </h3>
                                             <div className="space-y-3">
                                                 {settings.revision.scoringRules.map((rule) => (
                                                     <div
                                                         key={rule.id}
-                                                        className="p-4 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] hover:border-[var(--color-border)]/60 transition-all"
+                                                        className="p-4 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] 
+                    hover:shadow-lg hover:border-[var(--color-primary)]/40 transition-all duration-200"
                                                     >
-                                                        <div className="flex items-center justify-between gap-4">
+                                                        <div className="flex items-start justify-between gap-4">
                                                             <div className="flex-1 min-w-0">
-                                                                <div className="flex items-center gap-2 mb-1">
-                                                                    <h4 className="font-medium text-[var(--color-text)]">{rule.name}</h4>
+                                                                <div className="flex items-center gap-2 mb-2">
+                                                                    <h4 className="font-semibold text-[var(--color-text)]">{rule.name}</h4>
                                                                     {rule.enabled && (
-                                                                        <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-[var(--color-success)]/10 text-[var(--color-success)] uppercase tracking-wider">
+                                                                        <span className="px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-[var(--color-success)]/20 
+                            text-[var(--color-success)] uppercase tracking-wider">
                                                                             Active
                                                                         </span>
                                                                     )}
                                                                 </div>
-                                                                <p className="text-xs text-[var(--color-textSecondary)] leading-relaxed">
+                                                                <p className="text-xs text-[var(--color-textSecondary)] leading-relaxed font-mono">
                                                                     {Object.entries(rule.mapping)
                                                                         .sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
                                                                         .map(([rev, pct]) =>
@@ -825,16 +867,15 @@ const SettingsPage: React.FC = () => {
                                                             </div>
 
                                                             <div className="flex items-center gap-2">
-                                                                {/* ❌ Delete Button — hidden for default rule */}
                                                                 {rule.id !== 'default' && (
                                                                     <button
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
                                                                             if (!revisionEnabled) return;
-                                                                            setConfirmDeleteRule(rule.id); // 🔥 open confirmation popup
+                                                                            setConfirmDeleteRule(rule.id);
                                                                         }}
-                                                                        className="p-2.5 rounded-xl border border-red-400 text-red-500 
-                   hover:bg-red-500 hover:text-white transition-all"
+                                                                        className="p-2 rounded-lg border border-[var(--color-error)]/50 text-[var(--color-error)]
+                            hover:bg-[var(--color-error)] hover:text-white hover:border-[var(--color-error)] transition-all"
                                                                     >
                                                                         <Trash className="w-4 h-4" />
                                                                     </button>
@@ -846,13 +887,12 @@ const SettingsPage: React.FC = () => {
                                                                         handleEditRule(rule);
                                                                     }}
                                                                     disabled={!revisionEnabled}
-                                                                    className={`p-2.5 rounded-xl border border-[var(--color-border)] hover:bg-[var(--color-border)]/20 transition-colors
-                                                    ${!revisionEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                    className={`p-2 rounded-lg border border-[var(--color-border)] 
+                          hover:bg-[var(--color-border)]/30 transition-colors
+                          ${!revisionEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                                 >
-                                                                    <Pencil className="w-4 h-4 text-[var(--color-text)]" />
+                                                                    <Pencil className="w-4 h-4 text-[var(--color-textSecondary)]" />
                                                                 </button>
-
-
 
                                                                 <button
                                                                     onClick={(e) => {
@@ -860,7 +900,7 @@ const SettingsPage: React.FC = () => {
                                                                         if (!revisionEnabled) return;
                                                                         toggleRuleEnable(rule.id);
                                                                     }}
-                                                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-200 ${rule.enabled ? 'bg-[var(--color-success)]' : 'bg-gray-300'
+                                                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-200 ${rule.enabled ? 'bg-[var(--color-success)]' : 'bg-[var(--color-border)]'
                                                                         } ${!revisionEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                                 >
                                                                     <span
@@ -877,9 +917,10 @@ const SettingsPage: React.FC = () => {
                                     </div>
 
                                     {/* RIGHT COLUMN */}
-                                    <div>
-                                        <div className="flex items-center justify-between mb-4">
-                                            <h3 className="text-sm font-semibold text-[var(--color-text)] uppercase tracking-wide">
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="text-xs font-bold text-[var(--color-text)] uppercase tracking-wider flex items-center gap-2">
+                                                <span className="w-1 h-4 bg-[var(--color-secondary)] rounded-full"></span>
                                                 Scoring Impact Preview
                                             </h3>
                                             <button
@@ -888,9 +929,8 @@ const SettingsPage: React.FC = () => {
                                                     openCreateRuleModal();
                                                 }}
                                                 disabled={!revisionEnabled}
-                                                className={`px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-medium shadow-sm transition-all
-                                ${revisionEnabled
-                                                        ? 'bg-[var(--color-primary)] text-white hover:bg-[var(--color-secondary)]'
+                                                className={`px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-semibold shadow-sm transition-all ${revisionEnabled
+                                                        ? 'bg-[var(--color-primary)] text-white hover:opacity-90 hover:shadow-md'
                                                         : 'bg-[var(--color-border)] text-[var(--color-textSecondary)] cursor-not-allowed'
                                                     }`}
                                             >
@@ -900,23 +940,27 @@ const SettingsPage: React.FC = () => {
                                         </div>
 
                                         <div
-                                            className={`grid grid-cols-2 sm:grid-cols-3 gap-3 p-5 bg-gradient-to-br from-[var(--color-surface)] to-[var(--color-border)]/10 rounded-xl border border-[var(--color-border)] max-h-72 overflow-y-auto
-                            ${!revisionEnabled ? 'opacity-50' : ''}`}
+                                            className={`grid grid-cols-2 sm:grid-cols-3 gap-3 p-6 bg-gradient-to-br from-[var(--color-primary)]/5 to-[var(--color-secondary)]/5
+              rounded-xl border border-[var(--color-border)] 
+              max-h-80 overflow-y-auto custom-scrollbar ${!revisionEnabled ? 'opacity-50 grayscale' : ''}`}
                                         >
                                             {getScoringPreview(settings.revision.limit, settings.revision.scoringRules).map((item, idx) => {
                                                 const [label, value] = item.split(': ');
-
                                                 return (
-                                                    <div key={idx} className="bg-[var(--color-surface)] rounded-xl p-3 shadow-sm border border-[var(--color-border)]">
-                                                        <div className="text-xs font-medium text-[var(--color-textSecondary)] mb-1.5">
+                                                    <div
+                                                        key={idx}
+                                                        className="bg-[var(--color-surface)] rounded-lg p-4 shadow-sm border border-[var(--color-border)]
+                    hover:shadow-md hover:border-[var(--color-primary)]/30 transition-all"
+                                                    >
+                                                        <div className="text-xs font-semibold text-[var(--color-textSecondary)] mb-2 uppercase tracking-wide">
                                                             {label}
                                                         </div>
                                                         <div
-                                                            className={`text-lg font-bold ${value.includes('0%')
-                                                                ? 'text-[var(--color-error)]'
-                                                                : value.includes('100%')
-                                                                    ? 'text-[var(--color-success)]'
-                                                                    : 'text-[var(--color-warning)]'
+                                                            className={`text-2xl font-bold ${value.includes('0%')
+                                                                    ? 'text-[var(--color-error)]'
+                                                                    : value.includes('100%')
+                                                                        ? 'text-[var(--color-success)]'
+                                                                        : 'text-[var(--color-warning)]'
                                                                 }`}
                                                         >
                                                             {value}
@@ -932,245 +976,187 @@ const SettingsPage: React.FC = () => {
                     </div>
 
                     {/* Email Configuration */}
-                    <div className="bg-[var(--color-surface)] rounded-2xl shadow-lg border border-[var(--color-border)] overflow-hidden">
+                    <div className="bg-[var(--color-surface)] rounded-2xl shadow-xl border border-[var(--color-border)] overflow-hidden transition-all duration-300">
+                        {/* Header */}
                         <div
-                            className="flex items-center justify-between p-6 cursor-pointer hover:bg-[color:var(--color-surface)/80] transition-colors"
+                            className="flex items-center justify-between p-6 cursor-pointer hover:bg-[var(--color-background)] transition-colors"
                             onClick={() => setExpandedEmail(!expandedEmail)}
                         >
-                            <div className="flex items-center">
-                                <div className="p-2 bg-[color:var(--color-primary)/10] rounded-lg mr-4">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-[var(--color-primary)]/10 rounded-xl">
                                     <Mail className="h-6 w-6 text-[var(--color-primary)]" />
                                 </div>
                                 <div>
                                     <h2 className="text-xl font-semibold text-[var(--color-text)]">Email Notifications</h2>
-                                    <p className="text-[var(--color-textSecondary)] text-sm">
+                                    <p className="text-[var(--color-textSecondary)] text-sm mt-1">
                                         Configure Gmail integration and automation
                                     </p>
                                 </div>
                             </div>
-                            <div className="flex items-center space-x-4">
-                                <div className="flex items-center space-x-2 cursor-pointer">
-                                    <div
-                                        onClick={e => {
-                                            e.stopPropagation();
-                                            handleInputChange('email', 'enabled', !emailEnabled);
-                                            setExpandedEmail(true);
-                                        }}
-                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all 
-                                            ${emailEnabled
-                                                ? 'bg-[var(--color-primary)]'
-                                                : 'bg-gray-300'
-                                            }`}
-                                    >
-                                        <span
-                                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-all
-                                                ${emailEnabled
-                                                    ? 'translate-x-5'
-                                                    : 'translate-x-1'
-                                                }`}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
+
+                            {/* Toggle Switch */}
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleInputChange('email', 'enabled', !emailEnabled);
+                                    setExpandedEmail(true);
+                                }}
+                                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-200 shadow-inner ${emailEnabled ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border)]'
+                                    }`}
+                            >
+                                <span
+                                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${emailEnabled ? 'translate-x-6' : 'translate-x-1'
+                                        }`}
+                                />
+                            </button>
                         </div>
 
+                        {/* Expanded Content */}
                         {expandedEmail && (
-                            <div className="p-6 border-t border-[var(--color-border)]">
-                                <div className="space-y-8">
+                            <div className="px-6 pb-6 pt-2 border-t border-[var(--color-border)] bg-[var(--color-background)]">
+                                <div className="space-y-8 mt-6">
+
                                     {/* Gmail Configuration */}
-                                    <div>
-                                        <h3 className="text-lg font-semibold text-[var(--color-text)] mb-4">
+                                    <div className="space-y-4">
+                                        <h3 className="text-xs font-bold text-[var(--color-text)] uppercase tracking-wider flex items-center gap-2">
+                                            <span className="w-1 h-4 bg-[var(--color-primary)] rounded-full"></span>
                                             Gmail Configuration
                                         </h3>
-                                        <div className="space-y-4">
 
-                                            {/* Google Connection Status */}
-                                            {settings.email?.enabled && settings.email?.email ? (
-                                                <div className="flex items-center justify-between p-4 bg-green-100 border border-green-300 rounded-xl">
+                                        {/* Google Connection Status */}
+                                        {settings.email?.enabled && settings.email?.email ? (
+                                            <div className="flex items-center justify-between p-5 bg-[var(--color-success)]/10 border border-[var(--color-success)]/30 rounded-xl hover:shadow-md transition-all">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="p-2.5 bg-[var(--color-success)]/20 rounded-lg">
+                                                        <Mail className="h-5 w-5 text-[var(--color-success)]" />
+                                                    </div>
                                                     <div>
-                                                        <p className="text-green-700 font-semibold">Connected to Google</p>
-                                                        <p className="text-green-700 text-sm">Email: {settings.email.email}</p>
+                                                        <p className="text-[var(--color-success)] font-semibold text-sm">Connected to Google</p>
+                                                        <p className="text-[var(--color-textSecondary)] text-xs mt-0.5">Email: {settings.email.email}</p>
                                                     </div>
-
-                                                    <button
-                                                        onClick={disconnectGoogle}
-                                                        className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl"
-                                                    >
-                                                        Disconnect
-                                                    </button>
                                                 </div>
-                                            ) : (
-                                                <div className="flex items-center justify-between p-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm hover:shadow-md transition-all duration-300">
-
-                                                    {/* Left side: Icon + Text */}
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="p-3 bg-red-100 text-red-600 rounded-xl">
-                                                            <Mail className="h-5 w-5" />
-                                                        </div>
-
-                                                        <div>
-                                                            <p className="text-[var(--color-text)] font-semibold text-sm">
-                                                                Google Email Not Connected
-                                                            </p>
-                                                            <p className="text-[var(--color-textSecondary)] text-xs">
-                                                                Connect your Google account to enable email automation.
-                                                            </p>
-                                                        </div>
+                                                <button
+                                                    onClick={disconnectGoogle}
+                                                    className="px-4 py-2 bg-[var(--color-error)] hover:bg-[var(--color-error)]/90 text-white rounded-lg font-medium transition-all hover:shadow-md"
+                                                >
+                                                    Disconnect
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center justify-between p-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm hover:shadow-md hover:border-[var(--color-primary)]/30 transition-all duration-300">
+                                                {/* Left side: Icon + Text */}
+                                                <div className="flex items-center gap-3">
+                                                    <div className="p-3 bg-[var(--color-error)]/10 text-[var(--color-error)] rounded-xl">
+                                                        <Mail className="h-5 w-5" />
                                                     </div>
-
-                                                    {/* Right side: Button */}
-                                                    <button
-                                                        onClick={connectGoogle}
-                                                        disabled={googleLoading}
-                                                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-500 to-red-600 text-white text-sm font-medium shadow-md hover:shadow-lg 
-                   hover:scale-[1.03] active:scale-[0.98] transition-all duration-200 flex items-center gap-2 disabled:opacity-50"
-                                                    >
-                                                        {googleLoading ? (
-                                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                                        ) : (
-                                                            <Mail className="h-4 w-4" />
-                                                        )}
-                                                        Connect with Google
-                                                    </button>
+                                                    <div>
+                                                        <p className="text-[var(--color-text)] font-semibold text-sm">
+                                                            Google Email Not Connected
+                                                        </p>
+                                                        <p className="text-[var(--color-textSecondary)] text-xs mt-0.5">
+                                                            Connect your Google account to enable email automation
+                                                        </p>
+                                                    </div>
                                                 </div>
 
-                                            )}
-
-                                        </div>
+                                                {/* Right side: Button */}
+                                                <button
+                                                    onClick={connectGoogle}
+                                                    disabled={googleLoading}
+                                                    className="px-5 py-2.5 rounded-lg bg-gradient-to-r from-[var(--color-error)] to-red-300 text-white text-sm font-semibold shadow-sm hover:shadow-md 
+                  hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    {googleLoading ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                    ) : (
+                                                        <Mail className="h-4 w-4" />
+                                                    )}
+                                                    Connect with Google
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Email Automation */}
-                                    <div>
-                                        <h3 className="text-lg font-semibold text-[var(--color-text)] mb-4">
+                                    <div className="space-y-5">
+                                        <h3 className="text-xs font-bold text-[var(--color-text)] uppercase tracking-wider flex items-center gap-2">
+                                            <span className="w-1 h-4 bg-[var(--color-secondary)] rounded-full"></span>
                                             Email Automation
                                         </h3>
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                            <div className="space-y-4">
-                                                <div className="flex items-center space-x-3">
+
+                                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                            {/* Left Column - Checkboxes */}
+                                            <div className="space-y-3">
+                                                {/* Task Creation */}
+                                                <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-[var(--color-border)]/20 transition-colors">
                                                     <input
                                                         type="checkbox"
                                                         checked={settings.email.sendOnTaskCreate}
-                                                        onChange={e =>
-                                                            handleInputChange(
-                                                                'email',
-                                                                'sendOnTaskCreate',
-                                                                e.target.checked
-                                                            )
+                                                        onChange={(e) =>
+                                                            handleInputChange('email', 'sendOnTaskCreate', e.target.checked)
                                                         }
                                                         disabled={!emailEnabled}
-                                                        className={`w-5 h-5 text-[var(--color-primary)] rounded focus:ring-[var(--color-primary)] ${!emailEnabled
-                                                            ? 'opacity-50 cursor-not-allowed'
-                                                            : ''
+                                                        className={`w-5 h-5 text-[var(--color-primary)] rounded focus:ring-2 focus:ring-[var(--color-primary)] border-[var(--color-border)] ${!emailEnabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
                                                             }`}
                                                     />
-                                                    <label className="text-sm font-medium text-[var(--color-text)]">
+                                                    <label className="text-sm font-medium text-[var(--color-text)] cursor-pointer">
                                                         Send on task creation
                                                     </label>
                                                 </div>
-                                                <div className="flex items-center space-x-3">
+
+                                                {/* Task Completion */}
+                                                <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-[var(--color-border)]/20 transition-colors">
                                                     <input
                                                         type="checkbox"
                                                         checked={settings.email.sendOnTaskComplete}
-                                                        onChange={e =>
-                                                            handleInputChange(
-                                                                'email',
-                                                                'sendOnTaskComplete',
-                                                                e.target.checked
-                                                            )
+                                                        onChange={(e) =>
+                                                            handleInputChange('email', 'sendOnTaskComplete', e.target.checked)
                                                         }
                                                         disabled={!emailEnabled}
-                                                        className={`w-5 h-5 text-[var(--color-primary)] rounded focus:ring-[var(--color-primary)] ${!emailEnabled
-                                                            ? 'opacity-50 cursor-not-allowed'
-                                                            : ''
+                                                        className={`w-5 h-5 text-[var(--color-primary)] rounded focus:ring-2 focus:ring-[var(--color-primary)] border-[var(--color-border)] ${!emailEnabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
                                                             }`}
                                                     />
-                                                    <label className="text-sm font-medium text-[var(--color-text)]">
+                                                    <label className="text-sm font-medium text-[var(--color-text)] cursor-pointer">
                                                         Send on task completion
                                                     </label>
                                                 </div>
-                                                <div className="flex items-center space-x-3">
+
+                                                {/* Task Revision */}
+                                                <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-[var(--color-border)]/20 transition-colors">
                                                     <input
                                                         type="checkbox"
                                                         checked={settings.email.sendOnTaskRevision}
-                                                        onChange={e =>
-                                                            handleInputChange(
-                                                                'email',
-                                                                'sendOnTaskRevision',
-                                                                e.target.checked
-                                                            )
+                                                        onChange={(e) =>
+                                                            handleInputChange('email', 'sendOnTaskRevision', e.target.checked)
                                                         }
                                                         disabled={!emailEnabled}
-                                                        className={`w-5 h-5 text-[var(--color-primary)] rounded focus:ring-[var(--color-primary)] ${!emailEnabled
-                                                            ? 'opacity-50 cursor-not-allowed'
-                                                            : ''
+                                                        className={`w-5 h-5 text-[var(--color-primary)] rounded focus:ring-2 focus:ring-[var(--color-primary)] border-[var(--color-border)] ${!emailEnabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
                                                             }`}
                                                     />
-                                                    <label className="text-sm font-medium text-[var(--color-text)]">
+                                                    <label className="text-sm font-medium text-[var(--color-text)] cursor-pointer">
                                                         Send on task revision
                                                     </label>
                                                 </div>
                                             </div>
 
-                                            <div className="md:col-span-2">
-                                                <div
-                                                    className={`max-h-48 overflow-y-auto bg-[color:var(--color-border)/10] rounded-xl p-4 space-y-2 ${!emailEnabled ? 'opacity-50' : ''
-                                                        }`}
-                                                >
-                                                    {users.map(user => (
-                                                        <div
-                                                            key={user._id}
-                                                            className="flex items-center space-x-3 p-2 hover:bg-[color:var(--color-surface)/80] rounded-lg"
-                                                        >
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={settings.email.sendToUsers.includes(
-                                                                    user._id
-                                                                )}
-                                                                onChange={e =>
-                                                                    handleUserSelection(
-                                                                        'sendToUsers',
-                                                                        user._id,
-                                                                        e.target.checked
-                                                                    )
-                                                                }
-                                                                disabled={!emailEnabled}
-                                                                className={`w-4 h-4 text-[var(--color-primary)] rounded focus:ring-[var(--color-primary)] ${!emailEnabled
-                                                                    ? 'cursor-not-allowed'
-                                                                    : ''
-                                                                    }`}
-                                                            />
-                                                            <div className="flex-1">
-                                                                <div className="text-sm font-medium text-[var(--color-text)]">
-                                                                    {user.username}
-                                                                </div>
-                                                                <div className="text-xs text-[var(--color-textSecondary)]">
-                                                                    {user.email}
-                                                                </div>
-                                                            </div>
-                                                            <span className="px-2 py-1 text-xs bg-[color:var(--color-primary)/10] text-[var(--color-primary)] rounded">
-                                                                {user.role}
-                                                            </span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
                                         </div>
                                     </div>
 
-                                    <div className="flex space-x-4">
+                                    {/* Test Email Button */}
+                                    <div className="pt-4 border-t border-[var(--color-border)]">
                                         <button
                                             onClick={handleTestEmail}
                                             disabled={
-                                                !settings.email.enabled ||  // ✅ FIXED: Check enabled instead of email/password
-                                                !settings.email.email ||    // ✅ FIXED: Check if Google email is connected
+                                                !settings.email.enabled ||
+                                                !settings.email.email ||
                                                 testingEmail
                                             }
-                                            className="px-6 py-3 bg-[var(--color-primary)] hover:bg-[var(--color-secondary)] disabled:bg-[var(--color-border)] disabled:cursor-not-allowed text-[var(--color-background)] rounded-xl font-medium transition-colors flex items-center"
+                                            className="px-6 py-3 bg-[var(--color-primary)] hover:opacity-90 disabled:bg-[var(--color-border)] disabled:cursor-not-allowed text-white rounded-lg font-semibold transition-all flex items-center gap-2 shadow-sm hover:shadow-md disabled:opacity-50"
                                         >
                                             {testingEmail ? (
-                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                <Loader2 className="h-4 w-4 animate-spin" />
                                             ) : (
-                                                <Send className="h-4 w-4 mr-2" />
+                                                <Send className="h-4 w-4" />
                                             )}
                                             Test Email Configuration
                                         </button>
@@ -1181,199 +1167,159 @@ const SettingsPage: React.FC = () => {
                     </div>
 
                     {/* Report Scheduling */}
-                    <div className="bg-[var(--color-surface)] rounded-2xl shadow-lg border border-[var(--color-border)] overflow-hidden">
-                        <div
-                            className="flex items-center justify-between p-6 cursor-pointer hover:bg-[color:var(--color-surface)/80] transition-colors"
-                            onClick={() => setExpandedReports(!expandedReports)}
-                        >
-                            <div className="flex items-center">
-                                <div className="p-2 bg-[color:var(--color-info)/10] rounded-lg mr-4">
-                                    <Calendar className="h-6 w-6 text-[var(--color-info)]" />
-                                </div>
-                                <div>
-                                    <h2 className="text-xl font-semibold text-[var(--color-text)]">
-                                        Automated Reports
-                                    </h2>
-                                    <p className="text-[var(--color-textSecondary)] text-sm">
-                                        Schedule daily reports and summaries
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex items-center space-x-4">
-                                <div className="flex items-center space-x-2 cursor-pointer">
-                                    <div
-                                        onClick={e => {
-                                            e.stopPropagation();
-                                            handleInputChange('email', 'enableReports', !reportsEnabled);
-                                            setExpandedReports(true);
-                                        }}
-                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all 
-                                            ${reportsEnabled
-                                                ? 'bg-[var(--color-info)]'
-                                                : 'bg-gray-300'
-                                            }`}
-                                    >
-                                        <span
-                                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-all
-                                                ${reportsEnabled
-                                                    ? 'translate-x-5'
-                                                    : 'translate-x-1'
-                                                }`}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    <div className="bg-[var(--color-surface)] rounded-2xl shadow-xl border border-[var(--color-border)] overflow-hidden transition-all duration-300">
+  {/* Header */}
+  <div
+    className="flex items-center justify-between p-6 cursor-pointer hover:bg-[var(--color-background)] transition-colors"
+    onClick={() => setExpandedReports(!expandedReports)}
+  >
+    <div className="flex items-center gap-4">
+      <div className="p-3 bg-[var(--color-info)]/10 rounded-xl">
+        <Calendar className="h-6 w-6 text-[var(--color-info)]" />
+      </div>
+      <div>
+        <h2 className="text-xl font-semibold text-[var(--color-text)]">
+          Automated Reports
+        </h2>
+        <p className="text-[var(--color-textSecondary)] text-sm mt-1">
+          Schedule daily reports and summaries
+        </p>
+      </div>
+    </div>
 
-                        {expandedReports && (
-                            <div className="p-6 border-t border-[var(--color-border)]">
-                                <div className="space-y-8">
-                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                        {/* Morning Report */}
-                                        <div className="space-y-4">
-                                            <div className="flex items-center space-x-3">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={settings.email.enableMorningReport}
-                                                    onChange={e =>
-                                                        handleInputChange(
-                                                            'email',
-                                                            'enableMorningReport',
-                                                            e.target.checked
-                                                        )
-                                                    }
-                                                    disabled={!reportsEnabled}
-                                                    className={`w-5 h-5 text-[var(--color-primary)] rounded focus:ring-[var(--color-primary)] ${!reportsEnabled
-                                                        ? 'opacity-50 cursor-not-allowed'
-                                                        : ''
-                                                        }`}
-                                                />
-                                                <label className="text-lg font-semibold text-[var(--color-text)]">
-                                                    Morning Report
-                                                </label>
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-[var(--color-text)] mb-2">
-                                                    Send Time
-                                                </label>
-                                                <input
-                                                    type="time"
-                                                    value={settings.email.morningReportTime}
-                                                    onChange={e =>
-                                                        handleInputChange(
-                                                            'email',
-                                                            'morningReportTime',
-                                                            e.target.value
-                                                        )
-                                                    }
-                                                    disabled={!reportsEnabled}
-                                                    className={`w-full px-4 py-3 border border-[var(--color-border)] rounded-xl focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] bg-[var(--color-surface)] text-[var(--color-text)] ${!reportsEnabled
-                                                        ? 'opacity-50 cursor-not-allowed'
-                                                        : ''
-                                                        }`}
-                                                />
-                                                <p className="text-xs text-[var(--color-textSecondary)] mt-1">
-                                                    Daily summary of pending tasks and priorities
-                                                </p>
-                                            </div>
-                                        </div>
+    {/* Toggle Switch */}
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        handleInputChange('email', 'enableReports', !reportsEnabled);
+        setExpandedReports(true);
+      }}
+      className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-200 shadow-inner ${
+        reportsEnabled ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border)]'
+      }`}
+    >
+      <span
+        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${
+          reportsEnabled ? 'translate-x-6' : 'translate-x-1'
+        }`}
+      />
+    </button>
+  </div>
 
-                                        {/* Evening Report */}
-                                        <div className="space-y-4">
-                                            <div className="flex items-center space-x-3">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={settings.email.enableEveningReport}
-                                                    onChange={e =>
-                                                        handleInputChange(
-                                                            'email',
-                                                            'enableEveningReport',
-                                                            e.target.checked
-                                                        )
-                                                    }
-                                                    disabled={!reportsEnabled}
-                                                    className={`w-5 h-5 text-[var(--color-primary)] rounded focus:ring-[var(--color-primary)] ${!reportsEnabled
-                                                        ? 'opacity-50 cursor-not-allowed'
-                                                        : ''
-                                                        }`}
-                                                />
-                                                <label className="text-lg font-semibold text-[var(--color-text)]">
-                                                    Evening Report
-                                                </label>
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-[var(--color-text)] mb-2">
-                                                    Send Time
-                                                </label>
-                                                <input
-                                                    type="time"
-                                                    value={settings.email.eveningReportTime}
-                                                    onChange={e =>
-                                                        handleInputChange(
-                                                            'email',
-                                                            'eveningReportTime',
-                                                            e.target.value
-                                                        )
-                                                    }
-                                                    disabled={!reportsEnabled}
-                                                    className={`w-full px-4 py-3 border border-[var(--color-border)] rounded-xl focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] bg-[var(--color-surface)] text-[var(--color-text)] ${!reportsEnabled
-                                                        ? 'opacity-50 cursor-not-allowed'
-                                                        : ''
-                                                        }`}
-                                                />
-                                                <p className="text-xs text-[var(--color-textSecondary)] mt-1">
-                                                    Daily completion summary and next day preview
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
+  {/* Expanded Content */}
+  {expandedReports && (
+    <div className="px-6 pb-6 pt-2 border-t border-[var(--color-border)] bg-[var(--color-background)]">
+      <div className="space-y-8 mt-6">
+        
+        {/* Report Configuration Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          {/* Morning Report */}
+          <div className="space-y-4 p-5 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] hover:shadow-md hover:border-[var(--color-info)]/30 transition-all">
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={settings.email.enableMorningReport}
+                onChange={(e) =>
+                  handleInputChange('email', 'enableMorningReport', e.target.checked)
+                }
+                disabled={!reportsEnabled}
+                className={`w-5 h-5 text-[var(--color-info)] rounded focus:ring-2 focus:ring-[var(--color-info)] border-[var(--color-border)] ${
+                  !reportsEnabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                }`}
+              />
+              <div className="flex items-center gap-2">
+                <label className="text-lg font-semibold text-[var(--color-text)]">
+                  Morning Report
+                </label>
+                {settings.email.enableMorningReport && reportsEnabled && (
+                  <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-[var(--color-info)]/20 text-[var(--color-info)] uppercase tracking-wider">
+                    Active
+                  </span>
+                )}
+              </div>
+            </div>
 
-                                    {/* Report Recipients */}
-                                    <div>
-                                        <div
-                                            className={`max-h-48 overflow-y-auto bg-[color:var(--color-border)/10] rounded-xl p-4 space-y-2 ${!reportsEnabled ? 'opacity-50' : ''
-                                                }`}
-                                        >
-                                            {users.map(user => (
-                                                <div
-                                                    key={user._id}
-                                                    className="flex items-center space-x-3 p-2 hover:bg-[color:var(--color-surface)/80] rounded-lg"
-                                                >
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={settings.email.reportRecipients.includes(
-                                                            user._id
-                                                        )}
-                                                        onChange={e =>
-                                                            handleUserSelection(
-                                                                'reportRecipients',
-                                                                user._id,
-                                                                e.target.checked
-                                                            )
-                                                        }
-                                                        disabled={!reportsEnabled}
-                                                        className={`w-4 h-4 text-[var(--color-info)] rounded focus:ring-[var(--color-info)] ${!reportsEnabled ? 'cursor-not-allowed' : ''
-                                                            }`}
-                                                    />
-                                                    <div className="flex-1">
-                                                        <div className="text-sm font-medium text-[var(--color-text)]">
-                                                            {user.username}
-                                                        </div>
-                                                        <div className="text-xs text-[var(--color-textSecondary)]">
-                                                            {user.email}
-                                                        </div>
-                                                    </div>
-                                                    <span className="px-2 py-1 text-xs bg-[color:var(--color-info)/10] text-[var(--color-info)] rounded">
-                                                        {user.role}
-                                                    </span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-[var(--color-text)]">
+                Send Time
+              </label>
+              <input
+                type="time"
+                value={settings.email.morningReportTime}
+                onChange={(e) =>
+                  handleInputChange('email', 'morningReportTime', e.target.value)
+                }
+                disabled={!reportsEnabled || !settings.email.enableMorningReport}
+                className={`w-full px-4 py-3 border border-[var(--color-border)] rounded-lg text-sm
+                  focus:ring-2 focus:ring-[var(--color-info)] focus:border-[var(--color-info)] 
+                  bg-[var(--color-surface)] text-[var(--color-text)] transition-all
+                  ${!reportsEnabled || !settings.email.enableMorningReport ? 'opacity-50 cursor-not-allowed' : ''}`}
+              />
+              <div className="flex items-start gap-2 mt-2 p-3 bg-[var(--color-info)]/5 rounded-lg border border-[var(--color-info)]/10">
+                <div className="w-1 h-1 rounded-full bg-[var(--color-info)] mt-1.5"></div>
+                <p className="text-xs text-[var(--color-textSecondary)] leading-relaxed">
+                  Daily summary of pending tasks and priorities
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Evening Report */}
+          <div className="space-y-4 p-5 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] hover:shadow-md hover:border-[var(--color-info)]/30 transition-all">
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={settings.email.enableEveningReport}
+                onChange={(e) =>
+                  handleInputChange('email', 'enableEveningReport', e.target.checked)
+                }
+                disabled={!reportsEnabled}
+                className={`w-5 h-5 text-[var(--color-info)] rounded focus:ring-2 focus:ring-[var(--color-info)] border-[var(--color-border)] ${
+                  !reportsEnabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                }`}
+              />
+              <div className="flex items-center gap-2">
+                <label className="text-lg font-semibold text-[var(--color-text)]">
+                  Evening Report
+                </label>
+                {settings.email.enableEveningReport && reportsEnabled && (
+                  <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-[var(--color-info)]/20 text-[var(--color-info)] uppercase tracking-wider">
+                    Active
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-[var(--color-text)]">
+                Send Time
+              </label>
+              <input
+                type="time"
+                value={settings.email.eveningReportTime}
+                onChange={(e) =>
+                  handleInputChange('email', 'eveningReportTime', e.target.value)
+                }
+                disabled={!reportsEnabled || !settings.email.enableEveningReport}
+                className={`w-full px-4 py-3 border border-[var(--color-border)] rounded-lg text-sm
+                  focus:ring-2 focus:ring-[var(--color-info)] focus:border-[var(--color-info)] 
+                  bg-[var(--color-surface)] text-[var(--color-text)] transition-all
+                  ${!reportsEnabled || !settings.email.enableEveningReport ? 'opacity-50 cursor-not-allowed' : ''}`}
+              />
+              <div className="flex items-start gap-2 mt-2 p-3 bg-[var(--color-info)]/5 rounded-lg border border-[var(--color-info)]/10">
+                <div className="w-1 h-1 rounded-full bg-[var(--color-info)] mt-1.5"></div>
+                <p className="text-xs text-[var(--color-textSecondary)] leading-relaxed">
+                  Daily completion summary and next day preview
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )}
+</div>
                 </div>
             </div>
 

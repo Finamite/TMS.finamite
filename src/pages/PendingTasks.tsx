@@ -569,152 +569,160 @@ const PendingTasks: React.FC = () => {
   const renderCardView = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
-        {currentTasks.map((task) => (
-          <div
-            key={task._id}
-            className={`group rounded-xl shadow-sm border hover:shadow-lg transition-all duration-300 overflow-hidden transform hover:-translate-y-1 ${task.dueDate && isOverdue(task.dueDate)
-              ? 'border-l-4 border-[--color-error]'
-              : task.dueDate && isDueToday(task.dueDate)
-                ? 'border-l-4 border-[--color-accent]'
-                : 'border-[--color-border]'
-              } ${theme === 'light' ? 'bg-white' : 'bg-[--color-background]'}`}
-          >
-            <div className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <h3 className="text-lg font-semibold text-[--color-text] transition-colors group-hover:text-[--color-primary]">
-                  {showFullTitle[task._id] ? task.title : truncateText(task.title, 70)}
-                  {task.title.length > 70 && (
+        {currentTasks.map((task) => {
+          const disableForHighPriority =
+            revisionSettings?.restrictHighPriorityRevision === true &&
+            task.priority?.toLowerCase() === "high" &&
+            task.taskType === "one-time";
+
+          return (
+            <div
+              key={task._id}
+              className={`group rounded-xl shadow-sm border hover:shadow-lg transition-all duration-300 overflow-hidden transform hover:-translate-y-1 ${task.dueDate && isOverdue(task.dueDate)
+                ? 'border-l-4 border-[--color-error]'
+                : task.dueDate && isDueToday(task.dueDate)
+                  ? 'border-l-4 border-[--color-accent]'
+                  : 'border-[--color-border]'
+                } ${theme === 'light' ? 'bg-white' : 'bg-[--color-background]'}`}
+            >
+              <div className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-[--color-text] transition-colors group-hover:text-[--color-primary]">
+                    {showFullTitle[task._id] ? task.title : truncateText(task.title, 70)}
+                    {task.title.length > 70 && (
+                      <button
+                        onClick={() => toggleTitleVisibility(task._id)}
+                        className="ml-1 text-xs font-medium text-[--color-primary] hover:text-[--color-primary-dark]"
+                      >
+                        Show {showFullTitle[task._id] ? 'Less' : 'More'}
+                      </button>
+                    )}
+                  </h3>
+                  <div className="flex space-x-1 ml-2 group-hover:opacity-100 transition-opacity">
                     <button
-                      onClick={() => toggleTitleVisibility(task._id)}
-                      className="ml-1 text-xs font-medium text-[--color-primary] hover:text-[--color-primary-dark]"
+                      onClick={() => setShowCompleteModal(task._id)}
+                      className="p-2 rounded-lg transition-all transform hover:scale-110 hover:bg-[--color-success] hover:text-[--color-background] text-[--color-success]"
+                      title="Complete task"
                     >
-                      Show {showFullTitle[task._id] ? 'Less' : 'More'}
+                      <CheckSquare size={16} />
                     </button>
-                  )}
-                </h3>
-                <div className="flex space-x-1 ml-2 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={() => setShowCompleteModal(task._id)}
-                    className="p-2 rounded-lg transition-all transform hover:scale-110 hover:bg-[--color-success] hover:text-[--color-background] text-[--color-success]"
-                    title="Complete task"
-                  >
-                    <CheckSquare size={16} />
-                  </button>
-                  <button
-                    onClick={() => {
-                      const revision = taskSettings?.revision;
+                    <button
+                      disabled={disableForHighPriority}
+                      onClick={() => {
+                        const revision = taskSettings?.revision;
 
-                      // If settings not loaded → open modal
-                      if (!revision) {
-                        setShowReviseModal(task._id);
-                        return;
-                      }
-
-                      // If revision enabled → only check limit here
-                      if (revision.enableRevisions) {
-                        if (task.revisionCount >= revision.limit) {
-                          alert(`You cannot revise more than ${revision.limit} times`);
+                        // If settings not loaded → open modal
+                        if (!revision) {
+                          setShowReviseModal(task._id);
                           return;
                         }
-                      }
 
-                      // Open modal ALWAYS after limit passes
-                      setShowReviseModal(task._id);
-                    }}
+                        // If revision enabled → only check limit here
+                        if (revision.enableRevisions) {
+                          if (task.revisionCount >= revision.limit) {
+                            alert(`You cannot revise more than ${revision.limit} times`);
+                            return;
+                          }
+                        }
 
-                    className="p-2 rounded-lg transition-all transform hover:scale-110 hover:bg-[--color-warning] hover:text-[--color-background] text-[--color-warning]"
-                    title="Revise task"
-                  >
-                    <RefreshCcw size={16} />
-                  </button>
-                </div>
-              </div>
+                        // Open modal ALWAYS after limit passes
+                        setShowReviseModal(task._id);
+                      }}
 
-              <div className="flex flex-wrap gap-2 mb-4">
-                <PriorityBadge priority={task.priority} />
-                {task.revisionCount > 0 && (
-                  <span className="px-2 py-1 text-xs font-medium rounded-full bg-[--color-warning] text-[--color-background]">
-                    Revised {task.revisionCount}x
-                  </span>
-                )}
-                {task.dueDate && isOverdue(task.dueDate) && (
-                  <span className="px-2 py-1 text-xs font-medium rounded-full shadow-sm animate-pulse bg-[--color-error] text-[--color-background]">
-                    🚨 OVERDUE
-                  </span>
-                )}
-                {task.dueDate && isDueToday(task.dueDate) && (
-                  <span className="px-2 py-1 text-xs font-medium rounded-full shadow-sm animate-pulse bg-[--color-accent] text-[--color-background]">
-                    🗓️ DUE TODAY
-                  </span>
-                )}
-              </div>
-
-              <p className="text-sm mb-2 text-[--color-textSecondary]">
-                {showFullDescription[task._id] ? task.description : truncateText(task.description, 150)}
-                {task.description.length > 150 && (
-                  <button
-                    onClick={() => toggleDescriptionVisibility(task._id)}
-                    className="ml-1 text-sm font-medium text-[--color-primary] hover:text-[--color-primary-dark]"
-                  >
-                    Show {showFullDescription[task._id] ? 'Less' : 'More'}
-                  </button>
-                )}
-              </p>
-
-              <div className="space-y-3 text-sm">
-                <div className={`flex items-center justify-between p-2 rounded-lg ${theme === 'light' ? 'bg-gray-50' : 'bg-[--color-background]'}`}>
-                  <span className="flex items-center text-[--color-textSecondary]">
-                    <Users size={14} className="mr-1" />
-                    Assigned To:
-                  </span>
-                  <span className="font-medium text-[--color-text]">{task.assignedTo.username}</span>
-                </div>
-                <div className={`flex items-center justify-between p-2 rounded-lg ${theme === 'light' ? 'bg-gray-50' : 'bg-[--color-background]'}`}>
-                  <span className="flex items-center text-[--color-textSecondary]">
-                    <Calendar size={14} className="mr-1" />
-                    Due date:
-                  </span>
-                  <span className={`font-medium ${task.dueDate && isOverdue(task.dueDate) ? 'text-[--color-error]' : task.dueDate && isDueToday(task.dueDate) ? 'text-[--color-accent]' : 'text-[--color-text]'}`}>
-                    {task.dueDate ? new Date(task.dueDate).toLocaleDateString('en-GB', {
-                      day: '2-digit',
-                      month: 'numeric',
-                      year: 'numeric',
-                    }) : 'N/A'}
-                  </span>
-                </div>
-                <div className={`flex items-center justify-between p-2 rounded-lg ${theme === 'light' ? 'bg-gray-50' : 'bg-[--color-background]'}`}>
-                  <span className="flex items-center text-[--color-textSecondary]">
-                    <Clock size={14} className="mr-1" />
-                    Created:
-                  </span>
-                  <span className="font-medium text-[--color-text]">
-                    {new Date(task.createdAt).toLocaleDateString('en-GB', {
-                      day: '2-digit',
-                      month: 'numeric',
-                      year: 'numeric',
-                    })}
-                  </span>
-                </div>
-                <div className={`flex items-center justify-between p-2 rounded-lg ${theme === 'light' ? 'bg-gray-50' : 'bg-[--color-background]'}`}>
-                  <span className="flex items-center text-[--color-textSecondary]">
-                    <Paperclip size={14} className="mr-1" />
-                    Attachments:
-                  </span>
-                  {task.attachments && task.attachments.length > 0 ? (
-                    <button
-                      onClick={() => setShowAttachmentsModal(task.attachments)}
-                      className="font-medium text-[--color-primary] hover:text-[--color-primary-dark]"
+                      className="p-2 rounded-lg transition-all transform hover:scale-110 hover:bg-[--color-warning] hover:text-[--color-background] text-[--color-warning]"
+                      title="Revise task"
                     >
-                      Click Here ({task.attachments.length})
+                      <RefreshCcw size={16} />
                     </button>
-                  ) : (
-                    <span className="text-[--color-textSecondary]">No Attachments</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <PriorityBadge priority={task.priority} />
+                  {task.revisionCount > 0 && (
+                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-[--color-warning] text-[--color-background]">
+                      Revised {task.revisionCount}x
+                    </span>
                   )}
+                  {task.dueDate && isOverdue(task.dueDate) && (
+                    <span className="px-2 py-1 text-xs font-medium rounded-full shadow-sm animate-pulse bg-[--color-error] text-[--color-background]">
+                      🚨 OVERDUE
+                    </span>
+                  )}
+                  {task.dueDate && isDueToday(task.dueDate) && (
+                    <span className="px-2 py-1 text-xs font-medium rounded-full shadow-sm animate-pulse bg-[--color-accent] text-[--color-background]">
+                      🗓️ DUE TODAY
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-sm mb-2 text-[--color-textSecondary]">
+                  {showFullDescription[task._id] ? task.description : truncateText(task.description, 150)}
+                  {task.description.length > 150 && (
+                    <button
+                      onClick={() => toggleDescriptionVisibility(task._id)}
+                      className="ml-1 text-sm font-medium text-[--color-primary] hover:text-[--color-primary-dark]"
+                    >
+                      Show {showFullDescription[task._id] ? 'Less' : 'More'}
+                    </button>
+                  )}
+                </p>
+
+                <div className="space-y-3 text-sm">
+                  <div className={`flex items-center justify-between p-2 rounded-lg ${theme === 'light' ? 'bg-gray-50' : 'bg-[--color-background]'}`}>
+                    <span className="flex items-center text-[--color-textSecondary]">
+                      <Users size={14} className="mr-1" />
+                      Assigned To:
+                    </span>
+                    <span className="font-medium text-[--color-text]">{task.assignedTo.username}</span>
+                  </div>
+                  <div className={`flex items-center justify-between p-2 rounded-lg ${theme === 'light' ? 'bg-gray-50' : 'bg-[--color-background]'}`}>
+                    <span className="flex items-center text-[--color-textSecondary]">
+                      <Calendar size={14} className="mr-1" />
+                      Due date:
+                    </span>
+                    <span className={`font-medium ${task.dueDate && isOverdue(task.dueDate) ? 'text-[--color-error]' : task.dueDate && isDueToday(task.dueDate) ? 'text-[--color-accent]' : 'text-[--color-text]'}`}>
+                      {task.dueDate ? new Date(task.dueDate).toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: 'numeric',
+                        year: 'numeric',
+                      }) : 'N/A'}
+                    </span>
+                  </div>
+                  <div className={`flex items-center justify-between p-2 rounded-lg ${theme === 'light' ? 'bg-gray-50' : 'bg-[--color-background]'}`}>
+                    <span className="flex items-center text-[--color-textSecondary]">
+                      <Clock size={14} className="mr-1" />
+                      Created:
+                    </span>
+                    <span className="font-medium text-[--color-text]">
+                      {new Date(task.createdAt).toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </span>
+                  </div>
+                  <div className={`flex items-center justify-between p-2 rounded-lg ${theme === 'light' ? 'bg-gray-50' : 'bg-[--color-background]'}`}>
+                    <span className="flex items-center text-[--color-textSecondary]">
+                      <Paperclip size={14} className="mr-1" />
+                      Attachments:
+                    </span>
+                    {task.attachments && task.attachments.length > 0 ? (
+                      <button
+                        onClick={() => setShowAttachmentsModal(task.attachments)}
+                        className="font-medium text-[--color-primary] hover:text-[--color-primary-dark]"
+                      >
+                        Click Here ({task.attachments.length})
+                      </button>
+                    ) : (
+                      <span className="text-[--color-textSecondary]">No Attachments</span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
       {totalPages > 1 && renderEnhancedPagination()}
     </div>
@@ -755,139 +763,153 @@ const PendingTasks: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-[--color-border]">
-              {currentTasks.map((task, index) => (
-                <tr
-                  key={task._id}
-                  className={`transition-all duration-200 hover:bg-[--color-surface] ${theme === 'light'
-                    ? index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                    : index % 2 === 0 ? 'bg-[--color-background]' : 'bg-[--color-background]'
-                    }`}
-                >
-                  <td className="px-6 py-4">
-                    <div>
-                      <div className="text-sm font-medium text-[--color-text] mb-1">
-                        {showFullTitle[task._id] ? task.title : truncateText(task.title, 150)}
-                        {task.title.length > 150 && (
-                          <button
-                            onClick={() => toggleTitleVisibility(task._id)}
-                            className="ml-1 text-xs font-medium text-[--color-primary] hover:text-[--color-primary-dark]"
-                          >
-                            Show {showFullTitle[task._id] ? 'Less' : 'More'}
-                          </button>
-                        )}
-                      </div>
-                      <div className="text-sm text-[--color-textSecondary]">
-                        {showFullDescription[task._id] ? task.description : truncateText(task.description, 100)}
-                        {task.description.length > 100 && (
-                          <button
-                            onClick={() => toggleDescriptionVisibility(task._id)}
-                            className="ml-1 text-sm font-medium text-[--color-primary] hover:text-[--color-primary-dark]"
-                          >
-                            Show {showFullDescription[task._id] ? 'Less' : 'More'}
-                          </button>
-                        )}
-                      </div>
-                      <div className="flex items-center mt-2 space-x-2">
-                        {task.revisionCount > 0 && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[--color-warning] text-[--color-background]">
-                            Revised {task.revisionCount}x
-                          </span>
-                        )}
-                        {task.dueDate && isOverdue(task.dueDate) && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium shadow-sm animate-pulse bg-[--color-error] text-[--color-background]">
-                            🚨 OVERDUE
-                          </span>
-                        )}
-                        {task.dueDate && isDueToday(task.dueDate) && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium shadow-sm animate-pulse bg-[--color-accent] text-[--color-background]">
-                            🗓️ DUE TODAY
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <PriorityBadge priority={task.priority} />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium mr-3 bg-[--color-primary-dark] text-[--color-background]">
-                        {task.assignedTo.username.charAt(0).toUpperCase()}
-                      </div>
+              {currentTasks.map((task, index) => {
+
+                const disableForHighPriority =
+                  revisionSettings?.restrictHighPriorityRevision === true &&
+                  task.priority?.toLowerCase() === "high" &&
+                  task.taskType === "one-time";
+
+                return (
+                  <tr
+                    key={task._id}
+                    className={`transition-all duration-200 hover:bg-[--color-surface] ${theme === 'light'
+                      ? index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                      : index % 2 === 0 ? 'bg-[--color-background]' : 'bg-[--color-background]'
+                      }`}
+                  >
+                    <td className="px-6 py-4">
                       <div>
-                        <div className="text-sm text-[--color-text]">{task.assignedTo.username}</div>
-                        <div className="text-sm text-[--color-textSecondary]">{task.assignedTo.email}</div>
+                        <div className="text-sm font-medium text-[--color-text] mb-1">
+                          {showFullTitle[task._id] ? task.title : truncateText(task.title, 150)}
+                          {task.title.length > 150 && (
+                            <button
+                              onClick={() => toggleTitleVisibility(task._id)}
+                              className="ml-1 text-xs font-medium text-[--color-primary] hover:text-[--color-primary-dark]"
+                            >
+                              Show {showFullTitle[task._id] ? 'Less' : 'More'}
+                            </button>
+                          )}
+                        </div>
+                        <div className="text-sm text-[--color-textSecondary]">
+                          {showFullDescription[task._id] ? task.description : truncateText(task.description, 100)}
+                          {task.description.length > 100 && (
+                            <button
+                              onClick={() => toggleDescriptionVisibility(task._id)}
+                              className="ml-1 text-sm font-medium text-[--color-primary] hover:text-[--color-primary-dark]"
+                            >
+                              Show {showFullDescription[task._id] ? 'Less' : 'More'}
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex items-center mt-2 space-x-2">
+                          {task.revisionCount > 0 && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[--color-warning] text-[--color-background]">
+                              Revised {task.revisionCount}x
+                            </span>
+                          )}
+                          {task.dueDate && isOverdue(task.dueDate) && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium shadow-sm animate-pulse bg-[--color-error] text-[--color-background]">
+                              🚨 OVERDUE
+                            </span>
+                          )}
+                          {task.dueDate && isDueToday(task.dueDate) && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium shadow-sm animate-pulse bg-[--color-accent] text-[--color-background]">
+                              🗓️ DUE TODAY
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {task.attachments && task.attachments.length > 0 ? (
-                      <button
-                        onClick={() => setShowAttachmentsModal(task.attachments)}
-                        className="font-medium text-[--color-primary] hover:text-[--color-primary-dark]"
-                      >
-                        Click Here ({task.attachments.length})
-                      </button>
-                    ) : (
-                      <span className="text-[--color-textSecondary]">No Attachments</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className={`text-sm font-medium ${task.dueDate && isOverdue(task.dueDate) ? 'text-[--color-error]' : task.dueDate && isDueToday(task.dueDate) ? 'text-[--color-accent]' : 'text-[--color-text]'}`}>
-                      {task.dueDate ? new Date(task.dueDate).toLocaleDateString('en-GB', {
-                        day: '2-digit',
-                        month: 'numeric',
-                        year: 'numeric',
-                      }) : 'N/A'}
-                    </div>
-                    <div className="text-xs text-[--color-textSecondary]">
-                      Created: {new Date(task.createdAt).toLocaleDateString('en-GB', {
-                        day: '2-digit',
-                        month: 'numeric',
-                        year: 'numeric',
-                      })}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => {
-                          const revision = taskSettings?.revision;
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <PriorityBadge priority={task.priority} />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium mr-3 bg-[--color-primary-dark] text-[--color-background]">
+                          {task.assignedTo.username.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="text-sm text-[--color-text]">{task.assignedTo.username}</div>
+                          <div className="text-sm text-[--color-textSecondary]">{task.assignedTo.email}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {task.attachments && task.attachments.length > 0 ? (
+                        <button
+                          onClick={() => setShowAttachmentsModal(task.attachments)}
+                          className="font-medium text-[--color-primary] hover:text-[--color-primary-dark]"
+                        >
+                          Click Here ({task.attachments.length})
+                        </button>
+                      ) : (
+                        <span className="text-[--color-textSecondary]">No Attachments</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className={`text-sm font-medium ${task.dueDate && isOverdue(task.dueDate) ? 'text-[--color-error]' : task.dueDate && isDueToday(task.dueDate) ? 'text-[--color-accent]' : 'text-[--color-text]'}`}>
+                        {task.dueDate ? new Date(task.dueDate).toLocaleDateString('en-GB', {
+                          day: '2-digit',
+                          month: 'numeric',
+                          year: 'numeric',
+                        }) : 'N/A'}
+                      </div>
+                      <div className="text-xs text-[--color-textSecondary]">
+                        Created: {new Date(task.createdAt).toLocaleDateString('en-GB', {
+                          day: '2-digit',
+                          month: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
+                        <button
+                          disabled={disableForHighPriority}
+                          onClick={() => {
 
-                          // If settings not loaded → open modal
-                          if (!revision) {
-                            setShowReviseModal(task._id);
-                            return;
-                          }
-
-                          // If revision enabled → only check limit here
-                          if (revision.enableRevisions) {
-                            if (task.revisionCount >= revision.limit) {
-                              alert(`You cannot revise more than ${revision.limit} times`);
+                            if (disableForHighPriority) {
+                              alert("Revision is restricted for High Priority one-time tasks.");
                               return;
                             }
-                          }
 
-                          // Open modal ALWAYS after limit passes
-                          setShowReviseModal(task._id);
-                        }}
+                            const revision = taskSettings?.revision;
 
-                        className="transition-all transform hover:scale-110 text-[--color-warning]"
-                        title="Revise task"
-                      >
-                        <RefreshCcw size={16} />
-                      </button>
-                      <button
-                        onClick={() => setShowCompleteModal(task._id)}
-                        className="transition-all transform hover:scale-110 text-[--color-success]"
-                        title="Complete task"
-                      >
-                        <CheckSquare size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                            if (!revision) {
+                              setShowReviseModal(task._id);
+                              return;
+                            }
+
+                            if (revision.enableRevisions) {
+                              if (task.revisionCount >= revision.limit) {
+                                alert(`You cannot revise more than ${revision.limit} times`);
+                                return;
+                              }
+                            }
+
+                            setShowReviseModal(task._id);
+                          }}
+                          className={`transition-all transform hover:scale-110 ${disableForHighPriority
+                              ? "opacity-50 cursor-not-allowed text-gray-400"
+                              : "text-[--color-warning]"
+                            }`}
+                          title="Revise task"
+                        >
+                          <RefreshCcw size={16} />
+                        </button>
+                        <button
+                          onClick={() => setShowCompleteModal(task._id)}
+                          className="transition-all transform hover:scale-110 text-[--color-success]"
+                          title="Complete task"
+                        >
+                          <CheckSquare size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -1085,125 +1107,123 @@ const PendingTasks: React.FC = () => {
 
       {/* Revise Task Modal */}
       {showReviseModal && (
-  <>
-    {(() => {
-      if (!revisionSettings) return <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">Loading revision settings...</div>;
+        <>
+          {(() => {
+            if (!revisionSettings) return <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">Loading revision settings...</div>;
 
-      const selectedTask = allTasks.find(t => t._id === showReviseModal);
-      if (!selectedTask) return <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">Task not found...</div>;
+            const selectedTask = allTasks.find(t => t._id === showReviseModal);
+            if (!selectedTask) return <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">Task not found...</div>;
 
-      const currentRevisionCount = selectedTask?.revisionCount || 0;
-      const enableRevisions = revisionSettings.enableRevisions ?? false;
+            const currentRevisionCount = selectedTask?.revisionCount || 0;
+            const enableRevisions = revisionSettings.enableRevisions ?? false;
+            const enableDaysRule = revisionSettings.enableDaysRule ?? false;
 
-      // Compute effective max days (Infinity if disabled)
-      let effectiveMaxDays = enableRevisions ? (revisionSettings.maxDays ?? 7) : Infinity;
-      
-      if (enableRevisions) {
-        // Use index starting from 1 for revisions (0 is initial)
-        const revisionIndex = currentRevisionCount + 1;
-        
-        if (revisionSettings.enableDaysRule && revisionSettings.days && revisionSettings.days[revisionIndex] !== undefined && revisionSettings.days[revisionIndex] !== null) {
-          effectiveMaxDays = revisionSettings.days[revisionIndex];
-        }
-        // If days[revisionIndex] is null/undefined, fallback to maxDays (already set)
-      }
+            // Compute effective max days (Infinity if revisions disabled OR days rule disabled)
+            let effectiveMaxDays = Infinity;
+            if (enableRevisions && enableDaysRule) {
+              effectiveMaxDays = revisionSettings.maxDays ?? 7; // Fallback to global maxDays
+              const revisionIndex = currentRevisionCount + 1;
+              if (revisionSettings.days && revisionSettings.days[revisionIndex] !== undefined && revisionSettings.days[revisionIndex] !== null) {
+                effectiveMaxDays = revisionSettings.days[revisionIndex]; // Override with revision-specific days
+              }
+            }
 
-      let rawBase = selectedTask?.lastPlannedDate || selectedTask?.dueDate || null;
-      let parsed = rawBase ? parseDate(rawBase) : null;
-      let baseDate = parsed ? parsed : new Date();
+            let rawBase = selectedTask?.lastPlannedDate || selectedTask?.dueDate || null;
+            let parsed = rawBase ? parseDate(rawBase) : null;
+            let baseDate = parsed ? parsed : new Date();
 
-      let allowedMaxDate = new Date(baseDate.getTime());
-      if (effectiveMaxDays !== Infinity) {
-        allowedMaxDate.setDate(allowedMaxDate.getDate() + effectiveMaxDays);
-      } else {
-        // If no restriction, allow up to 1 year from base or today + 1 year
-        allowedMaxDate.setFullYear(allowedMaxDate.getFullYear() + 1);
-      }
+            let allowedMaxDate = new Date(baseDate.getTime());
+            if (effectiveMaxDays !== Infinity) {
+              allowedMaxDate.setDate(allowedMaxDate.getDate() + effectiveMaxDays);
+            } else {
+              // If no restriction, allow up to 1 year from base or today + 1 year
+              allowedMaxDate.setFullYear(allowedMaxDate.getFullYear() + 1);
+            }
 
-      // Ensure valid dates for input attributes
-      const minDate = !isNaN(baseDate.getTime()) ? baseDate.toISOString().split("T")[0] : undefined;
-      const maxDate = !isNaN(allowedMaxDate.getTime()) ? allowedMaxDate.toISOString().split("T")[0] : undefined;
+            // Ensure valid dates for input attributes
+            const minDate = !isNaN(baseDate.getTime()) ? baseDate.toISOString().split("T")[0] : undefined;
+            const maxDate = !isNaN(allowedMaxDate.getTime()) ? allowedMaxDate.toISOString().split("T")[0] : undefined;
 
-      // Format dates for display (en-GB: DD/MM/YYYY)
-      const formatDate = (date: Date) => !isNaN(date.getTime()) ? date.toLocaleDateString("en-GB") : 'Invalid Date';
+            // Format dates for display (en-GB: DD/MM/YYYY)
+            const formatDate = (date: Date) => !isNaN(date.getTime()) ? date.toLocaleDateString("en-GB") : 'Invalid Date';
 
-      return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="rounded-xl max-w-md w-full shadow-2xl bg-[--color-surface]">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center text-[--color-text]">
-                <RefreshCcw size={20} className="text-[--color-warning] mr-2" />
-                Revise Task
-              </h3>
+            return (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+                <div className="rounded-xl max-w-md w-full shadow-2xl bg-[--color-surface]">
+                  <div className="p-6">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center text-[--color-text]">
+                      <RefreshCcw size={20} className="text-[--color-warning] mr-2" />
+                      Revise Task
+                    </h3>
 
-              <div className="space-y-4">
-                {/* Date Input */}
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-[--color-textSecondary]">
-                    New Due Date
-                  </label>
-                  <input
-                    type="date"
-                    min={minDate}
-                    max={maxDate}
-                    value={revisionDate}
-                    onChange={(e) => {
-                      const picked = new Date(e.target.value);
-                      if (effectiveMaxDays !== Infinity && picked > allowedMaxDate) {
-                        alert(`You cannot choose a date beyond ${effectiveMaxDays} days from the base date`);
-                        return;
-                      }
-                      setRevisionDate(e.target.value);
-                    }}
-                    className="w-full px-3 py-2 border border-[--color-border] rounded-lg"
-                  />
-                  <div className="text-xs text-[--color-textSecondary] mt-1">
-                    Allowed Range: {formatDate(baseDate)} → {effectiveMaxDays === Infinity ? 'No Limit' : formatDate(allowedMaxDate)} ({effectiveMaxDays === Infinity ? 'Unlimited' : `${effectiveMaxDays} days max for revision #${currentRevisionCount + 1}`})
+                    <div className="space-y-4">
+                      {/* Date Input */}
+                      <div>
+                        <label className="block text-sm font-medium mb-2 text-[--color-textSecondary]">
+                          New Due Date
+                        </label>
+                        <input
+                          type="date"
+                          min={minDate}
+                          max={maxDate}
+                          value={revisionDate}
+                          onChange={(e) => {
+                            const picked = new Date(e.target.value);
+                            if (effectiveMaxDays !== Infinity && picked > allowedMaxDate) {
+                              alert(`You cannot choose a date beyond ${effectiveMaxDays} days from the base date`);
+                              return;
+                            }
+                            setRevisionDate(e.target.value);
+                          }}
+                          className="w-full px-3 py-2 border border-[--color-border] rounded-lg"
+                        />
+                        <div className="text-xs text-[--color-textSecondary] mt-1">
+                          Allowed Range: {formatDate(baseDate)} → {effectiveMaxDays === Infinity ? 'No Limit' : formatDate(allowedMaxDate)} ({effectiveMaxDays === Infinity ? 'Unlimited' : `${effectiveMaxDays} days max for revision #${currentRevisionCount + 1}`})
+                        </div>
+                      </div>
+
+                      {/* Remarks */}
+                      <div>
+                        <label className="block text-sm font-medium mb-2 text-[--color-textSecondary]">
+                          Revision Remarks
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={revisionRemarks}
+                          onChange={(e) => setRevisionRemarks(e.target.value)}
+                          className="w-full px-3 py-2 border border-[--color-border] rounded-lg"
+                          placeholder="Reason for revision..."
+                        />
+                      </div>
+                    </div>
+
+                    {/* Buttons */}
+                    <div className="flex space-x-3 mt-6">
+                      <button
+                        onClick={() => handleReviseTask(showReviseModal)}
+                        className="flex-1 py-2 px-4 rounded-lg text-white bg-gradient-to-r from-[--color-warning] to-[--color-accent]"
+                      >
+                        Revise Task
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setShowReviseModal(null);
+                          setRevisionDate('');
+                          setRevisionRemarks('');
+                        }}
+                        className="flex-1 py-2 px-4 rounded-lg bg-[--color-surface] border border-[--color-border] text-[--color-text]"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
                 </div>
-
-                {/* Remarks */}
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-[--color-textSecondary]">
-                    Revision Remarks
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={revisionRemarks}
-                    onChange={(e) => setRevisionRemarks(e.target.value)}
-                    className="w-full px-3 py-2 border border-[--color-border] rounded-lg"
-                    placeholder="Reason for revision..."
-                  />
-                </div>
               </div>
-
-              {/* Buttons */}
-              <div className="flex space-x-3 mt-6">
-                <button
-                  onClick={() => handleReviseTask(showReviseModal)}
-                  className="flex-1 py-2 px-4 rounded-lg text-white bg-gradient-to-r from-[--color-warning] to-[--color-accent]"
-                >
-                  Revise Task
-                </button>
-
-                <button
-                  onClick={() => {
-                    setShowReviseModal(null);
-                    setRevisionDate('');
-                    setRevisionRemarks('');
-                  }}
-                  className="flex-1 py-2 px-4 rounded-lg bg-[--color-surface] border border-[--color-border] text-[--color-text]"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    })()}
-  </>
-)}
+            );
+          })()}
+        </>
+      )}
 
       {/* Attachments Modal */}
       {showAttachmentsModal && (

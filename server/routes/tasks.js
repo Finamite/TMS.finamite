@@ -914,11 +914,11 @@ router.post('/:id/complete', async (req, res) => {
 
       const subject = `Task Completed: ${task.title}`;
       const attachmentsText =
-  task.completionAttachments?.length > 0
-    ? `\nAttached Files:\n${task.completionAttachments
-        .map(a => "- " + (a.filename || a.originalName || a.name || "file"))
-        .join("\n")}\n`
-    : '';
+        task.completionAttachments?.length > 0
+          ? `\nAttached Files:\n${task.completionAttachments
+            .map(a => "- " + (a.filename || a.originalName || a.name || "file"))
+            .join("\n")}\n`
+          : '';
       const text = `
 The following task has been completed:
 
@@ -937,7 +937,7 @@ https://tms.finamite.in
 `;
 
       for (const admin of admins) {
-        await sendSystemEmail(task.companyId, admin.email, subject, text, "",task.completionAttachments || []);
+        await sendSystemEmail(task.companyId, admin.email, subject, text, "", task.completionAttachments || []);
       }
     }
 
@@ -983,50 +983,53 @@ router.post('/:id/revise', async (req, res) => {
 
     // 2️⃣ Fetch Revision Settings
     const revisionSettings = await Settings.findOne({
-      type: "revision",
-      companyId: task.companyId
-    });
+  type: "revision",
+  companyId: task.companyId
+});
 
-    const enableRevisions = revisionSettings?.data?.enableRevisions ?? false;
-    let limit = revisionSettings?.data?.limit ?? 3;
-    let maxDays = revisionSettings?.data?.maxDays ?? 7;
+const enableRevisions = revisionSettings?.data?.enableRevisions ?? false;
+const enableDaysRule = revisionSettings?.data?.enableDaysRule ?? false;
+const enableMaxRevision = revisionSettings?.data?.enableMaxRevision ?? true;
 
-    if (!enableRevisions) {
-      limit = Infinity;
-      maxDays = Infinity;
-    } else {
-      const enableDaysRule = revisionSettings?.data?.enableDaysRule ?? false;
-      const days = revisionSettings?.data?.days || {};
-      const revisionIndex = task.revisionCount + 1;
+// 3️⃣ Check Revision Limit (only if revisions enabled)
+let limit = enableMaxRevision ? (revisionSettings?.data?.limit ?? 3) : Infinity;
+if (!enableRevisions) {
+  limit = Infinity;
+}
 
-      if (enableDaysRule && days[revisionIndex] !== undefined && days[revisionIndex] !== null) {
-        maxDays = days[revisionIndex];
-      }
-    }
+if (enableRevisions && task.revisionCount >= limit) {
+  return res.status(400).json({
+    message: `Maximum ${limit} revisions allowed`
+  });
+}
 
-    // 3️⃣ Check Revision Limit
-    if (enableRevisions && task.revisionCount >= limit) {
-      return res.status(400).json({
-        message: `Maximum ${limit} revisions allowed`
-      });
-    }
+// 4️⃣ Determine Base Date & Max Days (only apply day limits if revisions AND days rule enabled)
+const baseDate = task.lastPlannedDate
+  ? new Date(task.lastPlannedDate)
+  : new Date(task.dueDate);
 
-    // 4️⃣ Determine Base Date
-    const baseDate = task.lastPlannedDate
-      ? new Date(task.lastPlannedDate)
-      : new Date(task.dueDate);
+let maxDays = Infinity; // Default: no day limit
 
-    const allowedMaxDate = new Date(baseDate);
-    allowedMaxDate.setDate(allowedMaxDate.getDate() + maxDays);
+if (enableRevisions && enableDaysRule) {
+  maxDays = revisionSettings?.data?.maxDays ?? 7; // Fallback to global maxDays
+  const days = revisionSettings?.data?.days || {};
+  const revisionIndex = task.revisionCount + 1;
+  if (days[revisionIndex] !== undefined && days[revisionIndex] !== null) {
+    maxDays = days[revisionIndex]; // Override with revision-specific days
+  }
+}
 
-    const pickedDate = new Date(newDate);
+const allowedMaxDate = new Date(baseDate);
+allowedMaxDate.setDate(allowedMaxDate.getDate() + maxDays);
 
-    // 5️⃣ Validate Selected Date Range
-    if (enableRevisions && pickedDate > allowedMaxDate) {
-      return res.status(400).json({
-        message: `You can only revise up to ${maxDays} days from the planned date`
-      });
-    }
+const pickedDate = new Date(newDate);
+
+// 5️⃣ Validate Selected Date Range (only if day limits apply)
+if (enableRevisions && enableDaysRule && pickedDate > allowedMaxDate) {
+  return res.status(400).json({
+    message: `You can only revise up to ${maxDays} days from the planned date`
+  });
+}
 
     // 6️⃣ Save Revision History
     const oldDate = task.dueDate;
@@ -1060,9 +1063,9 @@ router.post('/:id/revise', async (req, res) => {
 
       // Get user who requested the revision
       const revisingUser = userId ? await User.findById(userId) : null;
-const assignedToUser = await User.findById(task.assignedTo);
+      const assignedToUser = await User.findById(task.assignedTo);
 
-const requestedByName = revisingUser?.username || assignedToUser?.username || 'Unknown User';
+      const requestedByName = revisingUser?.username || assignedToUser?.username || 'Unknown User';
 
       const subject = `Task Revision Updated: ${task.title}`;
       const text = `

@@ -100,6 +100,9 @@ router.get('/revision', async (req, res) => {
           limit: 3,
           scoringModel: 'stepped',
           enableRevisions: false,
+          enableMaxRevision: true,    // ✅ add
+          enableDaysRule: false,      // ✅ add
+          restrictHighPriorityRevision: false,
           maxDays: 7,
           scoringRules: [
             {
