@@ -263,103 +263,98 @@ const AssignTask: React.FC = () => {
     userItem.email.toLowerCase().includes(userSearchTerm.toLowerCase())
   );
 
-  // Optimized batch task creation
+  // ✅ OPTIMIZED: Super fast bulk task creation
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // Validate all tasks at once
-      for (const task of taskForms) {
+      // ⚡ Step 1: Validate all tasks at once (no early returns in loop)
+      const validationErrors: string[] = [];
+      
+      taskForms.forEach((task, index) => {
         if (task.assignedTo.length === 0) {
-          toast.error(`Please select users for task: "${task.title || 'Untitled'}"`, { theme: isDark ? 'dark' : 'light' });
-          setLoading(false);
-          return;
+          validationErrors.push(`Task ${index + 1}: Please select users`);
         }
-
         if (task.taskType === 'weekly' && task.weeklyDays.length === 0) {
-          toast.error(`Please select days for weekly task: "${task.title || 'Untitled'}"`, { theme: isDark ? 'dark' : 'light' });
-          setLoading(false);
-          return;
+          validationErrors.push(`Task ${index + 1}: Please select weekly days`);
         }
-
-        // Date validations...
         if (task.taskType !== 'one-time') {
           if (task.taskType === 'yearly' || task.taskType === 'quarterly') {
             if (!task.startDate) {
-              toast.error(`Please select start date for ${task.taskType} task: "${task.title || 'Untitled'}"`, { theme: isDark ? 'dark' : 'light' });
-              setLoading(false);
-              return;
+              validationErrors.push(`Task ${index + 1}: Please select start date`);
             }
-          } else if (!task.isForever) {
-            if (!task.startDate || !task.endDate) {
-              toast.error(`Please select both start and end dates for task: "${task.title || 'Untitled'}"`, { theme: isDark ? 'dark' : 'light' });
-              setLoading(false);
-              return;
-            }
-
-            if (new Date(task.startDate) >= new Date(task.endDate)) {
-              toast.error(`End date must be after start date for task: "${task.title || 'Untitled'}"`, { theme: isDark ? 'dark' : 'light' });
-              setLoading(false);
-              return;
-            }
+          } else if (!task.isForever && (!task.startDate || !task.endDate)) {
+            validationErrors.push(`Task ${index + 1}: Please select start and end dates`);
+          } else if (!task.isForever && new Date(task.startDate) >= new Date(task.endDate)) {
+            validationErrors.push(`Task ${index + 1}: End date must be after start date`);
           }
         }
-      }
-
-      // Process each task with its own attachments
-      const allTaskPromises = taskForms.flatMap(async (task) => {
-        // Upload attachments for this specific task
-        let uploadedAttachments: any[] = [];
-        if (task.attachments.length > 0) {
-          const formDataFiles = new FormData();
-          task.attachments.forEach(file => {
-            formDataFiles.append('files', file);
-          });
-          const uploadResponse = await axios.post(`${address}/api/upload`, formDataFiles, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-          });
-          uploadedAttachments = uploadResponse.data.files || [];
-        }
-
-        // Create tasks for all assigned users for this specific task
-        return Promise.all(task.assignedTo.map(async (assignedUserId) => {
-          const taskData = {
-            ...task,
-            assignedTo: assignedUserId,
-            assignedBy: user?.id,
-            companyId: user?.companyId,
-            attachments: uploadedAttachments, // Use this task's specific attachments
-            ...((task.taskType === 'yearly' || task.taskType === 'quarterly') && !task.isForever && {
-              endDate: task.startDate
-            })
-          };
-          return axios.post(`${address}/api/tasks/create-scheduled`, taskData);
-        }));
       });
 
-      // Execute all task creation in parallel for maximum speed
-      const results = await Promise.all(allTaskPromises);
-      const flatResults = results.flat();
+      if (validationErrors.length > 0) {
+        toast.error(validationErrors.join('. '), { theme: isDark ? 'dark' : 'light' });
+        setLoading(false);
+        return;
+      }
 
-      // Calculate totals
-      const totalTasksCreated = flatResults.reduce((sum, result) => sum + result.data.tasksCreated, 0);
-      const totalUsers = taskForms.reduce((sum, task) => sum + task.assignedTo.length, 0);
+      // ⚡ Step 2: Upload ALL attachments in parallel (not per task)
+      const uploadPromises = taskForms.map(async (task) => {
+        if (task.attachments.length === 0) return { taskId: task.id, attachments: [] };
+        
+        const formDataFiles = new FormData();
+        task.attachments.forEach(file => formDataFiles.append('files', file));
+        
+        const uploadResponse = await axios.post(`${address}/api/upload`, formDataFiles, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        return { taskId: task.id, attachments: uploadResponse.data.files || [] };
+      });
+
+      const uploadResults = await Promise.all(uploadPromises);
+      const attachmentMap = Object.fromEntries(
+        uploadResults.map(r => [r.taskId, r.attachments])
+      );
+
+      // ⚡ Step 3: Prepare bulk task data (single payload)
+      const bulkTaskData = {
+        tasks: taskForms.map(task => ({
+          ...task,
+          assignedBy: user?.id,
+          companyId: user?.companyId,
+          attachments: attachmentMap[task.id],
+          ...((task.taskType === 'yearly' || task.taskType === 'quarterly') && !task.isForever && {
+            endDate: task.startDate
+          })
+        })),
+        totalUsers: taskForms.reduce((sum, task) => sum + task.assignedTo.length, 0)
+      };
+
+      // ⚡ Step 4: Single API call for ALL tasks - SUPER FAST!
+      const startTime = Date.now();
+      const response = await axios.post(`${address}/api/tasks/bulk-create`, bulkTaskData);
+      const endTime = Date.now();
+      
+      const { totalTasksCreated, totalUsers, summary } = response.data;
       const totalAttachments = taskForms.reduce((sum, task) => sum + task.attachments.length, 0);
       const totalVoiceRecordings = taskForms.reduce((sum, task) =>
         sum + task.attachments.filter(isAudioFile).length, 0);
 
-      let successMessage = `🚀 Successfully created ${totalTasksCreated} task${totalTasksCreated > 1 ? 's' : ''} across ${taskForms.length} task type${taskForms.length > 1 ? 's' : ''} for ${totalUsers} user${totalUsers > 1 ? 's' : ''}.`;
+      let successMessage = `🚀 Lightning Fast! Created ${totalTasksCreated} task${totalTasksCreated > 1 ? 's' : ''} for ${totalUsers} user${totalUsers > 1 ? 's' : ''} in ${((endTime - startTime) / 1000).toFixed(1)}s`;
       if (totalAttachments > 0) {
-        successMessage += ` (${totalAttachments} attachment${totalAttachments > 1 ? 's' : ''} uploaded`;
+        successMessage += ` (${totalAttachments} file${totalAttachments > 1 ? 's' : ''} uploaded`;
         if (totalVoiceRecordings > 0) {
-          successMessage += `, including ${totalVoiceRecordings} voice recording${totalVoiceRecordings > 1 ? 's' : ''}`;
+          successMessage += `, ${totalVoiceRecordings} voice recording${totalVoiceRecordings > 1 ? 's' : ''}`;
         }
         successMessage += ')';
       }
-      toast.success(successMessage, { theme: isDark ? 'dark' : 'light', autoClose: 3000 });
+      
+      toast.success(successMessage, { 
+        theme: isDark ? 'dark' : 'light', 
+        autoClose: 4000,
+      });
 
-      // Reset forms
+      // ✅ Reset everything
       setTaskForms([{
         id: '1',
         title: '',
@@ -384,14 +379,13 @@ const AssignTask: React.FC = () => {
 
       // Reset all voice recorders
       Object.values(voiceRecorderRefs.current).forEach(ref => {
-        if (ref) {
-          ref.resetFromParent();
-        }
+        if (ref) ref.resetFromParent();
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating tasks:', error);
-      toast.error('Failed to assign tasks. Please try again.', { theme: isDark ? 'dark' : 'light' });
+      const errorMsg = error.response?.data?.message || 'Failed to create tasks. Please try again.';
+      toast.error(`Error: ${errorMsg}`, { theme: isDark ? 'dark' : 'light' });
     } finally {
       setLoading(false);
     }

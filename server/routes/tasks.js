@@ -44,7 +44,6 @@ const getWeeklyTaskDates = (startDate, endDate, selectedDays, weekOffDays = []) 
   return dates;
 };
 
-
 // Helper function to get all dates for monthly tasks with specific day within a range
 const getMonthlyTaskDates = (startDate, endDate, monthlyDay, includeSunday, weekOffDays = []) => {
   const dates = [];
@@ -137,75 +136,6 @@ const getYearlyTaskDates = (startDate, yearlyDuration, includeSunday = true, wee
   }
 
   return dates;
-};
-
-
-// --- New Helper for Calculating Next Due Date for Recurring Tasks ---
-
-/**
- * Calculates the next due date for a recurring task based on its type and current due date.
- * @param {Object} task - The task object from the database.
- * @returns {Date | null} The calculated next due date, or null if it's a one-time task.
- */
-const calculateNextDueDate = (task) => {
-  // Start calculation from the current due date of the task
-  const currentDueDate = new Date(task.dueDate);
-  let nextDueDate = new Date(currentDueDate); // Create a mutable copy
-
-  switch (task.taskType) {
-    case 'daily':
-      // Advance by one day
-      nextDueDate.setDate(nextDueDate.getDate() + 1);
-      // If parentTaskInfo exists and Sundays are excluded, skip Sunday
-      if (task.parentTaskInfo && task.parentTaskInfo.includeSunday === false) {
-        if (nextDueDate.getDay() === 0) { // 0 is Sunday
-          nextDueDate.setDate(nextDueDate.getDate() + 1); // Move to Monday
-        }
-      }
-      break;
-    case 'weekly':
-      // Advance by one week (7 days)
-      nextDueDate.setDate(nextDueDate.getDate() + 7);
-      // For weekly tasks, the specific days of the week are handled during initial scheduling.
-      // Simply advancing by a week should maintain the day of the week.
-      break;
-    case 'monthly':
-      // Advance by one month
-      nextDueDate.setMonth(nextDueDate.getMonth() + 1);
-      // If a specific monthly day is set in parentTaskInfo, try to set the date to that day.
-      if (task.parentTaskInfo && task.parentTaskInfo.monthlyDay) {
-        const targetDay = task.parentTaskInfo.monthlyDay;
-        // Check if the target day is valid for the new month. If not, set to the last day of the month.
-        const lastDayOfNextMonth = new Date(nextDueDate.getFullYear(), nextDueDate.getMonth() + 1, 0).getDate();
-        nextDueDate.setDate(Math.min(targetDay, lastDayOfNextMonth));
-      }
-      // If parentTaskInfo exists and Sundays are excluded, skip Sunday
-      if (task.parentTaskInfo && task.parentTaskInfo.includeSunday === false) {
-        if (nextDueDate.getDay() === 0) { // 0 is Sunday
-          nextDueDate.setDate(nextDueDate.getDate() + 1); // Move to Monday
-        }
-      }
-      break;
-    case 'quarterly':
-      // Advance by 3 months (one quarter)
-      nextDueDate.setMonth(nextDueDate.getMonth() + 3);
-      // If parentTaskInfo exists and Sundays are excluded, skip Sunday
-      if (task.parentTaskInfo && task.parentTaskInfo.includeSunday === false) {
-        if (nextDueDate.getDay() === 0) { // 0 is Sunday
-          nextDueDate.setDate(nextDueDate.getDate() - 1); // Move to Saturday
-        }
-      }
-      break;
-    case 'yearly':
-      // Advance by one year
-      nextDueDate.setFullYear(nextDueDate.getFullYear() + 1);
-      break;
-    default:
-      // For 'one-time' tasks or unknown types, there is no next due date to calculate.
-      return null;
-  }
-
-  return nextDueDate;
 };
 
 // ✅ HELPER FUNCTION: Send task assignment email
@@ -672,7 +602,149 @@ router.get('/recurring-instances', async (req, res) => {
   }
 });
 
-// Create scheduled tasks (new endpoint for advanced scheduling)
+// ⚡ SUPER FAST BULK CREATE: Single API endpoint for all tasks
+router.post('/bulk-create', async (req, res) => {
+  try {
+    const { tasks, totalUsers } = req.body;
+    
+    if (!tasks || !Array.isArray(tasks) || tasks.length === 0) {
+      return res.status(400).json({ message: 'No tasks provided' });
+    }
+
+    console.log(`🚀 BULK CREATE: Processing ${tasks.length} task types for ${totalUsers} users`);
+    const startTime = Date.now();
+
+    let totalTasksCreated = 0;
+    const allBulkOperations = [];
+    
+    // ⚡ Process all tasks in parallel
+    await Promise.all(tasks.map(async (taskData) => {
+      const { assignedTo, ...taskTemplate } = taskData;
+      
+      // ⚡ Process each assigned user for this task
+      await Promise.all(assignedTo.map(async (assignedUserId) => {
+        let taskDates = [];
+        
+        // ⚡ Generate dates for this task type
+        if (taskData.taskType === 'one-time') {
+          taskDates = [new Date(taskData.dueDate)];
+        } else {
+          const startDate = new Date(taskData.startDate);
+          let endDate;
+
+          if (taskData.isForever) {
+            endDate = new Date(startDate);
+            if (taskData.taskType === 'yearly') {
+              endDate.setFullYear(endDate.getFullYear() + (taskData.yearlyDuration || 3));
+            } else {
+              endDate.setFullYear(endDate.getFullYear() + 1);
+            }
+          } else {
+            endDate = new Date(taskData.endDate);
+          }
+
+          // ⚡ Fast date generation based on type
+          switch (taskData.taskType) {
+            case 'daily':
+              taskDates = getDailyTaskDates(startDate, endDate, taskData.includeSunday, taskData.weekOffDays);
+              break;
+            case 'weekly':
+              taskDates = getWeeklyTaskDates(startDate, endDate, taskData.weeklyDays, taskData.weekOffDays);
+              break;
+            case 'monthly':
+              taskDates = getMonthlyTaskDates(startDate, endDate, taskData.monthlyDay || 1, taskData.includeSunday, taskData.weekOffDays);
+              break;
+            case 'quarterly':
+              taskDates = getQuarterlyTaskDates(startDate, taskData.includeSunday, taskData.weekOffDays);
+              break;
+            case 'yearly':
+              if (taskData.isForever) {
+                taskDates = getYearlyTaskDates(startDate, taskData.yearlyDuration, taskData.includeSunday, taskData.weekOffDays || []);
+              } else {
+                taskDates = getYearlyTaskDates(startDate, 1, taskData.includeSunday, taskData.weekOffDays || []);
+              }
+              break;
+          }
+        }
+
+        // ⚡ Generate unique task group ID
+        const taskGroupId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${assignedUserId}`;
+        
+        // ⚡ Prepare ALL task instances for bulk insert
+        const bulkTaskInstances = taskDates.map((taskDate, index) => ({
+          insertOne: {
+            document: {
+              ...taskTemplate,
+              assignedTo: assignedUserId,
+              dueDate: taskDate,
+              isActive: true,
+              status: 'pending',
+              taskGroupId: taskGroupId,
+              sequenceNumber: index + 1,
+              parentTaskInfo: {
+                originalStartDate: taskData.startDate,
+                originalEndDate: taskData.endDate,
+                isForever: taskData.isForever,
+                includeSunday: taskData.includeSunday,
+                weeklyDays: taskData.weeklyDays,
+                weekOffDays: taskData.weekOffDays || [],
+                monthlyDay: taskData.monthlyDay,
+                yearlyDuration: taskData.yearlyDuration
+              }
+            }
+          }
+        }));
+
+        allBulkOperations.push(...bulkTaskInstances);
+        totalTasksCreated += taskDates.length;
+
+        // ⚡ Send email notification (async, don't wait)
+        setImmediate(() => sendTaskAssignmentEmail({
+          ...taskData,
+          assignedTo: assignedUserId
+        }));
+      }));
+    }));
+
+    // ⚡ SUPER FAST: Single bulk write operation for ALL tasks
+    if (allBulkOperations.length > 0) {
+      console.log(`⚡ BULK INSERT: Writing ${allBulkOperations.length} tasks to database...`);
+      await Task.bulkWrite(allBulkOperations, { ordered: false });
+    }
+
+    const endTime = Date.now();
+    const duration = ((endTime - startTime) / 1000).toFixed(1);
+
+    console.log(`✅ BULK CREATE COMPLETED: ${totalTasksCreated} tasks created in ${duration}s`);
+
+    res.status(201).json({
+      message: `⚡ Lightning fast! Successfully created ${totalTasksCreated} tasks in ${duration}s`,
+      totalTasksCreated,
+      totalUsers,
+      duration,
+      performance: {
+        tasksPerSecond: Math.round(totalTasksCreated / (duration || 1)),
+        averageTimePerTask: Math.round((endTime - startTime) / totalTasksCreated),
+        bulkOperationSize: allBulkOperations.length
+      },
+      summary: {
+        taskTypes: tasks.length,
+        totalUsers: totalUsers,
+        totalInstances: totalTasksCreated
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error in bulk create:', error);
+    res.status(500).json({ 
+      message: 'Bulk task creation failed', 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+// Create scheduled tasks (keeping existing endpoint for backwards compatibility)
 router.post('/create-scheduled', async (req, res) => {
   try {
     const taskData = req.body;
@@ -785,7 +857,6 @@ router.post('/create-scheduled', async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
-
 
 // ✅ FIXED: Create task (original endpoint - now with email)
 router.post('/', async (req, res) => {
@@ -954,7 +1025,6 @@ https://tms.finamite.in
   }
 });
 
-
 // ✅ FIXED: Revise task - with proper email notification
 router.post('/:id/revise', async (req, res) => {
   try {
@@ -1104,7 +1174,6 @@ https://tms.finamite.in
     });
   }
 });
-
 
 // PUT /api/tasks/reschedule/:taskGroupId
 router.put('/reschedule/:taskGroupId', async (req, res) => {
