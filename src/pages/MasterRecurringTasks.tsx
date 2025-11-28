@@ -582,8 +582,9 @@ const MasterRecurringTasks: React.FC = () => {
       toast.success('Master task updated and rescheduled successfully.');
 
       // Clear cache and refresh data
-      cacheRef.current.clearByPattern('master-tasks');
-      await fetchMasterTasks(currentPage, false);
+      cacheRef.current.clearByPattern("master-tasks");
+      await fetchMasterTasks(1, false);
+      setCurrentPage(1);
 
       // Close modal
       setShowEditModal(false);
@@ -1341,8 +1342,8 @@ const MasterRecurringTasks: React.FC = () => {
                 cacheRef.current.clear();
               }}
               className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center ${isEditMode
-                  ? 'bg-[--color-primary] text-white hover:bg-[--color-primary]'
-                  : 'text-[--color-text] bg-[--color-surface] hover:bg-[--color-border]'
+                ? 'bg-[--color-primary] text-white hover:bg-[--color-primary]'
+                : 'text-[--color-text] bg-[--color-surface] hover:bg-[--color-border]'
                 }`}
             >
               <Settings size={16} className="inline mr-2" />
@@ -1591,8 +1592,8 @@ const MasterRecurringTasks: React.FC = () => {
                               key={pageNumber}
                               onClick={() => handlePageChange(pageNumber)}
                               className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${currentPage === pageNumber
-                                  ? 'bg-[--color-primary] text-white'
-                                  : 'text-[--color-textSecondary] bg-[--color-surface] border border-[--color-border] hover:bg-[--color-border]'
+                                ? 'bg-[--color-primary] text-white'
+                                : 'text-[--color-textSecondary] bg-[--color-surface] border border-[--color-border] hover:bg-[--color-border]'
                                 }`}
                             >
                               {pageNumber}
@@ -1834,7 +1835,9 @@ const MasterRecurringTasks: React.FC = () => {
                     // Clear cache and refresh data
                     cacheRef.current.clear();
                     if (isEditMode) {
-                      await fetchMasterTasks(currentPage, false);
+                      cacheRef.current.clearByPattern("master-tasks");
+                      await fetchMasterTasks(1, false);
+                      setCurrentPage(1);
                     } else {
                       await fetchIndividualTasks(currentPage, false);
                     }

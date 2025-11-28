@@ -1179,197 +1179,87 @@ https://tms.finamite.in
 router.put('/reschedule/:taskGroupId', async (req, res) => {
   try {
     const { taskGroupId } = req.params;
-    const cfg = req.body || {};
+    const updates = req.body;
 
-    // 1️⃣ Load tasks
-    const tasks = await Task.find({ taskGroupId }).sort({ sequenceNumber: 1 });
-    if (!tasks || tasks.length === 0) {
-      return res.status(404).json({ message: 'No tasks found for this group' });
+    // 1. Find existing tasks for the group
+    const existingTasks = await Task.find({ taskGroupId, isActive: true })
+      .select('assignedBy assignedTo attachments parentTaskInfo companyId');
+
+    if (existingTasks.length === 0) {
+      return res.status(404).json({ message: "Master Task not found" });
     }
 
-    const existingParent = tasks[0].parentTaskInfo || {};
+    const template = existingTasks[0];
 
-    // 🟢 Detect if only meta fields changed
-    const metaOnly =
-      cfg.title !== undefined ||
-      cfg.priority !== undefined ||
-      cfg.assignedTo !== undefined ||
-      cfg.description !== undefined;
+    // 2. Delete old tasks (fast)
+    await Task.deleteMany({ taskGroupId });
 
-    const scheduleFields = [
-      "taskType", "startDate", "endDate", "isForever",
-      "includeSunday", "weeklyDays", "monthlyDay",
-      "yearlyDuration", "weekOffDays"
-    ];
+    // 3. Recreate tasks using same speed logic as bulk-create
+    let taskDates = [];
 
-    const scheduleChanged = scheduleFields.some(f => cfg[f] !== undefined);
+    const startDate = new Date(updates.startDate);
+    const endDate = updates.isForever
+      ? new Date(startDate.getFullYear() + 1, startDate.getMonth(), startDate.getDate())
+      : new Date(updates.endDate);
 
-    // ✅ Case 1: Only meta fields updated → no reschedule
-    if (metaOnly && !scheduleChanged) {
-      const updateFields = {};
-      if (cfg.title !== undefined) updateFields.title = cfg.title;
-      if (cfg.priority !== undefined) updateFields.priority = cfg.priority;
-      if (cfg.assignedTo !== undefined) updateFields.assignedTo = cfg.assignedTo;
-      if (cfg.description !== undefined) updateFields.description = cfg.description;
-
-      const updated = await Task.updateMany(
-        { taskGroupId },
-        { $set: updateFields }
-      );
-
-      return res.json({
-        message: `Master task details updated for ${updated.modifiedCount} tasks.`,
-        updatedCount: updated.modifiedCount
-      });
-    }
-
-    // ✅ Case 2: Reschedule required
-    // 3️⃣ Start & End Dates
-    const startDate = cfg.startDate
-      ? new Date(cfg.startDate)
-      : (existingParent.originalStartDate
-        ? new Date(existingParent.originalStartDate)
-        : new Date(tasks[0].dueDate));
-
-    let endDate;
-    if (cfg.isForever) {
-      endDate = new Date(startDate);
-      if (cfg.taskType === 'yearly') {
-        endDate.setFullYear(endDate.getFullYear() + (cfg.yearlyDuration || 3));
-      } else {
-        endDate.setFullYear(endDate.getFullYear() + 1);
-      }
-    } else {
-      endDate = cfg.endDate
-        ? new Date(cfg.endDate)
-        : (existingParent.originalEndDate
-          ? new Date(existingParent.originalEndDate)
-          : new Date(tasks[tasks.length - 1].dueDate));
-    }
-
-    // 4️⃣ Config values
-    const cfgTaskType = cfg.taskType || tasks[0].taskType;
-    const cfgIncludeSunday =
-      typeof cfg.includeSunday === 'boolean'
-        ? cfg.includeSunday
-        : (existingParent.includeSunday ?? true);
-
-    const cfgWeekOffDays = Array.isArray(cfg.weekOffDays)
-      ? cfg.weekOffDays
-      : (existingParent.weekOffDays || []);
-
-    const cfgWeeklyDays = Array.isArray(cfg.weeklyDays)
-      ? cfg.weeklyDays
-      : (existingParent.weeklyDays || []);
-
-    const cfgMonthlyDay = cfg.monthlyDay ?? existingParent.monthlyDay;
-    const cfgYearlyDuration =
-      cfg.yearlyDuration ?? existingParent.yearlyDuration ?? 1;
-
-    // 5️⃣ Generate new dates
-    let newDates = [];
-    switch (cfgTaskType) {
+    switch (updates.taskType) {
       case 'daily':
-        newDates = getDailyTaskDates(startDate, endDate, cfgIncludeSunday, cfgWeekOffDays);
+        taskDates = getDailyTaskDates(startDate, endDate, updates.includeSunday, updates.weekOffDays);
         break;
       case 'weekly':
-        newDates = getWeeklyTaskDates(startDate, endDate, cfgWeeklyDays, cfgWeekOffDays);
+        taskDates = getWeeklyTaskDates(startDate, endDate, updates.weeklyDays, updates.weekOffDays);
         break;
       case 'monthly':
-        newDates = getMonthlyTaskDates(startDate, endDate, cfgMonthlyDay || 1, cfgIncludeSunday, cfgWeekOffDays);
+        taskDates = getMonthlyTaskDates(startDate, endDate, updates.monthlyDay, updates.includeSunday, updates.weekOffDays);
         break;
       case 'quarterly':
-        newDates = getQuarterlyTaskDates(startDate, cfgIncludeSunday, cfgWeekOffDays);
+        taskDates = getQuarterlyTaskDates(startDate, updates.includeSunday, updates.weekOffDays);
         break;
       case 'yearly':
-        newDates = getYearlyTaskDates(startDate, cfgYearlyDuration || 1, cfgIncludeSunday, cfgWeekOffDays);
+        taskDates = getYearlyTaskDates(startDate, updates.yearlyDuration, updates.includeSunday, updates.weekOffDays);
         break;
-      default:
-        newDates = tasks.map(t => t.dueDate);
     }
 
-    // 6️⃣ Filter dates >= today
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    newDates = newDates.filter(d => {
-      const date = new Date(d);
-      date.setHours(0, 0, 0, 0);
-      return date >= today;
-    });
-
-    // Prevent duplication of completed today's task
-    const todayTask = tasks.find(t => {
-      const due = new Date(t.dueDate);
-      due.setHours(0, 0, 0, 0);
-      return due.getTime() === today.getTime();
-    });
-
-    if (todayTask && todayTask.completedAt) {
-      newDates = newDates.filter(d => {
-        const date = new Date(d);
-        date.setHours(0, 0, 0, 0);
-        return date.getTime() !== today.getTime();
-      });
-    }
-
-    // 7️⃣ Delete old future tasks
-    await Task.deleteMany({
-      taskGroupId,
-      dueDate: { $gte: today },
-      ...(todayTask && todayTask.completedAt ? { dueDate: { $ne: today } } : {})
-    });
-
-    // 8️⃣ Recreate tasks
-    let createdCount = 0;
-    for (let i = 0; i < newDates.length; i++) {
-      const d = new Date(newDates[i]);
-      d.setHours(0, 0, 0, 0);
-
-      const newTask = new Task({
-        ...tasks[0]._doc,
-        _id: undefined,
-        dueDate: d,
-        sequenceNumber: i + 1,
-        status: 'pending',
-        completedAt: undefined,
-        title: cfg.title ?? tasks[0].title,
-        priority: cfg.priority ?? tasks[0].priority,
-        assignedTo: cfg.assignedTo ?? tasks[0].assignedTo,
-        description: cfg.description ?? tasks[0].description,
-        parentTaskInfo: {
-          ...existingParent,
-          originalStartDate: startDate,
-          originalEndDate: endDate,
-          isForever: cfg.isForever ?? existingParent.isForever,
-          includeSunday: cfgIncludeSunday,
-          weeklyDays: cfgWeeklyDays,
-          weekOffDays: cfgWeekOffDays,
-          monthlyDay: cfgMonthlyDay,
-          yearlyDuration: cfgYearlyDuration
+    const bulkOps = taskDates.map((date, i) => ({
+      insertOne: {
+        document: {
+          title: updates.title,
+          description: updates.description,
+          taskType: updates.taskType,
+          priority: updates.priority,
+          assignedBy: template.assignedBy,
+          assignedTo: updates.assignedTo,
+          companyId: template.companyId,
+          attachments: template.attachments,
+          dueDate: date,
+          isActive: true,
+          status: "pending",
+          taskGroupId,
+          sequenceNumber: i + 1,
+          parentTaskInfo: {
+            originalStartDate: updates.startDate,
+            originalEndDate: updates.endDate,
+            isForever: updates.isForever,
+            includeSunday: updates.includeSunday,
+            weeklyDays: updates.weeklyDays,
+            weekOffDays: updates.weekOffDays || [],
+            monthlyDay: updates.monthlyDay,
+            yearlyDuration: updates.yearlyDuration
+          }
         }
-      });
+      }
+    }));
 
-      await newTask.save();
-      createdCount++;
-    }
+    await Task.bulkWrite(bulkOps, { ordered: false });
 
-    // 9️⃣ Update sequence numbers
-    const remainingTasks = await Task.find({ taskGroupId }).sort({ dueDate: 1 });
-    for (let i = 0; i < remainingTasks.length; i++) {
-      remainingTasks[i].sequenceNumber = i + 1;
-      await remainingTasks[i].save();
-    }
-
-    return res.json({
-      message: `Tasks rescheduled successfully. Created ${createdCount} new ones.`,
-      updatedCount: remainingTasks.length,
-      createdCount
+    res.json({ 
+      message: "Master Task Rescheduled Successfully",
+      instances: bulkOps.length
     });
 
-  } catch (err) {
-    console.error('Error rescheduling group:', err);
-    return res.status(500).json({ message: 'Server error', error: err.message });
+  } catch (error) {
+    console.error("Reschedule Error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 
