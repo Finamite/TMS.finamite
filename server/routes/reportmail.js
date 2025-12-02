@@ -368,6 +368,13 @@ function generateEnhancedHtmlReport({
             text-transform: uppercase;
             letter-spacing: 1px;
         }
+            .metrics-table td {
+    width: 25%;
+    vertical-align: top;
+}
+.metrics-table {
+    margin-bottom: 35px;
+}
         .metric-change {
             font-size: 12px;
             margin-top: 8px;
@@ -621,30 +628,32 @@ function generateEnhancedHtmlReport({
                     <div class="section-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white;">📊</div>
                     ${isEvening ? "Today's Performance" : "Current Status"}
                 </h3>
-                <div class="metrics-row">
-                    <div class="metric-card pending">
-                        <div class="metric-number">${data.totalPending}</div>
-                        <div class="metric-label">Pending Tasks</div>
-                        ${data.totalPending > 0 ? '<div class="metric-change" style="background: #dbeafe; color: #1d4ed8;">Active</div>' : '<div class="metric-change" style="background: #dcfce7; color: #166534;">All Clear!</div>'}
-                    </div>
-                    <div class="metric-card overdue">
-                        <div class="metric-number">${data.totalOverdue}</div>
-                        <div class="metric-label">Overdue Tasks</div>
-                        ${data.totalOverdue > 0 ? '<div class="metric-change" style="background: #fee2e2; color: #dc2626;">Needs Attention</div>' : '<div class="metric-change" style="background: #dcfce7; color: #166534;">On Track!</div>'}
-                    </div>
-                    <div class="metric-card completed">
-                        <div class="metric-number">${data.completedToday}</div>
-                        <div class="metric-label">${isEvening ? "Completed Today" : "Done Today"}</div>
-                        ${data.completedYesterday ? `<div class="metric-change" style="background: ${data.completedToday >= data.completedYesterday ? '#dcfce7; color: #166534' : '#fef3c7; color: #92400e'};">${data.completedToday >= data.completedYesterday ? '↗' : '↘'} vs Yesterday</div>` : ''}
-                    </div>
-                    <div class="metric-card rate">
-                        <div class="metric-number">${data.completionRate}%</div>
-                        <div class="metric-label">Weekly Success Rate</div>
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: ${data.completionRate}%"></div>
-                        </div>
-                    </div>
-                </div>
+                <table class="metrics-table" width="100%" cellspacing="20">
+  <tr>
+    <td class="metric-card pending">
+      <div class="metric-number">${data.totalPending}</div>
+      <div class="metric-label">Pending Tasks</div>
+      ${data.totalPending > 0 ? '<div class="metric-change" style="background: #dbeafe; color: #1d4ed8;">Active</div>' : '<div class="metric-change" style="background: #dcfce7; color: #166534;">All Clear!</div>'}
+    </td>
+
+    <td class="metric-card overdue">
+      <div class="metric-number">${data.totalOverdue}</div>
+      <div class="metric-label">Overdue Tasks</div>
+      ${data.totalOverdue > 0 ? '<div class="metric-change" style="background: #fee2e2; color: #dc2626;">Needs Attention</div>' : '<div class="metric-change" style="background: #dcfce7; color: #166534;">On Track!</div>'}
+    </td>
+
+    <td class="metric-card completed">
+      <div class="metric-number">${data.completedToday}</div>
+      <div class="metric-label">${isEvening ? "Completed Today" : "Done Today"}</div>
+    </td>
+
+    <td class="metric-card rate">
+      <div class="metric-number">${data.completionRate}%</div>
+      <div class="metric-label">Weekly Success Rate</div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${data.completionRate}%"></div></div>
+    </td>
+  </tr>
+</table>
             </div>
 
             ${data.totalOverdue > 0 ? `
