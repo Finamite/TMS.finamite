@@ -663,8 +663,8 @@ const SettingsPage: React.FC = () => {
         <div className="min-h-screen bg-gradient-to-br from-[var(--color-background)] to-[var(--color-surface)] p-6">
             <div className="max-w-15xl mx-auto">
                 {/* Header */}
-                <div className="sticky top-0 z-40 bg-[var(--color-background)] bg-opacity-80 backdrop-blur-md 
-                px-1 py-4 mb-6 border-b border-[var(--color-border)] flex items-center justify-between">
+                <div className="sticky top-0 z-10 bg-[var(--color-background)] bg-opacity-80 backdrop-blur-md px-1 py-4 mb-6 border-b border-[var(--color-border)]
+                                flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
 
                     {/* LEFT SIDE */}
                     <div className="flex items-center">
@@ -680,23 +680,25 @@ const SettingsPage: React.FC = () => {
                     </div>
 
                     {/* RIGHT SIDE AREA */}
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 w-full sm:w-auto">
 
-                        {/* 🔥 Show pending changes */}
+                        {/* 🔥 Alert (Mobile & Desktop) — Always BEFORE button */}
                         {hasUnsavedChanges && (
-                            <div className="text-red-500 font-medium text-sm blink-warning">
+                            <div className="text-red-500 font-medium text-sm blink-warning order-1 sm:order-1">
                                 ⚠ Changes are pending to save
                             </div>
                         )}
 
+                        {/* Save Button */}
                         <button
                             onClick={handleSave}
                             disabled={saving}
-                            className="py-3 px-6 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)]
+                            className="w-full sm:w-auto py-3 px-6 bg-gradient-to-r
+        from-[var(--color-primary)] to-[var(--color-secondary)]
         hover:from-[var(--color-secondary)] hover:to-[var(--color-primary)]
         disabled:opacity-60 disabled:cursor-not-allowed
         text-[var(--color-background)] rounded-xl font-semibold transition-all duration-200
-        flex items-center justify-center shadow-lg hover:shadow-xl"
+        flex items-center justify-center shadow-lg hover:shadow-xl order-2 sm:order-2"
                         >
                             {saving ? (
                                 <>
@@ -710,6 +712,7 @@ const SettingsPage: React.FC = () => {
                                 </>
                             )}
                         </button>
+
                     </div>
 
                 </div>
@@ -740,40 +743,46 @@ const SettingsPage: React.FC = () => {
                     <div className="bg-[var(--color-surface)] rounded-2xl shadow-xl border border-[var(--color-border)] overflow-hidden transition-all duration-300">
                         {/* Header */}
                         <div
-                            className="flex items-center justify-between p-6 cursor-pointer hover:bg-[var(--color-background)] transition-colors"
+                            className="
+    flex items-center justify-between 
+    p-6 cursor-pointer 
+    hover:bg-[var(--color-background)] 
+    transition-colors
+  "
                             onClick={() => setExpandedRevision(!expandedRevision)}
                         >
-                            <div className="flex items-center gap-4">
+                            {/* LEFT SIDE (text block) */}
+                            <div className="flex items-center gap-4 min-w-0 max-w-[75%]">
                                 <div className="p-3 bg-[var(--color-accent)]/10 rounded-xl">
                                     <AlertTriangle className="h-6 w-6 text-[var(--color-accent)]" />
                                 </div>
-                                <div>
-                                    <h2 className="text-xl font-semibold text-[var(--color-text)]">
+
+                                <div className="min-w-0">
+                                    <h2 className="text-xl font-semibold text-[var(--color-text)] truncate">
                                         Revision & Scoring
                                     </h2>
-                                    <p className="text-[var(--color-textSecondary)] text-sm mt-1">
+                                    <p className="text-[var(--color-textSecondary)] text-sm mt-1 truncate">
                                         Configure task revision limits and scoring impact on performance
                                     </p>
                                 </div>
                             </div>
 
-                            {/* Toggle Switch */}
+                            {/* RIGHT SIDE TOGGLE */}
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    handleInputChange('revision', 'enableRevisions', !revisionEnabled);
+                                    handleInputChange("revision", "enableRevisions", !revisionEnabled);
                                     setExpandedRevision(!revisionEnabled);
                                 }}
-                                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-200 shadow-inner ${revisionEnabled ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border)]'
-                                    }`}
+                                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-200 shadow-inner 
+      ${revisionEnabled ? "bg-[var(--color-primary)]" : "bg-[var(--color-border)]"}`}
                             >
                                 <span
-                                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${revisionEnabled ? 'translate-x-6' : 'translate-x-1'
-                                        }`}
+                                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform duration-200 
+        ${revisionEnabled ? "translate-x-6" : "translate-x-1"}`}
                                 />
                             </button>
                         </div>
-
                         {/* Expanded Content */}
                         {expandedRevision && (
                             <div className="px-6 pb-6 pt-2 border-t border-[var(--color-border)] bg-[var(--color-background)]">
@@ -1037,34 +1046,47 @@ const SettingsPage: React.FC = () => {
                     <div className="bg-[var(--color-surface)] rounded-2xl shadow-xl border border-[var(--color-border)] overflow-hidden transition-all duration-300">
                         {/* Header */}
                         <div
-                            className="flex items-center justify-between p-6 cursor-pointer hover:bg-[var(--color-background)] transition-colors"
+                            className="
+    flex items-center justify-between 
+    p-6 cursor-pointer 
+    hover:bg-[var(--color-background)] 
+    transition-colors
+  "
                             onClick={() => setExpandedEmail(!expandedEmail)}
                         >
-                            <div className="flex items-center gap-4">
+                            {/* LEFT CONTENT */}
+                            <div className="flex items-center gap-4 min-w-0 max-w-[75%]">
                                 <div className="p-3 bg-[var(--color-primary)]/10 rounded-xl">
                                     <Mail className="h-6 w-6 text-[var(--color-primary)]" />
                                 </div>
-                                <div>
-                                    <h2 className="text-xl font-semibold text-[var(--color-text)]">Email Notifications</h2>
-                                    <p className="text-[var(--color-textSecondary)] text-sm mt-1">
+
+                                <div className="min-w-0">
+                                    <h2 className="text-xl font-semibold text-[var(--color-text)] truncate">
+                                        Email Notifications
+                                    </h2>
+                                    <p className="text-[var(--color-textSecondary)] text-sm mt-1 truncate">
                                         Configure Gmail integration and automation
                                     </p>
                                 </div>
                             </div>
 
-                            {/* Toggle Switch */}
+                            {/* RIGHT TOGGLE */}
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    handleInputChange('email', 'enabled', !emailEnabled);
+                                    handleInputChange("email", "enabled", !emailEnabled);
                                     setExpandedEmail(true);
                                 }}
-                                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-200 shadow-inner ${emailEnabled ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border)]'
-                                    }`}
+                                className={`
+      relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-200 shadow-inner
+      ${emailEnabled ? "bg-[var(--color-primary)]" : "bg-[var(--color-border)]"}
+    `}
                             >
                                 <span
-                                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${emailEnabled ? 'translate-x-6' : 'translate-x-1'
-                                        }`}
+                                    className={`
+        inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform duration-200
+        ${emailEnabled ? "translate-x-6" : "translate-x-1"}
+      `}
                                 />
                             </button>
                         </div>
@@ -1101,9 +1123,17 @@ const SettingsPage: React.FC = () => {
                                                 </button>
                                             </div>
                                         ) : (
-                                            <div className="flex items-center justify-between p-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm hover:shadow-md hover:border-[var(--color-primary)]/30 transition-all duration-300">
+                                            <div className="
+    flex flex-col sm:flex-row 
+    sm:items-center sm:justify-between 
+    gap-4 sm:gap-0
+    p-5 rounded-xl border border-[var(--color-border)] 
+    bg-[var(--color-surface)] shadow-sm hover:shadow-md 
+    hover:border-[var(--color-primary)]/30 
+    transition-all duration-300
+">
                                                 {/* Left side: Icon + Text */}
-                                                <div className="flex items-center gap-3">
+                                                <div className="flex items-start gap-3 flex-1">
                                                     <div className="p-3 bg-[var(--color-error)]/10 text-[var(--color-error)] rounded-xl">
                                                         <Mail className="h-5 w-5" />
                                                     </div>
@@ -1121,8 +1151,15 @@ const SettingsPage: React.FC = () => {
                                                 <button
                                                     onClick={connectGoogle}
                                                     disabled={googleLoading}
-                                                    className="px-5 py-2.5 rounded-lg bg-gradient-to-r from-[var(--color-error)] to-red-300 text-white text-sm font-semibold shadow-sm hover:shadow-md 
-                  hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    className="
+            w-full sm:w-auto
+            px-5 py-2.5 rounded-lg 
+            bg-gradient-to-r from-[var(--color-error)] to-red-300 
+            text-white text-sm font-semibold shadow-sm 
+            hover:shadow-md hover:scale-[1.02] active:scale-[0.98] 
+            transition-all duration-200 flex items-center justify-center gap-2 
+            disabled:opacity-50 disabled:cursor-not-allowed
+        "
                                                 >
                                                     {googleLoading ? (
                                                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -1132,6 +1169,7 @@ const SettingsPage: React.FC = () => {
                                                     Connect with Google
                                                 </button>
                                             </div>
+
                                         )}
                                     </div>
 
@@ -1228,36 +1266,47 @@ const SettingsPage: React.FC = () => {
                     <div className="bg-[var(--color-surface)] rounded-2xl shadow-xl border border-[var(--color-border)] overflow-hidden transition-all duration-300">
                         {/* Header */}
                         <div
-                            className="flex items-center justify-between p-6 cursor-pointer hover:bg-[var(--color-background)] transition-colors"
+                            className="
+    flex items-center justify-between 
+    p-6 cursor-pointer 
+    hover:bg-[var(--color-background)] 
+    transition-colors
+  "
                             onClick={() => setExpandedReports(!expandedReports)}
                         >
-                            <div className="flex items-center gap-4">
+                            {/* LEFT CONTENT */}
+                            <div className="flex items-center gap-4 min-w-0 max-w-[75%]">
                                 <div className="p-3 bg-[var(--color-info)]/10 rounded-xl">
                                     <Calendar className="h-6 w-6 text-[var(--color-info)]" />
                                 </div>
-                                <div>
-                                    <h2 className="text-xl font-semibold text-[var(--color-text)]">
+
+                                <div className="min-w-0">
+                                    <h2 className="text-xl font-semibold text-[var(--color-text)] truncate">
                                         Automated Reports
                                     </h2>
-                                    <p className="text-[var(--color-textSecondary)] text-sm mt-1">
+                                    <p className="text-[var(--color-textSecondary)] text-sm mt-1 truncate">
                                         Schedule daily reports and summaries
                                     </p>
                                 </div>
                             </div>
 
-                            {/* Toggle Switch */}
+                            {/* RIGHT TOGGLE */}
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    handleInputChange('email', 'enableReports', !reportsEnabled);
+                                    handleInputChange("email", "enableReports", !reportsEnabled);
                                     setExpandedReports(true);
                                 }}
-                                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-200 shadow-inner ${reportsEnabled ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border)]'
-                                    }`}
+                                className={`
+      relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-200 shadow-inner
+      ${reportsEnabled ? "bg-[var(--color-primary)]" : "bg-[var(--color-border)]"}
+    `}
                             >
                                 <span
-                                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${reportsEnabled ? 'translate-x-6' : 'translate-x-1'
-                                        }`}
+                                    className={`
+        inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform duration-200
+        ${reportsEnabled ? "translate-x-6" : "translate-x-1"}
+      `}
                                 />
                             </button>
                         </div>
@@ -1376,29 +1425,33 @@ const SettingsPage: React.FC = () => {
                     </div>
 
                     {/* Task Completion Settings */}
-                    {/* Task Completion Settings */}
                     <div className="bg-[var(--color-surface)] rounded-2xl shadow-xl border border-[var(--color-border)] overflow-hidden transition-all duration-300">
 
                         {/* Header */}
                         <div
-                            className="flex items-center justify-between p-6 cursor-pointer hover:bg-[var(--color-background)] transition-colors"
+                            className="
+    flex items-center justify-between 
+    p-6 cursor-pointer 
+    hover:bg-[var(--color-background)] 
+    transition-colors
+  "
                             onClick={() => setExpandedTask(!expandedTask)}
                         >
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-4 min-w-0 max-w-[75%]">
                                 <div className="p-3 bg-[var(--color-primary)]/10 rounded-xl">
                                     <Settings className="h-6 w-6 text-[var(--color-primary)]" />
                                 </div>
-                                <div>
-                                    <h2 className="text-xl font-semibold text-[var(--color-text)]">
+
+                                <div className="min-w-0">
+                                    <h2 className="text-xl font-semibold text-[var(--color-text)] truncate">
                                         Task Completion Settings
                                     </h2>
-                                    <p className="text-[var(--color-textSecondary)] text-sm mt-1">
+                                    <p className="text-[var(--color-textSecondary)] text-sm mt-1 truncate">
                                         Configure attachments & remarks for different task types
                                     </p>
                                 </div>
                             </div>
 
-                            {/* ENABLE/DISABLE MAIN TOGGLE */}
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
@@ -1406,20 +1459,18 @@ const SettingsPage: React.FC = () => {
                                         ...prev,
                                         taskCompletion: {
                                             ...prev.taskCompletion,
-                                            enabled: !prev.taskCompletion.enabled
-                                        }
+                                            enabled: !prev.taskCompletion.enabled,
+                                        },
                                     }));
                                     setExpandedTask(true);
                                     setHasUnsavedChanges(true);
                                 }}
-                                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-200 shadow-inner ${settings.taskCompletion.enabled
-                                        ? "bg-[var(--color-primary)]"
-                                        : "bg-[var(--color-border)]"
-                                    }`}
+                                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-200 shadow-inner 
+      ${settings.taskCompletion.enabled ? "bg-[var(--color-primary)]" : "bg-[var(--color-border)]"}`}
                             >
                                 <span
-                                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${settings.taskCompletion.enabled ? "translate-x-6" : "translate-x-1"
-                                        }`}
+                                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform duration-200 
+        ${settings.taskCompletion.enabled ? "translate-x-6" : "translate-x-1"}`}
                                 />
                             </button>
                         </div>
@@ -1441,67 +1492,84 @@ const SettingsPage: React.FC = () => {
                                         <div className="space-y-6">
 
                                             {/* Allow Attachments */}
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-start gap-3">
-                                                    <Paperclip className="w-5 h-5 text-[var(--color-primary)] mt-1" />
-                                                    <div>
-                                                        <p className="font-medium">Allow Attachments</p>
-                                                        <p className="text-xs text-[var(--color-textSecondary)]">
-                                                            Enable users to upload attachments when completing a task.
+                                            <div className="flex flex-col gap-1">
+
+                                                {/* TOP ROW – icon + title + toggle in ONE LINE */}
+                                                <div className="flex items-center justify-between gap-3 w-full">
+
+                                                    {/* Left side: Icon + Title */}
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        <Paperclip className="w-5 h-5 text-[var(--color-primary)]" />
+                                                        <p className="font-medium text-[var(--color-text)] truncate">
+                                                            Allow Attachments
                                                         </p>
                                                     </div>
+
+                                                    {/* Right side: Toggle */}
+                                                    <ToggleSwitch
+                                                        checked={settings.taskCompletion.pendingTasks.allowAttachments}
+                                                        disabled={!settings.taskCompletion.enabled}
+                                                        onChange={(v) => updateTaskSetting("pendingTasks", "allowAttachments", v)}
+                                                    />
                                                 </div>
-                                                <ToggleSwitch
-                                                    checked={settings.taskCompletion.pendingTasks.allowAttachments}
-                                                    disabled={!settings.taskCompletion.enabled}
-                                                    onChange={(v) =>
-                                                        updateTaskSetting("pendingTasks", "allowAttachments", v)
-                                                    }
-                                                />
+
+                                                {/* Description below */}
+                                                <p className="text-xs text-[var(--color-textSecondary)]">
+                                                    Enable users to upload attachments when completing a task.
+                                                </p>
                                             </div>
 
                                             {/* Mandatory Attachments */}
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-start gap-3">
-                                                    <FileWarning className="w-5 h-5 text-[var(--color-error)] mt-1" />
-                                                    <div>
-                                                        <p className="font-medium">Mandatory Attachments</p>
-                                                        <p className="text-xs text-[var(--color-textSecondary)]">
-                                                            Require at least one file to complete the task.
+                                            <div className="flex flex-col gap-1">
+
+                                                <div className="flex items-center justify-between gap-3 w-full">
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        <FileWarning className="w-5 h-5 text-[var(--color-error)]" />
+                                                        <p className="font-medium text-[var(--color-text)] truncate">
+                                                            Mandatory Attachments
                                                         </p>
                                                     </div>
+
+                                                    <ToggleSwitch
+                                                        checked={settings.taskCompletion.pendingTasks.mandatoryAttachments}
+                                                        disabled={!settings.taskCompletion.enabled || !settings.taskCompletion.pendingTasks.allowAttachments}
+                                                        onChange={(v) =>
+                                                            updateTaskSetting("pendingTasks", "mandatoryAttachments", v)
+                                                        }
+                                                    />
                                                 </div>
-                                                <ToggleSwitch
-                                                    checked={settings.taskCompletion.pendingTasks.mandatoryAttachments}
-                                                    disabled={
-                                                        !settings.taskCompletion.enabled ||
-                                                        !settings.taskCompletion.pendingTasks.allowAttachments
-                                                    }
-                                                    onChange={(v) =>
-                                                        updateTaskSetting("pendingTasks", "mandatoryAttachments", v)
-                                                    }
-                                                />
+
+                                                <p className="text-xs text-[var(--color-textSecondary)]">
+                                                    Require at least one file to complete the task.
+                                                </p>
                                             </div>
 
+
                                             {/* Mandatory Remarks */}
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-start gap-3">
-                                                    <MessageSquare className="w-5 h-5 text-[var(--color-warning)] mt-1" />
-                                                    <div>
-                                                        <p className="font-medium">Mandatory Remarks</p>
-                                                        <p className="text-xs text-[var(--color-textSecondary)]">
-                                                            User must enter a remark before completing.
+                                            <div className="flex flex-col gap-1">
+
+                                                <div className="flex items-center justify-between gap-3 w-full">
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        <MessageSquare className="w-5 h-5 text-[var(--color-warning)]" />
+                                                        <p className="font-medium text-[var(--color-text)] truncate">
+                                                            Mandatory Remarks
                                                         </p>
                                                     </div>
+
+                                                    <ToggleSwitch
+                                                        checked={settings.taskCompletion.pendingTasks.mandatoryRemarks}
+                                                        disabled={!settings.taskCompletion.enabled}
+                                                        onChange={(v) =>
+                                                            updateTaskSetting("pendingTasks", "mandatoryRemarks", v)
+                                                        }
+                                                    />
                                                 </div>
-                                                <ToggleSwitch
-                                                    checked={settings.taskCompletion.pendingTasks.mandatoryRemarks}
-                                                    disabled={!settings.taskCompletion.enabled}
-                                                    onChange={(v) =>
-                                                        updateTaskSetting("pendingTasks", "mandatoryRemarks", v)
-                                                    }
-                                                />
+
+                                                <p className="text-xs text-[var(--color-textSecondary)]">
+                                                    User must enter a remark before completing.
+                                                </p>
                                             </div>
+
 
                                         </div>
                                     </div>
@@ -1516,75 +1584,98 @@ const SettingsPage: React.FC = () => {
                                         <div className="space-y-6">
 
                                             {/* Allow Attachments */}
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-start gap-3">
-                                                    <Paperclip className="w-5 h-5 text-[var(--color-primary)] mt-1" />
-                                                    <div>
-                                                        <p className="font-medium">Allow Attachments</p>
-                                                        <p className="text-xs text-[var(--color-textSecondary)]">
-                                                            Enable users to upload files when completing recurring tasks
+                                            <div className="flex flex-col gap-1">
+
+                                                {/* ROW: icon + title + toggle (same line) */}
+                                                <div className="flex items-center justify-between gap-3 w-full">
+
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        <Paperclip className="w-5 h-5 text-[var(--color-primary)]" />
+                                                        <p className="font-medium text-[var(--color-text)] truncate">
+                                                            Allow Attachments
                                                         </p>
                                                     </div>
+
+                                                    <ToggleSwitch
+                                                        checked={settings.taskCompletion.pendingRecurringTasks.allowAttachments}
+                                                        disabled={!settings.taskCompletion.enabled}
+                                                        onChange={(v) =>
+                                                            updateTaskSetting("pendingRecurringTasks", "allowAttachments", v)
+                                                        }
+                                                    />
                                                 </div>
-                                                <ToggleSwitch
-                                                    checked={settings.taskCompletion.pendingRecurringTasks.allowAttachments}
-                                                    disabled={!settings.taskCompletion.enabled}
-                                                    onChange={(v) =>
-                                                        updateTaskSetting("pendingRecurringTasks", "allowAttachments", v)
-                                                    }
-                                                />
+
+                                                {/* Description */}
+                                                <p className="text-xs text-[var(--color-textSecondary)]">
+                                                    Enable users to upload files when completing recurring tasks.
+                                                </p>
                                             </div>
+
 
                                             {/* Mandatory Attachments */}
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-start gap-3">
-                                                    <FileWarning className="w-5 h-5 text-[var(--color-error)] mt-1" />
-                                                    <div>
-                                                        <p className="font-medium">Mandatory Attachments</p>
-                                                        <p className="text-xs text-[var(--color-textSecondary)]">
-                                                            Require at least one file to be uploaded when completing recurring tasks
+                                            <div className="flex flex-col gap-1">
+
+                                                <div className="flex items-center justify-between gap-3 w-full">
+
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        <FileWarning className="w-5 h-5 text-[var(--color-error)]" />
+                                                        <p className="font-medium text-[var(--color-text)] truncate">
+                                                            Mandatory Attachments
                                                         </p>
                                                     </div>
+
+                                                    <ToggleSwitch
+                                                        checked={settings.taskCompletion.pendingRecurringTasks.mandatoryAttachments}
+                                                        disabled={
+                                                            !settings.taskCompletion.enabled ||
+                                                            !settings.taskCompletion.pendingRecurringTasks.allowAttachments
+                                                        }
+                                                        onChange={(v) =>
+                                                            updateTaskSetting(
+                                                                "pendingRecurringTasks",
+                                                                "mandatoryAttachments",
+                                                                v
+                                                            )
+                                                        }
+                                                    />
                                                 </div>
-                                                <ToggleSwitch
-                                                    checked={settings.taskCompletion.pendingRecurringTasks.mandatoryAttachments}
-                                                    disabled={
-                                                        !settings.taskCompletion.enabled ||
-                                                        !settings.taskCompletion.pendingRecurringTasks.allowAttachments
-                                                    }
-                                                    onChange={(v) =>
-                                                        updateTaskSetting(
-                                                            "pendingRecurringTasks",
-                                                            "mandatoryAttachments",
-                                                            v
-                                                        )
-                                                    }
-                                                />
+
+                                                <p className="text-xs text-[var(--color-textSecondary)]">
+                                                    Require at least one uploaded file for recurring tasks.
+                                                </p>
                                             </div>
 
+
                                             {/* Mandatory Remarks */}
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-start gap-3">
-                                                    <MessageSquare className="w-5 h-5 text-[var(--color-warning)] mt-1" />
-                                                    <div>
-                                                        <p className="font-medium">Mandatory Remarks</p>
-                                                        <p className="text-xs text-[var(--color-textSecondary)]">
-                                                            Require completion remarks to be filled when completing recurring tasks
+                                            <div className="flex flex-col gap-1">
+
+                                                <div className="flex items-center justify-between gap-3 w-full">
+
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        <MessageSquare className="w-5 h-5 text-[var(--color-warning)]" />
+                                                        <p className="font-medium text-[var(--color-text)] truncate">
+                                                            Mandatory Remarks
                                                         </p>
                                                     </div>
+
+                                                    <ToggleSwitch
+                                                        checked={settings.taskCompletion.pendingRecurringTasks.mandatoryRemarks}
+                                                        disabled={!settings.taskCompletion.enabled}
+                                                        onChange={(v) =>
+                                                            updateTaskSetting(
+                                                                "pendingRecurringTasks",
+                                                                "mandatoryRemarks",
+                                                                v
+                                                            )
+                                                        }
+                                                    />
                                                 </div>
-                                                <ToggleSwitch
-                                                    checked={settings.taskCompletion.pendingRecurringTasks.mandatoryRemarks}
-                                                    disabled={!settings.taskCompletion.enabled}
-                                                    onChange={(v) =>
-                                                        updateTaskSetting(
-                                                            "pendingRecurringTasks",
-                                                            "mandatoryRemarks",
-                                                            v
-                                                        )
-                                                    }
-                                                />
+
+                                                <p className="text-xs text-[var(--color-textSecondary)]">
+                                                    Require remarks when completing recurring tasks.
+                                                </p>
                                             </div>
+
 
                                         </div>
                                     </div>
