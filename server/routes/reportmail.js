@@ -623,7 +623,7 @@ function generateEnhancedHtmlReport({
                     <div class="section-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white;">📊</div>
                     ${isEvening ? "Today's Performance" : "Current Status"}
                 </h3>
-                <div class="metrics-row gap-2">
+                <div class="metrics-row">
                     <div class="metric-card pending">
                         <div class="metric-number">${data.totalPending}</div>
                         <div class="metric-label">Pending Tasks</div>
