@@ -325,15 +325,13 @@ function generateEnhancedHtmlReport({
         .metrics-row {
     display: flex;
     justify-content: space-between;
-    gap: 25px;
+    gap: 30px;
     margin-bottom: 40px;
-    flex-wrap: nowrap;
     width: 100%;
 }
-        .metric-card {
-    flex: 1 1 23%;
-    max-width: 23%;
-    min-width: 220px;
+       .metric-card {
+    flex: 1;
+    min-width: 0;
     background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
     border-radius: 16px;
     padding: 25px;
