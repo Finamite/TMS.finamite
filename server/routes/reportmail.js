@@ -25,7 +25,11 @@ async function buildReportData(companyId, forUserId = null, isManagerView = fals
     if (forUserId) baseQuery.assignedTo = forUserId;
 
     // Core metrics
-    const totalPending = await Task.countDocuments({ ...baseQuery, status: "pending" });
+    const totalPending = await Task.countDocuments({
+        ...baseQuery,
+        status: "pending",
+        dueDate: { $gte: startOfDay, $lte: endOfDay }
+    });
     const totalOverdue = await Task.countDocuments({
         ...baseQuery,
         status: { $in: ["pending", "overdue"] },
@@ -94,7 +98,7 @@ async function buildReportData(companyId, forUserId = null, isManagerView = fals
 
     // Enhanced metrics for admin/manager view
     let enhancedData = {};
-    
+
     if (isManagerView) {
         // Team performance metrics
         const teamPerformance = await Task.aggregate([
@@ -220,14 +224,14 @@ async function buildReportData(companyId, forUserId = null, isManagerView = fals
 /* ============================================================
    2. ENHANCED HTML TEMPLATE GENERATOR
 ============================================================ */
-function generateEnhancedHtmlReport({ 
-    companyName, 
-    title, 
-    generatedAt, 
-    data, 
-    forUser, 
+function generateEnhancedHtmlReport({
+    companyName,
+    title,
+    generatedAt,
+    data,
+    forUser,
     reportType = "morning",
-    isManagerView = false 
+    isManagerView = false
 }) {
     const isEvening = reportType === "evening";
     const greeting = isEvening ? "Good Evening" : "Good Morning";
@@ -235,7 +239,7 @@ function generateEnhancedHtmlReport({
     const primaryColor = isEvening ? "#6366f1" : "#3b82f6";
     const gradientFrom = isEvening ? "#6366f1" : "#3b82f6";
     const gradientTo = isEvening ? "#8b5cf6" : "#1d4ed8";
-    
+
     return `
 <!DOCTYPE html>
 <html lang="en">
@@ -253,7 +257,7 @@ function generateEnhancedHtmlReport({
             color: #1f2937;
         }
         .container {
-            max-width: 900px;
+            max-width: 1200px;
             margin: 0 auto;
             background: #ffffff;
             border-radius: 24px;
@@ -395,6 +399,12 @@ function generateEnhancedHtmlReport({
             align-items: center;
             justify-content: center;
             font-size: 16px;
+        }
+      .table-wrapper {
+            max-height: 480px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            border-radius: 12px;
         }
         .data-table {
             width: 100%;
@@ -609,7 +619,7 @@ function generateEnhancedHtmlReport({
                     <div class="section-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white;">📊</div>
                     ${isEvening ? "Today's Performance" : "Current Status"}
                 </h3>
-                <div class="metrics-row">
+                <div class="metrics-row gap-2">
                     <div class="metric-card pending">
                         <div class="metric-number">${data.totalPending}</div>
                         <div class="metric-label">Pending Tasks</div>
@@ -649,6 +659,7 @@ function generateEnhancedHtmlReport({
                     <div class="section-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white;">🎯</div>
                     ${isEvening ? "Was Due Today" : "Due Today"}
                 </h3>
+                <div class="table-wrapper">
                 <table class="data-table">
                     <thead>
                         <tr>
@@ -669,6 +680,7 @@ function generateEnhancedHtmlReport({
                         `).join('')}
                     </tbody>
                 </table>
+                </div>
             </div>
             ` : ''}
 
@@ -679,6 +691,7 @@ function generateEnhancedHtmlReport({
                     ${isEvening ? "Tomorrow & This Week" : "Coming Up (Next 7 Days)"}
                 </h3>
                 ${data.dueNext7Days && data.dueNext7Days.length > 0 ? `
+                    <div class="table-wrapper">
                 <table class="data-table">
                     <thead>
                         <tr>
@@ -692,12 +705,12 @@ function generateEnhancedHtmlReport({
                         ${data.dueNext7Days.slice(0, 10).map(task => `
                             <tr>
                                 <td style="font-weight: 600;">${task.title}</td>
-                                <td class="date-text">${new Date(task.dueDate).toLocaleDateString("en-IN", { 
-                                    weekday: 'short',
-                                    month: 'short', 
-                                    day: 'numeric',
-                                    timeZone: "Asia/Kolkata" 
-                                })}</td>
+                                <td class="date-text">${new Date(task.dueDate).toLocaleDateString("en-IN", {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        timeZone: "Asia/Kolkata"
+    })}</td>
                                 ${isManagerView && task.assignedTo ? `<td><span class="user-badge">${task.assignedTo.username}</span></td>` : ''}
                                 <td><span class="priority-badge priority-${task.priority || 'medium'}">${task.priority || 'medium'}</span></td>
                             </tr>
@@ -711,6 +724,7 @@ function generateEnhancedHtmlReport({
                         ` : ''}
                     </tbody>
                 </table>
+                </div>
                 ` : '<div class="no-data">🎉 No upcoming tasks in the next 7 days! Great job staying ahead.</div>'}
             </div>
 
@@ -721,6 +735,7 @@ function generateEnhancedHtmlReport({
                     <div class="section-icon" style="background: linear-gradient(135deg, #10b981, #059669); color: white;">👥</div>
                     Team Performance (Last 7 Days)
                 </h3>
+                <div class="table-wrapper">
                 <table class="data-table">
                     <thead>
                         <tr>
@@ -737,14 +752,15 @@ function generateEnhancedHtmlReport({
                                 <td><span class="stat-number">${member.completedTasks}</span> <span class="stat-label">tasks</span></td>
                                 <td><span class="stat-number">${member.avgCompletionTime ? Math.round(member.avgCompletionTime * 10) / 10 : 0}</span> <span class="stat-label">days</span></td>
                                 <td>
-                                    ${index === 0 ? '<span style="color: #059669; font-weight: 700;">🏆 Top Performer</span>' : 
-                                      index <= 2 ? '<span style="color: #10b981; font-weight: 600;">✨ Excellent</span>' : 
-                                      '<span style="color: #6366f1; font-weight: 500;">👍 Good</span>'}
+                                    ${index === 0 ? '<span style="color: #059669; font-weight: 700;">🏆 Top Performer</span>' :
+            index <= 2 ? '<span style="color: #10b981; font-weight: 600;">✨ Excellent</span>' :
+                '<span style="color: #6366f1; font-weight: 500;">👍 Good</span>'}
                                 </td>
                             </tr>
                         `).join('')}
                     </tbody>
                 </table>
+                </div>
             </div>
             ` : ''}
 
@@ -755,6 +771,7 @@ function generateEnhancedHtmlReport({
                     <div class="section-icon" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white;">⚠️</div>
                     Team Members with Overdue Tasks
                 </h3>
+                <div class="table-wrapper">
                 <table class="data-table">
                     <thead>
                         <tr>
@@ -769,12 +786,12 @@ function generateEnhancedHtmlReport({
                             <tr>
                                 <td style="font-weight: 600;">${user.username}</td>
                                 <td><span class="overdue-count">${user.overdueCount} overdue</span></td>
-                                <td class="date-text">${new Date(user.oldestOverdue).toLocaleDateString("en-IN", { 
-                                    month: 'short', 
-                                    day: 'numeric',
-                                    year: 'numeric',
-                                    timeZone: "Asia/Kolkata" 
-                                })}</td>
+                                <td class="date-text">${new Date(user.oldestOverdue).toLocaleDateString("en-IN", {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                    timeZone: "Asia/Kolkata"
+                })}</td>
                                 <td style="color: #dc2626; font-weight: 600;">
                                     ${user.overdueCount > 3 ? '🚨 Urgent Follow-up' : '⚠️ Follow-up Needed'}
                                 </td>
@@ -782,6 +799,7 @@ function generateEnhancedHtmlReport({
                         `).join('')}
                     </tbody>
                 </table>
+                </div>
             </div>
             ` : ''}
 
@@ -792,6 +810,7 @@ function generateEnhancedHtmlReport({
                     <div class="section-icon" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white;">🔥</div>
                     High Priority Tasks
                 </h3>
+                <div class="table-wrapper">
                 <table class="data-table">
                     <thead>
                         <tr>
@@ -805,18 +824,19 @@ function generateEnhancedHtmlReport({
                         ${data.highPriorityPending.map(task => `
                             <tr>
                                 <td style="font-weight: 600;">${task.title}</td>
-                                <td class="date-text">${new Date(task.dueDate).toLocaleDateString("en-IN", { 
-                                    weekday: 'short',
-                                    month: 'short', 
-                                    day: 'numeric',
-                                    timeZone: "Asia/Kolkata" 
-                                })}</td>
+                                <td class="date-text">${new Date(task.dueDate).toLocaleDateString("en-IN", {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    timeZone: "Asia/Kolkata"
+                })}</td>
                                 ${isManagerView && task.assignedTo ? `<td><span class="user-badge">${task.assignedTo.username}</span></td>` : ''}
                                 <td><span class="priority-badge priority-${task.priority}">${task.priority}</span></td>
                             </tr>
                         `).join('')}
                     </tbody>
                 </table>
+                </div>
             </div>
             ` : ''}
 
@@ -827,6 +847,7 @@ function generateEnhancedHtmlReport({
                     <div class="section-icon" style="background: linear-gradient(135deg, #10b981, #059669); color: white;">✅</div>
                     Today's Completions
                 </h3>
+                <div class="table-wrapper">
                 <table class="data-table">
                     <thead>
                         <tr>
@@ -840,17 +861,18 @@ function generateEnhancedHtmlReport({
                         ${data.recentCompletions.map(task => `
                             <tr>
                                 <td style="font-weight: 600;">${task.title}</td>
-                                <td class="date-text">${new Date(task.completedAt).toLocaleTimeString("en-IN", { 
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                    timeZone: "Asia/Kolkata" 
-                                })}</td>
+                                <td class="date-text">${new Date(task.completedAt).toLocaleTimeString("en-IN", {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZone: "Asia/Kolkata"
+                })}</td>
                                 <td><span class="user-badge">${task.assignedTo?.username || 'Unknown'}</span></td>
                                 <td><span class="priority-badge priority-${task.priority || 'medium'}">${task.priority || 'medium'}</span></td>
                             </tr>
                         `).join('')}
                     </tbody>
                 </table>
+                </div>
             </div>
             ` : ''}
         </div>
@@ -901,7 +923,7 @@ async function sendMorningAdminManagerReport(companyId) {
     const html = generateEnhancedHtmlReport({
         companyName: settings.data.companyName || "Your Company",
         title: "Morning Task Report - Management Overview",
-        generatedAt: new Date().toLocaleString("en-IN", { 
+        generatedAt: new Date().toLocaleString("en-IN", {
             timeZone: "Asia/Kolkata",
             dateStyle: "full",
             timeStyle: "short"
@@ -915,7 +937,7 @@ async function sendMorningAdminManagerReport(companyId) {
         await sendSystemEmail(
             companyId,
             admin.email,
-            "Morning Task Report - Team Overview & Priorities",
+            `Morning Task Report ${new Date().toLocaleDateString("en-IN")} - Team Overview & Priorities`,
             "Please view this email in HTML format for the best experience.",
             html,
             []
@@ -939,7 +961,7 @@ async function sendEveningAdminManagerReport(companyId) {
     const html = generateEnhancedHtmlReport({
         companyName: settings.data.companyName || "Your Company",
         title: "Evening Task Summary - Management Dashboard",
-        generatedAt: new Date().toLocaleString("en-IN", { 
+        generatedAt: new Date().toLocaleString("en-IN", {
             timeZone: "Asia/Kolkata",
             dateStyle: "full",
             timeStyle: "short"
@@ -953,7 +975,7 @@ async function sendEveningAdminManagerReport(companyId) {
         await sendSystemEmail(
             companyId,
             admin.email,
-            "Evening Task Summary - Team Performance & Tomorrow's Focus",
+            `Evening Task Summary ${new Date().toLocaleDateString("en-IN")} - Team Performance & Tomorrow's Focus `,
             "Please view this email in HTML format for the best experience.",
             html,
             []
@@ -966,8 +988,8 @@ async function sendMorningUserReports(companyId) {
     const settings = await Settings.findOne({ type: "email", companyId });
     if (!settings?.data?.enabled || !settings?.data?.enableMorningReport) return;
 
-    const users = await User.find({ 
-        companyId, 
+    const users = await User.find({
+        companyId,
         isActive: true,
         role: { $in: ["employee", "manager"] } // Include managers for their personal reports
     });
@@ -978,7 +1000,7 @@ async function sendMorningUserReports(companyId) {
         const html = generateEnhancedHtmlReport({
             companyName: settings.data.companyName || "Your Company",
             title: "Your Morning Task Briefing",
-            generatedAt: new Date().toLocaleString("en-IN", { 
+            generatedAt: new Date().toLocaleString("en-IN", {
                 timeZone: "Asia/Kolkata",
                 dateStyle: "full",
                 timeStyle: "short"
@@ -992,7 +1014,7 @@ async function sendMorningUserReports(companyId) {
         await sendSystemEmail(
             companyId,
             user.email,
-            "Good Morning! Your Personal Task Briefing",
+            `Morning Report ${new Date().toLocaleDateString("en-IN")} - Your Personal Task Briefing `,
             "Please view this email in HTML format for the best experience.",
             html,
             []
@@ -1005,8 +1027,8 @@ async function sendEveningUserReports(companyId) {
     const settings = await Settings.findOne({ type: "email", companyId });
     if (!settings?.data?.enabled || !settings?.data?.enableEveningReport) return;
 
-    const users = await User.find({ 
-        companyId, 
+    const users = await User.find({
+        companyId,
         isActive: true,
         role: { $in: ["employee", "manager"] } // Include managers for their personal reports
     });
@@ -1017,7 +1039,7 @@ async function sendEveningUserReports(companyId) {
         const html = generateEnhancedHtmlReport({
             companyName: settings.data.companyName || "Your Company",
             title: "Your Evening Task Summary",
-            generatedAt: new Date().toLocaleString("en-IN", { 
+            generatedAt: new Date().toLocaleString("en-IN", {
                 timeZone: "Asia/Kolkata",
                 dateStyle: "full",
                 timeStyle: "short"
@@ -1031,7 +1053,7 @@ async function sendEveningUserReports(companyId) {
         await sendSystemEmail(
             companyId,
             user.email,
-            "Evening Summary - Your Day's Accomplishments & Tomorrow's Plan",
+            `Evening Summary ${new Date().toLocaleDateString("en-IN")} - Your Day's Accomplishments & Tomorrow's Plan`,
             "Please view this email in HTML format for the best experience.",
             html,
             []
@@ -1101,26 +1123,26 @@ router.post("/send-report", async (req, res) => {
 // Convert IST time to UTC cron format
 function convertToCron(timeString) {
     if (!timeString || !timeString.includes(":")) return null;
-    
+
     const [localHour, localMinute] = timeString.split(":").map(Number);
     const localMinutes = localHour * 60 + localMinute;
-    
+
     // IST offset in minutes (+5:30)
     const istOffsetMinutes = 5 * 60 + 30;
-    
+
     // Convert to UTC minutes
     let utcMinutes = localMinutes - istOffsetMinutes;
-    
+
     // Normalize to 0-1439 (one day in minutes)
     if (utcMinutes < 0) {
         utcMinutes += 24 * 60;
     } else if (utcMinutes >= 24 * 60) {
         utcMinutes -= 24 * 60;
     }
-    
+
     const utcHour = Math.floor(utcMinutes / 60);
     const utcMinute = utcMinutes % 60;
-    
+
     return `${utcMinute} ${utcHour} * * *`;
 }
 
@@ -1158,7 +1180,7 @@ export async function startReportCron() {
             const cronTime = convertToCron(data.morningReportTime);
             if (cronTime) {
                 console.log(`⏰ Morning report cron (UTC): ${cronTime} for IST: ${data.morningReportTime}`);
-                
+
                 const morningJob = cron.schedule(cronTime, async () => {
                     console.log(`🌅 Sending enhanced morning reports for company: ${companyId}`);
                     try {
@@ -1184,7 +1206,7 @@ export async function startReportCron() {
             const cronTime = convertToCron(data.eveningReportTime);
             if (cronTime) {
                 console.log(`⏰ Evening report cron (UTC): ${cronTime} for IST: ${data.eveningReportTime}`);
-                
+
                 const eveningJob = cron.schedule(cronTime, async () => {
                     console.log(`🌆 Sending enhanced evening reports for company: ${companyId}`);
                     try {
