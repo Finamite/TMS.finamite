@@ -317,13 +317,15 @@ function generateEnhancedHtmlReport({
         .content {
             padding: 40px 30px;
         }
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 25px;
+        .metrics-row {
+            display: flex;
+            gap: 20px;
             margin-bottom: 40px;
+            flex-wrap: wrap;
         }
         .metric-card {
+            flex: 1;
+            min-width: 200px;
             background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
             border-radius: 16px;
             padding: 25px;
@@ -394,54 +396,37 @@ function generateEnhancedHtmlReport({
             justify-content: center;
             font-size: 16px;
         }
-        .task-list {
-            background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
-            border-radius: 16px;
-            padding: 25px;
-            border: 2px solid #e2e8f0;
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border: 1px solid #e2e8f0;
         }
-        .task-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 16px 0;
-            border-bottom: 1px solid #e2e8f0;
-            transition: all 0.2s ease;
-        }
-        .task-item:hover {
-            background: rgba(59, 130, 246, 0.05);
-            margin: 0 -10px;
-            padding: 16px 10px;
-            border-radius: 8px;
-        }
-        .task-item:last-child {
-            border-bottom: none;
-        }
-        .task-title {
-            font-weight: 600;
+        .data-table th {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
             color: #1e293b;
-            flex: 1;
-            margin-right: 15px;
-        }
-        .task-meta {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-shrink: 0;
-        }
-        .task-date {
-            color: #64748b;
+            font-weight: 700;
+            padding: 16px;
+            text-align: left;
             font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #cbd5e1;
+        }
+        .data-table td {
+            padding: 16px;
+            border-bottom: 1px solid #f1f5f9;
+            color: #374151;
             font-weight: 500;
         }
-        .task-user {
-            color: #6366f1;
-            font-size: 12px;
-            font-weight: 600;
-            background: #f1f5f9;
-            padding: 4px 8px;
-            border-radius: 6px;
+        .data-table tr:hover {
+            background: rgba(59, 130, 246, 0.05);
+        }
+        .data-table tr:last-child td {
+            border-bottom: none;
         }
         .priority-badge {
             padding: 6px 12px;
@@ -455,47 +440,37 @@ function generateEnhancedHtmlReport({
         .priority-urgent { background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; }
         .priority-medium { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
         .priority-low { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
-        .team-performance {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        .performance-card {
-            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-            border-radius: 12px;
-            padding: 20px;
-            border: 1px solid #e2e8f0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        .performance-header {
-            display: flex;
-            justify-content: between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-        .user-name {
+        .user-badge {
+            color: #6366f1;
+            font-size: 12px;
             font-weight: 600;
-            color: #1e293b;
-            font-size: 16px;
+            background: #f1f5f9;
+            padding: 4px 8px;
+            border-radius: 6px;
         }
-        .performance-stats {
-            display: flex;
-            gap: 15px;
-        }
-        .stat {
-            text-align: center;
+        .date-text {
+            color: #64748b;
+            font-size: 14px;
+            font-weight: 500;
         }
         .stat-number {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 700;
             color: #3b82f6;
         }
         .stat-label {
-            font-size: 11px;
+            font-size: 12px;
             color: #64748b;
             text-transform: uppercase;
             font-weight: 600;
+        }
+        .overdue-count {
+            background: #fef2f2;
+            color: #dc2626;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
         }
         .cta-section {
             background: linear-gradient(135deg, ${gradientFrom} 0%, ${gradientTo} 100%);
@@ -602,12 +577,12 @@ function generateEnhancedHtmlReport({
             .container { margin: 10px; border-radius: 16px; }
             .header { padding: 30px 20px; }
             .content { padding: 30px 20px; }
-            .metrics-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; }
-            .metric-card { padding: 20px; }
+            .metrics-row { flex-direction: column; gap: 15px; }
+            .metric-card { min-width: auto; padding: 20px; }
             .metric-number { font-size: 28px; }
             .section-title { font-size: 20px; }
-            .task-item { flex-direction: column; align-items: flex-start; gap: 8px; }
-            .task-meta { width: 100%; justify-content: space-between; }
+            .data-table { font-size: 14px; }
+            .data-table th, .data-table td { padding: 12px; }
         }
     </style>
 </head>
@@ -634,7 +609,7 @@ function generateEnhancedHtmlReport({
                     <div class="section-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white;">📊</div>
                     ${isEvening ? "Today's Performance" : "Current Status"}
                 </h3>
-                <div class="metrics-grid">
+                <div class="metrics-row">
                     <div class="metric-card pending">
                         <div class="metric-number">${data.totalPending}</div>
                         <div class="metric-label">Pending Tasks</div>
@@ -674,17 +649,26 @@ function generateEnhancedHtmlReport({
                     <div class="section-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white;">🎯</div>
                     ${isEvening ? "Was Due Today" : "Due Today"}
                 </h3>
-                <div class="task-list">
-                    ${data.dueToday.map(task => `
-                        <div class="task-item">
-                            <div class="task-title">${task.title}</div>
-                            <div class="task-meta">
-                                ${isManagerView && task.assignedTo ? `<span class="task-user">${task.assignedTo.username}</span>` : ''}
-                                <span class="priority-badge priority-${task.priority || 'medium'}">${task.priority || 'medium'}</span>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Task</th>
+                            ${isManagerView ? '<th>Assigned To</th>' : ''}
+                            <th>Priority</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.dueToday.map(task => `
+                            <tr>
+                                <td style="font-weight: 600;">${task.title}</td>
+                                ${isManagerView && task.assignedTo ? `<td><span class="user-badge">${task.assignedTo.username}</span></td>` : ''}
+                                <td><span class="priority-badge priority-${task.priority || 'medium'}">${task.priority || 'medium'}</span></td>
+                                <td class="date-text">Due Today</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
             </div>
             ` : ''}
 
@@ -695,30 +679,38 @@ function generateEnhancedHtmlReport({
                     ${isEvening ? "Tomorrow & This Week" : "Coming Up (Next 7 Days)"}
                 </h3>
                 ${data.dueNext7Days && data.dueNext7Days.length > 0 ? `
-                <div class="task-list">
-                    ${data.dueNext7Days.slice(0, 8).map(task => `
-                        <div class="task-item">
-                            <div class="task-title">${task.title}</div>
-                            <div class="task-meta">
-                                <span class="task-date">${new Date(task.dueDate).toLocaleDateString("en-IN", { 
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Task</th>
+                            <th>Due Date</th>
+                            ${isManagerView ? '<th>Assigned To</th>' : ''}
+                            <th>Priority</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.dueNext7Days.slice(0, 10).map(task => `
+                            <tr>
+                                <td style="font-weight: 600;">${task.title}</td>
+                                <td class="date-text">${new Date(task.dueDate).toLocaleDateString("en-IN", { 
                                     weekday: 'short',
                                     month: 'short', 
                                     day: 'numeric',
                                     timeZone: "Asia/Kolkata" 
-                                })}</span>
-                                ${isManagerView && task.assignedTo ? `<span class="task-user">${task.assignedTo.username}</span>` : ''}
-                                <span class="priority-badge priority-${task.priority || 'medium'}">${task.priority || 'medium'}</span>
-                            </div>
-                        </div>
-                    `).join('')}
-                    ${data.dueNext7Days.length > 8 ? `
-                        <div class="task-item">
-                            <div class="task-title" style="color: #64748b; font-style: italic;">
-                                +${data.dueNext7Days.length - 8} more tasks this week...
-                            </div>
-                        </div>
-                    ` : ''}
-                </div>
+                                })}</td>
+                                ${isManagerView && task.assignedTo ? `<td><span class="user-badge">${task.assignedTo.username}</span></td>` : ''}
+                                <td><span class="priority-badge priority-${task.priority || 'medium'}">${task.priority || 'medium'}</span></td>
+                            </tr>
+                        `).join('')}
+                        ${data.dueNext7Days.length > 10 ? `
+                            <tr>
+                                <td colspan="${isManagerView ? '4' : '3'}" style="color: #64748b; font-style: italic; text-align: center; padding: 20px;">
+                                    +${data.dueNext7Days.length - 10} more tasks this week...
+                                </td>
+                            </tr>
+                        ` : ''}
+                    </tbody>
+                </table>
                 ` : '<div class="no-data">🎉 No upcoming tasks in the next 7 days! Great job staying ahead.</div>'}
             </div>
 
@@ -729,25 +721,30 @@ function generateEnhancedHtmlReport({
                     <div class="section-icon" style="background: linear-gradient(135deg, #10b981, #059669); color: white;">👥</div>
                     Team Performance (Last 7 Days)
                 </h3>
-                <div class="team-performance">
-                    ${data.teamPerformance.map(member => `
-                        <div class="performance-card">
-                            <div class="performance-header">
-                                <div class="user-name">${member.username}</div>
-                            </div>
-                            <div class="performance-stats">
-                                <div class="stat">
-                                    <div class="stat-number">${member.completedTasks}</div>
-                                    <div class="stat-label">Completed</div>
-                                </div>
-                                <div class="stat">
-                                    <div class="stat-number">${member.avgCompletionTime ? Math.round(member.avgCompletionTime * 10) / 10 : 0}</div>
-                                    <div class="stat-label">Avg Days</div>
-                                </div>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Team Member</th>
+                            <th>Completed Tasks</th>
+                            <th>Avg Completion Time</th>
+                            <th>Performance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.teamPerformance.map((member, index) => `
+                            <tr>
+                                <td style="font-weight: 600;">${member.username}</td>
+                                <td><span class="stat-number">${member.completedTasks}</span> <span class="stat-label">tasks</span></td>
+                                <td><span class="stat-number">${member.avgCompletionTime ? Math.round(member.avgCompletionTime * 10) / 10 : 0}</span> <span class="stat-label">days</span></td>
+                                <td>
+                                    ${index === 0 ? '<span style="color: #059669; font-weight: 700;">🏆 Top Performer</span>' : 
+                                      index <= 2 ? '<span style="color: #10b981; font-weight: 600;">✨ Excellent</span>' : 
+                                      '<span style="color: #6366f1; font-weight: 500;">👍 Good</span>'}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
             </div>
             ` : ''}
 
@@ -758,21 +755,33 @@ function generateEnhancedHtmlReport({
                     <div class="section-icon" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white;">⚠️</div>
                     Team Members with Overdue Tasks
                 </h3>
-                <div class="task-list">
-                    ${data.overdueByUser.map(user => `
-                        <div class="task-item">
-                            <div class="task-title">${user.username}</div>
-                            <div class="task-meta">
-                                <span class="task-date">Oldest: ${new Date(user.oldestOverdue).toLocaleDateString("en-IN", { 
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Team Member</th>
+                            <th>Overdue Tasks</th>
+                            <th>Oldest Overdue</th>
+                            <th>Action Required</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.overdueByUser.map(user => `
+                            <tr>
+                                <td style="font-weight: 600;">${user.username}</td>
+                                <td><span class="overdue-count">${user.overdueCount} overdue</span></td>
+                                <td class="date-text">${new Date(user.oldestOverdue).toLocaleDateString("en-IN", { 
                                     month: 'short', 
                                     day: 'numeric',
+                                    year: 'numeric',
                                     timeZone: "Asia/Kolkata" 
-                                })}</span>
-                                <span class="priority-badge priority-urgent">${user.overdueCount} overdue</span>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
+                                })}</td>
+                                <td style="color: #dc2626; font-weight: 600;">
+                                    ${user.overdueCount > 3 ? '🚨 Urgent Follow-up' : '⚠️ Follow-up Needed'}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
             </div>
             ` : ''}
 
@@ -783,23 +792,31 @@ function generateEnhancedHtmlReport({
                     <div class="section-icon" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white;">🔥</div>
                     High Priority Tasks
                 </h3>
-                <div class="task-list">
-                    ${data.highPriorityPending.map(task => `
-                        <div class="task-item">
-                            <div class="task-title">${task.title}</div>
-                            <div class="task-meta">
-                                <span class="task-date">${new Date(task.dueDate).toLocaleDateString("en-IN", { 
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Task</th>
+                            <th>Due Date</th>
+                            ${isManagerView ? '<th>Assigned To</th>' : ''}
+                            <th>Priority</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.highPriorityPending.map(task => `
+                            <tr>
+                                <td style="font-weight: 600;">${task.title}</td>
+                                <td class="date-text">${new Date(task.dueDate).toLocaleDateString("en-IN", { 
                                     weekday: 'short',
                                     month: 'short', 
                                     day: 'numeric',
                                     timeZone: "Asia/Kolkata" 
-                                })}</span>
-                                ${isManagerView && task.assignedTo ? `<span class="task-user">${task.assignedTo.username}</span>` : ''}
-                                <span class="priority-badge priority-${task.priority}">${task.priority}</span>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
+                                })}</td>
+                                ${isManagerView && task.assignedTo ? `<td><span class="user-badge">${task.assignedTo.username}</span></td>` : ''}
+                                <td><span class="priority-badge priority-${task.priority}">${task.priority}</span></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
             </div>
             ` : ''}
 
@@ -810,22 +827,30 @@ function generateEnhancedHtmlReport({
                     <div class="section-icon" style="background: linear-gradient(135deg, #10b981, #059669); color: white;">✅</div>
                     Today's Completions
                 </h3>
-                <div class="task-list">
-                    ${data.recentCompletions.map(task => `
-                        <div class="task-item">
-                            <div class="task-title">${task.title}</div>
-                            <div class="task-meta">
-                                <span class="task-date">${new Date(task.completedAt).toLocaleTimeString("en-IN", { 
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Task</th>
+                            <th>Completed At</th>
+                            <th>Completed By</th>
+                            <th>Priority</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.recentCompletions.map(task => `
+                            <tr>
+                                <td style="font-weight: 600;">${task.title}</td>
+                                <td class="date-text">${new Date(task.completedAt).toLocaleTimeString("en-IN", { 
                                     hour: '2-digit',
                                     minute: '2-digit',
                                     timeZone: "Asia/Kolkata" 
-                                })}</span>
-                                <span class="task-user">${task.assignedTo?.username || 'Unknown'}</span>
-                                <span class="priority-badge priority-${task.priority || 'medium'}">${task.priority || 'medium'}</span>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
+                                })}</td>
+                                <td><span class="user-badge">${task.assignedTo?.username || 'Unknown'}</span></td>
+                                <td><span class="priority-badge priority-${task.priority || 'medium'}">${task.priority || 'medium'}</span></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
             </div>
             ` : ''}
         </div>
@@ -890,7 +915,7 @@ async function sendMorningAdminManagerReport(companyId) {
         await sendSystemEmail(
             companyId,
             admin.email,
-            "☀️ Morning Task Report - Team Overview & Priorities",
+            "Morning Task Report - Team Overview & Priorities",
             "Please view this email in HTML format for the best experience.",
             html,
             []
@@ -928,7 +953,7 @@ async function sendEveningAdminManagerReport(companyId) {
         await sendSystemEmail(
             companyId,
             admin.email,
-            "🌙 Evening Task Summary - Team Performance & Tomorrow's Focus",
+            "Evening Task Summary - Team Performance & Tomorrow's Focus",
             "Please view this email in HTML format for the best experience.",
             html,
             []
@@ -967,7 +992,7 @@ async function sendMorningUserReports(companyId) {
         await sendSystemEmail(
             companyId,
             user.email,
-            "☀️ Good Morning! Your Personal Task Briefing",
+            "Good Morning! Your Personal Task Briefing",
             "Please view this email in HTML format for the best experience.",
             html,
             []
@@ -1006,7 +1031,7 @@ async function sendEveningUserReports(companyId) {
         await sendSystemEmail(
             companyId,
             user.email,
-            "🌙 Evening Summary - Your Day's Accomplishments & Tomorrow's Plan",
+            "Evening Summary - Your Day's Accomplishments & Tomorrow's Plan",
             "Please view this email in HTML format for the best experience.",
             html,
             []
