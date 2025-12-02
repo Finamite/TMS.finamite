@@ -4,6 +4,7 @@ import cron from "node-cron";
 import Task from "../models/Task.js";
 import User from "../models/User.js";
 import Settings from "../models/Settings.js";
+import Company from "../models/Company.js";
 import { sendSystemEmail } from "../Utils/sendEmail.js";
 
 const router = express.Router();
@@ -322,23 +323,26 @@ function generateEnhancedHtmlReport({
             padding: 40px 30px;
         }
         .metrics-row {
-            display: flex;
-            gap: 20px;
-            margin-bottom: 40px;
-            flex-wrap: wrap;
-        }
+    display: flex;
+    justify-content: space-between;
+    gap: 25px;
+    margin-bottom: 40px;
+    flex-wrap: nowrap;
+    width: 100%;
+}
         .metric-card {
-            flex: 1;
-            min-width: 200px;
-            background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
-            border-radius: 16px;
-            padding: 25px;
-            text-align: center;
-            border: 2px solid #e2e8f0;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
+    flex: 1 1 23%;
+    max-width: 23%;
+    min-width: 220px;
+    background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+    border-radius: 16px;
+    padding: 25px;
+    text-align: center;
+    border: 2px solid #e2e8f0;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
         .metric-card::before {
             content: '';
             position: absolute;
@@ -401,7 +405,7 @@ function generateEnhancedHtmlReport({
             font-size: 16px;
         }
       .table-wrapper {
-            max-height: 480px;
+            max-height: 380px;
             overflow-y: auto;
             overflow-x: hidden;
             border-radius: 12px;
@@ -919,9 +923,10 @@ async function sendMorningAdminManagerReport(companyId) {
     });
 
     const data = await buildReportData(companyId, null, true);
+    const company = await Company.findOne({ companyId });
 
     const html = generateEnhancedHtmlReport({
-        companyName: settings.data.companyName || "Your Company",
+        companyName: company?.companyName || "Your Company",
         title: "Morning Task Report - Management Overview",
         generatedAt: new Date().toLocaleString("en-IN", {
             timeZone: "Asia/Kolkata",
@@ -958,8 +963,10 @@ async function sendEveningAdminManagerReport(companyId) {
 
     const data = await buildReportData(companyId, null, true);
 
+    const company = await Company.findOne({ companyId });
+
     const html = generateEnhancedHtmlReport({
-        companyName: settings.data.companyName || "Your Company",
+        companyName: company?.companyName || "Your Company",
         title: "Evening Task Summary - Management Dashboard",
         generatedAt: new Date().toLocaleString("en-IN", {
             timeZone: "Asia/Kolkata",
@@ -996,9 +1003,10 @@ async function sendMorningUserReports(companyId) {
 
     for (const user of users) {
         const data = await buildReportData(companyId, user._id, false);
+        const company = await Company.findOne({ companyId });
 
         const html = generateEnhancedHtmlReport({
-            companyName: settings.data.companyName || "Your Company",
+            companyName: company?.companyName || "Your Company",
             title: "Your Morning Task Briefing",
             generatedAt: new Date().toLocaleString("en-IN", {
                 timeZone: "Asia/Kolkata",
@@ -1035,9 +1043,10 @@ async function sendEveningUserReports(companyId) {
 
     for (const user of users) {
         const data = await buildReportData(companyId, user._id, false);
+        const company = await Company.findOne({ companyId });
 
         const html = generateEnhancedHtmlReport({
-            companyName: settings.data.companyName || "Your Company",
+            companyName: company?.companyName || "Your Company",
             title: "Your Evening Task Summary",
             generatedAt: new Date().toLocaleString("en-IN", {
                 timeZone: "Asia/Kolkata",
