@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, Edit, Trash2, Save, X, ChevronDown, ChevronUp, User, Cog, FileText, Paperclip, MessageSquare, LockKeyhole, CreditCard, Building2, UserCheck, UserCog, Loader2, Shield } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Save, X, ChevronDown, ChevronUp, User, LockKeyhole, CreditCard, Building2, UserCheck, UserCog, Loader2, Shield } from 'lucide-react';
 import axios from 'axios';
 import { address } from '../../utils/ipAddress';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-toastify';
 
 interface User {
+  phone: string;
+  department: string;
   _id: string;
   companyId?: string;
   username: string;
@@ -24,18 +26,6 @@ interface User {
   createdAt: string;
 }
 
-interface TaskCompletionSettings {
-  pendingTasks: {
-    allowAttachments: boolean;
-    mandatoryAttachments: boolean;
-    mandatoryRemarks: boolean;
-  };
-  pendingRecurringTasks: {
-    allowAttachments: boolean;
-    mandatoryAttachments: boolean;
-    mandatoryRemarks: boolean;
-  };
-}
 
 interface CompanyData {
   _id: string;
@@ -66,27 +56,18 @@ const AdminPanel: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
-  const [activeTab, setActiveTab] = useState<'users' | 'settings'>('users');
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [companyData, setCompanyData] = useState<CompanyData | null>(null);
   const [loadingCompanyData, setLoadingCompanyData] = useState(false);
-  const [taskSettings, setTaskSettings] = useState<TaskCompletionSettings>({
-    pendingTasks: {
-      allowAttachments: false,
-      mandatoryAttachments: false,
-      mandatoryRemarks: false,
-    },
-    pendingRecurringTasks: {
-      allowAttachments: false,
-      mandatoryAttachments: false,
-      mandatoryRemarks: false,
-    }
-  });
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     username: '',
     email: '',
     password: '',
     role: 'employee',
+    department: '',
+    phone: '',
     permissions: {
       canViewTasks: true,
       canViewAllTeamTasks: false,
@@ -152,7 +133,6 @@ const AdminPanel: React.FC = () => {
 
   useEffect(() => {
     fetchUsers();
-    fetchTaskSettings();
     fetchCompanyData();
   }, []);
 
@@ -188,22 +168,61 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  const fetchTaskSettings = async () => {
+  const getRoleLabel = (role: string) => {
+  if (role === "employee") return "User";
+  return role.charAt(0).toUpperCase() + role.slice(1);
+};
+
+  const handlePermanentDelete = async (userId: string) => {
+    if (!window.confirm("⚠ This will permanently delete the user. This cannot be undone. Continue?"))
+      return;
+
     try {
-      const response = await axios.get(
-        `${address}/api/settings/task-completion?companyId=${currentUser?.companyId}`
-      );
-      if (response.data) {
-        setTaskSettings(response.data);
-      }
-    } catch (error) {
-      console.error('Error fetching task settings:', error);
+      await axios.delete(`${address}/api/users/${userId}/permanent`);
+      setMessage({ type: "success", text: "User permanently deleted!" });
+      fetchUsers(); // refresh list
+    } catch (error: any) {
+      setMessage({
+        type: "error",
+        text: error.response?.data?.message || "Failed to permanently delete user",
+      });
     }
   };
+
   const updatePassword = (user: User) => {
     setPasswordUser(user);
     setNewPassword("");
   };
+
+  const getRoleLimitData = (role: string) => {
+    if (!companyData) return { remaining: 0, percent: 0, color: "var(--color-text)" };
+
+    let limit = 0;
+    let used = 0;
+
+    if (role === "admin") {
+      limit = companyData.limits.adminLimit;
+      used = companyData.userCounts.admin;
+    } else if (role === "manager") {
+      limit = companyData.limits.managerLimit;
+      used = companyData.userCounts.manager;
+    } else if (role === "employee") {
+      limit = companyData.limits.userLimit;
+      used = companyData.userCounts.employee;
+    }
+
+    const remaining = limit - used;
+    const percent = limit > 0 ? (remaining / limit) * 100 : 0;
+
+    let color = "var(--color-text)";
+
+    if (percent >= 60) color = "#1d9449ff";          // green
+    else if (percent >= 20) color = "#eab308";     // yellow
+    else color = "#ef4444";                         // red
+
+    return { remaining, percent, color };
+  };
+
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -222,18 +241,6 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  const saveTaskSettings = async () => {
-    try {
-      await axios.post(`${address}/api/settings/task-completion`, {
-        companyId: currentUser?.companyId,
-        ...taskSettings
-      });
-      setSettingsMessage({ type: 'success', text: 'Task completion settings saved successfully!' });
-    } catch (error) {
-      console.error('Error saving task settings:', error);
-      setSettingsMessage({ type: 'error', text: 'Failed to save settings. Please try again.' });
-    }
-  };
 
   const toggleCardExpansion = (userId: string) => {
     const newExpanded = new Set(expandedCards);
@@ -292,15 +299,7 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  const handleTaskSettingChange = (taskType: 'pendingTasks' | 'pendingRecurringTasks', setting: string, value: boolean) => {
-    setTaskSettings(prev => ({
-      ...prev,
-      [taskType]: {
-        ...prev[taskType],
-        [setting]: value
-      }
-    }));
-  };
+
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -330,7 +329,9 @@ const AdminPanel: React.FC = () => {
         username: formData.username,
         email: formData.email,
         role: formData.role,
-        permissions: formData.permissions
+        permissions: formData.permissions,
+        department: formData.department,
+        phone: formData.phone,
       });
       setMessage({ type: 'success', text: 'User updated successfully!' });
       setEditingUser(null);
@@ -338,18 +339,6 @@ const AdminPanel: React.FC = () => {
       fetchUsers();
     } catch (error: any) {
       setMessage({ type: 'error', text: error.response?.data?.message || 'Failed to update user' });
-    }
-  };
-
-  const handleDeleteUser = async (userId: string) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
-      try {
-        await axios.delete(`${address}/api/users/${userId}`);
-        setMessage({ type: 'success', text: 'User deleted successfully!' });
-        fetchUsers();
-      } catch (error: any) {
-        setMessage({ type: 'error', text: error.response?.data?.message || 'Failed to delete user' });
-      }
     }
   };
 
@@ -370,7 +359,9 @@ const AdminPanel: React.FC = () => {
       email: user.email,
       password: '',
       role: user.role,
-      permissions: user.permissions
+      permissions: user.permissions,
+      department: user.department || '',
+      phone: user.phone || '',
     });
   };
 
@@ -380,6 +371,8 @@ const AdminPanel: React.FC = () => {
       email: '',
       password: '',
       role: 'employee',
+      department: '',
+      phone: '',
       permissions: {
         canViewTasks: true,
         canViewAllTeamTasks: false,
@@ -434,171 +427,8 @@ const AdminPanel: React.FC = () => {
     </button>
   );
 
-  const renderTaskSettings = () => (
-    <div className="space-y-6">
-      {/* Settings Message */}
-      {settingsMessage.text && (
-        <div
-          className={`p-3 rounded-lg text-sm ${settingsMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
-            }`}
-        >
-          {settingsMessage.text}
-        </div>
-      )}
 
-      {/* Pending Tasks Settings */}
-      <div className="rounded-lg border border-[var(--color-border)] overflow-hidden" style={{ backgroundColor: 'var(--color-background)' }}>
-        <div className="p-4 border-b border-[var(--color-border)]" style={{ backgroundColor: 'var(--color-surface)' }}>
-          <h3 className="text-lg font-semibold flex items-center" style={{ color: 'var(--color-text)' }}>
-            <FileText className="mr-2" size={20} />
-            One-Time Pending Tasks Completion Settings
-          </h3>
-          <p className="text-sm text-[var(--color-textSecondary)] mt-1">
-            Configure attachment and remark requirements for completing one-time pending tasks
-          </p>
-        </div>
 
-        <div className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Paperclip size={20} className="text-[var(--color-primary)]" />
-              <div>
-                <label className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
-                  Allow Attachments
-                </label>
-                <p className="text-xs text-[var(--color-textSecondary)]">
-                  Enable users to upload files when completing tasks
-                </p>
-              </div>
-            </div>
-            <ToggleSwitch
-              checked={taskSettings.pendingTasks.allowAttachments}
-              onChange={(value) => handleTaskSettingChange('pendingTasks', 'allowAttachments', value)}
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Paperclip size={20} className="text-[var(--color-error)]" />
-              <div>
-                <label className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
-                  Mandatory Attachments
-                </label>
-                <p className="text-xs text-[var(--color-textSecondary)]">
-                  Require at least one file to be uploaded when completing tasks
-                </p>
-              </div>
-            </div>
-            <ToggleSwitch
-              checked={taskSettings.pendingTasks.mandatoryAttachments}
-              onChange={(value) => handleTaskSettingChange('pendingTasks', 'mandatoryAttachments', value)}
-              disabled={!taskSettings.pendingTasks.allowAttachments}
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <MessageSquare size={20} className="text-[var(--color-warning)]" />
-              <div>
-                <label className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
-                  Mandatory Completion Remarks
-                </label>
-                <p className="text-xs text-[var(--color-textSecondary)]">
-                  Require completion remarks to be filled when completing tasks
-                </p>
-              </div>
-            </div>
-            <ToggleSwitch
-              checked={taskSettings.pendingTasks.mandatoryRemarks}
-              onChange={(value) => handleTaskSettingChange('pendingTasks', 'mandatoryRemarks', value)}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Pending Recurring Tasks Settings */}
-      <div className="rounded-lg border border-[var(--color-border)] overflow-hidden" style={{ backgroundColor: 'var(--color-background)' }}>
-        <div className="p-4 border-b border-[var(--color-border)]" style={{ backgroundColor: 'var(--color-surface)' }}>
-          <h3 className="text-lg font-semibold flex items-center" style={{ color: 'var(--color-text)' }}>
-            <Cog className="mr-2" size={20} />
-            Recurring Tasks Completion Settings
-          </h3>
-          <p className="text-sm text-[var(--color-textSecondary)] mt-1">
-            Configure attachment and remark requirements for completing recurring tasks
-          </p>
-        </div>
-
-        <div className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Paperclip size={20} className="text-[var(--color-primary)]" />
-              <div>
-                <label className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
-                  Allow Attachments
-                </label>
-                <p className="text-xs text-[var(--color-textSecondary)]">
-                  Enable users to upload files when completing recurring tasks
-                </p>
-              </div>
-            </div>
-            <ToggleSwitch
-              checked={taskSettings.pendingRecurringTasks.allowAttachments}
-              onChange={(value) => handleTaskSettingChange('pendingRecurringTasks', 'allowAttachments', value)}
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Paperclip size={20} className="text-[var(--color-error)]" />
-              <div>
-                <label className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
-                  Mandatory Attachments
-                </label>
-                <p className="text-xs text-[var(--color-textSecondary)]">
-                  Require at least one file to be uploaded when completing recurring tasks
-                </p>
-              </div>
-            </div>
-            <ToggleSwitch
-              checked={taskSettings.pendingRecurringTasks.mandatoryAttachments}
-              onChange={(value) => handleTaskSettingChange('pendingRecurringTasks', 'mandatoryAttachments', value)}
-              disabled={!taskSettings.pendingRecurringTasks.allowAttachments}
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <MessageSquare size={20} className="text-[var(--color-warning)]" />
-              <div>
-                <label className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
-                  Mandatory Completion Remarks
-                </label>
-                <p className="text-xs text-[var(--color-textSecondary)]">
-                  Require completion remarks to be filled when completing recurring tasks
-                </p>
-              </div>
-            </div>
-            <ToggleSwitch
-              checked={taskSettings.pendingRecurringTasks.mandatoryRemarks}
-              onChange={(value) => handleTaskSettingChange('pendingRecurringTasks', 'mandatoryRemarks', value)}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Save Button */}
-      <div className="flex justify-end">
-        <button
-          onClick={saveTaskSettings}
-          className="px-6 py-3 rounded-lg text-white font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
-          style={{ backgroundColor: 'var(--color-primary)' }}
-        >
-          <Save size={18} />
-          Save Settings
-        </button>
-      </div>
-    </div>
-  );
 
   if (loading) {
     return (
@@ -613,66 +443,33 @@ const AdminPanel: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center space-x-3">
-          <Shield size={20} style={{ color: 'var(--color-primary)' }} />
+          <Shield size={24} style={{ color: 'var(--color-primary)' }} />
           <h1 className="text-xl font-bold" style={{ color: 'var(--color-text)' }}>
             Admin Panel
           </h1>
-          {currentUser?.company && (
-            <span className="text-sm px-3 py-1 rounded-full" style={{ backgroundColor: 'var(--color-primary)20', color: 'var(--color-primary)' }}>
-              {currentUser.company.companyName}
-            </span>
-          )}
         </div>
 
-        {activeTab === 'users' && (
-          <div className="flex gap-3">
-            <button
-              onClick={() => {
-                fetchCompanyData(); // always fetch latest data
-                setShowPlanModal(true);
-              }}
-              className="px-3 py-2 rounded-lg text-white font-medium hover:opacity-90 transition-opacity text-sm"
-              style={{ backgroundColor: 'var(--color-textSecondary)' }}
-            >
-              <CreditCard size={16} className="inline mr-2" />
-              View Plan
-            </button>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="px-3 py-2 rounded-lg text-white font-medium hover:opacity-90 transition-opacity text-sm"
-              style={{ backgroundColor: 'var(--color-primary)' }}
-            >
-              <Plus size={16} className="inline mr-2" />
-              Create User
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Tab Navigation */}
-      <div className="border-b border-[var(--color-border)]">
-        <nav className="flex space-x-8">
+        <div className="flex gap-3">
           <button
-            onClick={() => setActiveTab('users')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'users'
-              ? 'border-[var(--color-primary)] text-[var(--color-primary)]'
-              : 'border-transparent text-[var(--color-textSecondary)] hover:text-[var(--color-text)] hover:border-[var(--color-border)]'
-              }`}
+            onClick={() => {
+              fetchCompanyData(); // always fetch latest data
+              setShowPlanModal(true);
+            }}
+            className="px-3 py-2 rounded-lg text-white font-medium hover:opacity-90 transition-opacity text-sm"
+            style={{ backgroundColor: 'var(--color-textSecondary)' }}
           >
-            <Users size={16} className="inline mr-2" />
-            User Management
+            <CreditCard size={16} className="inline mr-2" />
+            View Plan
           </button>
           <button
-            onClick={() => setActiveTab('settings')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'settings'
-              ? 'border-[var(--color-primary)] text-[var(--color-primary)]'
-              : 'border-transparent text-[var(--color-textSecondary)] hover:text-[var(--color-text)] hover:border-[var(--color-border)]'
-              }`}
+            onClick={() => setShowCreateModal(true)}
+            className="px-3 py-2 rounded-lg text-white font-medium hover:opacity-90 transition-opacity text-sm"
+            style={{ backgroundColor: 'var(--color-primary)' }}
           >
-            <Cog size={16} className="inline mr-2" />
-            Task Completion Settings
+            <Plus size={16} className="inline mr-2" />
+            Create User
           </button>
-        </nav>
+        </div>
       </div>
 
       {/* Message */}
@@ -685,236 +482,272 @@ const AdminPanel: React.FC = () => {
         </div>
       )}
 
-      {/* Tab Content */}
-      {activeTab === 'settings' ? (
-        renderTaskSettings()
-      ) : (
-        /* Users Management Section */
-        <div className="rounded-lg border overflow-hidden" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
-          <div className="p-3 sm:p-4 border-b" style={{ borderColor: 'var(--color-border)' }}>
-            <h2 className="text-md font-semibold flex items-center" style={{ color: 'var(--color-text)' }}>
-              <Users className="mr-2" size={16} />
-              User Management ({users.length})
-              {currentUser?.company && (
-                <span className="ml-2 text-xs px-2 py-1 rounded-full" style={{ backgroundColor: 'var(--color-primary)10', color: 'var(--color-primary)' }}>
-                  Company: {currentUser.company.companyName}
-                </span>
-              )}
-            </h2>
-          </div>
+      <div className="rounded-lg border overflow-hidden mt-4" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
+        <div className="p-3 sm:p-4 border-b" style={{ borderColor: 'var(--color-border)' }}>
+          <h2 className="text-md font-semibold flex items-center" style={{ color: 'var(--color-text)' }}>
+            <Users className="mr-2" size={16} />
+            User Management ({users.length})
+          </h2>
+        </div>
 
-          {/* Desktop Table View */}
-          <div className="hidden lg:block overflow-x-auto">
-            <table className="w-full">
-              <thead className="border-b" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
-                <tr>
-                  <th className="text-left py-3 px-4 font-medium text-sm" style={{ color: 'var(--color-text)' }}>User</th>
-                  <th className="text-left py-3 px-4 font-medium text-sm" style={{ color: 'var(--color-text)' }}>Role</th>
-                  <th className="text-left py-3 px-4 font-medium text-sm" style={{ color: 'var(--color-text)' }}>Permissions</th>
-                  <th className="text-left py-3 px-4 font-medium text-sm" style={{ color: 'var(--color-text)' }}>Status</th>
-                  <th className="text-left py-3 px-4 font-medium text-sm" style={{ color: 'var(--color-text)' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user) => (
-                  <tr key={user._id} className="border-b hover:bg-opacity-50" style={{ borderColor: 'var(--color-border)' }}>
-                    <td className="py-3 px-4">
-                      <div>
-                        <p className="font-medium text-sm" style={{ color: 'var(--color-text)' }}>{user.username}</p>
-                        <p className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>{user.email}</p>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span
-                        className="px-2 py-1 text-xs font-medium rounded-full capitalize"
-                        style={{
-                          backgroundColor: `${getRoleColor(user.role)}20`,
-                          color: getRoleColor(user.role)
-                        }}
-                      >
-                        {user.role}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="text-xs space-y-1">
-                        {getActivePermissions(user.permissions).slice(0, 2).map(([key, _]) => (
-                          <div key={key} className="inline-block mr-2 mb-1">
-                            <span
-                              className="px-2 py-1 rounded-full"
-                              style={{
-                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                                color: 'var(--color-primary)'
-                              }}
-                            >
-                              {getPermissionDisplayName(key)}
-                            </span>
-                          </div>
-                        ))}
-                        {getActivePermissions(user.permissions).length > 2 && (
-                          <span className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>
-                            +{getActivePermissions(user.permissions).length - 2} more
+        {/* Desktop Table View */}
+        <div className="hidden lg:block overflow-x-auto">
+          <table className="w-full">
+            <thead className="border-b" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+              <tr>
+                <th className="text-left py-3 px-4 font-medium text-sm" style={{ color: 'var(--color-text)' }}>User</th>
+                <th className="text-left py-3 px-4 font-medium text-sm" style={{ color: 'var(--color-text)' }}>Role</th>
+                <th className="text-left py-3 px-4 font-medium text-sm" style={{ color: 'var(--color-text)' }}>Department</th>
+                <th className="text-left py-3 px-4 font-medium text-sm" style={{ color: 'var(--color-text)' }}>Permissions</th>
+                <th className="text-left py-3 px-4 font-medium text-sm" style={{ color: 'var(--color-text)' }}>Status</th>
+                <th className="text-left py-3 px-4 font-medium text-sm" style={{ color: 'var(--color-text)' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((user) => (
+                <tr key={user._id} className="border-b hover:bg-opacity-50" style={{ borderColor: 'var(--color-border)' }}>
+                  <td className="py-3 px-4">
+                    <div>
+                      <p className="font-medium text-sm" style={{ color: 'var(--color-text)' }}>{user.username}</p>
+                      <p className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>{user.phone}</p>
+                      <p className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>{user.email}</p>
+                    </div>
+                  </td>
+                  <td className="py-3 px-4">
+                    <span
+                      className="px-2 py-1 text-xs font-medium rounded-full capitalize"
+                      style={{
+                        backgroundColor: `${getRoleColor(user.role)}20`,
+                        color: getRoleColor(user.role)
+                      }}
+                    >
+                      {getRoleLabel(user.role)}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4">
+                    <span
+                      className="px-2 py-1 text-xs font-medium rounded-full"
+                      style={{
+                        backgroundColor: "var(--color-border)",
+                        color: "var(--color-text)"
+                      }}
+                    >
+                      {user.department || "No Department"}
+                    </span>
+                  </td>
+
+                  <td className="py-3 px-4">
+                    <div className="text-xs space-y-1">
+                      {getActivePermissions(user.permissions).slice(0, 2).map(([key, _]) => (
+                        <div key={key} className="inline-block mr-2 mb-1">
+                          <span
+                            className="px-2 py-1 rounded-full"
+                            style={{
+                              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                              color: 'var(--color-primary)'
+                            }}
+                          >
+                            {getPermissionDisplayName(key)}
                           </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span
-                        className={`px-2 py-1 text-xs font-medium rounded-full ${user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}
+                        </div>
+                      ))}
+                      {getActivePermissions(user.permissions).length > 2 && (
+                        <span className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>
+                          +{getActivePermissions(user.permissions).length - 2} more
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-3 px-4">
+                    <span
+                      className={`px-2 py-1 text-xs font-medium rounded-full ${user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}
+                    >
+                      {user.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4">
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => startEditUser(user)}
+                        className="p-1 rounded hover:bg-opacity-10"
+                        style={{ color: 'var(--color-primary)' }}
                       >
-                        {user.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => startEditUser(user)}
-                          className="p-1 rounded hover:bg-opacity-10"
-                          style={{ color: 'var(--color-primary)' }}
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button
-                          onClick={() => updatePassword(user)}
-                          className="p-1 rounded hover:bg-opacity-10"
-                          style={{ color: 'var(--color-primary)' }}
-                        >
-                          <LockKeyhole size={16} />
-                        </button>
-                        {user.role !== 'admin' && user.role !== 'superadmin' && (
+                        <Edit size={16} />
+                      </button>
+                      <button
+                        onClick={() => updatePassword(user)}
+                        className="p-1 rounded hover:bg-opacity-10"
+                        style={{ color: 'var(--color-primary)' }}
+                      >
+                        <LockKeyhole size={16} />
+                      </button>
+                      {user.role !== 'admin' && user.role !== 'superadmin' && (
+                        <div className="flex items-center space-x-2">
+                          {/* <button
+                            onClick={() => {
+                              setDeleteUserId(user._id);
+                              setShowDeleteModal(true);
+                            }}
+                            className="p-2 rounded-lg hover:bg-opacity-10"
+                            style={{ color: 'var(--color-error)' }}
+                          >
+                            <Trash2 size={16} />
+                          </button> */}
                           <ToggleSwitch
                             checked={user.isActive}
                             onChange={() => handleToggleActive(user._id)}
                           />
-                        )}
+                        </div>
+                      )}
 
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-          {/* Mobile/Tablet Card View */}
-          <div className="lg:hidden divide-y" style={{ borderColor: 'var(--color-border)' }}>
-            {users.map((user) => (
-              <div key={user._id} className="p-3 sm:p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center space-x-3 flex-1">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: 'var(--color-primary)20' }}>
-                      <User size={20} style={{ color: 'var(--color-primary)' }} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm truncate" style={{ color: 'var(--color-text)' }}>
-                        {user.username}
-                      </p>
-                      <p className="text-xs truncate" style={{ color: 'var(--color-textSecondary)' }}>
-                        {user.email}
-                      </p>
-                    </div>
+        {/* Mobile/Tablet Card View */}
+        <div className="lg:hidden divide-y" style={{ borderColor: 'var(--color-border)' }}>
+          {users.map((user) => (
+            <div key={user._id} className="p-3 sm:p-4">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center space-x-3 flex-1">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: 'var(--color-primary)20' }}>
+                    <User size={20} style={{ color: 'var(--color-primary)' }} />
                   </div>
-                  <div className="flex items-center space-x-2 ml-2">
-                    <button
-                      onClick={() => startEditUser(user)}
-                      className="p-2 rounded-lg hover:bg-opacity-10"
-                      style={{ color: 'var(--color-primary)' }}
-                    >
-                      <Edit size={16} />
-                    </button>
-                    <button
-                      onClick={() => updatePassword(user)}
-                      className="p-2 rounded-lg hover:bg-opacity-10"
-                      style={{ color: 'var(--color-primary)' }}
-                    >
-                      <LockKeyhole size={16} />
-                    </button>
-                    {user.role !== 'admin' && user.role !== 'superadmin' && (
-                      <button
-                        onClick={() => handleDeleteUser(user._id)}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm truncate" style={{ color: 'var(--color-text)' }}>
+                      {user.username}
+                    </p>
+                    <p className="text-xs truncate" style={{ color: 'var(--color-textSecondary)' }}>
+                      {user.phone}
+                    </p>
+                    <p className="text-xs truncate" style={{ color: 'var(--color-textSecondary)' }}>
+                      {user.email}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2 ml-2">
+                  <button
+                    onClick={() => startEditUser(user)}
+                    className="p-2 rounded-lg hover:bg-opacity-10"
+                    style={{ color: 'var(--color-primary)' }}
+                  >
+                    <Edit size={16} />
+                  </button>
+                  <button
+                    onClick={() => updatePassword(user)}
+                    className="p-2 rounded-lg hover:bg-opacity-10"
+                    style={{ color: 'var(--color-primary)' }}
+                  >
+                    <LockKeyhole size={16} />
+                  </button>
+                  {user.role !== 'admin' && user.role !== 'superadmin' && (
+                    <div className="flex items-center space-x-2">
+                      {/* <button
+                        onClick={() => {
+                          setDeleteUserId(user._id);
+                          setShowDeleteModal(true);
+                        }}
                         className="p-2 rounded-lg hover:bg-opacity-10"
                         style={{ color: 'var(--color-error)' }}
                       >
                         <Trash2 size={16} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 mb-3">
-                  <span
-                    className="px-2 py-1 text-xs font-medium rounded-full capitalize"
-                    style={{
-                      backgroundColor: `${getRoleColor(user.role)}20`,
-                      color: getRoleColor(user.role)
-                    }}
-                  >
-                    {user.role}
-                  </span>
-                  <span
-                    className={`px-2 py-1 text-xs font-medium rounded-full ${user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}
-                  >
-                    {user.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium" style={{ color: 'var(--color-text)' }}>
-                      Permissions ({getActivePermissions(user.permissions).length})
-                    </span>
-                    <button
-                      onClick={() => toggleCardExpansion(user._id)}
-                      className="p-1 rounded"
-                      style={{ color: 'var(--color-textSecondary)' }}
-                    >
-                      {expandedCards.has(user._id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                    </button>
-                  </div>
-
-                  {expandedCards.has(user._id) ? (
-                    <div className="grid grid-cols-1 gap-1">
-                      {getActivePermissions(user.permissions).map(([key, _]) => (
-                        <span
-                          key={key}
-                          className="text-xs px-2 py-1 rounded-full"
-                          style={{
-                            backgroundColor: 'rgba(113, 145, 197, 0.1)',
-                            color: 'var(--color-primary)'
-                          }}
-                        >
-                          {getPermissionDisplayName(key)}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex flex-wrap gap-1">
-                      {getActivePermissions(user.permissions).slice(0, 3).map(([key, _]) => (
-                        <span
-                          key={key}
-                          className="text-xs px-2 py-1 rounded-full"
-                          style={{
-                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                            color: 'var(--color-primary)'
-                          }}
-                        >
-                          {getPermissionDisplayName(key)}
-                        </span>
-                      ))}
-                      {getActivePermissions(user.permissions).length > 3 && (
-                        <span className="text-xs px-2 py-1" style={{ color: 'var(--color-textSecondary)' }}>
-                          +{getActivePermissions(user.permissions).length - 3} more
-                        </span>
-                      )}
+                      </button> */}
+                      <ToggleSwitch
+                        checked={user.isActive}
+                        onChange={() => handleToggleActive(user._id)}
+                      />
                     </div>
                   )}
                 </div>
               </div>
-            ))}
-          </div>
+
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <span
+                  className="px-2 py-1 text-xs font-medium rounded-full capitalize"
+                  style={{
+                    backgroundColor: `${getRoleColor(user.role)}20`,
+                    color: getRoleColor(user.role)
+                  }}
+                >
+                  {getRoleLabel(user.role)}
+                </span>
+                <span
+                  className="px-2 py-1 text-xs font-medium rounded-full"
+                  style={{
+                    backgroundColor: 'var(--color-border)',
+                    color: 'var(--color-text)'
+                  }}
+                >
+                  {user.department || "-"}
+                </span>
+                <span
+                  className={`px-2 py-1 text-xs font-medium rounded-full ${user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}
+                >
+                  {user.isActive ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium" style={{ color: 'var(--color-text)' }}>
+                    Permissions ({getActivePermissions(user.permissions).length})
+                  </span>
+                  <button
+                    onClick={() => toggleCardExpansion(user._id)}
+                    className="p-1 rounded"
+                    style={{ color: 'var(--color-textSecondary)' }}
+                  >
+                    {expandedCards.has(user._id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </button>
+                </div>
+
+                {expandedCards.has(user._id) ? (
+                  <div className="grid grid-cols-1 gap-1">
+                    {getActivePermissions(user.permissions).map(([key, _]) => (
+                      <span
+                        key={key}
+                        className="text-xs px-2 py-1 rounded-full"
+                        style={{
+                          backgroundColor: 'rgba(113, 145, 197, 0.1)',
+                          color: 'var(--color-primary)'
+                        }}
+                      >
+                        {getPermissionDisplayName(key)}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-1">
+                    {getActivePermissions(user.permissions).slice(0, 3).map(([key, _]) => (
+                      <span
+                        key={key}
+                        className="text-xs px-2 py-1 rounded-full"
+                        style={{
+                          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                          color: 'var(--color-primary)'
+                        }}
+                      >
+                        {getPermissionDisplayName(key)}
+                      </span>
+                    ))}
+                    {getActivePermissions(user.permissions).length > 3 && (
+                      <span className="text-xs px-2 py-1" style={{ color: 'var(--color-textSecondary)' }}>
+                        +{getActivePermissions(user.permissions).length - 3} more
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
-      )}
+      </div>
 
       {/* View Plan Modal */}
       {showPlanModal && (
@@ -1182,11 +1015,58 @@ const AdminPanel: React.FC = () => {
                         color: 'var(--color-text)'
                       }}
                     >
-                      <option value="employee">Employee</option>
-                      <option value="manager">Manager</option>
-                      {currentUser?.role === 'admin' && <option value="admin">Admin</option>}
-                      {/* {currentUser?.role === 'superadmin' && <option value="superadmin">SuperAdmin</option>} */}
+                      {["employee", "manager", "admin"].map((role) => {
+                        const { remaining, color } = getRoleLimitData(role);
+                        const disabled = remaining <= 0 && formData.role !== role;
+                        const label =
+                          role === "employee"
+                            ? "User"
+                            : role.charAt(0).toUpperCase() + role.slice(1);
+
+                        return (
+                          <option
+                            key={role}
+                            value={role}
+                            disabled={disabled}
+                            style={{ color }}
+                          >
+                            {label} — {remaining} left
+                          </option>
+                        );
+                      })}
                     </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Department (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      name="department"
+                      value={formData.department}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border rounded-lg text-sm"
+                      placeholder="Enter department"
+                      style={{
+                        backgroundColor: 'var(--color-background)',
+                        borderColor: 'var(--color-border)',
+                        color: 'var(--color-text)'
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Phone Number *
+                    </label>
+                    <input
+                      type="text"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full px-3 py-2 border rounded-lg text-sm"
+                      placeholder="Enter phone number"
+                    />
                   </div>
                 </div>
 
@@ -1318,7 +1198,7 @@ const AdminPanel: React.FC = () => {
                     />
                   </div>
 
-                  <div className="sm:col-span-2">
+                  <div>
                     <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>
                       Role
                     </label>
@@ -1338,6 +1218,37 @@ const AdminPanel: React.FC = () => {
                       {currentUser?.role === 'admin' && <option value="admin">Admin</option>}
                       {/* {currentUser?.role === 'superadmin' && <option value="superadmin">SuperAdmin</option>} */}
                     </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Department (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      name="department"
+                      value={formData.department}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border rounded-lg text-sm"
+                      placeholder="Enter department"
+                      style={{
+                        backgroundColor: 'var(--color-background)',
+                        borderColor: 'var(--color-border)',
+                        color: 'var(--color-text)'
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Phone Number *
+                    </label>
+                    <input
+                      type="text"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full px-3 py-2 border rounded-lg text-sm"
+                    />
                   </div>
                 </div>
 
@@ -1463,6 +1374,54 @@ const AdminPanel: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* 🚨 Permanent Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div
+            className="rounded-lg max-w-md w-full p-6"
+            style={{
+              backgroundColor: "var(--color-surface)",
+              color: "var(--color-text)",
+            }}
+          >
+            <h2 className="text-lg font-bold mb-2">Permanently Delete User</h2>
+
+            <p className="text-sm mb-5" style={{ color: "var(--color-textSecondary)" }}>
+              This action cannot be undone. The user will be <b>permanently removed</b> from the system.
+            </p>
+
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteUserId(null);
+                }}
+                className="py-2 px-4 rounded-lg border font-medium text-sm"
+                style={{
+                  borderColor: "var(--color-border)",
+                  color: "var(--color-text)",
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={async () => {
+                  if (deleteUserId) {
+                    await handlePermanentDelete(deleteUserId);
+                  }
+                  setShowDeleteModal(false);
+                  setDeleteUserId(null);
+                }}
+                className="py-2 px-4 rounded-lg text-white font-medium text-sm"
+                style={{ backgroundColor: "var(--color-error)" }}
+              >
+                Yes, Delete Permanently
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -218,7 +218,11 @@ const MasterTasks: React.FC = () => {
       }
 
       const response = await axios.get(`${address}/api/users`, { params });
-      setUsers(response.data);
+      const sortedUsers = response.data.sort((a: User, b: User) =>
+        a.username.localeCompare(b.username)
+      );
+
+      setUsers(sortedUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
     }
@@ -401,20 +405,13 @@ const MasterTasks: React.FC = () => {
                     </button>
                   )}
                   {user?.permissions.canDeleteTasks && (
-                    <>
-                      <button
-                        onClick={() => handleDeleteTask(task._id)}
-                        className={`p-2 rounded-lg transition-colors ${isDark ? 'text-red-400 hover:bg-red-900' : 'text-red-600 hover:bg-red-50'}`}
-                        title="Delete task"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                      <ConfirmDeleteModal
-                        open={showDeleteModal}
-                        message="Are you sure you want to delete this task?"
-                        onCancel={() => setShowDeleteModal(false)}
-                        onConfirm={confirmDelete} />
-                    </>
+                    <button
+                      onClick={() => handleDeleteTask(task._id)}
+                      className={`p-2 rounded-lg transition-colors ${isDark ? 'text-red-400 hover:bg-red-900' : 'text-red-600 hover:bg-red-50'}`}
+                      title="Delete task"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   )}
                 </div>
               </div>
@@ -668,9 +665,6 @@ const MasterTasks: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <div className="w-8 h-8 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-medium mr-3">
-                        {task.assignedTo.username.charAt(0).toUpperCase()}
-                      </div>
                       <div>
                         <div className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{task.assignedTo.username}</div>
                         <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{task.assignedTo.email}</div>
@@ -755,21 +749,13 @@ const MasterTasks: React.FC = () => {
                             <Edit3 size={16} />
                           </button>
                         )}
-                        {user?.permissions.canDeleteTasks && (
-                          <>
-                            <button
-                              onClick={() => handleDeleteTask(task._id)}
-                              className={`p-1 rounded transition-colors ${isDark ? 'text-red-400 hover:bg-red-900' : 'text-red-600 hover:bg-red-50'}`}
-                              title="Delete task"
-                            >
-                              <Trash2 size={16} />
-                            </button><ConfirmDeleteModal
-                              open={showDeleteModal}
-                              message="Are you sure you want to delete this task?"
-                              onCancel={() => setShowDeleteModal(false)}
-                              onConfirm={confirmDelete} />
-                          </>
-                        )}
+                        <button
+                          onClick={() => handleDeleteTask(task._id)}
+                          className={`p-1 rounded transition-colors ${isDark ? 'text-red-400 hover:bg-red-900' : 'text-red-600 hover:bg-red-50'}`}
+                          title="Delete task"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </div>
                     </td>
                   )}
@@ -845,7 +831,9 @@ const MasterTasks: React.FC = () => {
             <Filter size={16} className="inline mr-2" />
             {showFilters ? "Hide Filters" : "Show Filters"}
           </button>
-          <ViewToggle view={view} onViewChange={setView} />
+          <div className="hidden sm:block">
+            <ViewToggle view={view} onViewChange={setView} />
+          </div>
         </div>
       </div>
 
@@ -994,7 +982,7 @@ const MasterTasks: React.FC = () => {
           {/* Enhanced Pagination */}
           {totalPages > 1 && (
             <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] p-4 mt-2">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex flex-col items-center text-center sm:flex-row sm:items-center sm:justify-between gap-4">
                 {/* Items per page selector */}
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-[--color-textSecondary]">Show:</span>
@@ -1044,16 +1032,17 @@ const MasterTasks: React.FC = () => {
 
                   {/* Page numbers */}
                   <div className="flex items-center space-x-1">
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
                       let pageNumber;
-                      if (totalPages <= 5) {
+
+                      if (totalPages <= 3) {
                         pageNumber = i + 1;
-                      } else if (currentPage <= 3) {
+                      } else if (currentPage === 1) {
                         pageNumber = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNumber = totalPages - 4 + i;
+                      } else if (currentPage === totalPages) {
+                        pageNumber = totalPages - 2 + i;
                       } else {
-                        pageNumber = currentPage - 2 + i;
+                        pageNumber = currentPage - 1 + i;
                       }
 
                       return (
@@ -1142,10 +1131,10 @@ const MasterTasks: React.FC = () => {
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center space-x-3">
                           <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                            #{selectedTask.revisions.length - index}
+                            #{index + 1}
                           </div>
                           <span className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                            Revision #{selectedTask.revisions.length - index}
+                            Revision #{index + 1}
                           </span>
                         </div>
                         <div className="text-right">
@@ -1392,6 +1381,12 @@ const MasterTasks: React.FC = () => {
           onSave={handleEditTask}
         />
       )}
+      <ConfirmDeleteModal
+  open={showDeleteModal}
+  message="Are you sure you want to delete this task?"
+  onCancel={() => setShowDeleteModal(false)}
+  onConfirm={confirmDelete}
+/>
     </div>
   );
 };

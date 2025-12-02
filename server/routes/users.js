@@ -36,7 +36,7 @@ router.get('/', async (req, res) => {
 // Create new user
 router.post('/', async (req, res) => {
   try {
-    const { username, email, password, role, permissions, companyId } = req.body;
+    const { username, email, password, role, permissions, companyId, department, phone } = req.body;
 
     // Check if email already exists
     const existingUser = await User.findOne({ email });
@@ -93,6 +93,8 @@ router.post('/', async (req, res) => {
       email,
       password,
       role,
+      department,
+      phone,
       permissions
     });
 
@@ -109,7 +111,7 @@ router.post('/', async (req, res) => {
 // Update user
 router.put('/:id', async (req, res) => {
   try {
-    const { username, email, role, permissions } = req.body;
+    const { username, email, role, permissions, department, phone } = req.body;
     const userId = req.params.id;
 
     const user = await User.findById(userId);
@@ -127,7 +129,7 @@ router.put('/:id', async (req, res) => {
 
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { username, email, role, permissions },
+      { username, email, role, permissions, department, phone },
       { new: true }
     ).select('-password');
 
@@ -240,5 +242,29 @@ router.put('/:id/toggle-active', async (req, res) => {
   }
 });
 
+router.delete('/:id/permanent', async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Prevent deletion of superadmin
+    if (user.role === 'superadmin') {
+      return res.status(403).json({ message: 'Superadmin cannot be deleted' });
+    }
+
+    await User.findByIdAndDelete(userId);
+
+    return res.json({ message: 'User permanently deleted' });
+  } catch (error) {
+    return res.status(500).json({
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
 
 export default router;

@@ -257,11 +257,11 @@ const PendingRecurringTasks: React.FC = () => {
   }, [allTasks]);
 
   useEffect(() => {
-  if (!loading && location.state?.highlightTaskId && location.state?.openCompleteModal) {
-    setShowCompleteModal(location.state.highlightTaskId);
-    window.history.replaceState({}, document.title);
-  }
-}, [loading]);
+    if (!loading && location.state?.highlightTaskId && location.state?.openCompleteModal) {
+      setShowCompleteModal(location.state.highlightTaskId);
+      window.history.replaceState({}, document.title);
+    }
+  }, [loading]);
 
   // Apply filters whenever filter state or allTasks changes
   useEffect(() => {
@@ -312,7 +312,11 @@ const PendingRecurringTasks: React.FC = () => {
       }
 
       const response = await axios.get(`${address}/api/users`, { params });
-      setUsers(response.data);
+      const sortedUsers = response.data.sort((a: User, b: User) =>
+        a.username.localeCompare(b.username)
+      );
+
+      setUsers(sortedUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
     }
@@ -627,7 +631,9 @@ const PendingRecurringTasks: React.FC = () => {
             {isAdmin ? ' (All team members)' : ' (Your tasks)'}
           </p>
         </div>
-        <ViewToggle view={view} onViewChange={setView} />
+        <div className="hidden sm:block">
+          <ViewToggle view={view} onViewChange={setView} />
+        </div>
       </div>
 
       <div className="bg-[var(--color-surface)] rounded-xl shadow-sm border border-[var(--color-border)] p-2 mt-2 mb-2">
@@ -641,7 +647,7 @@ const PendingRecurringTasks: React.FC = () => {
                 }`}
             >
               <CalendarDays size={10} />
-              Today's Tasks
+              Daily Tasks
               {dailyTasksCount > 0 && (
                 <span className={`px-1 py-1 rounded-full text-xs font-bold ${activeSection === 'daily' ? 'bg-[var(--color-background)] text-[var(--color-primary)]' : 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
                   }`}>
@@ -771,7 +777,7 @@ const PendingRecurringTasks: React.FC = () => {
           {/* Enhanced Pagination */}
           {totalPages > 1 && (
             <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] p-4 mt-2">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex flex-col items-center text-center sm:flex-row sm:items-center sm:justify-between gap-4">
                 {/* Items per page selector */}
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-[--color-textSecondary]">Show:</span>
@@ -821,16 +827,17 @@ const PendingRecurringTasks: React.FC = () => {
 
                   {/* Page numbers */}
                   <div className="flex items-center space-x-1">
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
                       let pageNumber;
-                      if (totalPages <= 5) {
+
+                      if (totalPages <= 3) {
                         pageNumber = i + 1;
-                      } else if (currentPage <= 3) {
+                      } else if (currentPage === 1) {
                         pageNumber = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNumber = totalPages - 4 + i;
+                      } else if (currentPage === totalPages) {
+                        pageNumber = totalPages - 2 + i;
                       } else {
-                        pageNumber = currentPage - 2 + i;
+                        pageNumber = currentPage - 1 + i;
                       }
 
                       return (

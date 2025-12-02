@@ -117,6 +117,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     return () => clearInterval(interval);
   }, [user]);
 
+  useEffect(() => {
+    // If mobile width, always expand sidebar
+    if (window.innerWidth < 1024) {
+      setIsCollapsed(false);
+    }
+  }, [isOpen]);
+
   const cp = (user?.company?.permissions || {}) as Record<string, boolean>;
 
   const menuItems = [
@@ -129,7 +136,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { icon: Zap, label: 'Performance', path: '/performance', permission: cp.performance },
     { icon: MessageCircle, label: 'Chat Support', path: '/chat', permission: cp.chat },
     { icon: Shield, label: 'Admin Panel', path: '/admin', permission: cp.adminPanel, requireAdmin: true },
-    { icon: Settings, label: 'Setting Page', path: '/settings-page', permission: cp.settingspage },
+    { icon: Settings, label: 'Settings', path: '/settings-page', permission: cp.settingspage },
     { icon: Crown, label: 'SuperAdmin Panel', path: '/superadmin', requireSuperAdmin: true },
   ];
 

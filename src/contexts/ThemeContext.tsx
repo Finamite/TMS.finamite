@@ -52,7 +52,7 @@ const themes = {
       text: '#F7FAFC',
       textSecondary: '#A0AEC0',
       border: '#4A5568',
-      chat: '#2774e7ff',
+      chat: '#2e4261ff',
       surfacechat: '#2D3748',
       settingcolor: '#626e81ff'
     }

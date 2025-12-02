@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { Menu, LogOut, Palette, Moon, UserPlus, Bell, Clock, CheckSquare, Sun, SunDim, SunDimIcon, SunMedium, SunMoon, SunSnow } from 'lucide-react';
+import { Menu, LogOut, Moon, UserPlus, Bell, Clock, CheckSquare, Sun } from 'lucide-react';
 import { address } from '../../utils/ipAddress';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -91,6 +91,11 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
       setInitialLoading(false); // Only once
     }
   };
+
+  const getRoleLabel = (role: string) => {
+  if (role === "employee") return "User";
+  return role.charAt(0).toUpperCase() + role.slice(1);
+}
 
   useEffect(() => {
     fetchNotif();
@@ -432,7 +437,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
                             {t.title}
                           </p>
                           <p className="text-xs text-[var(--color-textSecondary)]">
-                            {t.assignedBy?.username}
+                            {t.assignedTo?.username}
                           </p>
                         </div>
 
@@ -523,7 +528,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
               {user?.username}
             </p>
             <p className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>
-              {user?.role}
+              {user && getRoleLabel(user.role)}
             </p>
           </div>
           <button

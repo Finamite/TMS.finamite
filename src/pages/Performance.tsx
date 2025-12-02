@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import {
-  Calendar, Target, CheckCircle, ChevronDown, Award, Star, BarChart3, Trophy, CalendarRange,
+  Calendar, CheckCircle, ChevronDown, Award, Star, BarChart3, Trophy, CalendarRange,
   Clock, CalendarDays, RefreshCw, UserCheck, RotateCcw, Users
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -96,9 +96,9 @@ const Performance: React.FC = () => {
   }) => {
     const baseClasses = "relative overflow-hidden transition-all duration-300 ease-out";
     const variants = {
-      default: `rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-lg`,
-      glass: `rounded-2xl bg-[var(--color-surface)]/80 backdrop-blur-xl border border-[var(--color-border)]/50 shadow-xl`,
-      elevated: `rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-2xl`,
+      default: `rounded-2xl bg-[var(--color-surface)] `,
+      glass: `rounded-2xl bg-[var(--color-surface)]/80 backdrop-blur-xl border border-[var(--color-border)] shadow-lg`,
+      elevated: `rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xl`,
       bordered: `rounded-2xl bg-[var(--color-primary)]/10 border-2 border-[var(--color-primary)]/20`
     };
     const hoverClasses = hover ? "hover:shadow-xl hover:scale-[1.02] hover:border-[var(--color-primary)]/30" : "";
@@ -129,7 +129,6 @@ const Performance: React.FC = () => {
     };
 
     const badge = rank ? getRankBadge(rank) : { icon: <Users size={18} />, gradient: 'from-blue-400 to-blue-600', bg: 'bg-blue-50', text: 'text-blue-700' };
-    const total = member.totalTasks || 1;
     const completed = member.completedTasks || 0;
 
     const actualCompletionRate = member.completionRate ?? 0;
@@ -148,7 +147,7 @@ const Performance: React.FC = () => {
     ];
 
     return (
-      <ThemeCard className="p-4" variant="glass" hover={false}>
+      <ThemeCard className="p-6" variant="glass" hover={false}>
         {/* Header Section */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
@@ -390,7 +389,6 @@ const Performance: React.FC = () => {
       .sort((a, b) => {
         const getPerformance = (member: any) => {
           const total = member.totalTasks || 0;
-          const completed = member.completedTasks || 0;
 
           const completionRate = member.completionRate ?? 0;
           const onTimeRate = member.onTimeRate ?? 0;
@@ -439,11 +437,11 @@ const Performance: React.FC = () => {
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
         <div className="flex items-center space-x-6">
           <div className="p-4 rounded-2xl shadow-xl" style={{ background: `linear-gradient(135deg, #6a11cb 0%, #2575fc 100%)` }}>
-            <BarChart3 size={24} className="text-white" />
+            <BarChart3 size={18} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-[var(--color-text)] mb-2">Performance Dashboard</h1>
-            <p className="text-base text-[var(--color-textSecondary)]">
+            <h1 className="text-xl font-bold text-[var(--color-text)] ">Performance Dashboard</h1>
+            <p className="text-sm text-[var(--color-textSecondary)]">
               Welcome back, <span className="font-bold text-[var(--color-text)]">{user?.username}</span>!
               {(user?.role === 'admin' || user?.role === 'manager') ? ' Team performance overview' : ' Here\'s your performance overview'}
             </p>
@@ -459,7 +457,7 @@ const Performance: React.FC = () => {
                   setSelectedMonth(new Date());
                   setShowDateFilter(false);
                 }}
-                className={`px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 flex-1 sm:flex-none ${viewMode === 'current' ? 'bg-[#3a2ee2ff] text-white shadow-md' : 'text-[var(--color-textSecondary)] hover:text-[var(--color-text)]'}`}
+                className={`px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-200 flex-1 sm:flex-none ${viewMode === 'current' ? 'bg-[#3a2ee2ff] text-white shadow-md' : 'text-[var(--color-textSecondary)] hover:text-[var(--color-text)]'}`}
               >
                 Current Month
               </button>
@@ -468,7 +466,7 @@ const Performance: React.FC = () => {
                   setViewMode('custom');
                   setShowDateFilter(false);
                 }}
-                className={`px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 flex-1 sm:flex-none ${viewMode === 'custom' ? 'bg-[#3a2ee2ff] text-white shadow-md' : 'text-[var(--color-textSecondary)] hover:text-[var(--color-text)]'}`}
+                className={`px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-200 flex-1 sm:flex-none ${viewMode === 'custom' ? 'bg-[#3a2ee2ff] text-white shadow-md' : 'text-[var(--color-textSecondary)] hover:text-[var(--color-text)]'}`}
               >
                 Date Range
               </button>
@@ -477,7 +475,7 @@ const Performance: React.FC = () => {
                   setViewMode('all-time');
                   setShowDateFilter(false);
                 }}
-                className={`px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 flex-1 sm:flex-none ${viewMode === 'all-time' ? 'bg-[#3a2ee2ff] text-white shadow-md' : 'text-[var(--color-textSecondary)] hover:text-[var(--color-text)]'}`}
+                className={`px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-200 flex-1 sm:flex-none ${viewMode === 'all-time' ? 'bg-[#3a2ee2ff] text-white shadow-md' : 'text-[var(--color-textSecondary)] hover:text-[var(--color-text)]'}`}
               >
                 All Time
               </button>
@@ -547,7 +545,7 @@ const Performance: React.FC = () => {
             <div className="relative z-10 w-full sm:w-auto">
               <button
                 onClick={() => setShowMonthFilter(!showMonthFilter)}
-                className="flex items-center justify-center px-4 py-2.5 bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] shadow-lg hover:shadow-xl transition-all duration-200 text-[var(--color-text)] font-md w-full"
+                className="flex items-center justify-center px-4 py-2  bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] shadow-lg hover:shadow-xl transition-all duration-200 text-[var(--color-text)] font-md w-full"
               >
                 <Calendar size={18} className="mr-3" />
                 <span className='font-semibold'>
@@ -601,29 +599,7 @@ const Performance: React.FC = () => {
       )}
 
       {(user?.role === 'admin' || user?.role === 'manager') && (
-        <ThemeCard className="p-6 sm:p-8" variant="glass">
-          {/* <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-2">
-            <div className="flex items-center space-x-4">
-              <div className="p-4 rounded-2xl text-white" style={{ background: `linear-gradient(135deg, #6a11cb 0%, #2575fc 100%)` }}>
-                <Trophy size={24} />
-              </div>
-              <div>
-                <h3 className="text-xl sm:text-2xl font-bold text-[var(--color-text)]">Team Performance</h3>
-                <p className="text-base text-[var(--color-textSecondary)]">
-                  {top10Users.length > 0 
-                    ? `Top ${top10Users.length} users by completion rate` 
-                    : 'No team performance data available for the selected period'
-                  }
-                </p>
-              </div>
-            </div>
-
-            {top10Users.length > 0 && (
-              <div className="text-base px-4 py-2 rounded-full font-bold whitespace-nowrap" style={{ backgroundColor: '#f59e0b20', color: '#f59e0b' }}>
-                Top {top10Users.length}
-              </div>
-            )}
-          </div> */}
+        <ThemeCard className="" variant="default">
 
           {top10Users.length > 0 ? (
             <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">

@@ -17,7 +17,6 @@ interface TaskCompletionModalProps {
 const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
   taskId,
   taskTitle,
-  isRecurring = false,
   allowAttachments,
   mandatoryAttachments,
   mandatoryRemarks,
@@ -29,6 +28,7 @@ const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<{ remarks?: string; attachments?: string }>({});
+  const [showFullTitle, setShowFullTitle] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -37,6 +37,14 @@ const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
       setErrors(prev => ({ ...prev, attachments: '' }));
     }
   };
+
+  const isMobile = window.innerWidth <= 768;
+
+  // Limit based on device
+  const limit = isMobile ? 15 : 55;
+
+  const truncatedTitle =
+    taskTitle.length > limit ? taskTitle.substring(0, limit) + "..." : taskTitle;
 
   const removeAttachment = (index: number) => {
     setAttachments(prev => prev.filter((_, i) => i !== index));
@@ -88,17 +96,17 @@ const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
     setSubmitting(true);
     try {
       let uploadedFiles: any[] = [];
-      
+
       if (allowAttachments && attachments.length > 0) {
         uploadedFiles = await uploadFiles(attachments);
       }
 
       const payload: any = {};
-      
+
       if (completionRemarks.trim()) {
         payload.completionRemarks = completionRemarks.trim();
       }
-      
+
       if (uploadedFiles.length > 0) {
         payload.completionAttachments = uploadedFiles;
       }
@@ -131,7 +139,20 @@ const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-[var(--color-text)]">Complete Task</h3>
-                <p className="text-sm text-[var(--color-textSecondary)] truncate max-w-md">{taskTitle}</p>
+                <div className="max-w-md text-sm text-[var(--color-textSecondary)] leading-snug">
+                  {showFullTitle ? taskTitle : truncatedTitle}
+
+                  {taskTitle.length > limit && (
+                    <button
+                      onClick={() => setShowFullTitle((prev) => !prev)}
+                      className="text-[var(--color-primary)] text-xs font-medium ml-1 underline"
+                    >
+                      {showFullTitle ? "Show Less" : "Show More"}
+                    </button>
+                  )}
+                </div>
+
+
               </div>
             </div>
             <button
@@ -145,14 +166,6 @@ const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 
         <div className="p-6">
           <div className="mb-6">
-            <div className="bg-[var(--color-primary)]/10 p-4 rounded-lg border-l-4 border-[var(--color-primary)] mb-6">
-              <p className="text-sm text-[var(--color-text)]">
-                {isRecurring 
-                  ? "This will mark the current occurrence as complete. The next occurrence will be automatically scheduled according to the task's recurrence pattern."
-                  : "This will mark the task as complete. Once completed, this one-time task will be moved to the completed tasks list."
-                }
-              </p>
-            </div>
 
             <div className="space-y-6">
               {/* Completion Remarks */}
@@ -168,9 +181,8 @@ const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
                     if (errors.remarks) setErrors(prev => ({ ...prev, remarks: '' }));
                   }}
                   rows={4}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] transition-colors bg-[var(--color-surface)] text-[var(--color-text)] ${
-                    errors.remarks ? 'border-[var(--color-error)]' : 'border-[var(--color-border)]'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] transition-colors bg-[var(--color-surface)] text-[var(--color-text)] ${errors.remarks ? 'border-[var(--color-error)]' : 'border-[var(--color-border)]'
+                    }`}
                   placeholder="Add completion notes, observations, results, or any relevant details..."
                 />
                 {errors.remarks && (
@@ -185,16 +197,15 @@ const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
                     Completion Attachments {mandatoryAttachments && <span className="text-[var(--color-error)]">*</span>}
                     {!mandatoryAttachments && <span className="text-[var(--color-textSecondary)] text-xs">(Optional)</span>}
                   </label>
-                  
-                  <div className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
-                    errors.attachments ? 'border-[var(--color-error)]' : 'border-[var(--color-border)] hover:border-[var(--color-primary)]'
-                  }`}>
+
+                  <div className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${errors.attachments ? 'border-[var(--color-error)]' : 'border-[var(--color-border)] hover:border-[var(--color-primary)]'
+                    }`}>
                     <Upload size={32} className="mx-auto text-[var(--color-textSecondary)] mb-2" />
                     <p className="text-sm text-[var(--color-textSecondary)] mb-2">
                       Click to select files or drag and drop
                     </p>
                     <p className="text-sm text-[var(--color-textSecondary)] mb-2">
-                    Supported formats: PDF, images (JPG, PNG), documents (DOCX, XLSX), voice recordings.
+                      Supported formats: PDF, images (JPG, PNG), documents (DOCX, XLSX), voice recordings.
                     </p>
                     <p className="text-xs text-[var(--color-textSecondary)] mb-4">
                       Maximum file size: 10MB per file
@@ -274,7 +285,7 @@ const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
               ) : (
                 <>
                   <CheckSquare size={18} />
-                  Complete Task
+                  Complete
                 </>
               )}
             </button>

@@ -1192,7 +1192,7 @@ const Chat: React.FC = () => {
                                     <p className="text-sm text-[var(--color-textSecondary)]">
                                         {otherTyping
                                             ? <span className="text-blue-600 italic">Typing...</span>
-                                            : `${activeChat.participants.length} participants • Online`
+                                            : `${activeChat.participants.length} participants`
                                         }
                                     </p>
                                 </div>

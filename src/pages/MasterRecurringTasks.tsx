@@ -288,6 +288,7 @@ const MasterRecurringTasks: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+  const [fullMasterTasks, setFullMasterTasks] = useState<MasterTask[]>([]);
 
   const [filter, setFilter] = useState({
     taskType: '',
@@ -325,35 +326,60 @@ const MasterRecurringTasks: React.FC = () => {
 
   // Optimized fetch functions with caching and server-side filtering
   const fetchMasterTasks = useCallback(async (page: number = currentPage, useCache: boolean = true) => {
+    let effectivePage = isEditMode ? 1 : page;
+    let effectiveLimit = isEditMode ? 1000 : itemsPerPage;
+    const cacheKey = isEditMode
+      ? `master-tasks-edit-${effectiveLimit}-${isAdmin ? 1 : 0}`
+      : `master-tasks-${page}-${itemsPerPage}-${isAdmin ? 1 : 0}`;
+
     const params = {
-      page,
-      limit: itemsPerPage,
+      page: effectivePage,
+      limit: effectiveLimit,
       taskType: filter.taskType,
-      status: filter.status,
+      status: '',
       priority: filter.priority,
-      assignedTo: isAdmin ? filter.assignedTo : user?.id,
       search: debouncedSearch,
       dateFrom: debouncedDateFrom,
       dateTo: debouncedDateTo,
       companyId: user?.company?.companyId || '',
     };
 
-    const cacheKey = `master-tasks-${page}-${itemsPerPage}-${isAdmin}`;
-
     // Check cache first
     if (useCache) {
       const cachedData = cacheRef.current.get(cacheKey, params);
       if (cachedData) {
-        setMasterTasks(cachedData.masterTasks || []);
-        setTotalPages(cachedData.totalPages || 1);
-        setTotalCount(cachedData.total || 0);
-        setHasMore(cachedData.hasMore || false);
-        return;
+        if (!isEditMode) {
+          setMasterTasks(cachedData.masterTasks || []);
+          setTotalPages(cachedData.totalPages || 1);
+          setTotalCount(cachedData.total || 0);
+          setHasMore(cachedData.hasMore || false);
+          return;
+        } else {
+          // Process cached data for edit mode
+          let processedFull = cachedData.masterTasks || [];
+          const targetUserId = isAdmin && filter.assignedTo && filter.assignedTo !== ''
+            ? filter.assignedTo
+            : !isAdmin
+              ? user?.id
+              : null;
+          if (targetUserId !== null && targetUserId !== undefined) {
+            processedFull = processedFull.filter((mt: MasterTask) => mt.assignedTo._id.toString() === targetUserId.toString());
+          }
+          setFullMasterTasks(processedFull);
+          const totalFiltered = processedFull.length;
+          setTotalCount(totalFiltered);
+          setTotalPages(Math.ceil(totalFiltered / itemsPerPage));
+          setHasMore(false);
+          const startIndex = (page - 1) * itemsPerPage;
+          const endIndex = startIndex + itemsPerPage;
+          setMasterTasks(processedFull.slice(startIndex, endIndex));
+          return;
+        }
       }
     }
 
     try {
-      setLoading(page === 1);
+      setLoading(effectivePage === 1);
 
       const queryParams = new URLSearchParams();
       Object.entries(params).forEach(([key, value]) => {
@@ -366,14 +392,48 @@ const MasterRecurringTasks: React.FC = () => {
         timeout: 10000, // 10 second timeout
       });
 
-      const data = response.data;
-      setMasterTasks(data.masterTasks || []);
-      setTotalPages(data.totalPages || 1);
-      setTotalCount(data.total || 0);
-      setHasMore(data.hasMore || false);
+      const backendData = response.data;
+      const rawMasterTasks = backendData.masterTasks || [];
+      const backendTotal = backendData.total || 0;
+      const backendTotalPages = backendData.totalPages || 1;
+      const backendHasMore = backendData.hasMore || false;
 
-      // Cache the result
-      cacheRef.current.set(cacheKey, data, params);
+      if (!isEditMode) {
+        setMasterTasks(rawMasterTasks);
+        setTotalPages(backendTotalPages);
+        setTotalCount(backendTotal);
+        setHasMore(backendHasMore);
+
+        // Cache the result
+        cacheRef.current.set(cacheKey, backendData, params);
+      } else {
+        let processedFull: MasterTask[] = rawMasterTasks;
+        const targetUserId = isAdmin && filter.assignedTo && filter.assignedTo !== ''
+          ? filter.assignedTo
+          : !isAdmin
+            ? user?.id
+            : null;
+        if (targetUserId !== null && targetUserId !== undefined) {
+          processedFull = rawMasterTasks.filter((mt: MasterTask) => mt.assignedTo._id.toString() === targetUserId.toString());
+        }
+        setFullMasterTasks(processedFull);
+        const totalFiltered = processedFull.length;
+        setTotalCount(totalFiltered);
+        setTotalPages(Math.ceil(totalFiltered / itemsPerPage));
+        setHasMore(false);
+        const startIndex = (page - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        setMasterTasks(processedFull.slice(startIndex, endIndex));
+
+        // Cache the raw result
+        const cacheData = {
+          masterTasks: rawMasterTasks,
+          totalPages: backendTotalPages,
+          total: backendTotal,
+          hasMore: backendHasMore,
+        };
+        cacheRef.current.set(cacheKey, cacheData, params);
+      }
 
     } catch (error) {
       console.error('Error fetching master tasks:', error);
@@ -383,6 +443,9 @@ const MasterRecurringTasks: React.FC = () => {
         toast.error('Failed to load master tasks');
       }
       setMasterTasks([]);
+      if (isEditMode) {
+        setFullMasterTasks([]);
+      }
       setTotalPages(1);
       setTotalCount(0);
       setHasMore(false);
@@ -391,6 +454,22 @@ const MasterRecurringTasks: React.FC = () => {
       setInitialLoading(false);
     }
   }, [currentPage, itemsPerPage, filter, debouncedSearch, debouncedDateFrom, debouncedDateTo, user, isAdmin]);
+
+  // Replace the existing useEffect for pagination changes
+  useEffect(() => {
+    if (isEditMode) {
+      if (fullMasterTasks.length > 0) {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        setMasterTasks(fullMasterTasks.slice(startIndex, endIndex));
+        setTotalPages(Math.ceil(fullMasterTasks.length / itemsPerPage));
+        setTotalCount(fullMasterTasks.length);
+        setHasMore(false);
+      }
+    } else {
+      fetchIndividualTasks(currentPage);
+    }
+  }, [currentPage, itemsPerPage, fullMasterTasks, isEditMode]);
 
   const fetchIndividualTasks = useCallback(async (page: number = currentPage, useCache: boolean = true) => {
     const params = {
@@ -481,7 +560,11 @@ const MasterRecurringTasks: React.FC = () => {
       }
 
       const response = await axios.get(`${address}/api/users`, { params });
-      setUsers(response.data);
+      const sortedUsers = response.data.sort((a: User, b: User) =>
+        a.username.localeCompare(b.username)
+      );
+
+      setUsers(sortedUsers);
       cacheRef.current.set(cacheKey, response.data, {});
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -1358,7 +1441,9 @@ const MasterRecurringTasks: React.FC = () => {
             <Filter size={16} className="inline mr-2" />
             {showFilters ? "Hide Filters" : "Show Filters"}
           </button>
-          <ViewToggle view={view} onViewChange={setView} />
+          <div className="hidden sm:block">
+            <ViewToggle view={view} onViewChange={setView} />
+          </div>
         </div>
       </div>
 
@@ -1531,7 +1616,7 @@ const MasterRecurringTasks: React.FC = () => {
               {/* Enhanced Pagination */}
               {totalPages > 1 && (
                 <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] p-4 mt-2">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex flex-col items-center text-center sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div className="flex items-center space-x-2">
                       <span className="text-sm text-[--color-textSecondary]">Show:</span>
                       <select
@@ -1575,17 +1660,19 @@ const MasterRecurringTasks: React.FC = () => {
                       </button>
 
                       <div className="flex items-center space-x-1">
-                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
                           let pageNumber;
-                          if (totalPages <= 5) {
+
+                          if (totalPages <= 3) {
                             pageNumber = i + 1;
-                          } else if (currentPage <= 3) {
+                          } else if (currentPage === 1) {
                             pageNumber = i + 1;
-                          } else if (currentPage >= totalPages - 2) {
-                            pageNumber = totalPages - 4 + i;
+                          } else if (currentPage === totalPages) {
+                            pageNumber = totalPages - 2 + i;
                           } else {
-                            pageNumber = currentPage - 2 + i;
+                            pageNumber = currentPage - 1 + i;
                           }
+
 
                           return (
                             <button

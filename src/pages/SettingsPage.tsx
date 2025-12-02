@@ -1,8 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Mail, AlertTriangle, Save, X, Loader as Loader2, Send, Calendar, Plus, Pencil, Trash } from 'lucide-react';
+import { Settings, Mail, AlertTriangle, Save, X, Loader as Loader2, Send, Calendar, Plus, Pencil, Trash, ClipboardCheck, FileWarning, MessageSquare, Paperclip, RefreshCw } from 'lucide-react';
 import axios from 'axios';
 import { address } from '../../utils/ipAddress';
 import { useAuth } from '../contexts/AuthContext';
+
+// ToggleSwitch Component
+interface ToggleSwitchProps {
+    checked: boolean;
+    onChange: (checked: boolean) => void;
+    disabled?: boolean;
+}
+
+const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ checked, onChange, disabled = false }) => {
+    return (
+        <button
+            onClick={() => !disabled && onChange(!checked)}
+            disabled={disabled}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-200 ${checked ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border)]'
+                } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+        >
+            <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${checked ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+            />
+        </button>
+    );
+};
 
 interface ScoringRule {
     id: string;
@@ -44,6 +67,7 @@ interface EmailSettings {
 }
 
 interface SettingsData {
+    taskCompletion: any;
     revision: RevisionSettings;
     email: EmailSettings;
 }
@@ -119,6 +143,19 @@ const SettingsPage: React.FC = () => {
             enableEveningReport: false,
             enableReports: false,
             reportRecipients: []
+        },
+        taskCompletion: {
+            enabled: false,  // 🔥 MAIN TOGGLE
+            pendingTasks: {
+                allowAttachments: false,
+                mandatoryAttachments: false,
+                mandatoryRemarks: false
+            },
+            pendingRecurringTasks: {
+                allowAttachments: false,
+                mandatoryAttachments: false,
+                mandatoryRemarks: false
+            }
         }
     });
     const [expandedRevision, setExpandedRevision] = useState(false);
@@ -136,10 +173,13 @@ const SettingsPage: React.FC = () => {
     const [confirmDeleteRule, setConfirmDeleteRule] = useState<null | string>(null);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
+    const [expandedTask, setExpandedTask] = useState(false);
+
 
     useEffect(() => {
         fetchSettings();
         fetchUsers();
+        fetchTaskSettings();
     }, [currentUser?.companyId]);
 
     useEffect(() => {
@@ -174,6 +214,35 @@ const SettingsPage: React.FC = () => {
         return () => window.removeEventListener("message", handleGoogleMessage);
     }, []);
 
+    const fetchTaskSettings = async () => {
+        if (!currentUser?.companyId) return;
+
+        const res = await axios.get(`${address}/api/settings/task-completion?companyId=${currentUser.companyId}`);
+
+        setSettings(prev => ({
+            ...prev,
+            taskCompletion: {
+                enabled: res.data.enabled ?? false,        // 🔥 NEW
+                pendingTasks: res.data.pendingTasks,
+                pendingRecurringTasks: res.data.pendingRecurringTasks
+            }
+        }));
+    };
+
+    const updateTaskSetting = (section: string, field: string, value: boolean) => {
+        setHasUnsavedChanges(true);
+
+        setSettings(prev => ({
+            ...prev,
+            taskCompletion: {
+                ...prev.taskCompletion,
+                [section]: {
+                    ...prev.taskCompletion[section],
+                    [field]: value
+                }
+            }
+        }));
+    };
 
     const connectGoogle = async () => {
         try {
@@ -359,6 +428,12 @@ const SettingsPage: React.FC = () => {
                 companyId: currentUser.companyId,
                 ...settings.email
             });
+            await axios.post(`${address}/api/settings/task-completion`, {
+                companyId: currentUser.companyId,
+                enabled: settings.taskCompletion.enabled,
+                pendingTasks: settings.taskCompletion.pendingTasks,
+                pendingRecurringTasks: settings.taskCompletion.pendingRecurringTasks
+            });
 
             setHasUnsavedChanges(false);
             setMessage({ type: 'success', text: 'Settings saved successfully!' });
@@ -377,23 +452,6 @@ const SettingsPage: React.FC = () => {
         }));
     };
 
-    const handleUserSelection = (field: 'sendToUsers' | 'reportRecipients', userId: string, checked: boolean) => {
-        setHasUnsavedChanges(true);
-        setSettings(prev => {
-            const currentUsers = prev.email[field];
-            const updatedUsers = checked
-                ? [...currentUsers, userId]
-                : currentUsers.filter(id => id !== userId);
-
-            return {
-                ...prev,
-                email: {
-                    ...prev.email,
-                    [field]: updatedUsers
-                }
-            };
-        });
-    };
 
     // Get scoring preview based on active rule
     const getScoringPreview = (limit: number, rules: ScoringRule[]) => {
@@ -733,7 +791,7 @@ const SettingsPage: React.FC = () => {
                                             <div className="grid grid-cols-2 gap-4">
                                                 {/* Max Revision */}
                                                 <div className="space-y-2">
-                                                    <label className="flex items-center justify-between text-sm font-medium text-[var(--color-text)]">
+                                                    <label className="flex items-center gap-3 text-sm font-medium text-[var(--color-text)]">
                                                         <span>Max Revisions</span>
                                                         <button
                                                             onClick={(e) => {
@@ -765,7 +823,7 @@ const SettingsPage: React.FC = () => {
 
                                                 {/* Max Days */}
                                                 <div className="space-y-2">
-                                                    <label className="flex items-center justify-between text-sm font-medium text-[var(--color-text)]">
+                                                    <label className="flex items-center gap-3 text-sm font-medium text-[var(--color-text)]">
                                                         <span>Max Days</span>
                                                         <button
                                                             onClick={(e) => {
@@ -930,8 +988,8 @@ const SettingsPage: React.FC = () => {
                                                 }}
                                                 disabled={!revisionEnabled}
                                                 className={`px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-semibold shadow-sm transition-all ${revisionEnabled
-                                                        ? 'bg-[var(--color-primary)] text-white hover:opacity-90 hover:shadow-md'
-                                                        : 'bg-[var(--color-border)] text-[var(--color-textSecondary)] cursor-not-allowed'
+                                                    ? 'bg-[var(--color-primary)] text-white hover:opacity-90 hover:shadow-md'
+                                                    : 'bg-[var(--color-border)] text-[var(--color-textSecondary)] cursor-not-allowed'
                                                     }`}
                                             >
                                                 <Plus className="h-4 w-4" />
@@ -957,10 +1015,10 @@ const SettingsPage: React.FC = () => {
                                                         </div>
                                                         <div
                                                             className={`text-2xl font-bold ${value.includes('0%')
-                                                                    ? 'text-[var(--color-error)]'
-                                                                    : value.includes('100%')
-                                                                        ? 'text-[var(--color-success)]'
-                                                                        : 'text-[var(--color-warning)]'
+                                                                ? 'text-[var(--color-error)]'
+                                                                : value.includes('100%')
+                                                                    ? 'text-[var(--color-success)]'
+                                                                    : 'text-[var(--color-warning)]'
                                                                 }`}
                                                         >
                                                             {value}
@@ -1168,158 +1226,375 @@ const SettingsPage: React.FC = () => {
 
                     {/* Report Scheduling */}
                     <div className="bg-[var(--color-surface)] rounded-2xl shadow-xl border border-[var(--color-border)] overflow-hidden transition-all duration-300">
-  {/* Header */}
-  <div
-    className="flex items-center justify-between p-6 cursor-pointer hover:bg-[var(--color-background)] transition-colors"
-    onClick={() => setExpandedReports(!expandedReports)}
-  >
-    <div className="flex items-center gap-4">
-      <div className="p-3 bg-[var(--color-info)]/10 rounded-xl">
-        <Calendar className="h-6 w-6 text-[var(--color-info)]" />
-      </div>
-      <div>
-        <h2 className="text-xl font-semibold text-[var(--color-text)]">
-          Automated Reports
-        </h2>
-        <p className="text-[var(--color-textSecondary)] text-sm mt-1">
-          Schedule daily reports and summaries
-        </p>
-      </div>
-    </div>
+                        {/* Header */}
+                        <div
+                            className="flex items-center justify-between p-6 cursor-pointer hover:bg-[var(--color-background)] transition-colors"
+                            onClick={() => setExpandedReports(!expandedReports)}
+                        >
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-[var(--color-info)]/10 rounded-xl">
+                                    <Calendar className="h-6 w-6 text-[var(--color-info)]" />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-semibold text-[var(--color-text)]">
+                                        Automated Reports
+                                    </h2>
+                                    <p className="text-[var(--color-textSecondary)] text-sm mt-1">
+                                        Schedule daily reports and summaries
+                                    </p>
+                                </div>
+                            </div>
 
-    {/* Toggle Switch */}
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        handleInputChange('email', 'enableReports', !reportsEnabled);
-        setExpandedReports(true);
-      }}
-      className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-200 shadow-inner ${
-        reportsEnabled ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border)]'
-      }`}
-    >
-      <span
-        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${
-          reportsEnabled ? 'translate-x-6' : 'translate-x-1'
-        }`}
-      />
-    </button>
-  </div>
+                            {/* Toggle Switch */}
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleInputChange('email', 'enableReports', !reportsEnabled);
+                                    setExpandedReports(true);
+                                }}
+                                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-200 shadow-inner ${reportsEnabled ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border)]'
+                                    }`}
+                            >
+                                <span
+                                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${reportsEnabled ? 'translate-x-6' : 'translate-x-1'
+                                        }`}
+                                />
+                            </button>
+                        </div>
 
-  {/* Expanded Content */}
-  {expandedReports && (
-    <div className="px-6 pb-6 pt-2 border-t border-[var(--color-border)] bg-[var(--color-background)]">
-      <div className="space-y-8 mt-6">
-        
-        {/* Report Configuration Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          
-          {/* Morning Report */}
-          <div className="space-y-4 p-5 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] hover:shadow-md hover:border-[var(--color-info)]/30 transition-all">
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={settings.email.enableMorningReport}
-                onChange={(e) =>
-                  handleInputChange('email', 'enableMorningReport', e.target.checked)
-                }
-                disabled={!reportsEnabled}
-                className={`w-5 h-5 text-[var(--color-info)] rounded focus:ring-2 focus:ring-[var(--color-info)] border-[var(--color-border)] ${
-                  !reportsEnabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-                }`}
-              />
-              <div className="flex items-center gap-2">
-                <label className="text-lg font-semibold text-[var(--color-text)]">
-                  Morning Report
-                </label>
-                {settings.email.enableMorningReport && reportsEnabled && (
-                  <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-[var(--color-info)]/20 text-[var(--color-info)] uppercase tracking-wider">
-                    Active
-                  </span>
-                )}
-              </div>
-            </div>
+                        {/* Expanded Content */}
+                        {expandedReports && (
+                            <div className="px-6 pb-6 pt-2 border-t border-[var(--color-border)] bg-[var(--color-background)]">
+                                <div className="space-y-8 mt-6">
 
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-[var(--color-text)]">
-                Send Time
-              </label>
-              <input
-                type="time"
-                value={settings.email.morningReportTime}
-                onChange={(e) =>
-                  handleInputChange('email', 'morningReportTime', e.target.value)
-                }
-                disabled={!reportsEnabled || !settings.email.enableMorningReport}
-                className={`w-full px-4 py-3 border border-[var(--color-border)] rounded-lg text-sm
+                                    {/* Report Configuration Grid */}
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                                        {/* Morning Report */}
+                                        <div className="space-y-4 p-5 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] hover:shadow-md hover:border-[var(--color-info)]/30 transition-all">
+                                            <div className="flex items-center gap-3">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={settings.email.enableMorningReport}
+                                                    onChange={(e) =>
+                                                        handleInputChange('email', 'enableMorningReport', e.target.checked)
+                                                    }
+                                                    disabled={!reportsEnabled}
+                                                    className={`w-5 h-5 text-[var(--color-info)] rounded focus:ring-2 focus:ring-[var(--color-info)] border-[var(--color-border)] ${!reportsEnabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                                                        }`}
+                                                />
+                                                <div className="flex items-center gap-2">
+                                                    <label className="text-lg font-semibold text-[var(--color-text)]">
+                                                        Morning Report
+                                                    </label>
+                                                    {settings.email.enableMorningReport && reportsEnabled && (
+                                                        <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-[var(--color-info)]/20 text-[var(--color-info)] uppercase tracking-wider">
+                                                            Active
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="block text-sm font-medium text-[var(--color-text)]">
+                                                    Send Time
+                                                </label>
+                                                <input
+                                                    type="time"
+                                                    value={settings.email.morningReportTime}
+                                                    onChange={(e) =>
+                                                        handleInputChange('email', 'morningReportTime', e.target.value)
+                                                    }
+                                                    disabled={!reportsEnabled || !settings.email.enableMorningReport}
+                                                    className={`w-full px-4 py-3 border border-[var(--color-border)] rounded-lg text-sm
                   focus:ring-2 focus:ring-[var(--color-info)] focus:border-[var(--color-info)] 
                   bg-[var(--color-surface)] text-[var(--color-text)] transition-all
                   ${!reportsEnabled || !settings.email.enableMorningReport ? 'opacity-50 cursor-not-allowed' : ''}`}
-              />
-              <div className="flex items-start gap-2 mt-2 p-3 bg-[var(--color-info)]/5 rounded-lg border border-[var(--color-info)]/10">
-                <div className="w-1 h-1 rounded-full bg-[var(--color-info)] mt-1.5"></div>
-                <p className="text-xs text-[var(--color-textSecondary)] leading-relaxed">
-                  Daily summary of pending tasks and priorities
-                </p>
-              </div>
-            </div>
-          </div>
+                                                />
+                                                <div className="flex items-start gap-2 mt-2 p-3 bg-[var(--color-info)]/5 rounded-lg border border-[var(--color-info)]/10">
+                                                    <div className="w-1 h-1 rounded-full bg-[var(--color-info)] mt-1.5"></div>
+                                                    <p className="text-xs text-[var(--color-textSecondary)] leading-relaxed">
+                                                        Daily summary of pending tasks and priorities
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
 
-          {/* Evening Report */}
-          <div className="space-y-4 p-5 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] hover:shadow-md hover:border-[var(--color-info)]/30 transition-all">
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={settings.email.enableEveningReport}
-                onChange={(e) =>
-                  handleInputChange('email', 'enableEveningReport', e.target.checked)
-                }
-                disabled={!reportsEnabled}
-                className={`w-5 h-5 text-[var(--color-info)] rounded focus:ring-2 focus:ring-[var(--color-info)] border-[var(--color-border)] ${
-                  !reportsEnabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-                }`}
-              />
-              <div className="flex items-center gap-2">
-                <label className="text-lg font-semibold text-[var(--color-text)]">
-                  Evening Report
-                </label>
-                {settings.email.enableEveningReport && reportsEnabled && (
-                  <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-[var(--color-info)]/20 text-[var(--color-info)] uppercase tracking-wider">
-                    Active
-                  </span>
-                )}
-              </div>
-            </div>
+                                        {/* Evening Report */}
+                                        <div className="space-y-4 p-5 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] hover:shadow-md hover:border-[var(--color-info)]/30 transition-all">
+                                            <div className="flex items-center gap-3">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={settings.email.enableEveningReport}
+                                                    onChange={(e) =>
+                                                        handleInputChange('email', 'enableEveningReport', e.target.checked)
+                                                    }
+                                                    disabled={!reportsEnabled}
+                                                    className={`w-5 h-5 text-[var(--color-info)] rounded focus:ring-2 focus:ring-[var(--color-info)] border-[var(--color-border)] ${!reportsEnabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                                                        }`}
+                                                />
+                                                <div className="flex items-center gap-2">
+                                                    <label className="text-lg font-semibold text-[var(--color-text)]">
+                                                        Evening Report
+                                                    </label>
+                                                    {settings.email.enableEveningReport && reportsEnabled && (
+                                                        <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-[var(--color-info)]/20 text-[var(--color-info)] uppercase tracking-wider">
+                                                            Active
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-[var(--color-text)]">
-                Send Time
-              </label>
-              <input
-                type="time"
-                value={settings.email.eveningReportTime}
-                onChange={(e) =>
-                  handleInputChange('email', 'eveningReportTime', e.target.value)
-                }
-                disabled={!reportsEnabled || !settings.email.enableEveningReport}
-                className={`w-full px-4 py-3 border border-[var(--color-border)] rounded-lg text-sm
+                                            <div className="space-y-2">
+                                                <label className="block text-sm font-medium text-[var(--color-text)]">
+                                                    Send Time
+                                                </label>
+                                                <input
+                                                    type="time"
+                                                    value={settings.email.eveningReportTime}
+                                                    onChange={(e) =>
+                                                        handleInputChange('email', 'eveningReportTime', e.target.value)
+                                                    }
+                                                    disabled={!reportsEnabled || !settings.email.enableEveningReport}
+                                                    className={`w-full px-4 py-3 border border-[var(--color-border)] rounded-lg text-sm
                   focus:ring-2 focus:ring-[var(--color-info)] focus:border-[var(--color-info)] 
                   bg-[var(--color-surface)] text-[var(--color-text)] transition-all
                   ${!reportsEnabled || !settings.email.enableEveningReport ? 'opacity-50 cursor-not-allowed' : ''}`}
-              />
-              <div className="flex items-start gap-2 mt-2 p-3 bg-[var(--color-info)]/5 rounded-lg border border-[var(--color-info)]/10">
-                <div className="w-1 h-1 rounded-full bg-[var(--color-info)] mt-1.5"></div>
-                <p className="text-xs text-[var(--color-textSecondary)] leading-relaxed">
-                  Daily completion summary and next day preview
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )}
-</div>
+                                                />
+                                                <div className="flex items-start gap-2 mt-2 p-3 bg-[var(--color-info)]/5 rounded-lg border border-[var(--color-info)]/10">
+                                                    <div className="w-1 h-1 rounded-full bg-[var(--color-info)] mt-1.5"></div>
+                                                    <p className="text-xs text-[var(--color-textSecondary)] leading-relaxed">
+                                                        Daily completion summary and next day preview
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Task Completion Settings */}
+                    {/* Task Completion Settings */}
+                    <div className="bg-[var(--color-surface)] rounded-2xl shadow-xl border border-[var(--color-border)] overflow-hidden transition-all duration-300">
+
+                        {/* Header */}
+                        <div
+                            className="flex items-center justify-between p-6 cursor-pointer hover:bg-[var(--color-background)] transition-colors"
+                            onClick={() => setExpandedTask(!expandedTask)}
+                        >
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-[var(--color-primary)]/10 rounded-xl">
+                                    <Settings className="h-6 w-6 text-[var(--color-primary)]" />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-semibold text-[var(--color-text)]">
+                                        Task Completion Settings
+                                    </h2>
+                                    <p className="text-[var(--color-textSecondary)] text-sm mt-1">
+                                        Configure attachments & remarks for different task types
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* ENABLE/DISABLE MAIN TOGGLE */}
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSettings(prev => ({
+                                        ...prev,
+                                        taskCompletion: {
+                                            ...prev.taskCompletion,
+                                            enabled: !prev.taskCompletion.enabled
+                                        }
+                                    }));
+                                    setExpandedTask(true);
+                                    setHasUnsavedChanges(true);
+                                }}
+                                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-200 shadow-inner ${settings.taskCompletion.enabled
+                                        ? "bg-[var(--color-primary)]"
+                                        : "bg-[var(--color-border)]"
+                                    }`}
+                            >
+                                <span
+                                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${settings.taskCompletion.enabled ? "translate-x-6" : "translate-x-1"
+                                        }`}
+                                />
+                            </button>
+                        </div>
+
+                        {/* Body */}
+                        {expandedTask && (
+                            <div className="px-6 pb-6 pt-4 border-t border-[var(--color-border)] bg-[var(--color-background)]">
+
+                                {/* Responsive Two Columns */}
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                                    {/* -------------------- LEFT: ONE-TIME -------------------- */}
+                                    <div className="p-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm hover:shadow-md transition-all">
+                                        <h3 className="text-lg font-semibold mb-8 flex items-center gap-2">
+                                            <ClipboardCheck className="w-5 h-5 text-[var(--color-primary)]" />
+                                            One-Time Pending Tasks
+                                        </h3>
+
+                                        <div className="space-y-6">
+
+                                            {/* Allow Attachments */}
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-start gap-3">
+                                                    <Paperclip className="w-5 h-5 text-[var(--color-primary)] mt-1" />
+                                                    <div>
+                                                        <p className="font-medium">Allow Attachments</p>
+                                                        <p className="text-xs text-[var(--color-textSecondary)]">
+                                                            Enable users to upload attachments when completing a task.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <ToggleSwitch
+                                                    checked={settings.taskCompletion.pendingTasks.allowAttachments}
+                                                    disabled={!settings.taskCompletion.enabled}
+                                                    onChange={(v) =>
+                                                        updateTaskSetting("pendingTasks", "allowAttachments", v)
+                                                    }
+                                                />
+                                            </div>
+
+                                            {/* Mandatory Attachments */}
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-start gap-3">
+                                                    <FileWarning className="w-5 h-5 text-[var(--color-error)] mt-1" />
+                                                    <div>
+                                                        <p className="font-medium">Mandatory Attachments</p>
+                                                        <p className="text-xs text-[var(--color-textSecondary)]">
+                                                            Require at least one file to complete the task.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <ToggleSwitch
+                                                    checked={settings.taskCompletion.pendingTasks.mandatoryAttachments}
+                                                    disabled={
+                                                        !settings.taskCompletion.enabled ||
+                                                        !settings.taskCompletion.pendingTasks.allowAttachments
+                                                    }
+                                                    onChange={(v) =>
+                                                        updateTaskSetting("pendingTasks", "mandatoryAttachments", v)
+                                                    }
+                                                />
+                                            </div>
+
+                                            {/* Mandatory Remarks */}
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-start gap-3">
+                                                    <MessageSquare className="w-5 h-5 text-[var(--color-warning)] mt-1" />
+                                                    <div>
+                                                        <p className="font-medium">Mandatory Remarks</p>
+                                                        <p className="text-xs text-[var(--color-textSecondary)]">
+                                                            User must enter a remark before completing.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <ToggleSwitch
+                                                    checked={settings.taskCompletion.pendingTasks.mandatoryRemarks}
+                                                    disabled={!settings.taskCompletion.enabled}
+                                                    onChange={(v) =>
+                                                        updateTaskSetting("pendingTasks", "mandatoryRemarks", v)
+                                                    }
+                                                />
+                                            </div>
+
+                                        </div>
+                                    </div>
+
+                                    {/* -------------------- RIGHT: RECURRING -------------------- */}
+                                    <div className="p-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm hover:shadow-md transition-all">
+                                        <h3 className="text-lg font-semibold mb-8 flex items-center gap-2">
+                                            <RefreshCw className="w-5 h-5 text-[var(--color-primary)]" />
+                                            Recurring Tasks
+                                        </h3>
+
+                                        <div className="space-y-6">
+
+                                            {/* Allow Attachments */}
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-start gap-3">
+                                                    <Paperclip className="w-5 h-5 text-[var(--color-primary)] mt-1" />
+                                                    <div>
+                                                        <p className="font-medium">Allow Attachments</p>
+                                                        <p className="text-xs text-[var(--color-textSecondary)]">
+                                                            Enable users to upload files when completing recurring tasks
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <ToggleSwitch
+                                                    checked={settings.taskCompletion.pendingRecurringTasks.allowAttachments}
+                                                    disabled={!settings.taskCompletion.enabled}
+                                                    onChange={(v) =>
+                                                        updateTaskSetting("pendingRecurringTasks", "allowAttachments", v)
+                                                    }
+                                                />
+                                            </div>
+
+                                            {/* Mandatory Attachments */}
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-start gap-3">
+                                                    <FileWarning className="w-5 h-5 text-[var(--color-error)] mt-1" />
+                                                    <div>
+                                                        <p className="font-medium">Mandatory Attachments</p>
+                                                        <p className="text-xs text-[var(--color-textSecondary)]">
+                                                            Require at least one file to be uploaded when completing recurring tasks
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <ToggleSwitch
+                                                    checked={settings.taskCompletion.pendingRecurringTasks.mandatoryAttachments}
+                                                    disabled={
+                                                        !settings.taskCompletion.enabled ||
+                                                        !settings.taskCompletion.pendingRecurringTasks.allowAttachments
+                                                    }
+                                                    onChange={(v) =>
+                                                        updateTaskSetting(
+                                                            "pendingRecurringTasks",
+                                                            "mandatoryAttachments",
+                                                            v
+                                                        )
+                                                    }
+                                                />
+                                            </div>
+
+                                            {/* Mandatory Remarks */}
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-start gap-3">
+                                                    <MessageSquare className="w-5 h-5 text-[var(--color-warning)] mt-1" />
+                                                    <div>
+                                                        <p className="font-medium">Mandatory Remarks</p>
+                                                        <p className="text-xs text-[var(--color-textSecondary)]">
+                                                            Require completion remarks to be filled when completing recurring tasks
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <ToggleSwitch
+                                                    checked={settings.taskCompletion.pendingRecurringTasks.mandatoryRemarks}
+                                                    disabled={!settings.taskCompletion.enabled}
+                                                    onChange={(v) =>
+                                                        updateTaskSetting(
+                                                            "pendingRecurringTasks",
+                                                            "mandatoryRemarks",
+                                                            v
+                                                        )
+                                                    }
+                                                />
+                                            </div>
+
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+
+
                 </div>
             </div>
 

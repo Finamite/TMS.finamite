@@ -14,3 +14,49 @@
 .blink-warning {
   animation: blinkWarning 2.0s infinite ease-in-out;
 }
+
+/* Calendar icon color for Chrome, Edge */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) sepia(1) saturate(5000%) hue-rotate(0deg)
+          brightness(80%) drop-shadow(0 0 0 var(--color-text));
+  opacity: 0.8;
+}
+
+/* Match icon color to var(--color-text) */
+input[type="date"] {
+  color-scheme: light dark;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  background-color: transparent;
+  cursor: pointer;
+}
+
+@keyframes slide-out-left {
+  0% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(-100%); opacity: 0; }
+}
+
+/* Slide new in from right */
+@keyframes slide-in-right {
+  0% { transform: translateX(100%); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+
+/* Slide current out to right */
+@keyframes slide-out-right {
+  0% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(100%); opacity: 0; }
+}
+
+/* Slide new in from left */
+@keyframes slide-in-left {
+  0% { transform: translateX(-100%); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+
+.animate-out-left { animation: slide-out-left 0.35s ease forwards; }
+.animate-in-right { animation: slide-in-right 0.35s ease forwards; }
+
+.animate-out-right { animation: slide-out-right 0.35s ease forwards; }
+.animate-in-left { animation: slide-in-left 0.35s ease forwards; }

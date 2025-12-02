@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { UserPlus, Calendar, Paperclip, X, Users, Clock, ChevronDown, Search, Volume2, Plus, Copy, Trash2, Zap } from 'lucide-react';
+import { Calendar, Paperclip, X, Users, Clock, ChevronDown, Search, XCircle, CheckSquare, Volume2, Plus, Copy, Trash2, Zap } from 'lucide-react';
 import axios from 'axios';
 import { useTheme } from '../contexts/ThemeContext';
 import { ToastContainer, toast } from 'react-toastify';
@@ -14,6 +14,7 @@ interface VoiceRecorderRef {
 }
 
 interface User {
+  department: string;
   _id: string;
   username: string;
   email: string;
@@ -117,7 +118,11 @@ const AssignTask: React.FC = () => {
       }
 
       const response = await axios.get(`${address}/api/users?${params.toString()}`);
-      setUsers(response.data.filter((u: User) => u._id !== user?.id));
+      const sortedUsers = response.data
+        .filter((u: User) => u._id !== user?.id)
+        .sort((a: User, b: User) => a.username.localeCompare(b.username));
+
+      setUsers(sortedUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
       toast.error('Failed to fetch users.', { theme: isDark ? 'dark' : 'light' });
@@ -260,7 +265,7 @@ const AssignTask: React.FC = () => {
 
   const filteredUsers = users.filter(userItem =>
     userItem.username.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
-    userItem.email.toLowerCase().includes(userSearchTerm.toLowerCase())
+    userItem.department.toLowerCase().includes(userSearchTerm.toLowerCase())
   );
 
   // ✅ OPTIMIZED: Super fast bulk task creation
@@ -271,7 +276,7 @@ const AssignTask: React.FC = () => {
     try {
       // ⚡ Step 1: Validate all tasks at once (no early returns in loop)
       const validationErrors: string[] = [];
-      
+
       taskForms.forEach((task, index) => {
         if (task.assignedTo.length === 0) {
           validationErrors.push(`Task ${index + 1}: Please select users`);
@@ -301,10 +306,10 @@ const AssignTask: React.FC = () => {
       // ⚡ Step 2: Upload ALL attachments in parallel (not per task)
       const uploadPromises = taskForms.map(async (task) => {
         if (task.attachments.length === 0) return { taskId: task.id, attachments: [] };
-        
+
         const formDataFiles = new FormData();
         task.attachments.forEach(file => formDataFiles.append('files', file));
-        
+
         const uploadResponse = await axios.post(`${address}/api/upload`, formDataFiles, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
@@ -331,16 +336,14 @@ const AssignTask: React.FC = () => {
       };
 
       // ⚡ Step 4: Single API call for ALL tasks - SUPER FAST!
-      const startTime = Date.now();
       const response = await axios.post(`${address}/api/tasks/bulk-create`, bulkTaskData);
-      const endTime = Date.now();
-      
-      const { totalTasksCreated, totalUsers, summary } = response.data;
+
+      const { totalTasksCreated, totalUsers } = response.data;
       const totalAttachments = taskForms.reduce((sum, task) => sum + task.attachments.length, 0);
       const totalVoiceRecordings = taskForms.reduce((sum, task) =>
         sum + task.attachments.filter(isAudioFile).length, 0);
 
-      let successMessage = `🚀 Lightning Fast! Created ${totalTasksCreated} task${totalTasksCreated > 1 ? 's' : ''} for ${totalUsers} user${totalUsers > 1 ? 's' : ''} in ${((endTime - startTime) / 1000).toFixed(1)}s`;
+      let successMessage = `Created ${totalTasksCreated} task${totalTasksCreated > 1 ? 's' : ''} for ${totalUsers} user${totalUsers > 1 ? 's' : ''}`;
       if (totalAttachments > 0) {
         successMessage += ` (${totalAttachments} file${totalAttachments > 1 ? 's' : ''} uploaded`;
         if (totalVoiceRecordings > 0) {
@@ -348,9 +351,9 @@ const AssignTask: React.FC = () => {
         }
         successMessage += ')';
       }
-      
-      toast.success(successMessage, { 
-        theme: isDark ? 'dark' : 'light', 
+
+      toast.success(successMessage, {
+        theme: isDark ? 'dark' : 'light',
         autoClose: 4000,
       });
 
@@ -550,74 +553,171 @@ const AssignTask: React.FC = () => {
                   {/* User Assignment & Priority */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* User Assignment */}
+                    {/* User Assignment */}
                     <div className="space-y-3">
-                      <label className="text-sm font-semibold flex items-center" style={{ color: 'var(--color-text)' }}>
+                      <label
+                        className="text-sm font-semibold flex items-center"
+                        style={{ color: "var(--color-text)" }}
+                      >
                         <Users className="mr-2" size={16} />
                         Assign To Users *
                       </label>
+
                       <div className="relative" ref={dropdownRef}>
+                        {/* Dropdown Open Button */}
                         <button
                           type="button"
                           className="w-full flex justify-between items-center px-3 py-2 rounded-xl border-2 text-left transition-all duration-200"
                           style={{
-                            borderColor: 'var(--color-border)',
-                            backgroundColor: 'var(--color-surface)',
-                            color: 'var(--color-text)'
+                            borderColor: "var(--color-border)",
+                            backgroundColor: "var(--color-surface)",
+                            color: "var(--color-text)",
                           }}
-                          onClick={() => setShowUserDropdown(prev => ({ ...prev, [task.id]: !prev[task.id] }))}
+                          onClick={() =>
+                            setShowUserDropdown((prev) => ({
+                              ...prev,
+                              [task.id]: !prev[task.id],
+                            }))
+                          }
                         >
                           {task.assignedTo.length > 0 ? (
                             <span className="text-md">
-                              {getSelectedUsers(task.id).map(u => u.username).join(', ')}
+                              {getSelectedUsers(task.id)
+                                .map((u) => u.username)
+                                .join(", ")}
                             </span>
                           ) : (
-                            <span className="text-md" style={{ color: 'var(--color-textSecondary)' }}>Select users...</span>
+                            <span
+                              className="text-md"
+                              style={{ color: "var(--color-textSecondary)" }}
+                            >
+                              Select users...
+                            </span>
                           )}
-                          <ChevronDown size={18} className={`transition-transform duration-200 ${showUserDropdown[task.id] ? 'rotate-180' : ''}`} />
+
+                          <ChevronDown
+                            size={18}
+                            className={`transition-transform duration-200 ${showUserDropdown[task.id] ? "rotate-180" : ""
+                              }`}
+                          />
                         </button>
 
+                        {/* Dropdown Content */}
                         {showUserDropdown[task.id] && (
-                          <div className="absolute z-10 w-full mt-2 rounded-xl shadow-2xl border-2 max-h-64 overflow-hidden"
-                            style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
-                            <div className="p-3 border-b" style={{ borderColor: 'var(--color-border)' }}>
-                              <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--color-textSecondary)' }} size={16} />
+                          <div
+                            className="absolute z-10 w-full mt-2 rounded-xl shadow-2xl border-2 max-h-64 overflow-hidden"
+                            style={{
+                              borderColor: "var(--color-border)",
+                              backgroundColor: "var(--color-surface)",
+                            }}
+                          >
+                            {/* ⭐ COMBINED (Search + Select All + Clear All in one row) */}
+                            <div
+                              className="flex items-center gap-3 px-3 py-2 border-b"
+                              style={{ borderColor: "var(--color-border)" }}
+                            >
+                              {/* Search Input */}
+                              <div className="relative flex-1">
+                                <Search
+                                  className="absolute left-3 top-1/2 -translate-y-1/2"
+                                  style={{ color: "var(--color-textSecondary)" }}
+                                  size={16}
+                                />
+
                                 <input
                                   type="text"
                                   placeholder="Search users..."
-                                  className="w-full pl-10 pr-3 py-2 rounded-lg border transition-all duration-200"
+                                  className="w-full pl-10 pr-10 py-2 rounded-lg border transition-all duration-200"
                                   style={{
-                                    borderColor: 'var(--color-border)',
-                                    backgroundColor: 'var(--color-surface)',
-                                    color: 'var(--color-text)'
+                                    borderColor: "var(--color-border)",
+                                    backgroundColor: "var(--color-surface)",
+                                    color: "var(--color-text)",
                                   }}
                                   value={userSearchTerm}
                                   onChange={(e) => setUserSearchTerm(e.target.value)}
                                 />
+
+                                {/* Clear Icon */}
+                                {userSearchTerm && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setUserSearchTerm("")}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500"
+                                  >
+                                    <XCircle size={16} />
+                                  </button>
+                                )}
                               </div>
+
+                              {/* Select All */}
+                              <button
+                                type="button"
+                                className="flex items-center gap-1 text-sm font-medium hover:scale-105 transition whitespace-nowrap"
+                                style={{ color: "var(--color-primary)" }}
+                                onClick={() => {
+                                  const allUserIds = filteredUsers.map((u) => u._id);
+                                  updateTaskForm(task.id, "assignedTo", allUserIds);
+                                }}
+                              >
+                                <CheckSquare size={18} />
+
+                                {/* Text visible on desktop only */}
+                                <span className="hidden lg:inline-flex">Select All</span>
+                              </button>
+
+                              {/* Clear All */}
+                              <button
+                                type="button"
+                                className="flex items-center gap-1 text-sm font-medium hover:scale-105 transition whitespace-nowrap"
+                                style={{ color: "var(--color-error)" }}
+                                onClick={() => {
+                                  updateTaskForm(task.id, "assignedTo", []);
+                                }}
+                              >
+                                <X size={18} />
+
+                                {/* Text visible on desktop only */}
+                                <span className="hidden lg:inline-flex">Clear</span>
+                              </button>
                             </div>
+
+                            {/* User List */}
                             <div className="max-h-48 overflow-y-auto">
                               {filteredUsers.length === 0 && (
-                                <p className="p-4 text-sm text-center" style={{ color: 'var(--color-textSecondary)' }}>No users found.</p>
+                                <p
+                                  className="p-4 text-sm text-center"
+                                  style={{ color: "var(--color-textSecondary)" }}
+                                >
+                                  No users found.
+                                </p>
                               )}
-                              {filteredUsers.map(userItem => (
+
+                              {filteredUsers.map((userItem) => (
                                 <label
                                   key={userItem._id}
                                   className="flex items-center p-3 cursor-pointer transition-all duration-200 hover:bg-opacity-80"
                                   style={{
-                                    backgroundColor: task.assignedTo.includes(userItem._id) ? 'var(--color-primary)' : '',
-                                    color: task.assignedTo.includes(userItem._id) ? 'white' : 'var(--color-text)'
+                                    backgroundColor: task.assignedTo.includes(userItem._id)
+                                      ? "var(--color-chat)"
+                                      : "",
+                                    color: task.assignedTo.includes(userItem._id)
+                                      ? ""
+                                      : "var(--color-text)",
                                   }}
                                 >
                                   <input
                                     type="checkbox"
                                     checked={task.assignedTo.includes(userItem._id)}
-                                    onChange={() => handleUserSelection(task.id, userItem._id)}
+                                    onChange={() =>
+                                      handleUserSelection(task.id, userItem._id)
+                                    }
                                     className="mr-3 w-4 h-4 rounded"
                                   />
                                   <div className="flex flex-col">
                                     <span className="font-medium">{userItem.username}</span>
-                                    <span className="text-xs opacity-75">{userItem.email}</span>
+                                    <span className="text-xs opacity-75">
+                                      {userItem.department}
+                                    </span>
                                   </div>
                                 </label>
                               ))}
@@ -626,18 +726,24 @@ const AssignTask: React.FC = () => {
                         )}
                       </div>
 
+                      {/* Selected User Tags */}
                       {task.assignedTo.length > 0 && (
                         <div className="flex flex-wrap gap-2 mt-2">
-                          {getSelectedUsers(task.id).map(selectedUser => (
+                          {getSelectedUsers(task.id).map((selectedUser) => (
                             <span
                               key={selectedUser._id}
                               className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium transition-all duration-200 hover:scale-105"
-                              style={{ backgroundColor: 'var(--color-primary)', color: 'white' }}
+                              style={{
+                                backgroundColor: "var(--color-primary)",
+                                color: "white",
+                              }}
                             >
                               {selectedUser.username}
                               <button
                                 type="button"
-                                onClick={() => handleUserSelection(task.id, selectedUser._id)}
+                                onClick={() =>
+                                  handleUserSelection(task.id, selectedUser._id)
+                                }
                                 className="ml-2 hover:bg-white hover:bg-opacity-20 rounded-full p-1"
                               >
                                 <X size={12} />
@@ -647,6 +753,7 @@ const AssignTask: React.FC = () => {
                         </div>
                       )}
                     </div>
+
 
                     {/* Priority */}
                     <div className="space-y-3">
@@ -684,6 +791,8 @@ const AssignTask: React.FC = () => {
                           <input
                             type="date"
                             value={task.dueDate}
+                            onClick={(e: React.MouseEvent<HTMLInputElement>) => (e.target as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
+                            onFocus={(e: React.FocusEvent<HTMLInputElement>) => (e.target as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
                             onChange={(e) => updateTaskForm(task.id, 'dueDate', e.target.value)}
                             required
                             className="w-full px-3 py-2 rounded-xl border-2 transition-all duration-200 "
@@ -703,6 +812,8 @@ const AssignTask: React.FC = () => {
                             <input
                               type="date"
                               value={task.startDate}
+                              onClick={(e: React.MouseEvent<HTMLInputElement>) => (e.target as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
+                              onFocus={(e: React.FocusEvent<HTMLInputElement>) => (e.target as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
                               onChange={(e) => updateTaskForm(task.id, 'startDate', e.target.value)}
                               required
                               className="w-full px-3 py-2 rounded-xl border-2 transition-all duration-200 "
@@ -722,6 +833,8 @@ const AssignTask: React.FC = () => {
                               <input
                                 type="date"
                                 value={task.endDate}
+                                onClick={(e: React.MouseEvent<HTMLInputElement>) => (e.target as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
+                                onFocus={(e: React.FocusEvent<HTMLInputElement>) => (e.target as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
                                 onChange={(e) => updateTaskForm(task.id, 'endDate', e.target.value)}
                                 required={!task.isForever}
                                 disabled={task.isForever}
@@ -780,7 +893,8 @@ const AssignTask: React.FC = () => {
                             <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>Include Sunday</span>
                           </label>
                         )}
-
+                        
+                        {task.taskType !== "weekly" && (
                         <label className="flex items-center cursor-pointer">
                           <input
                             type="checkbox"
@@ -790,6 +904,7 @@ const AssignTask: React.FC = () => {
                           />
                           <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>Week Off</span>
                         </label>
+                        )}
                       </div>
                     )}
 
@@ -810,8 +925,8 @@ const AssignTask: React.FC = () => {
                                 updateTaskForm(task.id, 'weekOffDays', newWeekOff);
                               }}
                               className={`p-2 rounded-lg border text-center transition-all duration-200 hover:scale-105 ${task.weekOffDays.includes(day.value)
-                                  ? 'bg-red-500 border-red-500 text-white'
-                                  : 'border-gray-300'
+                                ? 'bg-red-500 border-red-500 text-white'
+                                : 'border-gray-300'
                                 }`}
                               style={{
                                 backgroundColor: task.weekOffDays.includes(day.value) ? 'var(--color-error)' : 'var(--color-surface)',
@@ -837,8 +952,8 @@ const AssignTask: React.FC = () => {
                               type="button"
                               onClick={() => handleWeekDaySelection(task.id, day.value)}
                               className={`p-3 rounded-lg border-2 transition-all duration-200 hover:scale-105 ${task.weeklyDays.includes(day.value)
-                                  ? 'border-blue-500 bg-blue-50'
-                                  : 'border-gray-300'
+                                ? 'border-blue-500 bg-blue-50'
+                                : 'border-gray-300'
                                 }`}
                               style={{
                                 borderColor: task.weeklyDays.includes(day.value) ? 'var(--color-primary)' : 'var(--color-border)',
@@ -934,8 +1049,8 @@ const AssignTask: React.FC = () => {
                           <div
                             key={fileIndex}
                             className={`flex items-center justify-between p-3 rounded-xl transition-all duration-200 ${isAudioFile(file)
-                                ? 'bg-blue-50 border border-blue-200'
-                                : 'bg-gray-50'
+                              ? 'bg-blue-50 border border-blue-200'
+                              : 'bg-gray-50'
                               }`}
                             style={{
                               backgroundColor: isAudioFile(file)
@@ -1003,7 +1118,7 @@ const AssignTask: React.FC = () => {
                 style={{ backgroundColor: 'var(--color-success)', color: 'white' }}
               >
                 <Plus size={20} className="mr-2" />
-                Add Task
+                Add New Task
               </button>
 
               {/* Create All Tasks */}

@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 const userSchema = new mongoose.Schema({
   companyId: {
     type: String,
-    required: function() {
+    required: function () {
       return this.role !== 'superadmin';
     }
   },
@@ -29,6 +29,15 @@ const userSchema = new mongoose.Schema({
     enum: ['superadmin', 'admin', 'manager', 'employee'],
     default: 'employee'
   },
+  department: {
+    type: String,
+    default: ""
+  },
+  phone: {
+    type: String,
+    required: true,
+    trim: true
+  },
   permissions: {
     canViewTasks: { type: Boolean, default: true },
     canViewAllTeamTasks: { type: Boolean, default: false },
@@ -51,9 +60,9 @@ const userSchema = new mongoose.Schema({
 userSchema.index({ username: 1, companyId: 1 }, { unique: true });
 
 // Hash password before saving
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
-  
+
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
@@ -64,7 +73,7 @@ userSchema.pre('save', async function(next) {
 });
 
 // Compare password method
-userSchema.methods.comparePassword = async function(candidatePassword) {
+userSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 

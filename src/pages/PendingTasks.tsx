@@ -261,7 +261,10 @@ const PendingTasks: React.FC = () => {
       }
 
       const response = await axios.get(`${address}/api/users`, { params });
-      setUsers(response.data);
+      const sortedUsers = response.data.sort((a: User, b: User) =>
+        a.username.localeCompare(b.username)
+      );
+      setUsers(sortedUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
     }
@@ -465,7 +468,7 @@ const PendingTasks: React.FC = () => {
   // Enhanced Pagination Component
   const renderEnhancedPagination = () => (
     <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] p-4 mt-2">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col items-center text-center sm:flex-row sm:items-center sm:justify-between gap-4">
         {/* Items per page selector */}
         <div className="flex items-center space-x-2">
           <span className="text-sm text-[--color-textSecondary]">Show:</span>
@@ -515,16 +518,17 @@ const PendingTasks: React.FC = () => {
 
           {/* Page numbers */}
           <div className="flex items-center space-x-1">
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+            {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
               let pageNumber;
-              if (totalPages <= 5) {
+
+              if (totalPages <= 3) {
                 pageNumber = i + 1;
-              } else if (currentPage <= 3) {
+              } else if (currentPage === 1) {
                 pageNumber = i + 1;
-              } else if (currentPage >= totalPages - 2) {
-                pageNumber = totalPages - 4 + i;
+              } else if (currentPage === totalPages) {
+                pageNumber = totalPages - 2 + i;
               } else {
-                pageNumber = currentPage - 2 + i;
+                pageNumber = currentPage - 1 + i;
               }
 
               return (
@@ -600,13 +604,6 @@ const PendingTasks: React.FC = () => {
                   </h3>
                   <div className="flex space-x-1 ml-2 group-hover:opacity-100 transition-opacity">
                     <button
-                      onClick={() => setShowCompleteModal(task._id)}
-                      className="p-2 rounded-lg transition-all transform hover:scale-110 hover:bg-[--color-success] hover:text-[--color-background] text-[--color-success]"
-                      title="Complete task"
-                    >
-                      <CheckSquare size={16} />
-                    </button>
-                    <button
                       disabled={disableForHighPriority}
                       onClick={() => {
                         const revision = taskSettings?.revision;
@@ -629,10 +626,20 @@ const PendingTasks: React.FC = () => {
                         setShowReviseModal(task._id);
                       }}
 
-                      className="p-2 rounded-lg transition-all transform hover:scale-110 hover:bg-[--color-warning] hover:text-[--color-background] text-[--color-warning]"
+                      className={`transition-all transform hover:scale-110 ${disableForHighPriority
+                        ? "opacity-50 cursor-not-allowed text-gray-400"
+                        : "text-[--color-warning]"
+                        }`}
                       title="Revise task"
                     >
                       <RefreshCcw size={16} />
+                    </button>
+                    <button
+                      onClick={() => setShowCompleteModal(task._id)}
+                      className="p-2 rounded-lg transition-all transform hover:scale-110 hover:bg-[--color-success] hover:text-[--color-background] text-[--color-success]"
+                      title="Complete task"
+                    >
+                      <CheckSquare size={16} />
                     </button>
                   </div>
                 </div>
@@ -826,9 +833,6 @@ const PendingTasks: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium mr-3 bg-[--color-primary-dark] text-[--color-background]">
-                          {task.assignedTo.username.charAt(0).toUpperCase()}
-                        </div>
                         <div>
                           <div className="text-sm text-[--color-text]">{task.assignedTo.username}</div>
                           <div className="text-sm text-[--color-textSecondary]">{task.assignedTo.email}</div>
@@ -891,8 +895,8 @@ const PendingTasks: React.FC = () => {
                             setShowReviseModal(task._id);
                           }}
                           className={`transition-all transform hover:scale-110 ${disableForHighPriority
-                              ? "opacity-50 cursor-not-allowed text-gray-400"
-                              : "text-[--color-warning]"
+                            ? "opacity-50 cursor-not-allowed text-gray-400"
+                            : "text-[--color-warning]"
                             }`}
                           title="Revise task"
                         >
@@ -1175,7 +1179,7 @@ const PendingTasks: React.FC = () => {
                             }
                             setRevisionDate(e.target.value);
                           }}
-                          className="w-full px-3 py-2 border border-[--color-border] rounded-lg"
+                          className="w-full px-3 py-2 text-[--color-text] bg-[--color-background] border border-[--color-border] rounded-lg"
                         />
                         <div className="text-xs text-[--color-textSecondary] mt-1">
                           Allowed Range: {formatDate(baseDate)} → {effectiveMaxDays === Infinity ? 'No Limit' : formatDate(allowedMaxDate)} ({effectiveMaxDays === Infinity ? 'Unlimited' : `${effectiveMaxDays} days max for revision #${currentRevisionCount + 1}`})
@@ -1191,7 +1195,7 @@ const PendingTasks: React.FC = () => {
                           rows={3}
                           value={revisionRemarks}
                           onChange={(e) => setRevisionRemarks(e.target.value)}
-                          className="w-full px-3 py-2 border border-[--color-border] rounded-lg"
+                          className="w-full px-3 py-2 text-[--color-text] bg-[--color-background] border border-[--color-border] rounded-lg"
                           placeholder="Reason for revision..."
                         />
                       </div>
