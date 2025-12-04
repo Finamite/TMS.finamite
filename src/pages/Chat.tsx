@@ -156,6 +156,8 @@ const Chat: React.FC = () => {
     const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
     const [confirmText, setConfirmText] = useState("");
     const [replyTo, setReplyTo] = useState<Message | null>(null);
+    const [sidebarSearch, setSidebarSearch] = useState("");
+    const [freezeSidebarSearch, setFreezeSidebarSearch] = useState(false);
 
     const isAdmin = user?.role === 'admin' || user?.role === 'manager';
 
@@ -230,7 +232,7 @@ const Chat: React.FC = () => {
 
     // 🔄 AUTO REFRESH CHAT LIST EVERY 2 SECONDS
     useEffect(() => {
-        if (!user) return;
+        if (!user || freezeSidebarSearch) return;
 
         const interval = setInterval(() => {
             axios
@@ -269,7 +271,13 @@ const Chat: React.FC = () => {
         }, 2000);
 
         return () => clearInterval(interval);
-    }, [user]);
+    }, [user, freezeSidebarSearch]);
+
+    useEffect(() => {
+        if (sidebarSearch.trim() === "") {
+            setFreezeSidebarSearch(false);
+        }
+    }, [sidebarSearch]);
 
 
     // 🔄 SILENT AUTO REFRESH MESSAGES EVERY 2 SECONDS
@@ -1063,7 +1071,9 @@ const Chat: React.FC = () => {
                                 if (currentRole === "employee") {
                                     createSupportChat(); // employee goes direct
                                 } else {
-                                    setShowUserModal(true); // admin/manager opens modal
+                                    setSidebarSearch("");     // 🔥 reset sidebar search
+                                    setFreezeSidebarSearch(false);
+                                    setShowUserModal(true);
                                 }
                             }}
                             className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -1084,8 +1094,11 @@ const Chat: React.FC = () => {
                                 <input
                                     type="text"
                                     placeholder="Search user..."
-                                    value={userSearch}
-                                    onChange={(e) => setUserSearch(e.target.value)}
+                                    value={sidebarSearch}
+                                    onChange={(e) => {
+                                        setSidebarSearch(e.target.value);
+                                        setFreezeSidebarSearch(true);
+                                    }}
                                     className="w-full pl-10 pr-3 py-2 bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)]"
                                 />
                             </div>
@@ -1095,71 +1108,81 @@ const Chat: React.FC = () => {
 
                 {/* Chat List */}
                 <div className="flex-1 overflow-y-auto">
-                    {chats.map(chat => (
-                        <div
-                            key={chat._id}
-                            onClick={() => {
-                                // instant UI highlight
-                                setActiveChatId(chat._id);
-                                setActiveChat(chat);
+                    {chats
+                        .filter(chat => {
+                            const participantNames = chat.participants
+                                .filter(p => p.userId !== currentUserId)
+                                .map(p => p.username)
+                                .join(" ")
+                                .toLowerCase();
 
-                                // reset unread count instantly in UI
-                                setChats(prev =>
-                                    prev.map(c =>
-                                        c._id === chat._id ? { ...c, unreadCount: 0 } : c
-                                    )
-                                );
-                            }}
-                            className={`p-4 border-b border-[var(--color-border)] cursor-pointer transition-colors ${(activeChatId === chat._id) ? 'bg-[var(--color-chat)] text-white dark:bg-blue-500 dark:text-white border-r-2 border-r-blue-600' : ''}`}
-                        >
-                            <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center">
-                                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                                        <Users size={16} className="text-blue-600" />
+                            return participantNames.includes(sidebarSearch.toLowerCase());
+                        })
+                        .map(chat => (
+                            <div
+                                key={chat._id}
+                                onClick={() => {
+                                    // instant UI highlight
+                                    setActiveChatId(chat._id);
+                                    setActiveChat(chat);
+
+                                    // reset unread count instantly in UI
+                                    setChats(prev =>
+                                        prev.map(c =>
+                                            c._id === chat._id ? { ...c, unreadCount: 0 } : c
+                                        )
+                                    );
+                                }}
+                                className={`p-4 border-b border-[var(--color-border)] cursor-pointer transition-colors ${(activeChatId === chat._id) ? 'bg-[var(--color-chat)] text-white dark:bg-blue-500 dark:text-white border-r-2 border-r-blue-600' : ''}`}
+                            >
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center">
+                                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                                            <Users size={16} className="text-blue-600" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-medium text-[var(--color-text)] text-sm dark:text-white">
+                                                {chat.participants
+                                                    .filter(p => p.userId !== currentUserId)
+                                                    .map(p => p.username)
+                                                    .join(", ")}
+                                            </h3>
+                                            <p className="text-xs text-[var(--color-textSecondary)]">
+                                                {chat.participants.length} participants
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h3 className="font-medium text-[var(--color-text)] text-sm dark:text-white">
-                                            {chat.participants
-                                                .filter(p => p.userId !== currentUserId)
-                                                .map(p => p.username)
-                                                .join(", ")}
-                                        </h3>
-                                        <p className="text-xs text-[var(--color-textSecondary)]">
-                                            {chat.participants.length} participants
-                                        </p>
-                                    </div>
+                                    {chat.lastMessageAt && (
+                                        <span className="text-xs text-[var(--color-textSecondary)]">
+                                            {new Date(chat.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                    )}
                                 </div>
-                                {chat.lastMessageAt && (
-                                    <span className="text-xs text-[var(--color-textSecondary)]">
-                                        {new Date(chat.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                )}
-                            </div>
-                            <div className="flex items-center justify-between mt-1">
-                                {/* LEFT SIDE: Last message preview */}
-                                {chat.isTyping ? (
-                                    <p className="text-sm text-blue-600 italic">Typing...</p>
-                                ) : (
-                                    chat.lastMessage && (
-                                        <p className="text-sm text-[var(--color-textSecondary)] truncate max-w-[75%]">
-                                            <span className="font-medium">
-                                                {chat.lastMessage.senderInfo?.username}:
-                                            </span>
-                                            {' '}
-                                            {chat.lastMessage.content || '📎 Attachment'}
-                                        </p>
-                                    )
-                                )}
+                                <div className="flex items-center justify-between mt-1">
+                                    {/* LEFT SIDE: Last message preview */}
+                                    {chat.isTyping ? (
+                                        <p className="text-sm text-blue-600 italic">Typing...</p>
+                                    ) : (
+                                        chat.lastMessage && (
+                                            <p className="text-sm text-[var(--color-textSecondary)] truncate max-w-[75%]">
+                                                <span className="font-medium">
+                                                    {chat.lastMessage.senderInfo?.username}:
+                                                </span>
+                                                {' '}
+                                                {chat.lastMessage.content || '📎 Attachment'}
+                                            </p>
+                                        )
+                                    )}
 
-                                {/* RIGHT SIDE: Unread message count */}
-                                {chat.unreadCount! > 0 && chat._id !== activeChat?._id && (
-                                    <span className="bg-red-600 text-white text-xs px-2 py-1 rounded-full ml-2 shrink-0">
-                                        {chat.unreadCount}
-                                    </span>
-                                )}
+                                    {/* RIGHT SIDE: Unread message count */}
+                                    {chat.unreadCount! > 0 && chat._id !== activeChat?._id && (
+                                        <span className="bg-red-600 text-white text-xs px-2 py-1 rounded-full ml-2 shrink-0">
+                                            {chat.unreadCount}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        ))}
                 </div>
             </div>
 
@@ -1539,7 +1562,7 @@ const Chat: React.FC = () => {
                         <div className="p-4 border-b border-gray-200">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-lg font-semibold text-[var(--color-text)] flex items-center">
-                                    <Tag size={20} className="mr-2 text-blue-600" />
+                                    <Tag size={20} className="mr-2 text-[var(--color-primary)]" />
                                     Tag a Task
                                 </h3>
                                 <button
@@ -1612,15 +1635,15 @@ const Chat: React.FC = () => {
                                                     setSelectedTask(task);
                                                     setShowTaskModal(false);
                                                 }}
-                                                className="p-3 bg-[var(--color-surface)] hover:bg-blue-50 rounded-lg border border-gray-200 hover:border-blue-300 cursor-pointer group"
+                                                className="p-3 bg-[var(--color-surface)] hover:bg-[var(--color-chat)] rounded-lg border border-gray-200 hover:border-blue-300 cursor-pointer group"
                                             >
                                                 <div className="flex items-start justify-between">
                                                     <div className="flex-1">
-                                                        <h4 className="font-medium text-[var(--color-text)] group-hover:text-blue-900 mb-1">{task.title}</h4>
+                                                        <h4 className="font-medium text-[var(--color-text)] mb-1">{task.title}</h4>
                                                         <p className="text-sm text-[var(--color-textSecondary)] mb-2 line-clamp-2">{task.description}</p>
                                                         <div className="flex items-center justify-between">
                                                             <div className="flex items-center space-x-3 text-xs">
-                                                                <span className="flex items-center text-blue-600">
+                                                                <span className="flex items-center text-[var(--color-text)]">
                                                                     <Clock size={10} className="mr-1" />
                                                                     {new Date(task.dueDate).toLocaleDateString("en-IN")}
                                                                 </span>
@@ -1721,7 +1744,7 @@ const Chat: React.FC = () => {
                             <div className="relative">
                                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)]" />
                                 <input
-                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 pl-10 pr-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    className="w-full bg-[var(--color-surface)] border border-gray-200 rounded-lg py-2 pl-10 pr-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                     placeholder="Search user..."
                                     value={userSearch}
                                     onChange={(e) => setUserSearch(e.target.value)}
@@ -1744,10 +1767,12 @@ const Chat: React.FC = () => {
                                     <div
                                         key={u._id}
                                         onClick={() => {
+                                            setSidebarSearch("");      // 🔥 reset sidebar search so sidebar list doesn't jump
+                                            setFreezeSidebarSearch(false);
                                             startChatWithUser(u._id);
                                             setShowUserModal(false);
                                         }}
-                                        className="p-3 flex items-center justify-between bg-gray-50 hover:bg-blue-50 border border-gray-200 hover:border-blue-400 rounded-lg cursor-pointer mb-2 transition-all"
+                                        className="p-3 flex items-center justify-between bg-[var(--color-background)] hover:bg-[var(--color-chat)] border border-gray-200 hover:border-blue-400 rounded-lg cursor-pointer mb-2 transition-all"
                                     >
                                         <div className="flex items-center">
                                             <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-semibold mr-3">

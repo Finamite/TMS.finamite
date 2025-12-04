@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -370,64 +370,29 @@ const Dashboard: React.FC = () => {
     try {
       if (!user?.companyId) return {};
 
-      const responseOneTime = await axios.get(`${address}/api/tasks/pending`, {
-        params: { companyId: user.companyId, isActive: true }
-      });
-      const responseRecurring = await axios.get(`${address}/api/tasks/pending-recurring`, {
-        params: { companyId: user.companyId, isActive: true }
+      const res = await axios.get(`${address}/api/tasks/team-pending-fast`, {
+        params: { companyId: user.companyId }
       });
 
-      const allRaw = [...responseOneTime.data, ...responseRecurring.data];
-      const uniqueMap = new Map();
-      allRaw.forEach(task => uniqueMap.set(task._id, task));
-
-      const tasks = Array.from(uniqueMap.values());
-      const grouped: Record<string, TeamPendingCounts> = {};
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      tasks.forEach(task => {
-        const username = task.assignedTo?.username || "Unknown";
-        if (!grouped[username]) {
-          grouped[username] = {
-            oneTimeToday: 0,
-            oneTimeOverdue: 0,
-            dailyToday: 0,
-            recurringToday: 0,
-            recurringOverdue: 0
-          };
-        }
-
-        const due = new Date(task.dueDate);
-        due.setHours(0, 0, 0, 0);
-
-        const isToday = due.getTime() === today.getTime();
-        const isOverdue = due < today;
-        const active = ["pending", "overdue", "in-progress"].includes(task.status);
-
-        if (task.taskType === "one-time" && active) {
-          if (isToday) grouped[username].oneTimeToday++;
-          if (isOverdue) grouped[username].oneTimeOverdue++;
-        }
-
-        if (task.taskType === "daily" && active) {
-          if (isToday) grouped[username].dailyToday++;
-        }
-
-        if (["weekly", "monthly", "quarterly", "yearly"].includes(task.taskType) && active) {
-          if (isToday) grouped[username].recurringToday++;
-          if (isOverdue) grouped[username].recurringOverdue++;
-        }
+      const grouped: TeamPendingData = {};
+      res.data.forEach((u: { _id: string | number; oneTimeToday: any; oneTimeOverdue: any; dailyToday: any; recurringToday: any; recurringOverdue: any; }) => {
+        grouped[u._id] = {
+          oneTimeToday: u.oneTimeToday,
+          oneTimeOverdue: u.oneTimeOverdue,
+          dailyToday: u.dailyToday,
+          recurringToday: u.recurringToday,
+          recurringOverdue: u.recurringOverdue
+        };
       });
 
       return grouped;
-    } catch (err) {
+    } catch {
       return {};
     }
   }, []);
 
 
+const memoTeamPendingData = useMemo(() => teamPendingData, [teamPendingData]);
 
   const fetchTaskCounts = useCallback(async (startDate?: string, endDate?: string) => {
     try {
@@ -1045,7 +1010,7 @@ const Dashboard: React.FC = () => {
 
           {user && (
             <TeamPendingTasksChart
-              teamPendingData={teamPendingData}
+              teamPendingData={memoTeamPendingData}
               user={user}
             />
           )}
@@ -1145,213 +1110,213 @@ const Dashboard: React.FC = () => {
                       </ThemeCard>
                     </div>
                   )}
-          </div>
+                </div>
               )}
 
-          <div className="flex items-center justify-around sm:justify-between flex-wrap gap-2 sm:gap-6 bg-[var(--color-surface)]/50 backdrop-blur-sm rounded-2xl p-3 sm:p-4 border border-[var(--color-border)] w-full sm:w-auto">
-            <div className="flex items-center space-x-2 sm:space-x-3">
-              <div className="relative">
-                <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full shadow-lg" style={{ background: `linear-gradient(135deg, #6a11cb 0%, #2575fc 100%)` }}></div>
-                <div className="absolute inset-0 w-3 h-3 sm:w-4 sm:h-4 rounded-full animate-pulse opacity-50" style={{ background: `linear-gradient(135deg, var(--color-success), var(--color-primary))` }}></div>
-              </div>
-              <span className="text-xs sm:text-sm font-semibold text-[var(--color-text)]">Completed</span>
-              <div className="text-base sm:text-lg font-bold" style={{ color: '#5598fcff' }}>
-                {trendData.reduce((sum, item) => sum + item.completed, 0)}
-              </div>
-            </div>
-            <div className="w-px h-6 sm:h-8 bg-[var(--color-border)]"></div>
-            <div className="flex items-center space-x-2 sm:space-x-3">
-              <div className="relative">
-                <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full shadow-lg" style={{ background: `linear-gradient(135deg, #6a11cb 0%, #22dcf5ff 100%)` }}></div>
-                <div className="absolute inset-0 w-3 h-3 sm:w-4 sm:h-4 rounded-full animate-pulse opacity-50" style={{ background: `linear-gradient(135deg, #40d5daff 0%, #22dcf5ff 100%)` }}></div>
-              </div>
-              <span className="text-xs sm:text-sm font-semibold text-[var(--color-text)]">Planned</span>
-              <div className="text-base sm:text-lg font-bold" style={{ color: '#04b9ddff' }}>
-                {trendData.reduce((sum, item) => sum + item.planned, 0)}
-              </div>
-            </div>
-          </div>
-      </div>
-    </div>
-
-          {
-    (user?.role === 'admin' || user?.role === 'manager') && selectedTeamMember !== 'all' && (
-      <div className="mb-6 p-4 rounded-2xl border border-[var(--color-primary)]/30" style={{ backgroundColor: 'var(--color-primary)05' }}>
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-r from-blue-400 to-purple-600 flex items-center justify-center text-white font-bold">
-            {selectedTeamMember.charAt(0).toUpperCase()}
-          </div>
-          <div>
-            <h4 className="text-lg font-bold text-[var(--color-text)]">
-              {selectedTeamMember}'s Performance Trend
-            </h4>
-            <p className="text-sm text-[var(--color-textSecondary)]">
-              Showing individual completion data for {selectedTeamMember}
-            </p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  <div className="relative">
-    <ResponsiveContainer width="100%" height={470}>
-      <AreaChart
-        data={trendData}
-        margin={{ top: 40, right: 20, left: 0, bottom: 20 }}
-      >
-        <defs>
-          {/* COMPLETED AREA GRADIENT */}
-          <linearGradient id="completedArea" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#1614b1ff" stopOpacity={0.55} />
-            <stop offset="95%" stopColor="#1614b1ff" stopOpacity={0.05} />
-          </linearGradient>
-
-          {/* COMPLETED STROKE GRADIENT */}
-          <linearGradient id="completedStroke" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#1614b1ff" />
-            <stop offset="100%" stopColor="#182fb1ff" />
-          </linearGradient>
-
-          {/* PLANNED AREA GRADIENT */}
-          <linearGradient id="plannedArea" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#00d4ff" stopOpacity={0.55} />
-            <stop offset="95%" stopColor="#00d4ff" stopOpacity={0.05} />
-          </linearGradient>
-
-          {/* PLANNED STROKE GRADIENT */}
-          <linearGradient id="plannedStroke" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#00d4ff" />
-            <stop offset="100%" stopColor="#04b9ddff" />
-          </linearGradient>
-
-          {/* Soft Glow Effect */}
-          <filter id="chartGlow">
-            <feGaussianBlur stdDeviation="6" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-
-        <CartesianGrid
-          strokeDasharray="3 3"
-          stroke="var(--color-border)"
-          opacity={0.35}
-          vertical={false}
-        />
-
-        <XAxis
-          dataKey="month"
-          stroke="var(--color-textSecondary)"
-          fontSize={12}
-          fontWeight={600}
-          tickLine={false}
-          axisLine={false}
-          dy={10}
-        />
-
-        <YAxis
-          stroke="var(--color-textSecondary)"
-          fontSize={12}
-          fontWeight={600}
-          tickLine={false}
-          axisLine={false}
-          dx={-5}
-        />
-
-        {/* Modern Glass Tooltip */}
-        <Tooltip
-          content={({ active, payload, label }) => {
-            if (active && payload && payload.length) {
-              return (
-                <div className="backdrop-blur-xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-2xl rounded-2xl p-4">
-                  <p className="text-sm font-bold text-[var(--color-text)] mb-2">
-                    {label} {new Date().getFullYear()}
-                  </p>
-                  <div className="space-y-1">
-                    {payload.map((entry: any, i: number) => (
-                      <div
-                        key={i}
-                        className="flex justify-between items-center text-sm"
-                      >
-                        <span className="text-[var(--color-textSecondary)]">
-                          {entry.name}
-                        </span>
-                        <span style={{ color: entry.color }} className="font-bold">
-                          {entry.value}
-                        </span>
-                      </div>
-                    ))}
+              <div className="flex items-center justify-around sm:justify-between flex-wrap gap-2 sm:gap-6 bg-[var(--color-surface)]/50 backdrop-blur-sm rounded-2xl p-3 sm:p-4 border border-[var(--color-border)] w-full sm:w-auto">
+                <div className="flex items-center space-x-2 sm:space-x-3">
+                  <div className="relative">
+                    <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full shadow-lg" style={{ background: `linear-gradient(135deg, #6a11cb 0%, #2575fc 100%)` }}></div>
+                    <div className="absolute inset-0 w-3 h-3 sm:w-4 sm:h-4 rounded-full animate-pulse opacity-50" style={{ background: `linear-gradient(135deg, var(--color-success), var(--color-primary))` }}></div>
+                  </div>
+                  <span className="text-xs sm:text-sm font-semibold text-[var(--color-text)]">Completed</span>
+                  <div className="text-base sm:text-lg font-bold" style={{ color: '#5598fcff' }}>
+                    {trendData.reduce((sum, item) => sum + item.completed, 0)}
                   </div>
                 </div>
-              );
-            }
-            return null;
-          }}
-        />
+                <div className="w-px h-6 sm:h-8 bg-[var(--color-border)]"></div>
+                <div className="flex items-center space-x-2 sm:space-x-3">
+                  <div className="relative">
+                    <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full shadow-lg" style={{ background: `linear-gradient(135deg, #6a11cb 0%, #22dcf5ff 100%)` }}></div>
+                    <div className="absolute inset-0 w-3 h-3 sm:w-4 sm:h-4 rounded-full animate-pulse opacity-50" style={{ background: `linear-gradient(135deg, #40d5daff 0%, #22dcf5ff 100%)` }}></div>
+                  </div>
+                  <span className="text-xs sm:text-sm font-semibold text-[var(--color-text)]">Planned</span>
+                  <div className="text-base sm:text-lg font-bold" style={{ color: '#04b9ddff' }}>
+                    {trendData.reduce((sum, item) => sum + item.planned, 0)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-        {/* PLANNED LINE */}
-        <Area
-          type="monotone"
-          dataKey="planned"
-          name="Planned Tasks"
-          stroke="url(#plannedStroke)"
-          strokeWidth={3}
-          fill="url(#plannedArea)"
-          fillOpacity={1}
-          filter="url(#chartGlow)"
-          dot={{
-            r: 5,
-            stroke: "var(--color-background)",
-            strokeWidth: 2,
-            fill: "#04b9ddff",
-          }}
-          activeDot={{
-            r: 7,
-            stroke: "var(--color-background)",
-            strokeWidth: 3,
-            fill: "#04b9ddff",
-          }}
-        />
+          {
+            (user?.role === 'admin' || user?.role === 'manager') && selectedTeamMember !== 'all' && (
+              <div className="mb-6 p-4 rounded-2xl border border-[var(--color-primary)]/30" style={{ backgroundColor: 'var(--color-primary)05' }}>
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-r from-blue-400 to-purple-600 flex items-center justify-center text-white font-bold">
+                    {selectedTeamMember.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-bold text-[var(--color-text)]">
+                      {selectedTeamMember}'s Performance Trend
+                    </h4>
+                    <p className="text-sm text-[var(--color-textSecondary)]">
+                      Showing individual completion data for {selectedTeamMember}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )
+          }
 
-        {/* COMPLETED LINE */}
-        <Area
-          type="monotone"
-          dataKey="completed"
-          name="Completed Tasks"
-          stroke="url(#completedStroke)"
-          strokeWidth={3}
-          fill="url(#completedArea)"
-          fillOpacity={1}
-          filter="url(#chartGlow)"
-          dot={{
-            r: 5,
-            stroke: "var(--color-background)",
-            strokeWidth: 2,
-            fill: "#182fb1ff",
-          }}
-          activeDot={{
-            r: 7,
-            stroke: "var(--color-background)",
-            strokeWidth: 3,
-            fill: "#182fb1ff",
-          }}
-        />
-      </AreaChart>
-    </ResponsiveContainer>
-    <div className="absolute top-4 right-4 opacity-20">
-      <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: 'var(--color-primary)' }}></div>
-    </div>
-    <div className="absolute bottom-8 left-8 opacity-15">
-      <div className="w-3 h-3 rounded-full animate-pulse delay-1000" style={{ backgroundColor: 'var(--color-accent)' }}></div>
-    </div>
-  </div>
+          <div className="relative">
+            <ResponsiveContainer width="100%" height={470}>
+              <AreaChart
+                data={trendData}
+                margin={{ top: 40, right: 20, left: 0, bottom: 20 }}
+              >
+                <defs>
+                  {/* COMPLETED AREA GRADIENT */}
+                  <linearGradient id="completedArea" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#1614b1ff" stopOpacity={0.55} />
+                    <stop offset="95%" stopColor="#1614b1ff" stopOpacity={0.05} />
+                  </linearGradient>
+
+                  {/* COMPLETED STROKE GRADIENT */}
+                  <linearGradient id="completedStroke" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#1614b1ff" />
+                    <stop offset="100%" stopColor="#182fb1ff" />
+                  </linearGradient>
+
+                  {/* PLANNED AREA GRADIENT */}
+                  <linearGradient id="plannedArea" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#00d4ff" stopOpacity={0.55} />
+                    <stop offset="95%" stopColor="#00d4ff" stopOpacity={0.05} />
+                  </linearGradient>
+
+                  {/* PLANNED STROKE GRADIENT */}
+                  <linearGradient id="plannedStroke" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#00d4ff" />
+                    <stop offset="100%" stopColor="#04b9ddff" />
+                  </linearGradient>
+
+                  {/* Soft Glow Effect */}
+                  <filter id="chartGlow">
+                    <feGaussianBlur stdDeviation="6" result="blur" />
+                    <feMerge>
+                      <feMergeNode in="blur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+                </defs>
+
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="var(--color-border)"
+                  opacity={0.35}
+                  vertical={false}
+                />
+
+                <XAxis
+                  dataKey="month"
+                  stroke="var(--color-textSecondary)"
+                  fontSize={12}
+                  fontWeight={600}
+                  tickLine={false}
+                  axisLine={false}
+                  dy={10}
+                />
+
+                <YAxis
+                  stroke="var(--color-textSecondary)"
+                  fontSize={12}
+                  fontWeight={600}
+                  tickLine={false}
+                  axisLine={false}
+                  dx={-5}
+                />
+
+                {/* Modern Glass Tooltip */}
+                <Tooltip
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="backdrop-blur-xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-2xl rounded-2xl p-4">
+                          <p className="text-sm font-bold text-[var(--color-text)] mb-2">
+                            {label} {new Date().getFullYear()}
+                          </p>
+                          <div className="space-y-1">
+                            {payload.map((entry: any, i: number) => (
+                              <div
+                                key={i}
+                                className="flex justify-between items-center text-sm"
+                              >
+                                <span className="text-[var(--color-textSecondary)]">
+                                  {entry.name}
+                                </span>
+                                <span style={{ color: entry.color }} className="font-bold">
+                                  {entry.value}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+
+                {/* PLANNED LINE */}
+                <Area
+                  type="monotone"
+                  dataKey="planned"
+                  name="Planned Tasks"
+                  stroke="url(#plannedStroke)"
+                  strokeWidth={3}
+                  fill="url(#plannedArea)"
+                  fillOpacity={1}
+                  filter="url(#chartGlow)"
+                  dot={{
+                    r: 5,
+                    stroke: "var(--color-background)",
+                    strokeWidth: 2,
+                    fill: "#04b9ddff",
+                  }}
+                  activeDot={{
+                    r: 7,
+                    stroke: "var(--color-background)",
+                    strokeWidth: 3,
+                    fill: "#04b9ddff",
+                  }}
+                />
+
+                {/* COMPLETED LINE */}
+                <Area
+                  type="monotone"
+                  dataKey="completed"
+                  name="Completed Tasks"
+                  stroke="url(#completedStroke)"
+                  strokeWidth={3}
+                  fill="url(#completedArea)"
+                  fillOpacity={1}
+                  filter="url(#chartGlow)"
+                  dot={{
+                    r: 5,
+                    stroke: "var(--color-background)",
+                    strokeWidth: 2,
+                    fill: "#182fb1ff",
+                  }}
+                  activeDot={{
+                    r: 7,
+                    stroke: "var(--color-background)",
+                    strokeWidth: 3,
+                    fill: "#182fb1ff",
+                  }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+            <div className="absolute top-4 right-4 opacity-20">
+              <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: 'var(--color-primary)' }}></div>
+            </div>
+            <div className="absolute bottom-8 left-8 opacity-15">
+              <div className="w-3 h-3 rounded-full animate-pulse delay-1000" style={{ backgroundColor: 'var(--color-accent)' }}></div>
+            </div>
+          </div>
         </ThemeCard >
 
-  {/* Recent Activity */ }
-  < ThemeCard className = "p-4 sm:p-8 xl:col-span-3" variant = "glass" >
+        {/* Recent Activity */}
+        < ThemeCard className="p-4 sm:p-8 xl:col-span-3" variant="glass" >
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-2">
             <div className="flex items-center space-x-3">
               <div className="p-3 rounded-2xl text-white" style={{ background: `linear-gradient(135deg, #6a11cb 0%, #2575fc 100%)` }}>

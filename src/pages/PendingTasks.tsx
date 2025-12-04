@@ -203,18 +203,7 @@ const PendingTasks: React.FC = () => {
     setCurrentPage(1);
   }, [allTasks, filter, sortOrder]);
 
-  const canRevise = (task: Task) => {
-    // 🔥 Global revision toggle OFF = NOTHING related to revisions should work
-    if (!revisionSettings?.enableRevisions) return false;
 
-    // 🔥 Restrict high priority revisions ONLY when enabled AND revisions ON
-    if (revisionSettings?.restrictHighPriorityRevision && task.priority === "high") {
-      return false;
-    }
-
-    // 🔥 Check max revision limit
-    return task.revisionCount < revisionSettings.limit;
-  };
   const fetchTasks = async () => {
     try {
       setLoading(true);

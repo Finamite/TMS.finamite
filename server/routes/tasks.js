@@ -327,6 +327,98 @@ router.get('/pending-recurring', async (req, res) => {
   }
 });
 
+router.get('/team-pending-fast', async (req, res) => {
+  try {
+    const { companyId } = req.query;
+
+    const tasks = await Task.aggregate([
+      { $match: {
+          companyId,
+          isActive: true,
+          status: { $in: ["pending", "overdue"] }
+      }},
+      {
+        $project: {
+          assignedTo: 1,
+          taskType: 1,
+          dueDate: 1
+        }
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "assignedTo",
+          foreignField: "_id",
+          as: "user"
+        }
+      },
+      { $unwind: "$user" },
+      {
+        $addFields: {
+          username: "$user.username",
+          isToday: {
+            $eq: [
+              { $dateToString: { format: "%Y-%m-%d", date: "$dueDate" } },
+              { $dateToString: { format: "%Y-%m-%d", date: new Date() } }
+            ]
+          },
+          isOverdue: { $lt: ["$dueDate", new Date()] }
+        }
+      },
+      {
+        $group: {
+          _id: "$username",
+          oneTimeToday: {
+            $sum: {
+              $cond: [
+                { $and: [ { $eq: ["$taskType", "one-time"] }, "$isToday" ] }, 1, 0
+              ]
+            }
+          },
+          oneTimeOverdue: {
+            $sum: {
+              $cond: [
+                { $and: [ { $eq: ["$taskType", "one-time"] }, "$isOverdue" ] }, 1, 0
+              ]
+            }
+          },
+          dailyToday: {
+            $sum: {
+              $cond: [
+                { $and: [ { $eq: ["$taskType", "daily"] }, "$isToday" ] }, 1, 0
+              ]
+            }
+          },
+          recurringToday: {
+            $sum: {
+              $cond: [
+                { $and: [
+                    { $in: ["$taskType", ["weekly","monthly","quarterly","yearly"]] },
+                    "$isToday"
+                ] }, 1, 0
+              ]
+            }
+          },
+          recurringOverdue: {
+            $sum: {
+              $cond: [
+                { $and: [
+                    { $in: ["$taskType", ["weekly","monthly","quarterly","yearly"]] },
+                    "$isOverdue"
+                ] }, 1, 0
+              ]
+            }
+          }
+        }
+      }
+    ]);
+
+    res.json(tasks);
+  } catch (err) {
+    res.json([]);
+  }
+});
+
 // ✅ NEW OPTIMIZED ROUTE: Get master recurring tasks with pre-processed data
 router.get('/master-recurring', async (req, res) => {
   try {

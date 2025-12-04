@@ -93,9 +93,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   };
 
   const getRoleLabel = (role: string) => {
-  if (role === "employee") return "User";
-  return role.charAt(0).toUpperCase() + role.slice(1);
-}
+    if (role === "employee") return "User";
+    return role.charAt(0).toUpperCase() + role.slice(1);
+  }
 
   useEffect(() => {
     fetchNotif();
@@ -193,9 +193,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
             onClick={() => setNotifOpen(o => !o)}
             className="p-2 rounded-xl shadow-sm hover:scale-105 transition"
             style={{
-              background: "var(--color-surface)",
+              backgroundColor: "var(--color-surface)",
               border: "1px solid var(--color-border)",
-              color: "var(--color-text)"
+              color: "var(--color-primary)"
             }}
           >
             <Bell size={18} />
@@ -288,8 +288,8 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
                   >
                     <div className="flex items-center gap-1">
                       <span className={`text-sm font-semibold ${mainTab === "one"
-                          ? "text-[var(--color-primary)]"
-                          : "text-[var(--color-textSecondary)]"
+                        ? "text-[var(--color-primary)]"
+                        : "text-[var(--color-textSecondary)]"
                         }`}>
                         One-Time
                       </span>
@@ -324,8 +324,8 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
                   >
                     <div className="flex items-center gap-1">
                       <span className={`text-sm font-semibold ${mainTab === "rec"
-                          ? "text-[var(--color-primary)]"
-                          : "text-[var(--color-textSecondary)]"
+                        ? "text-[var(--color-primary)]"
+                        : "text-[var(--color-textSecondary)]"
                         }`}>
                         Recurring
                       </span>
