@@ -469,39 +469,39 @@ const Dashboard: React.FC = () => {
   }, []);
 
   useEffect(() => {
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      let monthStart: string | undefined = undefined;
-      let monthEnd: string | undefined = undefined;
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        let analyticsData = null;
+        let countsData = null;
 
-      if (viewMode === "current") {
-        monthStart = startOfMonth(selectedMonth).toISOString();
-        monthEnd = endOfMonth(selectedMonth).toISOString();
+        if (viewMode === 'current') {
+          // For current month view, use date filters
+          const monthStart = startOfMonth(selectedMonth);
+          const monthEnd = endOfMonth(selectedMonth);
+          analyticsData = await fetchDashboardAnalytics(monthStart.toISOString(), monthEnd.toISOString());
+          countsData = await fetchTaskCounts(monthStart.toISOString(), monthEnd.toISOString());
+        } else {
+          // For all-time view, fetch without date filters
+          analyticsData = await fetchDashboardAnalytics();
+          countsData = await fetchTaskCounts();
+        }
+
+        setDashboardData(analyticsData);
+        setTaskCounts(countsData);
+
+
+      } catch (error) {
+        console.error('Error in loadData:', error);
+      } finally {
+        setLoading(false);
       }
+    };
 
-      // 🎯 RUN ALL 3 APIs IN PARALLEL
-      const [analyticsData, countsData, pendingData] = await Promise.all([
-        fetchDashboardAnalytics(monthStart, monthEnd),
-        fetchTaskCounts(monthStart, monthEnd),
-        fetchTeamPendingTasks(),
-      ]);
-
-      // 🎯 SET DATA TO STATE
-      setDashboardData(analyticsData);
-      setTaskCounts(countsData);
-      setTeamPendingData(pendingData);
-
-    } catch (error) {
-      console.error("Error loading dashboard:", error);
-    } finally {
-      setLoading(false);
+    if (user?.id) {
+      loadData();
     }
-  };
-
-  if (user?.id) loadData();
-}, [user, selectedMonth, viewMode]);
-
+  }, [user, selectedMonth, viewMode]);
 
   useEffect(() => {
     if (showMonthFilter && monthListRef.current) {
@@ -515,6 +515,22 @@ const Dashboard: React.FC = () => {
     }
   }, [showMonthFilter]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadTeamPending = async () => {
+      const pending = await fetchTeamPendingTasks();
+      if (isMounted) setTeamPendingData(pending);
+    };
+
+    // fetch only once when user loads dashboard
+    if (user?.id) {
+      loadTeamPending();
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
 
   // Load member trend data when selected team member changes
   useEffect(() => {
