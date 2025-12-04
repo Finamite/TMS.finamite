@@ -203,6 +203,18 @@ const PendingTasks: React.FC = () => {
     setCurrentPage(1);
   }, [allTasks, filter, sortOrder]);
 
+  const canRevise = (task: Task) => {
+    // 🔥 Global revision toggle OFF = NOTHING related to revisions should work
+    if (!revisionSettings?.enableRevisions) return false;
+
+    // 🔥 Restrict high priority revisions ONLY when enabled AND revisions ON
+    if (revisionSettings?.restrictHighPriorityRevision && task.priority === "high") {
+      return false;
+    }
+
+    // 🔥 Check max revision limit
+    return task.revisionCount < revisionSettings.limit;
+  };
   const fetchTasks = async () => {
     try {
       setLoading(true);
@@ -575,6 +587,7 @@ const PendingTasks: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
         {currentTasks.map((task) => {
           const disableForHighPriority =
+            revisionSettings?.enableRevisions === true &&   // 🔥 Only restrict when revisions ON
             revisionSettings?.restrictHighPriorityRevision === true &&
             task.priority?.toLowerCase() === "high" &&
             task.taskType === "one-time";
@@ -604,36 +617,48 @@ const PendingTasks: React.FC = () => {
                   </h3>
                   <div className="flex space-x-1 ml-2 group-hover:opacity-100 transition-opacity">
                     <button
-                      disabled={disableForHighPriority}
+                      disabled={
+                        disableForHighPriority ||
+                        (
+                          revisionSettings?.enableRevisions &&
+                          revisionSettings?.enableMaxRevision &&
+                          task.revisionCount >= revisionSettings?.limit
+                        )
+                      }
                       onClick={() => {
-                        const revision = taskSettings?.revision;
+                        if (disableForHighPriority) {
+                          alert("Revision is restricted for High Priority one-time tasks.");
+                          return;
+                        }
 
-                        // If settings not loaded → open modal
-                        if (!revision) {
+                        if (!revisionSettings) {
                           setShowReviseModal(task._id);
                           return;
                         }
 
-                        // If revision enabled → only check limit here
-                        if (revision.enableRevisions) {
-                          if (task.revisionCount >= revision.limit) {
-                            alert(`You cannot revise more than ${revision.limit} times`);
+                        // Apply limit ONLY if enableMaxRevision = true
+                        if (revisionSettings.enableRevisions && revisionSettings.enableMaxRevision) {
+                          if (task.revisionCount >= revisionSettings.limit) {
+                            alert(`You cannot revise more than ${revisionSettings.limit} times`);
                             return;
                           }
                         }
 
-                        // Open modal ALWAYS after limit passes
                         setShowReviseModal(task._id);
                       }}
-
-                      className={`transition-all transform hover:scale-110 ${disableForHighPriority
+                      className={`transition-all transform hover:scale-110 ${disableForHighPriority ||
+                        (
+                          revisionSettings?.enableRevisions &&
+                          revisionSettings?.enableMaxRevision &&
+                          task.revisionCount >= revisionSettings?.limit
+                        )
                         ? "opacity-50 cursor-not-allowed text-gray-400"
                         : "text-[--color-warning]"
                         }`}
-                      title="Revise task"
                     >
                       <RefreshCcw size={16} />
                     </button>
+
                     <button
                       onClick={() => setShowCompleteModal(task._id)}
                       className="p-2 rounded-lg transition-all transform hover:scale-110 hover:bg-[--color-success] hover:text-[--color-background] text-[--color-success]"
@@ -773,6 +798,7 @@ const PendingTasks: React.FC = () => {
               {currentTasks.map((task, index) => {
 
                 const disableForHighPriority =
+                  revisionSettings?.enableRevisions === true &&   // 🔥 Only restrict when revisions ON
                   revisionSettings?.restrictHighPriorityRevision === true &&
                   task.priority?.toLowerCase() === "high" &&
                   task.taskType === "one-time";
@@ -870,38 +896,48 @@ const PendingTasks: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2">
                         <button
-                          disabled={disableForHighPriority}
+                          disabled={
+                            disableForHighPriority ||
+                            (
+                              revisionSettings?.enableRevisions &&
+                              revisionSettings?.enableMaxRevision &&
+                              task.revisionCount >= revisionSettings?.limit
+                            )
+                          }
                           onClick={() => {
-
                             if (disableForHighPriority) {
                               alert("Revision is restricted for High Priority one-time tasks.");
                               return;
                             }
 
-                            const revision = taskSettings?.revision;
-
-                            if (!revision) {
+                            if (!revisionSettings) {
                               setShowReviseModal(task._id);
                               return;
                             }
 
-                            if (revision.enableRevisions) {
-                              if (task.revisionCount >= revision.limit) {
-                                alert(`You cannot revise more than ${revision.limit} times`);
+                            // Apply limit ONLY if enableMaxRevision = true
+                            if (revisionSettings.enableRevisions && revisionSettings.enableMaxRevision) {
+                              if (task.revisionCount >= revisionSettings.limit) {
+                                alert(`You cannot revise more than ${revisionSettings.limit} times`);
                                 return;
                               }
                             }
 
                             setShowReviseModal(task._id);
                           }}
-                          className={`transition-all transform hover:scale-110 ${disableForHighPriority
+                          className={`transition-all transform hover:scale-110 ${disableForHighPriority ||
+                            (
+                              revisionSettings?.enableRevisions &&
+                              revisionSettings?.enableMaxRevision &&
+                              task.revisionCount >= revisionSettings?.limit
+                            )
                             ? "opacity-50 cursor-not-allowed text-gray-400"
                             : "text-[--color-warning]"
                             }`}
-                          title="Revise task"
                         >
                           <RefreshCcw size={16} />
                         </button>
+
                         <button
                           onClick={() => setShowCompleteModal(task._id)}
                           className="transition-all transform hover:scale-110 text-[--color-success]"
@@ -1101,9 +1137,21 @@ const PendingTasks: React.FC = () => {
           taskId={showCompleteModal}
           taskTitle={completingTask.title}
           isRecurring={false}
-          allowAttachments={taskSettings.pendingTasks.allowAttachments}
-          mandatoryAttachments={taskSettings.pendingTasks.mandatoryAttachments}
-          mandatoryRemarks={taskSettings.pendingTasks.mandatoryRemarks}
+          allowAttachments={
+            taskSettings.enabled
+              ? taskSettings.pendingTasks.allowAttachments
+              : false
+          }
+          mandatoryAttachments={
+            taskSettings.enabled
+              ? taskSettings.pendingTasks.mandatoryAttachments
+              : false
+          }
+          mandatoryRemarks={
+            taskSettings.enabled
+              ? taskSettings.pendingTasks.mandatoryRemarks
+              : false
+          }
           onClose={() => setShowCompleteModal(null)}
           onComplete={handleTaskCompletion}
         />

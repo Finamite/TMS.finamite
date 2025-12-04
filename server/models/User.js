@@ -46,11 +46,17 @@ const userSchema = new mongoose.Schema({
     canEditTasks: { type: Boolean, default: false },
     canManageUsers: { type: Boolean, default: false },
     canEditRecurringTaskSchedules: { type: Boolean, default: false },
-    canManageCompanies: { type: Boolean, default: false }
+    canManageCompanies: { type: Boolean, default: false },
+    canManageSettings: { type: Boolean, default: false }
   },
   isActive: {
     type: Boolean,
     default: true
+  },
+
+  sessionInvalidated: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true

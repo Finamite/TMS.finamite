@@ -34,7 +34,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/dashboard" replace />;
   }
 
-  if (requireAdmin && !['admin', 'superadmin'].includes(user.role)) {
+  if (requireAdmin && !['admin', 'superadmin', 'manager'].includes(user.role)) {
     return <Navigate to="/dashboard" replace />;
   }
 

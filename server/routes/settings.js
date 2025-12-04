@@ -42,6 +42,7 @@ router.get('/task-completion', async (req, res) => {
         type: 'taskCompletion',
         companyId,
         data: {
+          enabled: false,
           pendingTasks: {
             allowAttachments: false,
             mandatoryAttachments: false,
@@ -66,18 +67,24 @@ router.get('/task-completion', async (req, res) => {
 
 router.post('/task-completion', async (req, res) => {
   try {
-    const { companyId, ...settingsData } = req.body;
+    const { companyId, enabled, pendingTasks, pendingRecurringTasks } = req.body;
+
     if (!companyId) return res.status(400).json({ message: 'companyId required' });
+
+    const payload = {
+      enabled: enabled ?? false,
+      pendingTasks: pendingTasks || {},
+      pendingRecurringTasks: pendingRecurringTasks || {}
+    };
 
     const settings = await Settings.findOneAndUpdate(
       { type: 'taskCompletion', companyId },
-      { $set: { data: settingsData } },
+      { $set: { data: payload } },
       { upsert: true, new: true }
     );
 
-    res.json({ message: 'Settings saved successfully', data: settings.data });
+    res.json({ message: 'Settings saved', data: settings.data });
   } catch (error) {
-    console.error('Error saving task completion settings:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

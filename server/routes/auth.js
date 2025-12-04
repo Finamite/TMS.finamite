@@ -8,13 +8,13 @@ router.post('/login', async (req, res) => {
   try {
     let { email, password } = req.body;
 
-    // Normalize email
     email = email.trim().toLowerCase();
 
     const user = await User.findOne({
       email: email,
       isActive: true
     });
+
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
@@ -29,20 +29,24 @@ router.post('/login', async (req, res) => {
       }
     }
 
-    // Check password
+    // Password check
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Get company info if user is not superadmin
+    // ✅ IMPORTANT: Reset forced logout
+    user.sessionInvalidated = false;
+    await user.save();
+    // ---------------------------------
+
+    // Company info
     let companyInfo = null;
     if (user.role !== 'superadmin' && user.companyId) {
       const Company = (await import('../models/Company.js')).default;
       companyInfo = await Company.findOne({ companyId: user.companyId });
     }
 
-    // Return user data (without password)
     const userData = {
       id: user._id,
       companyId: user.companyId,
@@ -62,10 +66,12 @@ router.post('/login', async (req, res) => {
       message: 'Login successful',
       user: userData
     });
+
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
+
 
 // Get current user
 router.get('/me/:userId', async (req, res) => {

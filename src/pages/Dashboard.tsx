@@ -469,39 +469,41 @@ const Dashboard: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        let analyticsData = null;
-        let countsData = null;
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      let analyticsData = null;
+      let countsData = null;
+      let pendingData = null;
 
-        if (viewMode === 'current') {
-          // For current month view, use date filters
-          const monthStart = startOfMonth(selectedMonth);
-          const monthEnd = endOfMonth(selectedMonth);
-          analyticsData = await fetchDashboardAnalytics(monthStart.toISOString(), monthEnd.toISOString());
-          countsData = await fetchTaskCounts(monthStart.toISOString(), monthEnd.toISOString());
-        } else {
-          // For all-time view, fetch without date filters
-          analyticsData = await fetchDashboardAnalytics();
-          countsData = await fetchTaskCounts();
-        }
+      if (viewMode === 'current') {
+        const monthStart = startOfMonth(selectedMonth);
+        const monthEnd = endOfMonth(selectedMonth);
 
-        setDashboardData(analyticsData);
-        setTaskCounts(countsData);
-
-
-      } catch (error) {
-        console.error('Error in loadData:', error);
-      } finally {
-        setLoading(false);
+        analyticsData = await fetchDashboardAnalytics(monthStart.toISOString(), monthEnd.toISOString());
+        countsData = await fetchTaskCounts(monthStart.toISOString(), monthEnd.toISOString());
+        pendingData = await fetchTeamPendingTasks();   // <<< ADD THIS
+      } else {
+        analyticsData = await fetchDashboardAnalytics();
+        countsData = await fetchTaskCounts();
+        pendingData = await fetchTeamPendingTasks();   // <<< ADD THIS
       }
-    };
 
-    if (user?.id) {
-      loadData();
+      setDashboardData(analyticsData);
+      setTaskCounts(countsData);
+      setTeamPendingData(pendingData);                 // <<< ADD THIS
+
+    } catch (error) {
+      console.error('Error in loadData:', error);
+    } finally {
+      setLoading(false);
     }
-  }, [user, selectedMonth, viewMode]);
+  };
+
+  if (user?.id) {
+    loadData();
+  }
+}, [user, selectedMonth, viewMode]);
 
   useEffect(() => {
     if (showMonthFilter && monthListRef.current) {
@@ -515,22 +517,6 @@ const Dashboard: React.FC = () => {
     }
   }, [showMonthFilter]);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadTeamPending = async () => {
-      const pending = await fetchTeamPendingTasks();
-      if (isMounted) setTeamPendingData(pending);
-    };
-
-    // fetch only once when user loads dashboard
-    if (user?.id) {
-      loadTeamPending();
-    }
-    return () => {
-      isMounted = false;
-    };
-  }, [user?.id]);
 
   // Load member trend data when selected team member changes
   useEffect(() => {

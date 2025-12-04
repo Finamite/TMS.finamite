@@ -15,6 +15,7 @@ interface User {
     canEditTasks: boolean;
     canManageUsers: boolean;
     canEditRecurringTaskSchedules: boolean;
+    canManageSettings: boolean;
   };
   company?: {
     companyId: string;
@@ -44,6 +45,27 @@ interface AuthContextType {
   logout: () => void;
   isLoading: boolean;
 }
+
+axios.interceptors.request.use((config) => {
+  const savedUser = localStorage.getItem("user");
+  if (savedUser) {
+    const parsedUser = JSON.parse(savedUser);
+    config.headers.userid = parsedUser.id;
+  }
+  return config;
+});
+
+// already existing response interceptor:
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem("user");
+      window.location.href = "/login";
+    }
+    return Promise.reject(error);
+  }
+);
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -85,6 +107,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return false;
     }
   };
+
+  useEffect(() => {
+  if (!user) return;
+
+  const interval = setInterval(async () => {
+    try {
+      await axios.get(`${address}/api/auth/me/${user.id}`);
+    } catch (err: any) {
+      if (err.response?.status === 401) {
+        localStorage.removeItem("user");
+        window.location.href = "/login";
+      }
+    }
+  }, 5000); // every 5 seconds
+
+  return () => clearInterval(interval);
+}, [user]);
 
   const logout = () => {
     setUser(null);

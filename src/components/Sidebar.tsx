@@ -132,16 +132,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { icon: RefreshCw, label: 'Pending Recurring', path: '/pending-recurring', permission: cp.pendingRecurringTasks },
     { icon: Archive, label: 'Master Tasks', path: '/master-tasks', permission: cp.masterTasks },
     { icon: RotateCcw, label: 'Master Recurring', path: '/master-recurring', permission: cp.masterRecurringTasks },
-    { icon: UserPlus, label: 'Assign Task', path: '/assign-task', permission: cp.assignTask },
+    { icon: UserPlus, label: 'Assign Task', path: '/assign-task', permission: user?.permissions?.canAssignTasks },
     { icon: Zap, label: 'Performance', path: '/performance', permission: cp.performance },
     { icon: MessageCircle, label: 'Chat Support', path: '/chat', permission: cp.chat },
-    { icon: Shield, label: 'Admin Panel', path: '/admin', permission: cp.adminPanel, requireAdmin: true },
-    { icon: Settings, label: 'Settings', path: '/settings-page', permission: cp.settingspage },
+    { icon: Shield, label: 'Admin Panel', path: '/admin', permission: user?.permissions?.canManageUsers },
+    { icon: Settings, label: 'Settings', path: '/settings-page', permission: user?.permissions?.canManageSettings  },
     { icon: Crown, label: 'SuperAdmin Panel', path: '/superadmin', requireSuperAdmin: true },
   ];
 
   const filteredMenuItems = menuItems.filter(item => {
-    if (item.requireAdmin && user?.role !== 'admin') return false;
     if (item.requireSuperAdmin && user?.role !== 'superadmin') return false;
     if (item.permission === false) return false;
     return true;

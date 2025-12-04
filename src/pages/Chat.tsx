@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { address } from '../../utils/ipAddress';
+import { toast } from 'react-toastify';
 
 interface User {
     _id: string;
@@ -588,7 +589,7 @@ const Chat: React.FC = () => {
 
         } catch (error) {
             console.error('Error sending message:', error);
-            alert('Failed to send message. Please try again.');
+            toast.error('Failed to send message. Please try again.');
         }
     };
 
@@ -605,7 +606,7 @@ const Chat: React.FC = () => {
             // Check file size (100KB limit)
             const oversizedFiles = Array.from(files).filter(file => file.size > 100 * 1024);
             if (oversizedFiles.length > 0) {
-                alert(`File size limit is 100KB. The following files are too large: ${oversizedFiles.map(f => f.name).join(', ')}`);
+                toast.error("File size limit is 100KB. The following files are too large");
                 return;
             }
 
@@ -672,7 +673,7 @@ const Chat: React.FC = () => {
             setIsSelectionMode(false);
         } catch (error) {
             console.error('Error deleting messages:', error);
-            alert('Failed to delete messages.');
+            toast.error('Failed to delete messages.');
         }
     };
 
@@ -741,7 +742,7 @@ const Chat: React.FC = () => {
             window.URL.revokeObjectURL(url);
         } catch (error) {
             console.error('Error downloading file:', error);
-            alert('Failed to download file.');
+            toast.error('Failed to download file.');
         }
     };
 
@@ -785,7 +786,7 @@ const Chat: React.FC = () => {
 
         } catch (error) {
             console.error('Error creating chat:', error);
-            alert("Unable to start chat. Try again.");
+            toast.error("Unable to start chat. Try again.");
         }
     };
 

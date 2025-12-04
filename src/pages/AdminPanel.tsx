@@ -21,6 +21,7 @@ interface User {
     canEditTasks: boolean;
     canManageUsers: boolean;
     canEditRecurringTaskSchedules: boolean;
+    canManageSettings: boolean;
   };
   isActive: boolean;
   createdAt: string;
@@ -65,7 +66,7 @@ const AdminPanel: React.FC = () => {
     username: '',
     email: '',
     password: '',
-    role: 'employee',
+    role: '',
     department: '',
     phone: '',
     permissions: {
@@ -76,6 +77,7 @@ const AdminPanel: React.FC = () => {
       canEditTasks: false,
       canManageUsers: false,
       canEditRecurringTaskSchedules: false,
+      canManageSettings: false,
     }
   });
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -84,9 +86,9 @@ const AdminPanel: React.FC = () => {
   // Define allowed permissions for each role
   const rolePermissions = {
     employee: ['canViewTasks', 'canAssignTasks'],
-    manager: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canEditRecurringTaskSchedules'],
-    admin: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules'],
-    superadmin: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules']
+    manager: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings'],
+    admin: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings'],
+    superadmin: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings']
   };
   const [passwordUser, setPasswordUser] = useState<User | null>(null);
   const [newPassword, setNewPassword] = useState("");
@@ -169,9 +171,9 @@ const AdminPanel: React.FC = () => {
   };
 
   const getRoleLabel = (role: string) => {
-  if (role === "employee") return "User";
-  return role.charAt(0).toUpperCase() + role.slice(1);
-};
+    if (role === "employee") return "User";
+    return role.charAt(0).toUpperCase() + role.slice(1);
+  };
 
   const handlePermanentDelete = async (userId: string) => {
     if (!window.confirm("⚠ This will permanently delete the user. This cannot be undone. Continue?"))
@@ -314,6 +316,7 @@ const AdminPanel: React.FC = () => {
       setShowCreateModal(false);
       resetForm();
       fetchUsers();
+      fetchCompanyData();
     } catch (error: any) {
       toast.error(error.response?.data?.message || "❌ Failed to create user");
       setMessage({ type: 'error', text: error.response?.data?.message || 'Failed to create user' });
@@ -370,7 +373,7 @@ const AdminPanel: React.FC = () => {
       username: '',
       email: '',
       password: '',
-      role: 'employee',
+      role: '',
       department: '',
       phone: '',
       permissions: {
@@ -381,6 +384,7 @@ const AdminPanel: React.FC = () => {
         canEditTasks: false,
         canManageUsers: false,
         canEditRecurringTaskSchedules: false,
+        canManageSettings: false,
       }
     });
   };
@@ -404,6 +408,7 @@ const AdminPanel: React.FC = () => {
       canEditTasks: 'Edit Tasks',
       canManageUsers: 'Manage Users',
       canEditRecurringTaskSchedules: 'Edit Recurring Task Schedules',
+      canManageSettings: 'Manage Settings',
     };
     return names[key] || null;
   };
@@ -504,87 +509,93 @@ const AdminPanel: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
-                <tr key={user._id} className="border-b hover:bg-opacity-50" style={{ borderColor: 'var(--color-border)' }}>
-                  <td className="py-3 px-4">
-                    <div>
-                      <p className="font-medium text-sm" style={{ color: 'var(--color-text)' }}>{user.username}</p>
-                      <p className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>{user.phone}</p>
-                      <p className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>{user.email}</p>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span
-                      className="px-2 py-1 text-xs font-medium rounded-full capitalize"
-                      style={{
-                        backgroundColor: `${getRoleColor(user.role)}20`,
-                        color: getRoleColor(user.role)
-                      }}
-                    >
-                      {getRoleLabel(user.role)}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span
-                      className="px-2 py-1 text-xs font-medium rounded-full"
-                      style={{
-                        backgroundColor: "var(--color-border)",
-                        color: "var(--color-text)"
-                      }}
-                    >
-                      {user.department || "No Department"}
-                    </span>
-                  </td>
+              {users.filter(u => {
+                if (currentUser?.role === "manager") {
+                  return u.role !== "admin" && u.role !== "manager";   // 🔥 hide admins from manager
+                }
+                return true;
+              })
+                .map((user) => (
+                  <tr key={user._id} className="border-b hover:bg-opacity-50" style={{ borderColor: 'var(--color-border)' }}>
+                    <td className="py-3 px-4">
+                      <div>
+                        <p className="font-medium text-sm" style={{ color: 'var(--color-text)' }}>{user.username}</p>
+                        <p className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>{user.phone}</p>
+                        <p className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>{user.email}</p>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <span
+                        className="px-2 py-1 text-xs font-medium rounded-full capitalize"
+                        style={{
+                          backgroundColor: `${getRoleColor(user.role)}20`,
+                          color: getRoleColor(user.role)
+                        }}
+                      >
+                        {getRoleLabel(user.role)}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4">
+                      <span
+                        className="px-2 py-1 text-xs font-medium rounded-full"
+                        style={{
+                          backgroundColor: "var(--color-border)",
+                          color: "var(--color-text)"
+                        }}
+                      >
+                        {user.department || "No Department"}
+                      </span>
+                    </td>
 
-                  <td className="py-3 px-4">
-                    <div className="text-xs space-y-1">
-                      {getActivePermissions(user.permissions).slice(0, 2).map(([key, _]) => (
-                        <div key={key} className="inline-block mr-2 mb-1">
-                          <span
-                            className="px-2 py-1 rounded-full"
-                            style={{
-                              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                              color: 'var(--color-primary)'
-                            }}
-                          >
-                            {getPermissionDisplayName(key)}
+                    <td className="py-3 px-4">
+                      <div className="text-xs space-y-1">
+                        {getActivePermissions(user.permissions).slice(0, 2).map(([key, _]) => (
+                          <div key={key} className="inline-block mr-2 mb-1">
+                            <span
+                              className="px-2 py-1 rounded-full"
+                              style={{
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                color: 'var(--color-primary)'
+                              }}
+                            >
+                              {getPermissionDisplayName(key)}
+                            </span>
+                          </div>
+                        ))}
+                        {getActivePermissions(user.permissions).length > 2 && (
+                          <span className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>
+                            +{getActivePermissions(user.permissions).length - 2} more
                           </span>
-                        </div>
-                      ))}
-                      {getActivePermissions(user.permissions).length > 2 && (
-                        <span className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>
-                          +{getActivePermissions(user.permissions).length - 2} more
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span
-                      className={`px-2 py-1 text-xs font-medium rounded-full ${user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}
-                    >
-                      {user.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => startEditUser(user)}
-                        className="p-1 rounded hover:bg-opacity-10"
-                        style={{ color: 'var(--color-primary)' }}
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded-full ${user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}
                       >
-                        <Edit size={16} />
-                      </button>
-                      <button
-                        onClick={() => updatePassword(user)}
-                        className="p-1 rounded hover:bg-opacity-10"
-                        style={{ color: 'var(--color-primary)' }}
-                      >
-                        <LockKeyhole size={16} />
-                      </button>
-                      {user.role !== 'admin' && user.role !== 'superadmin' && (
-                        <div className="flex items-center space-x-2">
-                          {/* <button
+                        {user.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => startEditUser(user)}
+                          className="p-1 rounded hover:bg-opacity-10"
+                          style={{ color: 'var(--color-primary)' }}
+                        >
+                          <Edit size={16} />
+                        </button>
+                        <button
+                          onClick={() => updatePassword(user)}
+                          className="p-1 rounded hover:bg-opacity-10"
+                          style={{ color: 'var(--color-primary)' }}
+                        >
+                          <LockKeyhole size={16} />
+                        </button>
+                        {user.role !== 'admin' && user.role !== 'superadmin' && (
+                          <div className="flex items-center space-x-2">
+                            {/* <button
                             onClick={() => {
                               setDeleteUserId(user._id);
                               setShowDeleteModal(true);
@@ -594,60 +605,67 @@ const AdminPanel: React.FC = () => {
                           >
                             <Trash2 size={16} />
                           </button> */}
-                          <ToggleSwitch
-                            checked={user.isActive}
-                            onChange={() => handleToggleActive(user._id)}
-                          />
-                        </div>
-                      )}
+                            <ToggleSwitch
+                              checked={user.isActive}
+                              onChange={() => handleToggleActive(user._id)}
+                            />
+                          </div>
+                        )}
 
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>
 
         {/* Mobile/Tablet Card View */}
         <div className="lg:hidden divide-y" style={{ borderColor: 'var(--color-border)' }}>
-          {users.map((user) => (
-            <div key={user._id} className="p-3 sm:p-4">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center space-x-3 flex-1">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: 'var(--color-primary)20' }}>
-                    <User size={20} style={{ color: 'var(--color-primary)' }} />
+          {users
+            .filter(u => {
+              if (currentUser?.role === "manager") {
+                return u.role !== "admin" && u.role !== "manager";   // 🔥 hide admins from manager
+              }
+              return true;
+            })
+            .map((user) => (
+              <div key={user._id} className="p-3 sm:p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center space-x-3 flex-1">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: 'var(--color-primary)20' }}>
+                      <User size={20} style={{ color: 'var(--color-primary)' }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm truncate" style={{ color: 'var(--color-text)' }}>
+                        {user.username}
+                      </p>
+                      <p className="text-xs truncate" style={{ color: 'var(--color-textSecondary)' }}>
+                        {user.phone}
+                      </p>
+                      <p className="text-xs truncate" style={{ color: 'var(--color-textSecondary)' }}>
+                        {user.email}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate" style={{ color: 'var(--color-text)' }}>
-                      {user.username}
-                    </p>
-                    <p className="text-xs truncate" style={{ color: 'var(--color-textSecondary)' }}>
-                      {user.phone}
-                    </p>
-                    <p className="text-xs truncate" style={{ color: 'var(--color-textSecondary)' }}>
-                      {user.email}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2 ml-2">
-                  <button
-                    onClick={() => startEditUser(user)}
-                    className="p-2 rounded-lg hover:bg-opacity-10"
-                    style={{ color: 'var(--color-primary)' }}
-                  >
-                    <Edit size={16} />
-                  </button>
-                  <button
-                    onClick={() => updatePassword(user)}
-                    className="p-2 rounded-lg hover:bg-opacity-10"
-                    style={{ color: 'var(--color-primary)' }}
-                  >
-                    <LockKeyhole size={16} />
-                  </button>
-                  {user.role !== 'admin' && user.role !== 'superadmin' && (
-                    <div className="flex items-center space-x-2">
-                      {/* <button
+                  <div className="flex items-center space-x-2 ml-2">
+                    <button
+                      onClick={() => startEditUser(user)}
+                      className="p-2 rounded-lg hover:bg-opacity-10"
+                      style={{ color: 'var(--color-primary)' }}
+                    >
+                      <Edit size={16} />
+                    </button>
+                    <button
+                      onClick={() => updatePassword(user)}
+                      className="p-2 rounded-lg hover:bg-opacity-10"
+                      style={{ color: 'var(--color-primary)' }}
+                    >
+                      <LockKeyhole size={16} />
+                    </button>
+                    {user.role !== 'admin' && user.role !== 'superadmin' && (
+                      <div className="flex items-center space-x-2">
+                        {/* <button
                         onClick={() => {
                           setDeleteUserId(user._id);
                           setShowDeleteModal(true);
@@ -657,95 +675,95 @@ const AdminPanel: React.FC = () => {
                       >
                         <Trash2 size={16} />
                       </button> */}
-                      <ToggleSwitch
-                        checked={user.isActive}
-                        onChange={() => handleToggleActive(user._id)}
-                      />
+                        <ToggleSwitch
+                          checked={user.isActive}
+                          onChange={() => handleToggleActive(user._id)}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  <span
+                    className="px-2 py-1 text-xs font-medium rounded-full capitalize"
+                    style={{
+                      backgroundColor: `${getRoleColor(user.role)}20`,
+                      color: getRoleColor(user.role)
+                    }}
+                  >
+                    {getRoleLabel(user.role)}
+                  </span>
+                  <span
+                    className="px-2 py-1 text-xs font-medium rounded-full"
+                    style={{
+                      backgroundColor: 'var(--color-border)',
+                      color: 'var(--color-text)'
+                    }}
+                  >
+                    {user.department || "-"}
+                  </span>
+                  <span
+                    className={`px-2 py-1 text-xs font-medium rounded-full ${user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      }`}
+                  >
+                    {user.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium" style={{ color: 'var(--color-text)' }}>
+                      Permissions ({getActivePermissions(user.permissions).length})
+                    </span>
+                    <button
+                      onClick={() => toggleCardExpansion(user._id)}
+                      className="p-1 rounded"
+                      style={{ color: 'var(--color-textSecondary)' }}
+                    >
+                      {expandedCards.has(user._id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
+                  </div>
+
+                  {expandedCards.has(user._id) ? (
+                    <div className="grid grid-cols-1 gap-1">
+                      {getActivePermissions(user.permissions).map(([key, _]) => (
+                        <span
+                          key={key}
+                          className="text-xs px-2 py-1 rounded-full"
+                          style={{
+                            backgroundColor: 'rgba(113, 145, 197, 0.1)',
+                            color: 'var(--color-primary)'
+                          }}
+                        >
+                          {getPermissionDisplayName(key)}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-1">
+                      {getActivePermissions(user.permissions).slice(0, 3).map(([key, _]) => (
+                        <span
+                          key={key}
+                          className="text-xs px-2 py-1 rounded-full"
+                          style={{
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            color: 'var(--color-primary)'
+                          }}
+                        >
+                          {getPermissionDisplayName(key)}
+                        </span>
+                      ))}
+                      {getActivePermissions(user.permissions).length > 3 && (
+                        <span className="text-xs px-2 py-1" style={{ color: 'var(--color-textSecondary)' }}>
+                          +{getActivePermissions(user.permissions).length - 3} more
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
               </div>
-
-              <div className="flex flex-wrap items-center gap-2 mb-3">
-                <span
-                  className="px-2 py-1 text-xs font-medium rounded-full capitalize"
-                  style={{
-                    backgroundColor: `${getRoleColor(user.role)}20`,
-                    color: getRoleColor(user.role)
-                  }}
-                >
-                  {getRoleLabel(user.role)}
-                </span>
-                <span
-                  className="px-2 py-1 text-xs font-medium rounded-full"
-                  style={{
-                    backgroundColor: 'var(--color-border)',
-                    color: 'var(--color-text)'
-                  }}
-                >
-                  {user.department || "-"}
-                </span>
-                <span
-                  className={`px-2 py-1 text-xs font-medium rounded-full ${user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}
-                >
-                  {user.isActive ? 'Active' : 'Inactive'}
-                </span>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium" style={{ color: 'var(--color-text)' }}>
-                    Permissions ({getActivePermissions(user.permissions).length})
-                  </span>
-                  <button
-                    onClick={() => toggleCardExpansion(user._id)}
-                    className="p-1 rounded"
-                    style={{ color: 'var(--color-textSecondary)' }}
-                  >
-                    {expandedCards.has(user._id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </button>
-                </div>
-
-                {expandedCards.has(user._id) ? (
-                  <div className="grid grid-cols-1 gap-1">
-                    {getActivePermissions(user.permissions).map(([key, _]) => (
-                      <span
-                        key={key}
-                        className="text-xs px-2 py-1 rounded-full"
-                        style={{
-                          backgroundColor: 'rgba(113, 145, 197, 0.1)',
-                          color: 'var(--color-primary)'
-                        }}
-                      >
-                        {getPermissionDisplayName(key)}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-1">
-                    {getActivePermissions(user.permissions).slice(0, 3).map(([key, _]) => (
-                      <span
-                        key={key}
-                        className="text-xs px-2 py-1 rounded-full"
-                        style={{
-                          backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                          color: 'var(--color-primary)'
-                        }}
-                      >
-                        {getPermissionDisplayName(key)}
-                      </span>
-                    ))}
-                    {getActivePermissions(user.permissions).length > 3 && (
-                      <span className="text-xs px-2 py-1" style={{ color: 'var(--color-textSecondary)' }}>
-                        +{getActivePermissions(user.permissions).length - 3} more
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+            ))}
         </div>
       </div>
 
@@ -1015,25 +1033,32 @@ const AdminPanel: React.FC = () => {
                         color: 'var(--color-text)'
                       }}
                     >
-                      {["employee", "manager", "admin"].map((role) => {
-                        const { remaining, color } = getRoleLimitData(role);
-                        const disabled = remaining <= 0 && formData.role !== role;
-                        const label =
-                          role === "employee"
-                            ? "User"
-                            : role.charAt(0).toUpperCase() + role.slice(1);
+                      <option value="" disabled>Select Role</option>  {/* 🔥 NEW */}
 
-                        return (
-                          <option
-                            key={role}
-                            value={role}
-                            disabled={disabled}
-                            style={{ color }}
-                          >
-                            {label} — {remaining} left
-                          </option>
-                        );
-                      })}
+                      {currentUser?.role === "manager"
+                        ? (() => {
+                          const { remaining, color } = getRoleLimitData("employee");
+                          return (
+                            <option value="employee" style={{ color }}>
+                              User — {remaining} left
+                            </option>
+                          );
+                        })()
+                        : (["employee", "manager", "admin"].map((role) => {
+                          const { remaining, color } = getRoleLimitData(role);
+                          const disabled = remaining <= 0 && formData.role !== role;
+                          const label =
+                            role === "employee"
+                              ? "User"
+                              : role.charAt(0).toUpperCase() + role.slice(1);
+
+                          return (
+                            <option key={role} value={role} disabled={disabled} style={{ color }}>
+                              {label} — {remaining} left
+                            </option>
+                          );
+                        })
+                        )}
                     </select>
                   </div>
                   <div>
@@ -1066,6 +1091,11 @@ const AdminPanel: React.FC = () => {
                       required
                       className="w-full px-3 py-2 border rounded-lg text-sm"
                       placeholder="Enter phone number"
+                      style={{
+                        backgroundColor: 'var(--color-background)',
+                        borderColor: 'var(--color-border)',
+                        color: 'var(--color-text)'
+                      }}
                     />
                   </div>
                 </div>
@@ -1248,6 +1278,11 @@ const AdminPanel: React.FC = () => {
                       onChange={handleInputChange}
                       required
                       className="w-full px-3 py-2 border rounded-lg text-sm"
+                       style={{
+                        backgroundColor: 'var(--color-background)',
+                        borderColor: 'var(--color-border)',
+                        color: 'var(--color-text)'
+                      }}
                     />
                   </div>
                 </div>

@@ -4,18 +4,38 @@ import Company from '../models/Company.js';
 
 const router = express.Router();
 
+router.use(async (req, res, next) => {
+  try {
+    const userId = req.headers['userid'];
+
+    if (!userId) return next();
+
+    const user = await User.findById(userId);
+    if (!user) return next();
+
+    // 🔥 If session invalidated → force logout
+    if (user.sessionInvalidated) {
+      return res.status(401).json({ message: "Session expired. Please login again." });
+    }
+
+    next();
+  } catch (err) {
+    next();
+  }
+});
+
 // Get all users (filtered by company for non-superadmins)
 router.get('/', async (req, res) => {
   try {
     const { companyId, role, includeInactive } = req.query;
-    
+
     let filter = {};
-    
+
     // If companyId is provided, filter by company
     if (companyId) {
       filter.companyId = companyId;
     }
-    
+
     // Exclude superadmins from regular company views
     if (role !== 'superadmin') {
       filter.role = { $ne: 'superadmin' };
@@ -25,7 +45,7 @@ router.get('/', async (req, res) => {
     if (includeInactive !== 'true') {
       filter.isActive = true;
     }
-    
+
     const users = await User.find(filter).select('-password').sort({ createdAt: -1 });
     res.json(users);
   } catch (error) {
@@ -129,7 +149,15 @@ router.put('/:id', async (req, res) => {
 
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { username, email, role, permissions, department, phone },
+      {
+        username,
+        email,
+        role,
+        permissions,
+        department,
+        phone,
+        sessionInvalidated: true   // 🔥 FORCE LOGOUT
+      },
       { new: true }
     ).select('-password');
 
@@ -198,9 +226,9 @@ router.put('/:id/toggle-active', async (req, res) => {
     if (user.isActive) {
       user.isActive = false;
       await user.save();
-      return res.json({ 
-        message: 'User deactivated successfully', 
-        user 
+      return res.json({
+        message: 'User deactivated successfully',
+        user
       });
     }
 
@@ -232,9 +260,9 @@ router.put('/:id/toggle-active', async (req, res) => {
     user.isActive = true;
     await user.save();
 
-    res.json({ 
-      message: 'User activated successfully', 
-      user 
+    res.json({
+      message: 'User activated successfully',
+      user
     });
 
   } catch (error) {

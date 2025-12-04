@@ -1885,24 +1885,24 @@ const MasterRecurringTasks: React.FC = () => {
 
       {/* Delete Modal */}
       {showDeleteModal && deleteConfig && (
-        <div className="fixed inset-0 bg-black bg-opacity-25 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-96">
-            <h2 className="text-lg font-semibold mb-4">Confirm Delete</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-[var(--color-background)] rounded-lg shadow-lg p-6 w-96">
+            <h2 className="text-[var(--color-text)] font-semibold mb-4">Confirm Delete</h2>
             {deleteConfig.type === "master" ? (
-              <p className="mb-6">
+              <p className="mb-6 text-[var(--color-text)]">
                 Are you sure you want to delete all{" "}
                 {deleteConfig.masterTask?.instanceCount} instances of this recurring
                 task series?
               </p>
             ) : (
-              <p className="mb-6">
+              <p className="mb-6 text-[var(--color-text)]">
                 Are you sure you want to delete this recurring task?
               </p>
             )}
             <div className="flex justify-end space-x-3">
               <button
                 onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
+                className="px-4 py-2 text-gray-800 rounded bg-gray-200 hover:bg-gray-300"
               >
                 Cancel
               </button>

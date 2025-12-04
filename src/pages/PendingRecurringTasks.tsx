@@ -887,9 +887,21 @@ const PendingRecurringTasks: React.FC = () => {
           taskId={showCompleteModal}
           taskTitle={completingTask.title}
           isRecurring={true}
-          allowAttachments={taskSettings.pendingRecurringTasks.allowAttachments}
-          mandatoryAttachments={taskSettings.pendingRecurringTasks.mandatoryAttachments}
-          mandatoryRemarks={taskSettings.pendingRecurringTasks.mandatoryRemarks}
+          allowAttachments={
+            taskSettings.enabled
+              ? taskSettings.pendingTasks.allowAttachments
+              : false
+          }
+          mandatoryAttachments={
+            taskSettings.enabled
+              ? taskSettings.pendingTasks.mandatoryAttachments
+              : false
+          }
+          mandatoryRemarks={
+            taskSettings.enabled
+              ? taskSettings.pendingTasks.mandatoryRemarks
+              : false
+          }
           onClose={() => setShowCompleteModal(null)}
           onComplete={handleTaskCompletion}
         />

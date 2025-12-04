@@ -94,6 +94,7 @@ router.post('/', async (req, res) => {
         canEditTasks: true,
         canManageUsers: true,
         canEditRecurringTaskSchedules: true,
+        canManageSettings: true,
       }
     });
 

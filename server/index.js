@@ -127,7 +127,8 @@ mongoose.connect(process.env.MONGO_URI)
               canEditTasks: true,
               canManageUsers: true,
               canEditRecurringTaskSchedules: true,
-              canManageCompanies: true
+              canManageSettings: true,
+              canManageCompanies: true,
             }
           });
           superAdmin.save()
