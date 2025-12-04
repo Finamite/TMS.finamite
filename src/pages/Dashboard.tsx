@@ -472,38 +472,36 @@ const Dashboard: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      let analyticsData = null;
-      let countsData = null;
-      let pendingData = null;
+      let monthStart: string | undefined = undefined;
+      let monthEnd: string | undefined = undefined;
 
-      if (viewMode === 'current') {
-        const monthStart = startOfMonth(selectedMonth);
-        const monthEnd = endOfMonth(selectedMonth);
-
-        analyticsData = await fetchDashboardAnalytics(monthStart.toISOString(), monthEnd.toISOString());
-        countsData = await fetchTaskCounts(monthStart.toISOString(), monthEnd.toISOString());
-        pendingData = await fetchTeamPendingTasks();   // <<< ADD THIS
-      } else {
-        analyticsData = await fetchDashboardAnalytics();
-        countsData = await fetchTaskCounts();
-        pendingData = await fetchTeamPendingTasks();   // <<< ADD THIS
+      if (viewMode === "current") {
+        monthStart = startOfMonth(selectedMonth).toISOString();
+        monthEnd = endOfMonth(selectedMonth).toISOString();
       }
 
+      // 🎯 RUN ALL 3 APIs IN PARALLEL
+      const [analyticsData, countsData, pendingData] = await Promise.all([
+        fetchDashboardAnalytics(monthStart, monthEnd),
+        fetchTaskCounts(monthStart, monthEnd),
+        fetchTeamPendingTasks(),
+      ]);
+
+      // 🎯 SET DATA TO STATE
       setDashboardData(analyticsData);
       setTaskCounts(countsData);
-      setTeamPendingData(pendingData);                 // <<< ADD THIS
+      setTeamPendingData(pendingData);
 
     } catch (error) {
-      console.error('Error in loadData:', error);
+      console.error("Error loading dashboard:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  if (user?.id) {
-    loadData();
-  }
+  if (user?.id) loadData();
 }, [user, selectedMonth, viewMode]);
+
 
   useEffect(() => {
     if (showMonthFilter && monthListRef.current) {
