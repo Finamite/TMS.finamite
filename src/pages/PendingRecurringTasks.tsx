@@ -103,6 +103,7 @@ const PendingRecurringTasks: React.FC = () => {
   const [filter, setFilter] = useState({
     taskType: '',
     priority: '',
+    assignedBy: '',
     assignedTo: '',
     search: ''
   });
@@ -190,6 +191,9 @@ const PendingRecurringTasks: React.FC = () => {
         return false;
       }
 
+      if (filter.assignedBy && task.assignedBy.username !== filter.assignedBy) {
+  return false;
+}
       // Assigned to filter
       if (filter.assignedTo && task.assignedTo._id !== filter.assignedTo) {
         return false;
@@ -331,7 +335,7 @@ const PendingRecurringTasks: React.FC = () => {
   };
 
   const resetFilters = () => {
-    setFilter({ taskType: '', priority: '', assignedTo: '', search: '' });
+    setFilter({ taskType: '', priority: '',assignedBy:'', assignedTo: '', search: '' });
   };
 
   const handlePageChange = (page: number) => {
@@ -483,6 +487,7 @@ const PendingRecurringTasks: React.FC = () => {
               <th className="px-6 py-4 text-left text-xs font-semibold text-[var(--color-textSecondary)] uppercase tracking-wider">Task</th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-[var(--color-textSecondary)] uppercase tracking-wider">Type</th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-[var(--color-textSecondary)] uppercase tracking-wider">Priority</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-[var(--color-textSecondary)] uppercase tracking-wider">Assigned By</th>
               {isAdmin && <th className="px-6 py-4 text-left text-xs font-semibold text-[var(--color-textSecondary)] uppercase tracking-wider">Assigned To</th>}
               {/* Attachments Header */}
               <th className="px-6 py-4 text-left text-xs font-semibold text-[var(--color-textSecondary)] uppercase tracking-wider">Attachments</th>
@@ -553,6 +558,9 @@ const PendingRecurringTasks: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap"><TaskTypeBadge taskType={task.taskType} /></td>
                   <td className="px-6 py-4 whitespace-nowrap"><PriorityBadge priority={task.priority} /></td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-semibold text-[var(--color-text)]">{task.assignedBy.username}</div>
+                    </td>
                   {isAdmin && (
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-[var(--color-text)]">{task.assignedTo.username}</div>
@@ -713,6 +721,28 @@ const PendingRecurringTasks: React.FC = () => {
                 <option value="high">High</option>
               </select>
             </div>
+  <div>
+    <label className="block text-sm font-medium text-[var(--color-text)] mb-1">
+      Assigned By
+    </label>
+
+    <select
+      value={filter.assignedBy}
+      onChange={(e) => setFilter({ ...filter, assignedBy: e.target.value })}
+      className="w-full text-sm px-1 py-1 border border-[var(--color-border)] bg-[var(--color-surface)] 
+      text-[var(--color-text)] rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] 
+      focus:border-[var(--color-primary)] transition-colors"
+    >
+      <option value="">All</option>
+
+      {[...new Set(allTasks.map(t => t.assignedBy.username))].map((name) => (
+        <option key={name} value={name}>
+          {name}
+        </option>
+      ))}
+    </select>
+  </div>
+
             {isAdmin && (
               <div>
                 <label className="block text-sm font-medium text-[var(--color-text)] mb-1">Team Member</label>

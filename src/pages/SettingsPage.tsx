@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Mail, AlertTriangle, Save, X, Loader as Loader2, Send, Calendar, Plus, Pencil, Trash, ClipboardCheck, FileWarning, MessageSquare, Paperclip, RefreshCw } from 'lucide-react';
+import { Settings, Mail, AlertTriangle, Save, X, Loader as Loader2, Send, Calendar, Plus, Pencil, Trash, ClipboardCheck, FileWarning, MessageSquare, Paperclip, RefreshCw, Eye } from 'lucide-react';
 import axios from 'axios';
 import { address } from '../../utils/ipAddress';
 import { useAuth } from '../contexts/AuthContext';
@@ -103,6 +103,7 @@ const buildDefaultScoringRule = (limit: number): ScoringRule => {
         days     // <-- now added!
     };
 };
+
 
 const generateRuleId = () => {
     if (typeof window !== 'undefined' && (window.crypto as any)?.randomUUID) {
@@ -214,6 +215,46 @@ const SettingsPage: React.FC = () => {
         return () => window.removeEventListener("message", handleGoogleMessage);
     }, []);
 
+    useEffect(() => {
+  const days = settings.revision.days;
+  const values = Object.values(days);
+
+  if (values.length === 0) return;
+
+  const allSame = values.every(v => v === values[0]);
+
+  // If different → maxDays should reflect Revision 1
+  if (!allSame) {
+    setSettings(prev => ({
+      ...prev,
+      revision: {
+        ...prev.revision,
+        maxDays: days[1] ?? values[0]
+      }
+    }));
+  }
+}, [settings.revision.days]);
+
+    const handleMaxDaysChange = (newMax: number) => {
+  setHasUnsavedChanges(true);
+
+  setSettings(prev => {
+    const updatedDays: Record<number, number> = {};
+    for (let i = 0; i <= prev.revision.limit; i++) {
+        updatedDays[i] = newMax;
+    }
+
+    return {
+      ...prev,
+      revision: {
+        ...prev.revision,
+        maxDays: newMax,
+        days: updatedDays
+      }
+    };
+  });
+};
+
     const fetchTaskSettings = async () => {
         if (!currentUser?.companyId) return;
 
@@ -227,6 +268,11 @@ const SettingsPage: React.FC = () => {
                 pendingRecurringTasks: res.data.pendingRecurringTasks
             }
         }));
+    };
+
+    const areAllDaysSame = (daysObj: Record<number, number>) => {
+        const values = Object.values(daysObj || {});
+        return values.every(v => v === values[0]);
     };
 
     const updateTaskSetting = (section: string, field: string, value: boolean) => {
@@ -301,6 +347,26 @@ const SettingsPage: React.FC = () => {
         } finally {
             setGoogleLoading(false);
         }
+    };
+    
+
+    const handleResetDays = () => {
+        const max = settings.revision.maxDays;
+
+        const resetDays: Record<number, number> = {};
+        for (let i = 0; i <= settings.revision.limit; i++) {
+            resetDays[i] = max;
+        }
+
+        setSettings(prev => ({
+            ...prev,
+            revision: {
+                ...prev.revision,
+                days: resetDays
+            }
+        }));
+
+        setHasUnsavedChanges(true);
     };
 
     const disconnectGoogle = async () => {
@@ -393,6 +459,7 @@ const SettingsPage: React.FC = () => {
             setLoading(false);
         }
     };
+    
 
     const handleSave = async () => {
         if (!currentUser?.companyId) return;
@@ -613,6 +680,8 @@ const SettingsPage: React.FC = () => {
         setEditingRuleId(null);
     };
 
+    const allDaysSame = areAllDaysSame(settings.revision.days);
+
     const handleLimitChange = (value: number) => {
         const limit = Math.max(1, Math.min(20, value || 1));
 
@@ -660,62 +729,90 @@ const SettingsPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[var(--color-background)] to-[var(--color-surface)] p-6">
+        <div className="min-h-screen bg-gradient-to-br from-[var(--color-background)] to-[var(--color-surface)] p-2 lg:p-6">
             <div className="max-w-15xl mx-auto">
                 {/* Header */}
-                <div className="sticky top-0 z-10 bg-[var(--color-background)] bg-opacity-80 backdrop-blur-md px-1 py-4 mb-6 border-b border-[var(--color-border)]
-                                flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="sticky top-0 z-10 bg-[var(--color-background)] bg-opacity-80 backdrop-blur-md px-1 py-2 lg:py-4 mb-6 border-b border-[var(--color-border)]
+    flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
 
-                    {/* LEFT SIDE */}
-                    <div className="flex items-center">
-                        <div className="p-3 bg-[var(--color-primary)] rounded-xl mr-4">
-                            <Settings className="h-6 w-6 text-[var(--color-background)]" />
+                    {/* TOP ROW ON MOBILE —— System Settings + Save Icon */}
+                    <div className="w-full flex items-center justify-between sm:hidden">
+
+                        {/* LEFT SIDE ICON + TITLE */}
+                        <div className="flex items-center">
+                            <div className="p-1.5 bg-[var(--color-primary)] rounded-xl mr-3">
+                                <Settings className="h-4 w-4 text-[var(--color-background)]" />
+                            </div>
+                            <h1 className="text-lg font-bold text-[var(--color-text)]">System Settings</h1>
+                        </div>
+
+                        {/* SAVE ICON FOR MOBILE */}
+                        <button
+                            onClick={handleSave}
+                            disabled={saving}
+                            className="p-1.5 bg-[var(--color-primary)] rounded-lg text-white shadow-md disabled:opacity-60"
+                        >
+                            {saving ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Save className="h-4 w-4" />
+                            )}
+                        </button>
+                    </div>
+                    {hasUnsavedChanges && (
+    <div className="sm:hidden w-full text-red-500 font-medium text-xs blink-warning">
+        ⚠ Changes are pending to save
+    </div>
+)}
+
+                    {/* LEFT SIDE — DESKTOP VERSION (Mobile hidden) */}
+                    <div className="hidden sm:flex items-center">
+                        <div className="p-1.5 lg:p-3 bg-[var(--color-primary)] rounded-xl mr-4">
+                            <Settings className="h-4 lg:h-6 w-4 lg:w-6 text-[var(--color-background)]" />
                         </div>
                         <div>
                             <h1 className="text-xl font-bold text-[var(--color-text)]">System Settings</h1>
-                            <p className="text-sm text-[var(--color-textSecondary)] mt-0">
+                            <p className="hidden md:block text-sm text-[var(--color-textSecondary)] mt-0">
                                 Configure system behavior, scoring impact, email automation, and reporting
                             </p>
                         </div>
                     </div>
 
-                    {/* RIGHT SIDE AREA */}
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 w-full sm:w-auto">
+                    {/* RIGHT SIDE — DESKTOP SAVE BUTTON + ALERT */}
+                    <div className="hidden sm:flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 w-full sm:w-auto">
 
-                        {/* 🔥 Alert (Mobile & Desktop) — Always BEFORE button */}
                         {hasUnsavedChanges && (
-                            <div className="text-red-500 font-medium text-sm blink-warning order-1 sm:order-1">
+                            <div className="hidden sm:block text-red-500 font-medium text-xs lg:text-sm blink-warning">
                                 ⚠ Changes are pending to save
                             </div>
                         )}
 
-                        {/* Save Button */}
                         <button
                             onClick={handleSave}
                             disabled={saving}
-                            className="w-full sm:w-auto py-3 px-6 bg-gradient-to-r
-        from-[var(--color-primary)] to-[var(--color-secondary)]
-        hover:from-[var(--color-secondary)] hover:to-[var(--color-primary)]
-        disabled:opacity-60 disabled:cursor-not-allowed
-        text-[var(--color-background)] rounded-xl font-semibold transition-all duration-200
-        flex items-center justify-center shadow-lg hover:shadow-xl order-2 sm:order-2"
+                            className="w-full sm:w-auto py-1 px-2 lg:py-3 px-6 bg-gradient-to-r
+            from-[var(--color-primary)] to-[var(--color-secondary)]
+            hover:from-[var(--color-secondary)] hover:to-[var(--color-primary)]
+            disabled:opacity-60 disabled:cursor-not-allowed
+            text-[var(--color-background)] rounded-xl font-semibold transition-all duration-200
+            flex items-center justify-center shadow-lg hover:shadow-xl"
                         >
                             {saving ? (
                                 <>
-                                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                                    <Loader2 className="h-4 lg:h-5 w-4 lg:w-5 mr-2 animate-spin" />
                                     Saving...
                                 </>
                             ) : (
                                 <>
-                                    <Save className="h-5 w-5 mr-2" />
+                                    <Save className="h-4 lg:h-5 w-4 lg:w-5 mr-2" />
                                     Save All Settings
                                 </>
                             )}
                         </button>
-
                     </div>
 
                 </div>
+
                 {/* Success/Error Messages */}
                 {message.text && (
                     <div
@@ -745,7 +842,7 @@ const SettingsPage: React.FC = () => {
                         <div
                             className="
     flex items-center justify-between 
-    p-6 cursor-pointer 
+    p-3 lg:p-6 cursor-pointer 
     hover:bg-[var(--color-background)] 
     transition-colors
   "
@@ -758,10 +855,10 @@ const SettingsPage: React.FC = () => {
                                 </div>
 
                                 <div className="min-w-0">
-                                    <h2 className="text-xl font-semibold text-[var(--color-text)] truncate">
+                                    <h2 className="text-md lg:text-xl font-semibold text-[var(--color-text)] truncate">
                                         Revision & Scoring
                                     </h2>
-                                    <p className="text-[var(--color-textSecondary)] text-sm mt-1 truncate">
+                                    <p className="text-[var(--color-textSecondary)] text-xs lg:text-sm mt-1 truncate">
                                         Configure task revision limits and scoring impact on performance
                                     </p>
                                 </div>
@@ -774,12 +871,12 @@ const SettingsPage: React.FC = () => {
                                     handleInputChange("revision", "enableRevisions", !revisionEnabled);
                                     setExpandedRevision(!revisionEnabled);
                                 }}
-                                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-200 shadow-inner 
+                                className={`relative inline-flex h-5 lg:h-7 w-8 lg:w-12 mr-2 lg:mr-0 items-center rounded-full transition-all duration-200 shadow-inner 
       ${revisionEnabled ? "bg-[var(--color-primary)]" : "bg-[var(--color-border)]"}`}
                             >
                                 <span
-                                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform duration-200 
-        ${revisionEnabled ? "translate-x-6" : "translate-x-1"}`}
+                                    className={`inline-block h-3 lg:h-5 w-3 lg:w-5 transform rounded-full bg-white shadow-lg transition-transform duration-200 
+        ${revisionEnabled ? "translate-x-4 lg:translate-x-6" : "translate-x-1"}`}
                                 />
                             </button>
                         </div>
@@ -797,7 +894,7 @@ const SettingsPage: React.FC = () => {
                                                 Configuration
                                             </h3>
 
-                                            <div className="grid grid-cols-2 gap-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 {/* Max Revision */}
                                                 <div className="space-y-2">
                                                     <label className="flex items-center gap-3 text-sm font-medium text-[var(--color-text)]">
@@ -854,18 +951,33 @@ const SettingsPage: React.FC = () => {
                                                             min={1}
                                                             max={365}
                                                             value={settings.revision.maxDays}
-                                                            onChange={(e) =>
-                                                                setSettings(prev => ({
-                                                                    ...prev,
-                                                                    revision: { ...prev.revision, maxDays: parseInt(e.target.value) }
-                                                                }))
-                                                            }
-                                                            disabled={!revisionEnabled}
+                                                            onChange={(e) => handleMaxDaysChange(parseInt(e.target.value))}
+                                                            disabled={!revisionEnabled || !allDaysSame}
                                                             className={`flex-1 px-4 py-3 border border-[var(--color-border)] rounded-lg text-sm
-                      bg-[var(--color-surface)] text-[var(--color-text)]
-                      focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] transition-all
-                      ${!revisionEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+        bg-[var(--color-surface)] text-[var(--color-text)]
+        focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] transition-all
+        ${(!revisionEnabled || !allDaysSame) ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                         />
+
+                                                        {/* Eye Icon Button */}
+                                                        <button
+                                                            onClick={() => setOpenEditMaxDays(true)}
+                                                            disabled={!revisionEnabled || allDaysSame}
+                                                            className={`p-3 rounded-lg border border-[var(--color-border)] 
+        hover:bg-[var(--color-border)]/30 transition-colors
+        ${(!revisionEnabled || allDaysSame) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                        >
+                                                            <Eye className="w-4 h-4 text-[var(--color-primary)]" />
+                                                        </button>
+                                                        <button
+                                                            onClick={handleResetDays}
+                                                            disabled={!revisionEnabled || allDaysSame}
+                                                            className={`p-3 rounded-lg border border-[var(--color-border)]
+      hover:bg-[var(--color-border)]/30 transition-colors
+      ${(!revisionEnabled || allDaysSame) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                        >
+                                                            <RefreshCw className="w-4 h-4 text-[var(--color-error)]" />
+                                                        </button>
                                                         <button
                                                             onClick={() => setOpenEditMaxDays(true)}
                                                             disabled={!revisionEnabled}
@@ -1048,7 +1160,7 @@ const SettingsPage: React.FC = () => {
                         <div
                             className="
     flex items-center justify-between 
-    p-6 cursor-pointer 
+    p-3 lg:p-6 cursor-pointer 
     hover:bg-[var(--color-background)] 
     transition-colors
   "
@@ -1061,10 +1173,10 @@ const SettingsPage: React.FC = () => {
                                 </div>
 
                                 <div className="min-w-0">
-                                    <h2 className="text-xl font-semibold text-[var(--color-text)] truncate">
+                                    <h2 className="text-md lg:text-xl font-semibold text-[var(--color-text)] truncate">
                                         Email Notifications
                                     </h2>
-                                    <p className="text-[var(--color-textSecondary)] text-sm mt-1 truncate">
+                                    <p className="text-[var(--color-textSecondary)] text-xs lg:text-sm mt-1 truncate">
                                         Configure Gmail integration and automation
                                     </p>
                                 </div>
@@ -1078,14 +1190,14 @@ const SettingsPage: React.FC = () => {
                                     setExpandedEmail(true);
                                 }}
                                 className={`
-      relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-200 shadow-inner
+      relative inline-flex h-5 lg:h-7 w-8 lg:w-12 mr-2 lg:mr-0 items-center rounded-full transition-all duration-200 shadow-inner
       ${emailEnabled ? "bg-[var(--color-primary)]" : "bg-[var(--color-border)]"}
     `}
                             >
                                 <span
                                     className={`
-        inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform duration-200
-        ${emailEnabled ? "translate-x-6" : "translate-x-1"}
+        inline-block h-3 lg:h-5 w-3 lg:w-5 transform rounded-full bg-white shadow-lg transition-transform duration-200
+        ${emailEnabled ? "translate-x-4 lg:translate-x-6" : "translate-x-1"}
       `}
                                 />
                             </button>
@@ -1268,7 +1380,7 @@ const SettingsPage: React.FC = () => {
                         <div
                             className="
     flex items-center justify-between 
-    p-6 cursor-pointer 
+    p-3 lg:p-6 cursor-pointer 
     hover:bg-[var(--color-background)] 
     transition-colors
   "
@@ -1281,10 +1393,10 @@ const SettingsPage: React.FC = () => {
                                 </div>
 
                                 <div className="min-w-0">
-                                    <h2 className="text-xl font-semibold text-[var(--color-text)] truncate">
+                                    <h2 className="text-md lg:text-xl font-semibold text-[var(--color-text)] truncate">
                                         Automated Reports
                                     </h2>
-                                    <p className="text-[var(--color-textSecondary)] text-sm mt-1 truncate">
+                                    <p className="text-[var(--color-textSecondary)] text-xs lg:text-sm mt-1 truncate">
                                         Schedule daily reports and summaries
                                     </p>
                                 </div>
@@ -1298,14 +1410,14 @@ const SettingsPage: React.FC = () => {
                                     setExpandedReports(true);
                                 }}
                                 className={`
-      relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-200 shadow-inner
+      relative inline-flex h-5 lg:h-7 w-8 lg:w-12 mr-2 lg:mr-0 items-center rounded-full transition-all duration-200 shadow-inner
       ${reportsEnabled ? "bg-[var(--color-primary)]" : "bg-[var(--color-border)]"}
     `}
                             >
                                 <span
                                     className={`
-        inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform duration-200
-        ${reportsEnabled ? "translate-x-6" : "translate-x-1"}
+        inline-block h-3 lg:h-5 w-3 lg:w-5 transform rounded-full bg-white shadow-lg transition-transform duration-200
+        ${reportsEnabled ? "translate-x-4 lg:translate-x-6" : "translate-x-1"}
       `}
                                 />
                             </button>
@@ -1431,7 +1543,7 @@ const SettingsPage: React.FC = () => {
                         <div
                             className="
     flex items-center justify-between 
-    p-6 cursor-pointer 
+    p-3 lg:p-6 cursor-pointer 
     hover:bg-[var(--color-background)] 
     transition-colors
   "
@@ -1443,10 +1555,10 @@ const SettingsPage: React.FC = () => {
                                 </div>
 
                                 <div className="min-w-0">
-                                    <h2 className="text-xl font-semibold text-[var(--color-text)] truncate">
+                                    <h2 className="text-md lg:text-xl font-semibold text-[var(--color-text)] truncate">
                                         Task Completion Settings
                                     </h2>
-                                    <p className="text-[var(--color-textSecondary)] text-sm mt-1 truncate">
+                                    <p className="text-[var(--color-textSecondary)] text-xs lg:text-sm mt-1 truncate">
                                         Configure attachments & remarks for different task types
                                     </p>
                                 </div>
@@ -1465,12 +1577,12 @@ const SettingsPage: React.FC = () => {
                                     setExpandedTask(true);
                                     setHasUnsavedChanges(true);
                                 }}
-                                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-200 shadow-inner 
+                                className={`relative inline-flex h-5 lg:h-7 w-8 lg:w-12 mr-2 lg:mr-0 items-center rounded-full transition-all duration-200 shadow-inner 
       ${settings.taskCompletion.enabled ? "bg-[var(--color-primary)]" : "bg-[var(--color-border)]"}`}
                             >
                                 <span
-                                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform duration-200 
-        ${settings.taskCompletion.enabled ? "translate-x-6" : "translate-x-1"}`}
+                                    className={`inline-block h-3 lg:h-5 w-3 lg:w-5 transform rounded-full bg-white shadow-lg transition-transform duration-200 
+        ${settings.taskCompletion.enabled ? "translate-x-4 lg:translate-x-6" : "translate-x-1"}`}
                                 />
                             </button>
                         </div>

@@ -119,7 +119,6 @@ const AssignTask: React.FC = () => {
 
       const response = await axios.get(`${address}/api/users?${params.toString()}`);
       const sortedUsers = response.data
-        .filter((u: User) => u._id !== user?.id)
         .sort((a: User, b: User) => a.username.localeCompare(b.username));
 
       setUsers(sortedUsers);
@@ -451,7 +450,9 @@ const AssignTask: React.FC = () => {
                       </div>
                       <div>
                         <h3 className="text-xl font-bold" style={{ color: 'var(--color-text)' }}>
-                          {task.title || `Task ${index + 1}`}
+                          {(task.title?.length > 20
+                            ? task.title.substring(0, 20) + "..."
+                            : task.title) || `Task ${index + 1}`}
                         </h3>
                         <p className="text-sm" style={{ color: 'var(--color-textSecondary)' }}>
                           {task.taskType.charAt(0).toUpperCase() + task.taskType.slice(1)} Task
@@ -893,17 +894,17 @@ const AssignTask: React.FC = () => {
                             <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>Include Sunday</span>
                           </label>
                         )}
-                        
+
                         {task.taskType !== "weekly" && (
-                        <label className="flex items-center cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={showWeekOff[task.id] || false}
-                            onChange={(e) => setShowWeekOff(prev => ({ ...prev, [task.id]: e.target.checked }))}
-                            className="mr-2 w-4 h-4 rounded"
-                          />
-                          <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>Week Off</span>
-                        </label>
+                          <label className="flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={showWeekOff[task.id] || false}
+                              onChange={(e) => setShowWeekOff(prev => ({ ...prev, [task.id]: e.target.checked }))}
+                              className="mr-2 w-4 h-4 rounded"
+                            />
+                            <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>Week Off</span>
+                          </label>
                         )}
                       </div>
                     )}
@@ -912,7 +913,7 @@ const AssignTask: React.FC = () => {
                     {showWeekOff[task.id] && (
                       <div className="p-4 rounded-xl border" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
                         <h5 className="font-medium text-sm mb-3" style={{ color: 'var(--color-text)' }}>Select Week Off Days</h5>
-                        <div className="grid grid-cols-7 gap-2">
+                        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-2">
                           {weekDays.map(day => (
                             <button
                               key={day.value}
@@ -945,7 +946,7 @@ const AssignTask: React.FC = () => {
                     {task.taskType === 'weekly' && (
                       <div className="space-y-3">
                         <h5 className="font-semibold" style={{ color: 'var(--color-text)' }}>Select Weekly Days *</h5>
-                        <div className="grid grid-cols-7 gap-2">
+                        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-2">
                           {weekDays.map(day => (
                             <button
                               key={day.value}
@@ -962,7 +963,6 @@ const AssignTask: React.FC = () => {
                               }}
                             >
                               <div className="text-sm font-bold">{day.short}</div>
-                              <div className="text-xs">{day.label}</div>
                             </button>
                           ))}
                         </div>

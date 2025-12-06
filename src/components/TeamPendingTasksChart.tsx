@@ -85,6 +85,26 @@ const TeamPendingTasksChart = ({ teamPendingData, user }: Props) => {
                 },
             ];
 
+            const MobileBarLabel = (props: any) => {
+    const { x, y, width, value } = props;
+
+    if (value === 0) return null; // don't show zero labels
+
+    return (
+        <text
+            x={x + width / 2}
+            y={y + 15} // inside the bar, slightly down
+            fill="#ffffff"
+            fontSize="11"
+            fontWeight="bold"
+            textAnchor="middle"
+            dominantBaseline="middle"
+        >
+            {value}
+        </text>
+    );
+};
+
     const slide = (direction: SlideDirection) => {
         if (isAnimating) return;
 
@@ -169,7 +189,7 @@ const TeamPendingTasksChart = ({ teamPendingData, user }: Props) => {
 
                                 <XAxis
                                     dataKey={user?.role === "admin" || user?.role === "manager" ? "username" : "name"}
-                                    tick={{ fill: "var(--color-text)", fontSize: 11 }}
+                                    tick={{ fill: "var(--color-text)", fontSize: 12, fontWeight: 700 }}
                                     axisLine={false}
                                     tickLine={false}
                                 />
@@ -230,6 +250,19 @@ const TeamPendingTasksChart = ({ teamPendingData, user }: Props) => {
                                 )}
                             </BarChart>
                         </ResponsiveContainer>
+                        {(user?.role === "admin" || user?.role === "manager") && (
+                            <div className="flex justify-center gap-6 mt-4 text-sm font-bold">
+                                <div className="flex items-center gap-2">
+                                    <span className="w-3 h-3 rounded-full" style={{ background: "linear-gradient(45deg, #6a11cb, #2575fc, #00d4ff)" }}></span>
+                                    <span className="text-[var(--color-textSecondary)]">Pending</span>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    <span className="w-3 h-3 rounded-full" style={{ background: "linear-gradient(45deg, #a940f0, #a869d3, #1614b1)" }}></span>
+                                    <span className="text-[var(--color-textSecondary)]">Overdue</span>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* RIGHT ARROW */}
@@ -242,6 +275,8 @@ const TeamPendingTasksChart = ({ teamPendingData, user }: Props) => {
                         <ChevronRight size={22} />
                     </button>
                 </div>
+
+
             )}
 
             {/* *************** MOBILE VIEW *************** */}
@@ -249,12 +284,23 @@ const TeamPendingTasksChart = ({ teamPendingData, user }: Props) => {
                 <>
                     {/* CHART */}
                     <ResponsiveContainer width="100%" height={230}>
-                        <BarChart data={chartData} barGap={6}>
+                        <BarChart
+                            data={chartData}
+                            barGap={6}
+                            margin={{ left: -30, right: 0 }}   // 🔥 pulls chart slightly left
+                        >
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.3} vertical={false} />
 
                             <XAxis
                                 dataKey={user?.role === "admin" || user?.role === "manager" ? "username" : "name"}
-                                tick={{ fill: "var(--color-text)", fontSize: 10 }}
+                                tick={{
+                                    fill: "var(--color-text)",
+                                    fontSize: 10,
+                                }}
+                                angle={-40}
+                                textAnchor="end"
+                                interval={0}              // 🔥 ensure every label shows
+                                height={50}               // extra space for tilt
                                 axisLine={false}
                                 tickLine={false}
                             />
@@ -301,13 +347,13 @@ const TeamPendingTasksChart = ({ teamPendingData, user }: Props) => {
 
                             {(user?.role === "admin" || user?.role === "manager") && (
                                 <>
-                                    <Bar dataKey="pending" fill="url(#gradOneTimeToday)" radius={[8, 8, 0, 0]} />
-                                    <Bar dataKey="overdue" fill="url(#gradOneTimeOverdue)" radius={[8, 8, 0, 0]} />
+                                    <Bar dataKey="pending" fill="url(#gradOneTimeToday)" radius={[8, 8, 0, 0]} label={<MobileBarLabel />}/>
+                                    <Bar dataKey="overdue" fill="url(#gradOneTimeOverdue)" radius={[8, 8, 0, 0]} label={<MobileBarLabel />}/>
                                 </>
                             )}
 
                             {!(user?.role === "admin" || user?.role === "manager") && (
-                                <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                                <Bar dataKey="value" radius={[8, 8, 0, 0]} label={<MobileBarLabel />}>
                                     {(chartData as any[]).map((entry, index) => (
                                         <Cell key={index} fill={entry.fill} />
                                     ))}
@@ -315,6 +361,19 @@ const TeamPendingTasksChart = ({ teamPendingData, user }: Props) => {
                             )}
                         </BarChart>
                     </ResponsiveContainer>
+                    {isMobile && (user?.role === "admin" || user?.role === "manager") && (
+                        <div className="flex justify-center gap-8 mt-3 text-xs font-bold">
+                            <div className="flex items-center gap-1">
+                                <span className="w-2.5 h-2.5 rounded-full" style={{ background: "linear-gradient(45deg, #6a11cb, #2575fc, #00d4ff)" }}></span>
+                                <span className="text-[var(--color-textSecondary)]">Pending</span>
+                            </div>
+
+                            <div className="flex items-center gap-1">
+                                <span className="w-2.5 h-2.5 rounded-full" style={{ background: "linear-gradient(45deg, #a940f0, #a869d3, #1614b1)" }}></span>
+                                <span className="text-[var(--color-textSecondary)]">Overdue</span>
+                            </div>
+                        </div>
+                    )}
 
                     {/* MOBILE ARROWS BELOW */}
                     {(user?.role === "admin" || user?.role === "manager") && (

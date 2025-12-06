@@ -523,7 +523,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
 
         {/* User */}
         <div className="flex items-center space-x-2">
-          <div className="text-right">
+
+          {/* Hide on mobile, show on tablet/desktop */}
+          <div className="text-right hidden sm:block">
             <p className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
               {user?.username}
             </p>
@@ -531,6 +533,8 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
               {user && getRoleLabel(user.role)}
             </p>
           </div>
+
+          {/* Logout always visible */}
           <button
             onClick={logout}
             className="p-2 rounded-lg"
@@ -538,7 +542,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           >
             <LogOut size={20} />
           </button>
+
         </div>
+
       </div>
     </header>
   );

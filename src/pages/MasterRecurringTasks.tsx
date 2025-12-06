@@ -294,6 +294,7 @@ const MasterRecurringTasks: React.FC = () => {
     taskType: '',
     status: '',
     priority: '',
+     assignedBy: '',
     assignedTo: '',
     search: '',
     dateFrom: '',
@@ -338,6 +339,7 @@ const MasterRecurringTasks: React.FC = () => {
       taskType: filter.taskType,
       status: '',
       priority: filter.priority,
+      assignedBy: filter.assignedBy,
       search: debouncedSearch,
       dateFrom: debouncedDateFrom,
       dateTo: debouncedDateTo,
@@ -479,6 +481,7 @@ const MasterRecurringTasks: React.FC = () => {
       status: filter.status,
       priority: filter.priority,
       assignedTo: isAdmin ? filter.assignedTo : user?.id,
+      assignedBy: filter.assignedBy,
       search: debouncedSearch,
       dateFrom: debouncedDateFrom,
       dateTo: debouncedDateTo,
@@ -595,7 +598,7 @@ const MasterRecurringTasks: React.FC = () => {
     } else {
       fetchIndividualTasks(1, false);
     }
-  }, [filter.taskType, filter.status, filter.priority, filter.assignedTo, debouncedSearch, debouncedDateFrom, debouncedDateTo, isEditMode]);
+  }, [filter.taskType, filter.status, filter.priority, filter.assignedBy,filter.assignedTo, debouncedSearch, debouncedDateFrom, debouncedDateTo, isEditMode]);
 
   // Effect for pagination changes
   useEffect(() => {
@@ -720,6 +723,7 @@ const MasterRecurringTasks: React.FC = () => {
       taskType: '',
       status: '',
       priority: '',
+      assignedBy: '',
       assignedTo: '',
       search: '',
       dateFrom: '',
@@ -1060,6 +1064,9 @@ const MasterRecurringTasks: React.FC = () => {
               <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
                 Instances
               </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
+                  Assigned By
+                </th>
               {isAdmin && (
                 <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
                   Assigned To
@@ -1130,6 +1137,9 @@ const MasterRecurringTasks: React.FC = () => {
                     Pending: {masterTask.pendingCount}
                   </div>
                 </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-semibold text-[--color-text]">{masterTask.assignedBy.username}</div>
+                  </td>
                 {isAdmin && (
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-[--color-text]">{masterTask.assignedTo.username}</div>
@@ -1222,6 +1232,9 @@ const MasterRecurringTasks: React.FC = () => {
               <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
                 Priority
               </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
+                  Assigned By
+                </th>
               {isAdmin && (
                 <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
                   Assigned To
@@ -1288,6 +1301,9 @@ const MasterRecurringTasks: React.FC = () => {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <PriorityBadge priority={task.priority} />
                 </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-semibold text-[--color-text]">{task.assignedBy.username}</div>
+                  </td>
                 {isAdmin && (
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-[--color-text]">{task.assignedTo.username}</div>
@@ -1503,9 +1519,7 @@ const MasterRecurringTasks: React.FC = () => {
                 >
                   <option value="">All Statuses</option>
                   <option value="pending">Pending</option>
-                  <option value="in-progress">In Progress</option>
                   <option value="completed">Completed</option>
-                  <option value="overdue">Overdue</option>
                 </select>
               </div>
             )}
@@ -1522,6 +1536,35 @@ const MasterRecurringTasks: React.FC = () => {
                 <option value="high">High</option>
               </select>
             </div>
+
+        
+{isAdmin && (
+  <div>
+    <label className="block text-sm font-medium text-[--color-text] mb-1">
+      Assigned By
+    </label>
+
+    <select
+      value={filter.assignedBy}
+      onChange={(e) => setFilter({ ...filter, assignedBy: e.target.value })}
+      className="w-full text-sm px-3 py-2 border border-[--color-border] rounded-lg 
+                 bg-[--color-surface] text-[--color-text]
+                 focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary]"
+    >
+      <option value="">All Assigners</option>
+
+      {[...new Set(
+        [
+          ...masterTasks.map(t => t.assignedBy?.username),
+          ...individualTasks.map(t => t.assignedBy?.username)
+        ].filter(Boolean)
+      )].map(name => (
+        <option key={name} value={name}>{name}</option>
+      ))}
+    </select>
+  </div>
+)}
+
 
             {isAdmin && (
               <div>

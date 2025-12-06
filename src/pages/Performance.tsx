@@ -87,6 +87,7 @@ const Performance: React.FC = () => {
   const [dateFrom, setDateFrom] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [dateTo, setDateTo] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [showDateFilter, setShowDateFilter] = useState(false);
+  const monthListRef = React.useRef<HTMLDivElement>(null);
 
   const ThemeCard = ({ children, className = "", variant = "default", hover = false }: {
     children: React.ReactNode;
@@ -108,6 +109,18 @@ const Performance: React.FC = () => {
       </div>
     );
   };
+
+  useEffect(() => {
+    if (showMonthFilter && monthListRef.current) {
+      const selectedEl = monthListRef.current.querySelector(".selected-month");
+      if (selectedEl) {
+        selectedEl.scrollIntoView({
+          block: "center",
+          behavior: "auto",
+        });
+      }
+    }
+  }, [showMonthFilter]);
 
   const PerformanceCard = ({ member, rank, isUser = false }: {
     member: DashboardData['teamPerformance'][0] | NonNullable<DashboardData['userPerformance']>;
@@ -558,7 +571,7 @@ const Performance: React.FC = () => {
               {showMonthFilter && (
                 <div className="absolute right-0 top-full mt-2 w-full sm:w-52 z-50">
                   <ThemeCard className="p-3 max-h-80 overflow-y-auto" variant="elevated" hover={false}>
-                    <div className="space-y-2">
+                    <div ref={monthListRef} className="space-y-2">
                       {monthOptions.map((date, index) => {
                         const isSelected = format(date, 'yyyy-MM') === format(selectedMonth, 'yyyy-MM');
                         const isCurrent = isThisMonth(date);
@@ -569,7 +582,9 @@ const Performance: React.FC = () => {
                               setSelectedMonth(date);
                               setShowMonthFilter(false);
                             }}
-                            className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-200 ${isSelected ? 'bg-[#3a2ee2ff] text-white shadow-lg' : 'hover:bg-[var(--color-border)] text-[var(--color-text)]'}`}
+                            className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-200 
+  ${isSelected ? 'selected-month bg-[#3a2ee2ff] text-white shadow-lg'
+                                : 'hover:bg-[var(--color-border)] text-[var(--color-text)]'}`}
                           >
                             <div className="flex items-center justify-between">
                               <span className="font-semibold">{format(date, 'MMMM yyyy')}</span>

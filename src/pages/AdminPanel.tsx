@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, Edit, Save, X, ChevronDown, ChevronUp, User, LockKeyhole, CreditCard, Building2, UserCheck, UserCog, Loader2, Shield } from 'lucide-react';
+import { Users, Plus, Edit, Save, X, ChevronDown, ChevronUp, User, LockKeyhole, CreditCard, Building2, UserCheck, UserCog, Loader2, Shield, Search, Activity, Building } from 'lucide-react';
 import axios from 'axios';
 import { address } from '../../utils/ipAddress';
 import { useAuth } from '../contexts/AuthContext';
@@ -82,6 +82,11 @@ const AdminPanel: React.FC = () => {
   });
   const [message, setMessage] = useState({ type: '', text: '' });
   const [settingsMessage, setSettingsMessage] = useState({ type: '', text: '' });
+  const [searchName, setSearchName] = useState("");
+  const [searchEmail, setSearchEmail] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterRole, setFilterRole] = useState("");
+  const [filterDepartment, setFilterDepartment] = useState("");
 
   // Define allowed permissions for each role
   const rolePermissions = {
@@ -476,11 +481,93 @@ const AdminPanel: React.FC = () => {
           </button>
         </div>
       </div>
+      {/* 🔍 FILTER BAR */}
+      <div className="p-6 bg-gradient-to-br from-[var(--color-surface)] to-[var(--color-background)] rounded-2xl border border-[var(--color-border)] shadow-xl mt-6 backdrop-blur-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* 🔍 Enhanced Search with Icon */}
+          <div className="relative group">
+            <input
+              type="text"
+              value={searchName}
+              onChange={(e) => {
+                setSearchName(e.target.value);
+                setSearchEmail(e.target.value); // 🔥 unified search
+              }}
+              placeholder="Search name or email..."
+              className="w-full pl-12 pr-4 py-3.5 rounded-xl text-sm border-0 shadow-lg focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:shadow-[0_0_0_3px_rgba(var(--color-primary-rgb),0.1)] transition-all duration-300 group-hover:shadow-md bg-[var(--color-background)] text-[var(--color-text)] placeholder-[var(--color-textSecondary)]"
+            />
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[var(--color-textSecondary)] group-focus-within:text-[var(--color-primary)] transition-colors duration-300" size={20} />
+            {searchName && (
+              <button
+                onClick={() => {
+                  setSearchName("");
+                  setSearchEmail("");
+                }}
+                className="absolute right-4 top-1/2 transform -translate-y-1/2
+                 w-5 h-5 flex items-center justify-center rounded-full
+                 bg-[var(--color-border)] hover:bg-[var(--color-primary)] hover:text-white
+                 text-[var(--color-textSecondary)] transition-all duration-200"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
 
+          {/* Status Filter with Icon */}
+          <div className="relative group">
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="w-full pl-12 pr-4 py-3.5 rounded-xl text-sm border-0 shadow-lg focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:shadow-[0_0_0_3px_rgba(var(--color-primary-rgb),0.1)] transition-all duration-300 group-hover:shadow-md bg-[var(--color-background)] text-[var(--color-text)] appearance-none cursor-pointer"
+            >
+              <option value="">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+            <Activity className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[var(--color-textSecondary)] group-focus-within:text-[var(--color-primary)] transition-colors duration-300" size={20} />
+            <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[var(--color-textSecondary)] pointer-events-none transition-colors duration-300" size={16} />
+          </div>
+
+          {/* Role Filter with Icon */}
+          <div className="relative group">
+            <select
+              value={filterRole}
+              onChange={(e) => setFilterRole(e.target.value)}
+              className="w-full pl-12 pr-4 py-3.5 rounded-xl text-sm border-0 shadow-lg focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:shadow-[0_0_0_3px_rgba(var(--color-primary-rgb),0.1)] transition-all duration-300 group-hover:shadow-md bg-[var(--color-background)] text-[var(--color-text)] appearance-none cursor-pointer"
+            >
+              <option value="">All Roles</option>
+              <option value="employee">User</option>
+              <option value="manager">Manager</option>
+              <option value="admin">Admin</option>
+            </select>
+            <Users className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[var(--color-textSecondary)] group-focus-within:text-[var(--color-primary)] transition-colors duration-300" size={20} />
+            <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[var(--color-textSecondary)] pointer-events-none transition-colors duration-300" size={16} />
+          </div>
+
+          {/* Department Filter with Icon (Dynamic Unique Options) */}
+          <div className="relative group">
+            <select
+              value={filterDepartment}
+              onChange={(e) => setFilterDepartment(e.target.value)}
+              className="w-full pl-12 pr-4 py-3.5 rounded-xl text-sm border-0 shadow-lg focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:shadow-[0_0_0_3px_rgba(var(--color-primary-rgb),0.1)] transition-all duration-300 group-hover:shadow-md bg-[var(--color-background)] text-[var(--color-text)] appearance-none cursor-pointer"
+            >
+              <option value="">All Departments</option>
+              {Array.from(new Set(users.map(u => u.department || "No Department")))
+                .map((dept, index) => (
+                  <option key={index} value={dept}>
+                    {dept}
+                  </option>
+                ))}
+            </select>
+            <Building className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[var(--color-textSecondary)] group-focus-within:text-[var(--color-primary)] transition-colors duration-300" size={20} />
+            <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[var(--color-textSecondary)] pointer-events-none transition-colors duration-300" size={16} />
+          </div>
+        </div>
+      </div>
       {/* Message */}
       {message.text && (
         <div
-          className={`p-3 rounded-lg text-sm ${message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
+          className={`p-3 mt-2 rounded-lg text-sm ${message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
             }`}
         >
           {message.text}
@@ -490,15 +577,15 @@ const AdminPanel: React.FC = () => {
       <div className="rounded-lg border overflow-hidden mt-4" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
         <div className="p-3 sm:p-4 border-b" style={{ borderColor: 'var(--color-border)' }}>
           <h2 className="text-md font-semibold flex items-center" style={{ color: 'var(--color-text)' }}>
-            <Users className="mr-2" size={16} />
+            <Users className="mr-2 text-[var(--color-primary)]" size={16} />
             User Management ({users.length})
           </h2>
         </div>
 
         {/* Desktop Table View */}
-        <div className="hidden lg:block overflow-x-auto">
+        <div className="hidden lg:block overflow-x-auto max-h-[650px] z-10 ">
           <table className="w-full">
-            <thead className="border-b" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+            <thead className="border-b top-0 sticky z-10" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
               <tr>
                 <th className="text-left py-3 px-4 font-medium text-sm" style={{ color: 'var(--color-text)' }}>User</th>
                 <th className="text-left py-3 px-4 font-medium text-sm" style={{ color: 'var(--color-text)' }}>Role</th>
@@ -509,12 +596,33 @@ const AdminPanel: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {users.filter(u => {
-                if (currentUser?.role === "manager") {
-                  return u.role !== "admin" && u.role !== "manager";   // 🔥 hide admins from manager
-                }
-                return true;
-              })
+              {users
+                .filter(u => {
+                  if (currentUser?.role === "manager") {
+                    return u.role !== "admin" && u.role !== "manager";
+                  }
+                  return true;
+                })
+                .filter(u =>
+                  u.username.toLowerCase().includes(searchName.toLowerCase()) ||
+                  u.email.toLowerCase().includes(searchName.toLowerCase())
+                )
+                .filter(u =>
+                  filterStatus === "" ? true :
+                    filterStatus === "active" ? u.isActive : !u.isActive
+                )
+                .filter(u =>
+                  filterRole === "" ? true : u.role === filterRole
+                )
+                .filter(u => {
+                  if (filterDepartment === "") return true;              // All
+                  if (filterDepartment === "No Department")              // Show blank dept users
+                    return u.department.trim() === "" || !u.department;
+
+                  return (u.department || "")
+                    .toLowerCase()
+                    .includes(filterDepartment.toLowerCase());
+                })
                 .map((user) => (
                   <tr key={user._id} className="border-b hover:bg-opacity-50" style={{ borderColor: 'var(--color-border)' }}>
                     <td className="py-3 px-4">
@@ -623,11 +731,36 @@ const AdminPanel: React.FC = () => {
         {/* Mobile/Tablet Card View */}
         <div className="lg:hidden divide-y" style={{ borderColor: 'var(--color-border)' }}>
           {users
+            // Manager restriction
             .filter(u => {
               if (currentUser?.role === "manager") {
-                return u.role !== "admin" && u.role !== "manager";   // 🔥 hide admins from manager
+                return u.role !== "admin" && u.role !== "manager";
               }
               return true;
+            })
+            // Search filter (name/email)
+            .filter(u =>
+              u.username.toLowerCase().includes(searchName.toLowerCase()) ||
+              u.email.toLowerCase().includes(searchName.toLowerCase())
+            )
+            // Status filter
+            .filter(u =>
+              filterStatus === "" ? true :
+                filterStatus === "active" ? u.isActive : !u.isActive
+            )
+            // Role filter
+            .filter(u =>
+              filterRole === "" ? true : u.role === filterRole
+            )
+            // Department filter
+            .filter(u => {
+              if (filterDepartment === "") return true;              // All
+              if (filterDepartment === "No Department")              // Show blank dept users
+                return u.department.trim() === "" || !u.department;
+
+              return (u.department || "")
+                .toLowerCase()
+                .includes(filterDepartment.toLowerCase());
             })
             .map((user) => (
               <div key={user._id} className="p-3 sm:p-4">
@@ -770,7 +903,11 @@ const AdminPanel: React.FC = () => {
       {/* View Plan Modal */}
       {showPlanModal && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg transform transition-all">
+          <div className="bg-white rounded-2xl shadow-2xl w-full 
+     max-w-lg sm:max-w-md md:max-w-lg 
+     max-h-[90vh] overflow-y-auto 
+     transform transition-all
+     mx-2">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-2xl p-6 text-white">
               <div className="flex justify-between items-center">
                 <div className="flex items-center space-x-3">
@@ -801,19 +938,6 @@ const AdminPanel: React.FC = () => {
                 </div>
               ) : companyData ? (
                 <>
-                  {/* Company Name */}
-                  <div className="bg-gray-50 rounded-xl p-4 mb-6">
-                    <div className="flex items-center space-x-3">
-                      <div className="bg-blue-100 rounded-full p-2">
-                        <Building2 className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500 font-medium">Company</p>
-                        <p className="text-lg font-bold text-gray-800">{companyData.companyName}</p>
-                      </div>
-                    </div>
-                  </div>
-
                   {/* Plan Limits */}
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-gray-800 mb-4">Subscription Limits</h3>
@@ -1278,7 +1402,7 @@ const AdminPanel: React.FC = () => {
                       onChange={handleInputChange}
                       required
                       className="w-full px-3 py-2 border rounded-lg text-sm"
-                       style={{
+                      style={{
                         backgroundColor: 'var(--color-background)',
                         borderColor: 'var(--color-border)',
                         color: 'var(--color-text)'

@@ -9,6 +9,7 @@ import { useTaskSettings } from '../hooks/useTaskSettings';
 import { useTheme } from '../contexts/ThemeContext';
 import { address } from '../../utils/ipAddress';
 import { useLocation } from 'react-router-dom';
+import { toast, ToastContainer } from 'react-toastify';
 
 interface Attachment {
   filename: string;
@@ -97,6 +98,7 @@ const PendingTasks: React.FC = () => {
   const [filter, setFilter] = useState({
     priority: '',
     assignedTo: '',
+    assignedBy: '',
     search: '',
     dateFrom: '',
     dateTo: ''
@@ -251,6 +253,13 @@ const PendingTasks: React.FC = () => {
     return isNaN(d.getTime()) ? null : d;
   };
 
+  const canManageTask = (task: Task) => {
+    if (user?.role === 'manager') {
+      return task.assignedTo._id === user.id;
+    }
+    return true;
+  };
+
   const fetchUsers = async () => {
     try {
       const params: any = {};
@@ -277,6 +286,11 @@ const PendingTasks: React.FC = () => {
 
     if (filter.assignedTo) {
       filteredTasks = filteredTasks.filter(task => task.assignedTo._id === filter.assignedTo);
+    }
+    if (filter.assignedBy) {
+      filteredTasks = filteredTasks.filter(
+        task => task.assignedBy.username === filter.assignedBy
+      );
     }
 
     if (filter.priority) {
@@ -335,6 +349,10 @@ const PendingTasks: React.FC = () => {
       alert('Please select a new due date.');
       return;
     }
+    if (!revisionRemarks || revisionRemarks.trim().length === 0) {
+      toast.error('Revision remarks are mandatory.');
+      return;
+    }
     try {
       await axios.post(`${address}/api/tasks/${taskId}/revise`, {
         newDate: revisionDate,
@@ -357,7 +375,7 @@ const PendingTasks: React.FC = () => {
   };
 
   const resetFilters = () => {
-    setFilter({ priority: '', assignedTo: '', search: '', dateFrom: '', dateTo: '' });
+    setFilter({ priority: '', assignedBy: '', assignedTo: '', search: '', dateFrom: '', dateTo: '' });
     setSortOrder('none');
     setCurrentPage(1);
   };
@@ -650,7 +668,8 @@ const PendingTasks: React.FC = () => {
 
                     <button
                       onClick={() => setShowCompleteModal(task._id)}
-                      className="p-2 rounded-lg transition-all transform hover:scale-110 hover:bg-[--color-success] hover:text-[--color-background] text-[--color-success]"
+                      disabled={!canManageTask(task) || task.status !== 'pending'}
+                      className={`... ${!canManageTask(task) ? 'opacity-50 cursor-not-allowed' : 'transition-all transform hover:scale-110 text-[--color-success]'}`}
                       title="Complete task"
                     >
                       <CheckSquare size={16} />
@@ -690,6 +709,13 @@ const PendingTasks: React.FC = () => {
                 </p>
 
                 <div className="space-y-3 text-sm">
+                  <div className={`flex items-center justify-between p-2 rounded-lg ${theme === 'light' ? 'bg-gray-50' : 'bg-[--color-background]'}`}>
+                    <span className="flex items-center text-[--color-textSecondary]">
+                      <Users size={14} className="mr-1" />
+                      Assigned By:
+                    </span>
+                    <span className="font-medium text-[--color-text]">{task.assignedBy.username}</span>
+                  </div>
                   <div className={`flex items-center justify-between p-2 rounded-lg ${theme === 'light' ? 'bg-gray-50' : 'bg-[--color-background]'}`}>
                     <span className="flex items-center text-[--color-textSecondary]">
                       <Users size={14} className="mr-1" />
@@ -761,6 +787,9 @@ const PendingTasks: React.FC = () => {
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
                   Priority
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
+                  Assigned By
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
                   Assigned To
@@ -849,6 +878,13 @@ const PendingTasks: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div>
+                          <div className="text-sm font-semibold text-[--color-text]">{task.assignedBy.username}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div>
                           <div className="text-sm text-[--color-text]">{task.assignedTo.username}</div>
                           <div className="text-sm text-[--color-textSecondary]">{task.assignedTo.email}</div>
                         </div>
@@ -929,7 +965,8 @@ const PendingTasks: React.FC = () => {
 
                         <button
                           onClick={() => setShowCompleteModal(task._id)}
-                          className="transition-all transform hover:scale-110 text-[--color-success]"
+                          disabled={!canManageTask(task) || task.status !== 'pending'}
+                          className={`... ${!canManageTask(task) ? 'opacity-50 cursor-not-allowed' : 'transition-all transform hover:scale-110 text-[--color-success]'}`}
                           title="Complete task"
                         >
                           <CheckSquare size={16} />
@@ -994,7 +1031,7 @@ const PendingTasks: React.FC = () => {
           id="filters-panel"
           className="rounded-xl shadow-sm border border-[--color-border] p-3 mt-2 bg-[--color-surface]"
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
             {/* Date From */}
             <div>
               <label className="block text-sm font-medium mb-1 text-[--color-textSecondary]">
@@ -1038,6 +1075,30 @@ const PendingTasks: React.FC = () => {
                 <option value="high">High</option>
               </select>
             </div>
+
+            {user?.permissions.canViewAllTeamTasks && (
+              <div>
+                <label className="block text-sm font-medium mb-1 text-[--color-textSecondary]">
+                  <Users size={14} className="inline mr-1" />
+                  Assigned By
+                </label>
+
+                <select
+                  value={filter.assignedBy}
+                  onChange={(e) => setFilter({ ...filter, assignedBy: e.target.value })}
+                  className="w-full text-sm px-1 py-1 border border-[--color-border] rounded-lg 
+      bg-[--color-background] text-[--color-text] focus:ring-2 
+      focus:ring-[--color-primary] focus:border-[--color-primary]"
+                >
+                  <option value="">All</option>
+
+                  {/* Auto populate based on tasks */}
+                  {[...new Set(allTasks.map(t => t.assignedBy.username))].map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {user?.permissions.canViewAllTeamTasks && (
               <div>
@@ -1398,6 +1459,14 @@ const PendingTasks: React.FC = () => {
           </div>
         </div>
       )}
+      <ToastContainer
+        position="top-right"
+        autoClose={2000}
+        hideProgressBar={false}
+        newestOnTop={true}
+        closeOnClick
+        pauseOnHover
+      />
     </div>
   );
 };

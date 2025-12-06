@@ -944,10 +944,10 @@ const memoTeamPendingData = useMemo(() => teamPendingData, [teamPendingData]);
             </ResponsiveContainer>
 
             {/* Clean, Professional Legend */}
-            <div className="mt-2 flex flex-wrap justify-center gap-6">
+            <div className="mt-2 flex flex-wrap justify-center gap-2 sm:gap-6">
               {statusData.map((entry, index) => {
                 const colors = [
-                  { primary: '#123cf7ff', light: '#FEF3C7' },
+                  { primary: '#516ff8ff', light: '#FEF3C7' },
                   { primary: '#c13bf6ff', light: '#DBEAFE' },
                   { primary: '#10B981', light: '#D1FAE5' }
                 ];
@@ -964,7 +964,7 @@ const memoTeamPendingData = useMemo(() => teamPendingData, [teamPendingData]);
                       className="w-3 h-3 rounded-full"
                       style={{ backgroundColor: colors[index].primary }}
                     ></div>
-                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    <span className="text-sm font-semibold text-[var(--color-text)]">
                       {entry.name}
                     </span>
                     <span
@@ -973,7 +973,7 @@ const memoTeamPendingData = useMemo(() => teamPendingData, [teamPendingData]);
                     >
                       {entry.value}
                     </span>
-                    <span className="text-xs font-medium text-gray-500">
+                    <span className="text-xs font-medium text-[var(--color-text)]">
                       ({percentage}%)
                     </span>
                   </div>

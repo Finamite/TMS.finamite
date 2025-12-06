@@ -128,9 +128,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', permission: cp.dashboard },
-    { icon: CheckSquare, label: 'Pending Tasks', path: '/pending-tasks', permission: cp.pendingTasks },
+    { icon: CheckSquare, label: 'Pending Single', path: '/pending-tasks', permission: cp.pendingTasks },
     { icon: RefreshCw, label: 'Pending Recurring', path: '/pending-recurring', permission: cp.pendingRecurringTasks },
-    { icon: Archive, label: 'Master Tasks', path: '/master-tasks', permission: cp.masterTasks },
+    { icon: Archive, label: 'Master Single', path: '/master-tasks', permission: cp.masterTasks },
     { icon: RotateCcw, label: 'Master Recurring', path: '/master-recurring', permission: cp.masterRecurringTasks },
     { icon: UserPlus, label: 'Assign Task', path: '/assign-task', permission: user?.permissions?.canAssignTasks },
     { icon: Zap, label: 'Performance', path: '/performance', permission: cp.performance },

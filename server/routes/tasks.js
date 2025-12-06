@@ -438,6 +438,12 @@ router.get('/master-recurring', async (req, res) => {
 
     // Build aggregation pipeline for better performance
     const pipeline = [];
+    let assignedById = null;
+
+if (req.query.assignedBy) {
+  const user = await User.findOne({ username: req.query.assignedBy });
+  if (user) assignedById = user._id;
+}
 
     // Match stage - filter at database level
     const matchStage = {
@@ -468,7 +474,7 @@ router.get('/master-recurring', async (req, res) => {
     }
 
     if (assignedTo) matchStage.assignedTo = assignedTo;
-    if (assignedBy) matchStage.assignedBy = assignedBy;
+    if (assignedById) matchStage.assignedBy = assignedById;
     if (priority) matchStage.priority = priority;
 
     if (dateFrom && dateTo) {
@@ -626,6 +632,13 @@ router.get('/recurring-instances', async (req, res) => {
       companyId
     } = req.query;
 
+    let assignedById = null;
+
+if (req.query.assignedBy) {
+  const user = await User.findOne({ username: req.query.assignedBy });
+  if (user) assignedById = user._id;
+}
+
     const query = {
       isActive: true,
       taskType: { $in: ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'] }
@@ -654,7 +667,7 @@ router.get('/recurring-instances', async (req, res) => {
     }
 
     if (assignedTo) query.assignedTo = assignedTo;
-    if (assignedBy) query.assignedBy = assignedBy;
+    if (assignedById) query.assignedBy = assignedById;
     if (priority) query.priority = priority;
 
     if (dateFrom && dateTo) {

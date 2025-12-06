@@ -158,6 +158,7 @@ const Chat: React.FC = () => {
     const [replyTo, setReplyTo] = useState<Message | null>(null);
     const [sidebarSearch, setSidebarSearch] = useState("");
     const [freezeSidebarSearch, setFreezeSidebarSearch] = useState(false);
+    const [showMobileSearch, setShowMobileSearch] = useState(false);
 
     const isAdmin = user?.role === 'admin' || user?.role === 'manager';
 
@@ -204,21 +205,46 @@ const Chat: React.FC = () => {
     }, [user]);
 
     useEffect(() => {
-        if (messagesContainerRef.current) {
-            messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-        }
+        if (!messagesContainerRef.current) return;
+
+        // 1st scroll after messages state update
+        requestAnimationFrame(() => {
+            if (!messagesContainerRef.current) return;
+            messagesContainerRef.current.scrollTop =
+                messagesContainerRef.current.scrollHeight;
+        });
+
+        // 2nd scroll after DOM paint
+        setTimeout(() => {
+            if (!messagesContainerRef.current) return;
+            messagesContainerRef.current.scrollTop =
+                messagesContainerRef.current.scrollHeight;
+        }, 50);
+
+        // 3rd scroll for mobile slow layout
+        setTimeout(() => {
+            if (!messagesContainerRef.current) return;
+            messagesContainerRef.current.scrollTop =
+                messagesContainerRef.current.scrollHeight;
+        }, 250);
+
     }, [messages]);
 
     useEffect(() => {
-        if (activeChat) {
-            loadMessages().then(() => {
-                if (messagesContainerRef.current) {
-                    messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-                }
-            });
-            markMessagesAsRead();
-        }
+        if (!activeChat) return;
+
+        const loadAndScroll = async () => {
+            await loadMessages();
+
+            // wait for DOM to render the messages
+            setTimeout(() => {
+                scrollToBottom();
+            }, 150);
+        };
+
+        loadAndScroll();
     }, [activeChat]);
+
 
     useEffect(() => {
         if (showTaskModal) {
@@ -301,6 +327,23 @@ const Chat: React.FC = () => {
 
         return () => clearInterval(interval);
     }, [activeChat]);
+
+    const scrollToBottom = () => {
+        if (!messagesContainerRef.current) return;
+
+        const el = messagesContainerRef.current;
+
+        // Run multiple passes because mobile layout shifts
+        const scrollNow = () => {
+            el.scrollTop = el.scrollHeight;
+        };
+
+        requestAnimationFrame(scrollNow);
+        setTimeout(scrollNow, 50);
+        setTimeout(scrollNow, 150);
+        setTimeout(scrollNow, 350);
+        setTimeout(scrollNow, 600); // 🔥 mobile needs this final pass
+    };
 
     const initializeChat = async () => {
         if (!user) return;
@@ -660,12 +703,12 @@ const Chat: React.FC = () => {
     };
 
     const deleteSelectedMessages = async () => {
-        if (!isAdmin || selectedMessages.length === 0) return;
+    if (!isAdmin || selectedMessages.length === 0) return;
 
-        if (!confirm(`Are you sure you want to delete ${selectedMessages.length} selected messages?`)) {
-            return;
-        }
+    // OPEN CUSTOM CONFIRM MODAL
+    setConfirmText(`Are you sure you want to delete ${selectedMessages.length} selected messages?`);
 
+    setConfirmAction(() => async () => {
         try {
             await Promise.all(
                 selectedMessages.map(messageId =>
@@ -679,11 +722,16 @@ const Chat: React.FC = () => {
             setMessages(prev => prev.filter(msg => !selectedMessages.includes(msg._id)));
             setSelectedMessages([]);
             setIsSelectionMode(false);
+
         } catch (error) {
-            console.error('Error deleting messages:', error);
-            toast.error('Failed to delete messages.');
+            console.error("Error deleting messages:", error);
+            toast.error("Failed to delete messages.");
         }
-    };
+    });
+
+    setShowConfirmModal(true); // SHOW THE POPUP
+};
+
 
     const deleteChat = async () => {
         if (!activeChat || !isAdmin) return;
@@ -708,17 +756,25 @@ const Chat: React.FC = () => {
         setShowConfirmModal(true);
     };
 
-    const searchMessages = async (query: string) => {
+    const searchMessages = (query: string) => {
+        setSearchTerm(query);
+
         if (!query.trim()) {
             setIsSearching(false);
             setSearchResults([]);
             return;
         }
 
-        setIsSearching(true);
-        await loadMessages(query);
-    };
+        const lower = query.toLowerCase();
 
+        const results = messages.filter(msg =>
+            msg.content?.toLowerCase().includes(lower) ||
+            msg.senderInfo.username.toLowerCase().includes(lower)
+        );
+
+        setSearchResults(results);
+        setIsSearching(true);
+    };
     const markMessagesAsRead = async () => {
         if (!activeChat || !user) return;
 
@@ -767,9 +823,9 @@ const Chat: React.FC = () => {
         if (message.senderId._id !== user?.id) return null;
 
         if (readCount > 1) { // More than just sender
-            return <CheckCircle size={12} className="ml-1 text-green-300" />;
+            return <CheckCircle size={12} className="ml-1 text-green-100" />;
         }
-        return <Check size={12} className="ml-1 text-[var(--color-textSecondary)]" />;
+        return <Check size={12} className="ml-1 text-white" />;
     };
 
     const createSupportChat = async () => {
@@ -1059,7 +1115,7 @@ const Chat: React.FC = () => {
     }
 
     return (
-        <div className="h-full flex flex-col sm:flex-row bg-[var(--color-background)] text-[var(--color-text)]">
+        <div className="h-full flex flex-col bg-[var(--color-background)] text-[var(--color-text)] sm:flex-row">
             {/* Chat List Sidebar */}
             <div className={`${activeChat ? "hidden sm:flex" : "flex"} w-full sm:w-80 bg-[var(--color-surface)] border-r border-[var(--color-border)] flex-col`}>
                 {/* Fixed Header */}
@@ -1101,6 +1157,17 @@ const Chat: React.FC = () => {
                                     }}
                                     className="w-full pl-10 pr-3 py-2 bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)]"
                                 />
+                                {sidebarSearch && (
+                                    <button
+                                        onClick={() => {
+                                            setSidebarSearch("");
+                                            setFreezeSidebarSearch(false);
+                                        }}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)] hover:text-red-500"
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                )}
                             </div>
                         </div>
                     )}
@@ -1187,12 +1254,18 @@ const Chat: React.FC = () => {
             </div>
 
             {/* Main Chat Area */}
-            <div className="flex-1 flex flex-col bg-[var(--color-background)] text-[var(--color-text)]">
+            <div className={`flex-1 flex flex-col bg-[var(--color-background)] text-[var(--color-text)]
+    ${activeChat ? "flex" : "flex sm:flex hidden"}
+`}>
                 {activeChat ? (
                     <>
                         {/* Fixed Chat Header */}
-                        <div className="p-4 bg-[var(--color-surface)] border-b border-[var(--color-border)] flex items-center justify-between sticky top-0 z-30">
+                        <div className="p-4 bg-[var(--color-surface)] border-b border-[var(--color-border)]
+    sticky top-0 z-10 flex flex-row items-center justify-between gap-3">
+
+                            {/* LEFT SECTION */}
                             <div className="flex items-center">
+
                                 {/* Mobile Back Button */}
                                 <button
                                     onClick={() => {
@@ -1208,25 +1281,35 @@ const Chat: React.FC = () => {
                                     </svg>
                                 </button>
 
+                                {/* Avatar */}
                                 <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
                                     <Users size={18} className="text-blue-600" />
                                 </div>
+
+                                {/* Chat Info */}
                                 <div>
-                                    <h3 className="font-semibold text-[var(--color-text)]">Support Chat</h3>
-                                    <p className="text-sm text-[var(--color-textSecondary)]">
-                                        {otherTyping
-                                            ? <span className="text-blue-600 italic">Typing...</span>
-                                            : `${activeChat.participants.length} participants`
-                                        }
-                                    </p>
+                                    <h3 className="font-semibold text-[var(--color-text)] text-sm sm:text-base">
+                                        {activeChat.participants
+                                            .filter(p => p.userId !== currentUserId)
+                                            .map(p => p.username)
+                                            .join(", ")}
+                                    </h3>
+                                    {otherTyping && (
+                                        <p className="text-sm text-blue-600 italic">
+                                            Typing...
+                                        </p>
+                                    )}
                                 </div>
                             </div>
 
-                            {/* Chat Controls */}
-                            <div className="flex items-center space-x-2">
-                                {/* Search */}
-                                <div className="relative">
-                                    <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--color-textSecondary)]" />
+                            {/* RIGHT SECTION */}
+                            <div className="flex items-center gap-2 sm:w-auto">
+
+                                {/* DESKTOP SEARCH BAR */}
+                                <div className="relative flex-grow hidden sm:block">
+                                    <Search size={16}
+                                        className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)]"
+                                    />
                                     <input
                                         type="text"
                                         placeholder="Search..."
@@ -1235,72 +1318,84 @@ const Chat: React.FC = () => {
                                             setSearchTerm(e.target.value);
                                             searchMessages(e.target.value);
                                         }}
-                                        className="pl-9 pr-4 py-2 text-sm bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] w-40"
+                                        className="pl-9 pr-3 py-2 bg-[var(--color-background)]
+                border border-[var(--color-border)] rounded-lg w-full
+                text-sm focus:ring-2 focus:ring-[var(--color-primary)]"
                                     />
+                                    {searchTerm && (
+                                        <button
+                                            onClick={() => {
+                                                setSearchTerm("");
+                                                searchMessages(""); // 👈 also clear results
+                                            }}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)] hover:text-red-500"
+                                        >
+                                            <X size={16} />
+                                        </button>
+                                    )}
                                 </div>
 
-                                {isSearching && (
-                                    <button
-                                        onClick={() => {
-                                            setSearchTerm('');
-                                            setIsSearching(false);
-                                            setSearchResults([]);
-                                        }}
-                                        className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                                    >
-                                        Clear
-                                    </button>
-                                )}
+                                {/* MOBILE SEARCH ICON */}
+                                <button
+                                    onClick={() => setShowMobileSearch(!showMobileSearch)}
+                                    className="p-2 bg-gray-100 rounded-lg text-[var(--color-textSecondary)] hover:bg-gray-200 block sm:hidden"
+                                >
+                                    <Search size={18} />
+                                </button>
 
-                                {/* Selection Mode Toggle for Admin */}
-                                {isAdmin && (
+                                {/* SELECT MODE OFF */}
+                                {!isSelectionMode && isAdmin && (
                                     <button
                                         onClick={() => {
-                                            setIsSelectionMode(!isSelectionMode);
+                                            setIsSelectionMode(true);
                                             setSelectedMessages([]);
                                         }}
-                                        className={`p-2 rounded-lg ${isSelectionMode
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-gray-100 text-[var(--color-textSecondary)] hover:bg-gray-200'
-                                            }`}
-                                        title="Select messages"
+                                        className="p-2 rounded-lg bg-gray-100 text-[var(--color-textSecondary)] hover:bg-gray-200"
                                     >
-                                        <CheckCircle size={16} />
+                                        <CheckCircle size={18} />
                                     </button>
                                 )}
 
-                                {/* Bulk Delete */}
+                                {/* SELECT MODE ON → CANCEL */}
                                 {isSelectionMode && (
-                                    <div className="flex items-center space-x-3">
-
-                                        {/* Selected Count */}
-                                        <span className="text-sm font-semibold text-blue-600">
-                                            Selected ({selectedMessages.length})
-                                        </span>
-
-                                        {/* Delete Button */}
-                                        {selectedMessages.length > 0 && (
-                                            <button
-                                                onClick={deleteSelectedMessages}
-                                                className="p-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                                                title={`Delete ${selectedMessages.length} selected messages`}
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        )}
-                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            setIsSelectionMode(false);
+                                            setSelectedMessages([]);
+                                        }}
+                                        className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                    >
+                                        <X size={18} />
+                                    </button>
                                 )}
 
-                                {/* Chat Options */}
+                                {/* SELECT MODE ON → DELETE */}
+                                {isSelectionMode && (
+                                    <button
+                                        onClick={deleteSelectedMessages}
+                                        disabled={selectedMessages.length === 0}
+                                        className={`p-2 rounded-lg ${selectedMessages.length > 0
+                                            ? 'bg-red-600 text-white hover:bg-red-700'
+                                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                            }`}
+                                    >
+                                        <Trash2 size={18} />
+                                    </button>
+                                )}
+
+                                {/* MENU BUTTON */}
                                 <div className="relative">
                                     <button
                                         onClick={() => setShowChatOptions(!showChatOptions)}
                                         className="p-2 bg-gray-100 text-[var(--color-textSecondary)] hover:bg-gray-200 rounded-lg"
                                     >
-                                        <MoreVertical size={16} />
+                                        <MoreVertical size={18} />
                                     </button>
+
                                     {showChatOptions && (
-                                        <div className="absolute right-0 top-full mt-2 w-48 bg-[var(--color-surface)] rounded-lg shadow-lg border border-gray-200 py-2 z-10">
+                                        <div className="absolute right-0 mt-2 w-48 bg-[var(--color-surface)]
+                rounded-lg shadow-lg border border-gray-200 py-2 z-20">
+
                                             {isAdmin && (
                                                 <button
                                                     onClick={() => {
@@ -1309,13 +1404,13 @@ const Chat: React.FC = () => {
                                                     }}
                                                     className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center"
                                                 >
-                                                    <Archive size={16} className="mr-2" />
-                                                    Delete Chat
+                                                    <Archive size={16} className="mr-2" /> Delete Chat
                                                 </button>
                                             )}
+
                                             <button
                                                 onClick={() => setShowChatOptions(false)}
-                                                className="w-full px-4 py-2 text-left text-[var(--color-textSecondary)] hover:bg-[var(--color-surface)]"
+                                                className="w-full px-4 py-2 text-left text-[var(--color-textSecondary)] hover:bg-gray-50"
                                             >
                                                 Cancel
                                             </button>
@@ -1325,8 +1420,51 @@ const Chat: React.FC = () => {
                             </div>
                         </div>
 
+                        {/* MOBILE SEARCH BAR BELOW HEADER */}
+                        {showMobileSearch && (
+                            <div className="p-3 bg-[var(--color-surface)] border-b border-[var(--color-border)] sm:hidden sticky top-[64px] z-10">
+                                <div className="relative">
+                                    <Search
+                                        size={16}
+                                        className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)]"
+                                    />
+                                    <input
+                                        type="text"
+                                        placeholder="Search..."
+                                        value={searchTerm}
+                                        onChange={(e) => {
+                                            setSearchTerm(e.target.value);
+                                            searchMessages(e.target.value);
+                                        }}
+                                        className="pl-9 pr-3 py-2 bg-[var(--color-background)]
+                border border-[var(--color-border)] rounded-lg w-full
+                text-sm focus:ring-2 focus:ring-[var(--color-primary)]"
+                                    />
+                                    {searchTerm && (
+                                        <button
+                                            onClick={() => {
+                                                setSearchTerm("");
+                                                searchMessages(""); // 👈 also clear results
+                                            }}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)] hover:text-red-500"
+                                        >
+                                            <X size={16} />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+
                         {/* Messages Area */}
-                        <div className="flex-1 overflow-y-auto p-4 pt-6 pb-32 bg-[var(--color-background)]" ref={messagesContainerRef} style={{ WebkitOverflowScrolling: 'touch' }}>
+                        <div
+                            ref={messagesContainerRef}
+                            className="overflow-y-auto p-4 pb-32 bg-[var(--color-background)]"
+                            style={{
+                                height: "calc(100vh - 130px)",   // 🔥 fixes mobile height issue
+                                WebkitOverflowScrolling: "touch"
+                            }}
+                        >
                             {loadingMessages ? (
                                 <div className="flex items-center justify-center h-full">
                                     <div className="text-center">
@@ -1749,6 +1887,14 @@ const Chat: React.FC = () => {
                                     value={userSearch}
                                     onChange={(e) => setUserSearch(e.target.value)}
                                 />
+                                {userSearch && (
+                                    <button
+                                        onClick={() => setUserSearch("")}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-red-500"
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                )}
                             </div>
                         </div>
 

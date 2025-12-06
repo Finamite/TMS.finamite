@@ -92,7 +92,7 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(({
           </h3>
         </div>
         
-        <div className="p-6 max-h-[70vh] overflow-y-auto">
+        <div className="p-6 max-h-[65vh] overflow-y-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-[--color-text] mb-2">Title *</label>
@@ -156,7 +156,7 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(({
                 type="date"
                 value={editFormData.startDate?.split('T')[0] || ''}
                 disabled
-                className="w-full px-4 py-3 border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] bg-[--color-background] text-[--color-text]"
+                className="w-full px-4 py-3 border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] bg-[--color-background] text-[--color-text] disabled:opacity-50"
               />
             </div>
 
@@ -207,7 +207,7 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(({
 
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-[--color-text] mb-3">Week Off Days</label>
-              <div className="grid grid-cols-7 gap-3">
+              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-2">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => {
                   const currentWeekOffDays = editFormData.weekOffDays || [];
                   const isSelected = currentWeekOffDays.includes(i);

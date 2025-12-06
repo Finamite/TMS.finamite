@@ -25,7 +25,7 @@ interface User {
   email: string;
 }
 
-// Helper function to filter tasks based on all criteria
+// Replace the filterTasks helper function with this updated version:
 const filterTasks = (tasks: Task[], filter: any) => {
   return tasks.filter((task: Task) => {
     // Search filter
@@ -40,13 +40,26 @@ const filterTasks = (tasks: Task[], filter: any) => {
       if (!matchesSearch) return false;
     }
 
-    // Status filter
-    if (filter.status && task.status !== filter.status) {
-      return false;
+    // Status filter (handle 'overdue' as computed status)
+    if (filter.status) {
+      if (filter.status === 'overdue') {
+        // Inline overdue logic
+        if (task.status === 'completed' || !task.dueDate) return false;
+        const dueDateTime = new Date(task.dueDate);
+        dueDateTime.setHours(0, 0, 0, 0);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (dueDateTime >= today) return false;
+      } else if (task.status !== filter.status) {
+        return false;
+      }
     }
 
     // Priority filter
     if (filter.priority && task.priority !== filter.priority) {
+      return false;
+    }
+    if (filter.assignedBy && task.assignedBy.username !== filter.assignedBy) {
       return false;
     }
     // Assigned to filter
@@ -90,6 +103,7 @@ const MasterTasks: React.FC = () => {
   const [filter, setFilter] = useState({
     status: '',
     priority: '',
+    assignedBy: '',
     assignedTo: '',
     search: '',
     dateFrom: '',
@@ -277,6 +291,7 @@ const MasterTasks: React.FC = () => {
     setFilter({
       status: '',
       priority: '',
+      assignedBy: '',
       assignedTo: '',
       search: '',
       dateFrom: '',
@@ -550,7 +565,7 @@ const MasterTasks: React.FC = () => {
                   onClick={() => handleSort('created')}
                   className={`flex items-center space-x-1 transition-colors ${isDark ? 'hover:text-white' : 'hover:text-gray-700'}`}
                 >
-                  <span>Task</span>
+                  <span>TASK</span>
                   {getSortIcon('created')}
                 </button>
               </th>
@@ -559,7 +574,7 @@ const MasterTasks: React.FC = () => {
                   onClick={() => handleSort('status')}
                   className={`flex items-center space-x-1 transition-colors ${isDark ? 'hover:text-white' : 'hover:text-gray-700'}`}
                 >
-                  <span>Status</span>
+                  <span>STATUS</span>
                   {getSortIcon('status')}
                 </button>
               </th>
@@ -568,9 +583,12 @@ const MasterTasks: React.FC = () => {
                   onClick={() => handleSort('priority')}
                   className={`flex items-center space-x-1 transition-colors ${isDark ? 'hover:text-white' : 'hover:text-gray-700'}`}
                 >
-                  <span>Priority</span>
+                  <span>PRIORITY</span>
                   {getSortIcon('priority')}
                 </button>
+              </th>
+              <th className={`px-6 py-4 text-left text-xs font-medium uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-500'}`}>
+                Assigned By
               </th>
               <th className={`px-6 py-4 text-left text-xs font-medium uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-500'}`}>
                 Assigned To
@@ -583,7 +601,7 @@ const MasterTasks: React.FC = () => {
                   onClick={() => handleSort('dueDate')}
                   className={`flex items-center space-x-1 transition-colors ${isDark ? 'hover:text-white' : 'hover:text-gray-700'}`}
                 >
-                  <span>Due Date</span>
+                  <span>DUE DATE</span>
                   {getSortIcon('dueDate')}
                 </button>
               </th>
@@ -662,6 +680,13 @@ const MasterTasks: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <PriorityBadge priority={task.priority} />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div>
+                        <div className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{task.assignedBy.username}</div>
+                      </div>
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -840,7 +865,7 @@ const MasterTasks: React.FC = () => {
       {/* Filters */}
       {showFilters && (
         <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] p-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
             {/* Date From */}
             <div>
               <label className="block text-sm font-medium text-[--color-text] mb-1">
@@ -902,6 +927,26 @@ const MasterTasks: React.FC = () => {
                 <option value="high">High</option>
               </select>
             </div>
+            {user?.permissions.canViewAllTeamTasks && (
+              <div>
+                <label className="block text-sm font-medium text-[--color-text] mb-1">
+                  Assigned By
+                </label>
+                <select
+                  value={filter.assignedBy}
+                  onChange={(e) => setFilter({ ...filter, assignedBy: e.target.value })}
+                  className="w-full text-sm px-3 py-2 border border-[--color-border] 
+      rounded-lg bg-[--color-surface] text-[--color-text] 
+      focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary]"
+                >
+                  <option value="">All Assigners</option>
+
+                  {[...new Set(allTasks.map(t => t.assignedBy.username))].map((name) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Team Member Filter (Admin only) */}
             {user?.permissions.canViewAllTeamTasks && (
@@ -1382,11 +1427,11 @@ const MasterTasks: React.FC = () => {
         />
       )}
       <ConfirmDeleteModal
-  open={showDeleteModal}
-  message="Are you sure you want to delete this task?"
-  onCancel={() => setShowDeleteModal(false)}
-  onConfirm={confirmDelete}
-/>
+        open={showDeleteModal}
+        message="Are you sure you want to delete this task?"
+        onCancel={() => setShowDeleteModal(false)}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 };
