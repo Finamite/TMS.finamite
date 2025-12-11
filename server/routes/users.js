@@ -53,6 +53,42 @@ router.get('/', async (req, res) => {
   }
 });
 
+router.post('/:id/access', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    await user.addAccessLog();
+
+    return res.json({
+      lastAccess: user.lastAccess,
+      accessLogs: user.accessLogs.slice(0, 10),
+    });
+  } catch (err) {
+    console.error('Error logging access', err);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
+
+router.get('/:id/access-logs', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id)
+      .select('username lastAccess accessLogs');
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    return res.json({
+      username: user.username,
+      lastAccess: user.lastAccess,
+      accessLogs: user.accessLogs.slice(0, 10),
+    });
+  } catch (err) {
+    console.error('Error fetching access logs', err);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
 // Create new user
 router.post('/', async (req, res) => {
   try {

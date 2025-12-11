@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 import { address } from '../../utils/ipAddress'; // Adjust the import path as necessary
 interface User {
+  _id: any;
   id: string;
   companyId?: string;
   username: string;
@@ -16,6 +17,7 @@ interface User {
     canManageUsers: boolean;
     canEditRecurringTaskSchedules: boolean;
     canManageSettings: boolean;
+    canManageRecycle: boolean
   };
   company?: {
     companyId: string;
@@ -35,6 +37,9 @@ interface User {
     assignTask: boolean;
     adminPanel: boolean;
     chat: boolean;
+    recyclebin: boolean,
+    settingsPage: boolean,
+    helpsupport: boolean,
   };
   };
 }
@@ -123,6 +128,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, 5000); // every 5 seconds
 
   return () => clearInterval(interval);
+}, [user]);
+
+useEffect(() => {
+  if (!user) return;
+  axios.post(`${address}/api/users/${user.id}/access`).catch(() => {});
 }, [user]);
 
   const logout = () => {

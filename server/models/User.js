@@ -47,12 +47,23 @@ const userSchema = new mongoose.Schema({
     canManageUsers: { type: Boolean, default: false },
     canEditRecurringTaskSchedules: { type: Boolean, default: false },
     canManageCompanies: { type: Boolean, default: false },
-    canManageSettings: { type: Boolean, default: false }
+    canManageSettings: { type: Boolean, default: false },
+    canManageRecycle: { type: Boolean, default: false }
   },
   isActive: {
     type: Boolean,
     default: true
   },
+
+  lastAccess: {
+  type: Date,
+  default: null
+},
+
+accessLogs: {
+  type: [Date], // array of timestamps
+  default: []
+},
 
   sessionInvalidated: {
     type: Boolean,
@@ -81,6 +92,17 @@ userSchema.pre('save', async function (next) {
 // Compare password method
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
+};
+
+userSchema.methods.addAccessLog = function () {
+  this.lastAccess = new Date();
+
+  this.accessLogs.unshift(this.lastAccess);
+  if (this.accessLogs.length > 50) {
+    this.accessLogs.pop();
+  }
+
+  return this.save();
 };
 
 export default mongoose.model('User', userSchema);

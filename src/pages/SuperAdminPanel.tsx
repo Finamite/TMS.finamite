@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Plus, Edit, Save, X, Users, Crown, Mail, Lock, Building, Eye, EyeOff, Key } from 'lucide-react';
+import { Building2, Plus, Edit, Save, X, Users, Crown, Mail, Lock, Building, Eye, EyeOff, Key, ChevronUp, ChevronDown } from 'lucide-react';
 import axios from 'axios';
 import { address } from '../../utils/ipAddress';
 
@@ -15,6 +15,8 @@ interface Company {
     adminPanel: boolean;
     chat: boolean;
     settingspage: boolean,
+    recyclebin: boolean,
+    helpsupport: boolean,
   };
   _id: string;
   companyId: string;
@@ -34,6 +36,7 @@ interface Company {
   admin: {
     username: string;
     email: string;
+    phone?: string;
   } | null;
 }
 const SuperAdminPanel: React.FC = () => {
@@ -43,6 +46,11 @@ const SuperAdminPanel: React.FC = () => {
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showAllPermissions, setShowAllPermissions] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const [passwordData, setPasswordData] = useState({
     newPassword: '',
     confirmPassword: ''
@@ -58,14 +66,18 @@ const SuperAdminPanel: React.FC = () => {
     adminPanel: true,
     chat: true,
     settingspage: true,
+    recyclebin: true,
+    helpsupport: true,
   };
   const [formData, setFormData] = useState({
     companyName: '',
     adminName: '',
     adminEmail: '',
+    adminPhone: '',
     adminPassword: '',
     adminNewName: '',
     adminNewEmail: '',
+    adminNewPhone: '',
     limits: {
       adminLimit: 1,
       managerLimit: 5,
@@ -163,7 +175,8 @@ const SuperAdminPanel: React.FC = () => {
       if (formData.adminNewName || formData.adminNewEmail) {
         updateData.adminDetails = {
           username: formData.adminNewName || editingCompany.admin?.username,
-          email: formData.adminNewEmail || editingCompany.admin?.email
+          email: formData.adminNewEmail || editingCompany.admin?.email,
+          phone: formData.adminNewPhone || editingCompany.admin?.phone || ''
         };
       }
 
@@ -210,6 +223,17 @@ const SuperAdminPanel: React.FC = () => {
     }
   };
 
+  const filteredCompanies = companies.filter((company) => {
+  const term = searchTerm.toLowerCase();
+
+  return (
+    company.companyName.toLowerCase().includes(term) ||
+    company.admin?.username.toLowerCase().includes(term) ||
+    company.admin?.email.toLowerCase().includes(term) ||
+    (company.admin?.phone || "").toLowerCase().includes(term)
+  );
+});
+
   const handleToggleCompanyStatus = async (companyId: string, companyName: string, currentStatus: boolean) => {
     const action = currentStatus ? 'deactivate' : 'activate';
     if (window.confirm(`Are you sure you want to ${action} "${companyName}"?`)) {
@@ -237,7 +261,9 @@ const SuperAdminPanel: React.FC = () => {
       companyName: company.companyName,
       adminName: '',
       adminEmail: '',
+      adminPhone: '',
       adminPassword: '',
+      adminNewPhone: company.admin?.phone || '',
       adminNewName: company.admin?.username || '',
       adminNewEmail: company.admin?.email || '',
       limits: company.limits,
@@ -259,9 +285,11 @@ const SuperAdminPanel: React.FC = () => {
       companyName: '',
       adminName: '',
       adminEmail: '',
+      adminPhone: '',
       adminPassword: '',
       adminNewName: '',
       adminNewEmail: '',
+      adminNewPhone: '',
       limits: {
         adminLimit: 1,
         managerLimit: 5,
@@ -278,7 +306,8 @@ const SuperAdminPanel: React.FC = () => {
         adminPanel: true,
         chat: true,
         settingspage: true,
-        
+        recyclebin: true,
+        helpsupport: true,
       }
     });
   };
@@ -326,6 +355,31 @@ const SuperAdminPanel: React.FC = () => {
         </button>
       </div>
 
+      <div className="flex items-center gap-3 mb-4 w-full max-w-md">
+  <input
+    type="text"
+    value={searchTerm}
+    onChange={(e) => setSearchTerm(e.target.value)}
+    className="flex-1 px-4 py-3 border rounded-lg text-sm"
+    placeholder="Search by Company, Admin, Email, Phone..."
+    style={{
+      backgroundColor: "var(--color-background)",
+      borderColor: "var(--color-border)",
+      color: "var(--color-text)",
+    }}
+  />
+
+  {searchTerm && (
+    <button
+      onClick={() => setSearchTerm("")}
+      className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition"
+      title="Clear"
+    >
+      <X size={18} className="text-gray-600" />
+    </button>
+  )}
+</div>
+
       {/* Message */}
       {message.text && (
         <div
@@ -337,12 +391,13 @@ const SuperAdminPanel: React.FC = () => {
           {message.text}
         </div>
       )}
+      
 
       {/* Companies Table */}
       <div className="rounded-lg border shadow-sm overflow-hidden" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
-        <div className="max-h-[750px] overflow-x-auto overflow-y-auto">
+        <div className="max-h-[700px] overflow-x-auto overflow-y-auto">
           <table className="w-full">
-            <thead style={{ backgroundColor: 'var(--color-background)' }}>
+            <thead  className="sticky top-0 z-20" style={{ backgroundColor: 'var(--color-surfacehelp)' }}>
               <tr>
                 <th className="px-6 py-4 text-left text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
                   Company
@@ -368,7 +423,7 @@ const SuperAdminPanel: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y" style={{ borderColor: 'var(--color-border)' }}>
-              {companies.map((company) => (
+              {filteredCompanies.map((company) => (
                 <tr key={company._id} className="hover:bg-opacity-50" style={{ backgroundColor: 'transparent' }}>
                   <td className="px-6 py-4">
                     <div className="flex items-center space-x-3">
@@ -384,7 +439,9 @@ const SuperAdminPanel: React.FC = () => {
                         </div>
                         {company.admin && (
                           <div className="text-sm" style={{ color: 'var(--color-textSecondary)' }}>
-                            Admin: {company.admin.username} ({company.admin.email})
+                            <div>{company.admin.username}</div>
+                            <div className="text-xs text-[var(--color-textSecondary)]">{company.admin.email}</div>
+                            <div className="text-xs text-[var(--color-textSecondary)]">{company.admin.phone}</div>
                           </div>
                         )}
                       </div>
@@ -479,16 +536,39 @@ const SuperAdminPanel: React.FC = () => {
                   </td>
                   <td className="px-6 py-4">
                     <div className="text-xs space-y-1">
-                      {Object.entries(company.permissions || {}).map(([key, value]) => (
-                        <div key={key}>
-                          <span className="font-semibold">{key}: </span>
-                          <span className={value ? "text-green-500" : "text-red-500"}>
-                            {value ? "Yes" : "No"}
-                          </span>
-                        </div>
-                      ))}
+
+                      {/* Slice only 4 when not expanded */}
+                      {Object.entries(company.permissions || {})
+                        .slice(0, showAllPermissions ? undefined : 4)
+                        .map(([key, value]) => (
+                          <div key={key}>
+                            <span className="font-semibold capitalize">{key}: </span>
+                            <span className={value ? "text-green-500" : "text-red-500"}>
+                              {value ? "Yes" : "No"}
+                            </span>
+                          </div>
+                        ))}
+
+                      {/* Show More / Less Button */}
+                      {Object.keys(company.permissions || {}).length > 4 && (
+                        <button
+                          onClick={() => setShowAllPermissions(!showAllPermissions)}
+                          className="flex items-center text-blue-600 hover:underline font-semibold text-xs mt-1"
+                        >
+                          {showAllPermissions ? (
+                            <>
+                              Show Less <ChevronUp size={14} className="ml-1" />
+                            </>
+                          ) : (
+                            <>
+                              Show More <ChevronDown size={14} className="ml-1" />
+                            </>
+                          )}
+                        </button>
+                      )}
                     </div>
                   </td>
+
                   <td className="px-6 py-4">
                     <div className="flex items-center justify-end space-x-2">
                       <button
@@ -649,19 +729,48 @@ const SuperAdminPanel: React.FC = () => {
                           <Lock size={18} style={{ color: 'var(--color-textSecondary)' }} />
                         </div>
                         <input
-                          type="password"
+                          type={showAdminPassword ? "text" : "password"}
                           name="adminPassword"
                           value={formData.adminPassword}
                           onChange={handleInputChange}
                           required
-                          className="w-full pl-10 pr-4 py-3 border rounded-lg"
+                          className="w-full pl-10 pr-10 py-3 border rounded-lg"
                           style={{
                             backgroundColor: 'var(--color-background)',
                             borderColor: 'var(--color-border)',
                             color: 'var(--color-text)'
                           }}
                         />
+                        <button
+                          type="button"
+                          onClick={() => setShowAdminPassword(prev => !prev)}
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
+                        >
+                          {showAdminPassword ? (
+                            <EyeOff size={18} />
+                          ) : (
+                            <Eye size={18} />
+                          )}
+                        </button>
                       </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>
+                        Admin Phone
+                      </label>
+                      <input
+                        type="tel"
+                        name="adminPhone"
+                        value={formData.adminPhone}
+                        onChange={handleInputChange}
+                        placeholder={editingCompany?.admin?.phone || 'Current admin phone'}
+                        className="w-full px-4 py-3 border rounded-lg"
+                        style={{
+                          backgroundColor: 'var(--color-background)',
+                          borderColor: 'var(--color-border)',
+                          color: 'var(--color-text)'
+                        }}
+                      />
                     </div>
                   </div>
                 </div>
@@ -894,6 +1003,24 @@ const SuperAdminPanel: React.FC = () => {
                         />
                       </div>
                     </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>
+                        Admin Phone *
+                      </label>
+                      <input
+                        type="tel"
+                        name="adminNewPhone"
+                        value={formData.adminNewPhone}
+                        onChange={handleInputChange}
+                        placeholder={editingCompany?.admin?.phone || 'Current admin phone'}
+                        className="w-full px-4 py-3 border rounded-lg"
+                        style={{
+                          backgroundColor: 'var(--color-background)',
+                          borderColor: 'var(--color-border)',
+                          color: 'var(--color-text)'
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -1067,13 +1194,13 @@ const SuperAdminPanel: React.FC = () => {
                       <Lock size={18} style={{ color: 'var(--color-textSecondary)' }} />
                     </div>
                     <input
-                      type="password"
+                      type={showNewPassword ? "text" : "password"}
                       name="newPassword"
                       value={passwordData.newPassword}
                       onChange={handlePasswordInputChange}
                       required
                       minLength={6}
-                      className="w-full pl-10 pr-4 py-3 border rounded-lg"
+                      className="w-full pl-10 pr-10 py-3 border rounded-lg"
                       style={{
                         backgroundColor: 'var(--color-background)',
                         borderColor: 'var(--color-border)',
@@ -1081,6 +1208,13 @@ const SuperAdminPanel: React.FC = () => {
                       }}
                       placeholder="Enter new password"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(prev => !prev)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
+                    >
+                      {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
                   </div>
                 </div>
 
@@ -1093,13 +1227,13 @@ const SuperAdminPanel: React.FC = () => {
                       <Lock size={18} style={{ color: 'var(--color-textSecondary)' }} />
                     </div>
                     <input
-                      type="password"
+                      type={showConfirmPassword ? "text" : "password"}
                       name="confirmPassword"
                       value={passwordData.confirmPassword}
                       onChange={handlePasswordInputChange}
                       required
                       minLength={6}
-                      className="w-full pl-10 pr-4 py-3 border rounded-lg"
+                      className="w-full pl-10 pr-10 py-3 border rounded-lg"
                       style={{
                         backgroundColor: 'var(--color-background)',
                         borderColor: 'var(--color-border)',
@@ -1107,6 +1241,13 @@ const SuperAdminPanel: React.FC = () => {
                       }}
                       placeholder="Confirm new password"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(prev => !prev)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
+                    >
+                      {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
                   </div>
                 </div>
 

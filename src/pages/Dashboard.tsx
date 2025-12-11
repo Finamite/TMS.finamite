@@ -16,6 +16,7 @@ import { format, startOfMonth, endOfMonth, subMonths, addMonths, isThisMonth, is
 // import { availableThemes } from '../contexts/ThemeContext';
 import { address } from '../../utils/ipAddress';
 import TeamPendingTasksChart from "../components/TeamPendingTasksChart";
+import { useNavigate } from "react-router-dom";
 
 // --- Interfaces (updated to include quarterly) ---
 interface DashboardData {
@@ -168,14 +169,39 @@ const Dashboard: React.FC = () => {
   const [memberTrendData, setMemberTrendData] = useState<any[]>([]);
   const [teamPendingData, setTeamPendingData] = useState<TeamPendingData>({});
   const monthListRef = React.useRef<HTMLDivElement>(null);
+  const [openSelector, setOpenSelector] = useState<string | null>(null);
 
-  const ThemeCard = ({ children, className = "", variant = "default", hover = true }: {
+  const handleCardClick = (card: string) => {
+  setOpenSelector(openSelector === card ? null : card);
+};
+
+const navigate = useNavigate();
+
+const goToPage = (type: string, category: string) => {
+  setOpenSelector(null);
+
+  if (category === "total") {
+    navigate(type === "single" ? "/master-tasks" : "/master-recurring");
+  }
+  if (category === "pending") {
+    navigate(type === "single" ? "/pending-tasks" : "/pending-recurring");
+  }
+  if (category === "completed") {
+    navigate(type === "single" ? "/master-tasks" : "/master-recurring");
+  }
+  if (category === "overdue") {
+    navigate(type === "single" ? "/master-tasks" : "/master-recurring");
+  }
+};
+
+  const ThemeCard = ({ children, className = "", variant = "default", hover = true,  onClick }: {
     children: React.ReactNode;
     className?: string;
     variant?: 'default' | 'glass' | 'elevated' | 'bordered';
     hover?: boolean;
+    onClick?: () => void;
   }) => {
-    const baseClasses = "relative overflow-hidden transition-all duration-300 ease-out";
+    const baseClasses = "relative transition-all duration-300 ease-out";
 
     const variants = {
       default: `rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-lg`,
@@ -187,7 +213,8 @@ const Dashboard: React.FC = () => {
     const hoverClasses = hover ? "hover:shadow-xl hover:scale-[1.02] hover:border-[var(--color-primary)]/30" : "";
 
     return (
-      <div className={`${baseClasses} ${variants[variant]} ${hoverClasses} ${className}`}>
+      <div onClick={onClick} 
+      className={`${baseClasses} ${variants[variant]} ${hoverClasses} ${className}`}>
         {children}
       </div>
     );
@@ -197,6 +224,7 @@ const Dashboard: React.FC = () => {
   const MetricCard = ({
     icon,
     title,
+    slug,
     value,
     subtitle,
     sparklineData,
@@ -207,6 +235,7 @@ const Dashboard: React.FC = () => {
   }: {
     icon: React.ReactNode;
     title: string;
+    slug?: string;
     value: string | number;
     subtitle?: string;
     percentage?: number;
@@ -219,7 +248,9 @@ const Dashboard: React.FC = () => {
 
 
     return (
+      <div className="relative">
       <ThemeCard
+      onClick={slug ? () => handleCardClick(title) : undefined}
         className={`p-2 sm:p-3 rounded-xl transition-shadow duration-300 hover:shadow-lg ${isMain ? "col-span-2" : ""
           }`}
         variant="glass"
@@ -325,7 +356,48 @@ const Dashboard: React.FC = () => {
           </div>
         )}
       </ThemeCard>
-    );
+    {openSelector === title && slug && (
+      <div
+        className="
+          absolute 
+          left-1/2 
+          -translate-x-1/2 
+          top-[102%]
+          bg-[var(--color-surface)]
+          border
+          border-[var(--color-border)]
+          shadow-xl 
+          rounded-xl 
+          p-3 
+          z-[9999]
+          w-44
+        "
+      >
+        <p className="text-sm font-semibold mb-2">Choose Type</p>
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            goToPage("single", slug);
+          }}
+          className="block w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg"
+        >
+          Single Tasks
+        </button>
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            goToPage("recurring", slug);
+          }}
+          className="block w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg"
+        >
+          Recurring Tasks
+        </button>
+      </div>
+    )}
+  </div>
+);
   };
 
 
@@ -783,6 +855,7 @@ const memoTeamPendingData = useMemo(() => teamPendingData, [teamPendingData]);
         <MetricCard
           icon={<CheckSquare size={24} className="text-green-600" />}
           title="Total Tasks"
+          slug="total"
           value={displayData?.totalTasks || 0}
           valueColor="#1f8825ff"
           subtitle={
@@ -797,6 +870,7 @@ const memoTeamPendingData = useMemo(() => teamPendingData, [teamPendingData]);
         <MetricCard
           icon={<Clock size={24} className="text-cyan-500" />}
           title="Pending"
+          slug="pending"
           value={displayData?.pendingTasks || 0}
           valueColor="#04b9ddff"
           subtitle="Awaiting completion"
@@ -805,6 +879,7 @@ const memoTeamPendingData = useMemo(() => teamPendingData, [teamPendingData]);
         <MetricCard
           icon={<CheckCircle size={24} className="text-blue-500" />}
           title="Completed"
+          slug="completed"
           value={displayData?.completedTasks || 0}
           valueColor="#5b88dbff"
           subtitle="Successfully finished"
@@ -813,6 +888,7 @@ const memoTeamPendingData = useMemo(() => teamPendingData, [teamPendingData]);
         <MetricCard
           icon={<AlertTriangle size={24} className="text-red-500" />}
           title="Overdue"
+          slug="overdue"
           value={displayData?.overdueTasks || 0}
           valueColor="#ef4444"
           subtitle={`${displayData?.overduePercentage?.toFixed(1)}% of total`}

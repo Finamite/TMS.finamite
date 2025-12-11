@@ -15,6 +15,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Performance from './pages/Performance';
 import Chat from './pages/Chat';
 import SettingsPage from './pages/SettingsPage';
+import RecycleBin from './pages/RecycleBin';
+import HelpSupport from './pages/HelpSupport';
 import { ToastContainer } from 'react-toastify';
 
 function App() {
@@ -95,6 +97,14 @@ function App() {
                   }
                 />
                 <Route
+                  path="recycle-bin"
+                  element={
+                    <ProtectedRoute requirePermission="recyclebin">
+                      <RecycleBin />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
                   path="chat"
                   element={
                     <ProtectedRoute requirePermission="chat">
@@ -107,6 +117,14 @@ function App() {
                   element={
                     <ProtectedRoute requireAdmin requirePermission="settingspage">
                       <SettingsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="help-support"
+                  element={
+                    <ProtectedRoute requirePermission="helpsupport">
+                      <HelpSupport />
                     </ProtectedRoute>
                   }
                 />

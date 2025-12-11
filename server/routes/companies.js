@@ -17,7 +17,7 @@ router.get('/', async (req, res) => {
         const adminUser = await User.findOne({
           companyId: company.companyId,
           role: 'admin'
-        }).select('username email');
+        }).select('username email phone')
 
         // Get user counts for each company
         const userCounts = await User.aggregate([
@@ -40,7 +40,7 @@ router.get('/', async (req, res) => {
         return {
           ...company.toObject(),
           userCounts: counts,
-          admin: adminUser ? { username: adminUser.username, email: adminUser.email } : null,
+          admin: adminUser ? { username: adminUser.username, email: adminUser.email, phone: adminUser.phone} : null,
         };
       })
     );
@@ -54,7 +54,7 @@ router.get('/', async (req, res) => {
 // Create new company with admin
 router.post('/', async (req, res) => {
   try {
-    const { companyName, adminName, adminEmail, adminPassword, limits, permissions } = req.body;
+    const { companyName, adminName, adminEmail, adminPhone, adminPassword, limits, permissions } = req.body;
 
     // Generate unique company ID
     const companyId = `comp_${uuidv4().replace(/-/g, '').substring(0, 12)}`;
@@ -84,6 +84,7 @@ router.post('/', async (req, res) => {
       companyId,
       username: adminName,
       email: adminEmail,
+      phone: adminPhone,
       password: adminPassword,
       role: 'admin',
       permissions: {
@@ -95,6 +96,7 @@ router.post('/', async (req, res) => {
         canManageUsers: true,
         canEditRecurringTaskSchedules: true,
         canManageSettings: true,
+        canManageRecycle: true,
       }
     });
 
@@ -162,7 +164,8 @@ router.put('/:companyId', async (req, res) => {
 
         await User.findByIdAndUpdate(adminUser._id, {
           username: adminDetails.username,
-          email: adminDetails.email
+          email: adminDetails.email,
+          phone: adminDetails.phone
         });
       }
     }

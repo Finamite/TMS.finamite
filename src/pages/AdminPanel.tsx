@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, Edit, Save, X, ChevronDown, ChevronUp, User, LockKeyhole, CreditCard, Building2, UserCheck, UserCog, Loader2, Shield, Search, Activity, Building } from 'lucide-react';
+import { Users, Plus, Edit, Save, X, ChevronDown, ChevronUp, User, LockKeyhole, CreditCard, Info, Building2, UserCheck, UserCog, Loader2, Shield, Search, Activity, Building, Clock } from 'lucide-react';
 import axios from 'axios';
 import { address } from '../../utils/ipAddress';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-toastify';
 
 interface User {
+  lastAccess: any;
   phone: string;
   department: string;
   _id: string;
@@ -22,6 +23,7 @@ interface User {
     canManageUsers: boolean;
     canEditRecurringTaskSchedules: boolean;
     canManageSettings: boolean;
+    canManageRecycle: boolean;
   };
   isActive: boolean;
   createdAt: string;
@@ -78,6 +80,7 @@ const AdminPanel: React.FC = () => {
       canManageUsers: false,
       canEditRecurringTaskSchedules: false,
       canManageSettings: false,
+      canManageRecycle: false,
     }
   });
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -87,13 +90,15 @@ const AdminPanel: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState("");
   const [filterRole, setFilterRole] = useState("");
   const [filterDepartment, setFilterDepartment] = useState("");
+  const [selectedUserAccess, setSelectedUserAccess] = useState<any>(null);
+const [showAccessModal, setShowAccessModal] = useState(false);
 
   // Define allowed permissions for each role
   const rolePermissions = {
     employee: ['canViewTasks', 'canAssignTasks'],
-    manager: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings'],
-    admin: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings'],
-    superadmin: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings']
+    manager: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings', 'canManageRecycle'],
+    admin: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings', 'canManageRecycle'],
+    superadmin: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings','canManageRecycle']
   };
   const [passwordUser, setPasswordUser] = useState<User | null>(null);
   const [newPassword, setNewPassword] = useState("");
@@ -136,6 +141,22 @@ const AdminPanel: React.FC = () => {
       setLoadingCompanyData(false);
     }
   };
+
+ const openAccessModal = async (user: User) => {
+  try {
+    const res = await axios.get(`${address}/api/users/${user._id}/access-logs`);
+
+    setSelectedUserAccess({
+      username: res.data.username || user.username,
+      logs: res.data.accessLogs || [],
+      lastAccess: res.data.lastAccess || null,
+    });
+
+    setShowAccessModal(true);
+  } catch (err) {
+    console.error("Access log fetch failed", err);
+  }
+};
 
 
   useEffect(() => {
@@ -390,6 +411,7 @@ const AdminPanel: React.FC = () => {
         canManageUsers: false,
         canEditRecurringTaskSchedules: false,
         canManageSettings: false,
+        canManageRecycle: false,
       }
     });
   };
@@ -414,6 +436,7 @@ const AdminPanel: React.FC = () => {
       canManageUsers: 'Manage Users',
       canEditRecurringTaskSchedules: 'Edit Recurring Task Schedules',
       canManageSettings: 'Manage Settings',
+      canManageRecycle: 'Manage Recycle Bin',
     };
     return names[key] || null;
   };
@@ -592,6 +615,7 @@ const AdminPanel: React.FC = () => {
                 <th className="text-left py-3 px-4 font-medium text-sm" style={{ color: 'var(--color-text)' }}>Department</th>
                 <th className="text-left py-3 px-4 font-medium text-sm" style={{ color: 'var(--color-text)' }}>Permissions</th>
                 <th className="text-left py-3 px-4 font-medium text-sm" style={{ color: 'var(--color-text)' }}>Status</th>
+                <th className="text-left py-3 px-4 font-medium text-sm" style={{ color: 'var(--color-text)' }}>Last Access</th>
                 <th className="text-left py-3 px-4 font-medium text-sm" style={{ color: 'var(--color-text)' }}>Actions</th>
               </tr>
             </thead>
@@ -686,6 +710,24 @@ const AdminPanel: React.FC = () => {
                       </span>
                     </td>
                     <td className="py-3 px-4">
+  <div className="flex items-center gap-2">
+
+    {/* Last Access Text */}
+    <span className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>
+      {user.lastAccess ? new Date(user.lastAccess).toLocaleString() : "No data"}
+    </span>
+
+    {/* Info Icon */}
+    <button
+      onClick={() => openAccessModal(user)}
+      className="p-1 rounded hover:bg-gray-200 transition"
+    >
+      <Info size={16} className="text-blue-500" />
+    </button>
+
+  </div>
+</td>
+                    <td className="py-3 px-4">
                       <div className="flex space-x-2">
                         <button
                           onClick={() => startEditUser(user)}
@@ -779,6 +821,23 @@ const AdminPanel: React.FC = () => {
                       <p className="text-xs truncate" style={{ color: 'var(--color-textSecondary)' }}>
                         {user.email}
                       </p>
+                      {/* Last Access (Mobile) */}
+<div className="mt-1 flex items-center gap-1">
+  <p className="text-xs text-[var(--color-textSecondary)]">
+    Last Access:
+    <span className="ml-1 text-xs text-[var(--color-text)]">
+      {user.lastAccess ? new Date(user.lastAccess).toLocaleString() : "No data"}
+    </span>
+  </p>
+
+  {/* Info Icon */}
+  <button
+    onClick={() => openAccessModal(user)}
+    className="p-1 rounded hover:bg-gray-200 transition"
+  >
+    <Info size={16} className="text-blue-500" />
+  </button>
+</div>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2 ml-2">
@@ -1584,6 +1643,68 @@ const AdminPanel: React.FC = () => {
           </div>
         </div>
       )}
+
+      {showAccessModal && (
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+  <div className="bg-[var(--color-surface)] rounded-2xl w-full max-w-md shadow-2xl transform transition-all">
+    {/* Header */}
+    <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-800">
+      <div>
+        <h2 className="text-lg font-semibold text-[var(--color-text)]">
+          Access Logs
+        </h2>
+        <p className="text-sm text-[var(--color-text)] mt-1">
+          {selectedUserAccess?.username}
+        </p>
+      </div>
+      <button
+        onClick={() => setShowAccessModal(false)}
+        className="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center transition-colors"
+      >
+        <X className="w-5 h-5 text-[var(--color-text)]" />
+      </button>
+    </div>
+
+    {/* Content */}
+    <div className="p-6 max-h-96 overflow-y-auto">
+      {selectedUserAccess?.logs?.length ? (
+        <div className="space-y-3">
+          {selectedUserAccess.logs.map((time: string | number | Date, idx: React.Key | null | undefined) => (
+            <div 
+              key={idx} 
+              className="flex items-center gap-3 p-3 rounded-xl bg-[var(--color-background)] border border-[var(--color-chat)] hover:border-[var(--color-primary)] transition-colors"
+            >
+              <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              </div>
+              <span className="text-sm text-[var(--color-text)]">
+                {new Date(time).toLocaleString()}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-8">
+          <div className="w-16 h-16 rounded-full bg-[var(--color-surface)] dark:bg-gray-800 flex items-center justify-center mx-auto mb-3">
+            <Clock className="w-8 h-8 text-gray-400" />
+          </div>
+          <p className="text-gray-500 dark:text-gray-400">No access logs available</p>
+        </div>
+      )}
+    </div>
+
+    {/* Footer */}
+    <div className="p-6 border-t border-gray-200 dark:border-gray-800">
+      <button
+        onClick={() => setShowAccessModal(false)}
+        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-2.5 rounded-xl font-medium transition-all shadow-lg shadow-blue-500/25"
+      >
+        Close
+      </button>
+    </div>
+  </div>
+</div>
+)}
     </div>
   );
 };

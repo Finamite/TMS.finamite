@@ -34,7 +34,9 @@ const themes = {
       border: '#E2E8F0',
       chat: '#e8f2fdff',
       surfacechat: '#f6f6fcff',
-      settingcolor: '#efeff3ff'
+      settingcolor: '#efeff3ff',
+      surfacehelp:'#f6f6fcff',
+
     }
   },
   dark: {
@@ -54,7 +56,8 @@ const themes = {
       border: '#4A5568',
       chat: '#2e4261ff',
       surfacechat: '#2D3748',
-      settingcolor: '#626e81ff'
+      settingcolor: '#626e81ff',
+      surfacehelp:'#2e4261ff',
     }
   },
 };

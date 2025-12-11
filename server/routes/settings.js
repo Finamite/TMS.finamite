@@ -5,6 +5,7 @@ import Settings from '../models/Settings.js';
 import User from '../models/User.js'; // ✅ ADD MISSING IMPORT
 import { sendSystemEmail } from '../Utils/sendEmail.js'; // ✅ ADD MISSING IMPORT
 import { restartReportCron } from '../routes/reportmail.js';
+import Task from "../models/Task.js";
 
 const router = express.Router();
 
@@ -374,5 +375,78 @@ router.post('/email/disconnect', async (req, res) => {
     res.status(500).json({ message: 'Failed to disconnect', error: error.message });
   }
 });
+
+// ---------------------------
+// Bin Settings endpoints
+// ---------------------------
+router.get('/bin', async (req, res) => {
+  try {
+    const { companyId } = req.query;
+    if (!companyId) return res.status(400).json({ message: 'companyId required' });
+
+    let settings = await Settings.findOne({ type: 'bin', companyId });
+
+    if (!settings) {
+      settings = new Settings({
+        type: 'bin',
+        companyId,
+        data: {
+          enabled: false,
+          retentionDays: 15
+        }
+      });
+      await settings.save();
+    }
+
+    res.json(settings.data);
+  } catch (error) {
+    console.error('Error fetching bin settings:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.post('/bin', async (req, res) => {
+  try {
+    const { companyId, enabled, retentionDays } = req.body;
+
+    if (!companyId) return res.status(400).json({ message: 'companyId required' });
+
+    const payload = {
+      enabled: enabled ?? false,
+      retentionDays: retentionDays || 15
+    };
+
+    // ⭐ 1. SAVE THE SETTINGS
+    const settings = await Settings.findOneAndUpdate(
+      { type: 'bin', companyId },
+      { $set: { data: payload } },
+      { upsert: true, new: true }
+    );
+
+    // ⭐ 2. UPDATE autoDeleteAt FOR ALL soft-deleted tasks of this company
+    const ms = (retentionDays || 15) * 24 * 60 * 60 * 1000;
+
+    await Task.updateMany(
+      {
+        companyId,
+        isActive: false,         // only deleted tasks
+        deletedAt: { $exists: true }
+      },
+      [
+        {
+          $set: {
+            autoDeleteAt: { $add: ["$deletedAt", ms] }
+          }
+        }
+      ]
+    );
+
+    res.json({ message: 'Bin settings saved and autoDeleteAt updated', data: settings.data });
+
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 
 export default router;

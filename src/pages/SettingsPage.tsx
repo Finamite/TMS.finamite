@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Mail, AlertTriangle, Save, X, Loader as Loader2, Send, Calendar, Plus, Pencil, Trash, ClipboardCheck, FileWarning, MessageSquare, Paperclip, RefreshCw, Eye } from 'lucide-react';
+import { Settings, Mail, AlertTriangle, Save, X, Loader as Loader2, Send, Calendar, Plus, Pencil, Trash, ClipboardCheck, FileWarning, MessageSquare, Paperclip, RefreshCw, Eye, Archive } from 'lucide-react';
 import axios from 'axios';
 import { address } from '../../utils/ipAddress';
 import { useAuth } from '../contexts/AuthContext';
@@ -70,6 +70,10 @@ interface SettingsData {
     taskCompletion: any;
     revision: RevisionSettings;
     email: EmailSettings;
+    bin: {
+        enabled: boolean;
+        retentionDays: number;
+    };
 }
 
 interface User {
@@ -145,6 +149,10 @@ const SettingsPage: React.FC = () => {
             enableReports: false,
             reportRecipients: []
         },
+        bin: {
+            enabled: false,
+            retentionDays: 15
+        },
         taskCompletion: {
             enabled: false,  // 🔥 MAIN TOGGLE
             pendingTasks: {
@@ -162,6 +170,7 @@ const SettingsPage: React.FC = () => {
     const [expandedRevision, setExpandedRevision] = useState(false);
     const [expandedEmail, setExpandedEmail] = useState(false);
     const [expandedReports, setExpandedReports] = useState(false);
+    const [expandedBin, setExpandedBin] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
 
     // Modal state for scoring rules
@@ -181,6 +190,7 @@ const SettingsPage: React.FC = () => {
         fetchSettings();
         fetchUsers();
         fetchTaskSettings();
+        fetchBinSettings();
     }, [currentUser?.companyId]);
 
     useEffect(() => {
@@ -288,6 +298,23 @@ const SettingsPage: React.FC = () => {
                 }
             }
         }));
+    };
+
+    const fetchBinSettings = async () => {
+        if (!currentUser?.companyId) return;
+
+        try {
+            const res = await axios.get(`${address}/api/settings/bin?companyId=${currentUser.companyId}`);
+            setSettings(prev => ({
+                ...prev,
+                bin: {
+                    enabled: res.data.enabled ?? false,
+                    retentionDays: res.data.retentionDays || 15
+                }
+            }));
+        } catch (error) {
+            console.error('Error fetching bin settings:', error);
+        }
     };
 
     const connectGoogle = async () => {
@@ -501,6 +528,14 @@ const SettingsPage: React.FC = () => {
                 pendingTasks: settings.taskCompletion.pendingTasks,
                 pendingRecurringTasks: settings.taskCompletion.pendingRecurringTasks
             });
+
+            await axios.post(`${address}/api/settings/bin`, {
+                companyId: currentUser.companyId,
+                enabled: settings.bin.enabled,
+                retentionDays: settings.bin.retentionDays
+            });
+
+            window.dispatchEvent(new Event("bin-settings-updated"));
 
             setHasUnsavedChanges(false);
             setMessage({ type: 'success', text: 'Settings saved successfully!' });
@@ -1796,6 +1831,137 @@ const SettingsPage: React.FC = () => {
                         )}
                     </div>
 
+                    {/* Recycle Bin Settings */}
+                    <div className="bg-[var(--color-surface)] rounded-2xl shadow-xl border border-[var(--color-border)] overflow-hidden transition-all duration-300">
+                        {/* Header */}
+                        <div
+                            className="
+    flex items-center justify-between 
+    p-3 lg:p-6 cursor-pointer 
+    hover:bg-[var(--color-background)] 
+    transition-colors
+  "
+                            onClick={() => setExpandedBin(!expandedBin)}
+                        >
+                            {/* LEFT CONTENT */}
+                            <div className="flex items-center gap-4 min-w-0 max-w-[75%]">
+                                <div className="p-3 bg-[var(--color-warning)]/10 rounded-xl">
+                                    <Archive className="h-6 w-6 text-[var(--color-warning)]" />
+                                </div>
+
+                                <div className="min-w-0">
+                                    <h2 className="text-md lg:text-xl font-semibold text-[var(--color-text)] truncate">
+                                        Recycle Bin
+                                    </h2>
+                                    <p className="text-[var(--color-textSecondary)] text-xs lg:text-sm mt-1 truncate">
+                                        Configure task deletion and recovery settings
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* RIGHT TOGGLE */}
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleInputChange("bin", "enabled", !settings.bin.enabled);
+                                    setExpandedBin(true);
+                                }}
+                                className={`
+      relative inline-flex h-5 lg:h-7 w-8 lg:w-12 mr-2 lg:mr-0 items-center rounded-full transition-all duration-200 shadow-inner
+      ${settings.bin.enabled ? "bg-[var(--color-primary)]" : "bg-[var(--color-border)]"}
+    `}
+                            >
+                                <span
+                                    className={`
+        inline-block h-3 lg:h-5 w-3 lg:w-5 transform rounded-full bg-white shadow-lg transition-transform duration-200
+        ${settings.bin.enabled ? "translate-x-4 lg:translate-x-6" : "translate-x-1"}
+      `}
+                                />
+                            </button>
+                        </div>
+
+                        {/* Expanded Content */}
+                        {expandedBin && (
+                            <div className="px-6 pb-6 pt-2 border-t border-[var(--color-border)] bg-[var(--color-background)]">
+                                <div className="space-y-8 mt-6">
+
+                                    {/* Bin Configuration */}
+                                    <div className="space-y-6">
+                                        <h3 className="text-xs font-bold text-[var(--color-text)] uppercase tracking-wider flex items-center gap-2">
+                                            <span className="w-1 h-4 bg-[var(--color-warning)] rounded-full"></span>
+                                            Recycle Bin Configuration
+                                        </h3>
+
+                                        {/* Retention Days Setting */}
+                                        <div className="space-y-4 p-5 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] hover:shadow-md hover:border-[var(--color-warning)]/30 transition-all">
+                                            <div className="flex items-center gap-3 mb-4">
+                                                <Archive className="w-6 h-6 text-[var(--color-warning)]" />
+                                                <div>
+                                                    <h4 className="text-lg font-semibold text-[var(--color-text)]">
+                                                        Auto-Delete Timer
+                                                    </h4>
+                                                    <p className="text-sm text-[var(--color-textSecondary)]">
+                                                        Tasks in recycle bin will be permanently deleted after the selected period
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="block text-sm font-medium text-[var(--color-text)]">
+                                                    Retention Period (Days)
+                                                </label>
+                                                <select
+                                                    value={settings.bin.retentionDays}
+                                                    onChange={(e) =>
+                                                        handleInputChange('bin', 'retentionDays', parseInt(e.target.value))
+                                                    }
+                                                    disabled={!settings.bin.enabled}
+                                                    className={`w-full px-4 py-3 border border-[var(--color-border)] rounded-lg text-sm
+                  focus:ring-2 focus:ring-[var(--color-warning)] focus:border-[var(--color-warning)] 
+                  bg-[var(--color-surface)] text-[var(--color-text)] transition-all
+                  ${!settings.bin.enabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                >
+                                                    <option value={7}>7 days</option>
+                                                    <option value={15}>15 days (Default)</option>
+                                                    <option value={30}>30 days</option>
+                                                    <option value={45}>45 days</option>
+                                                    <option value={60}>60 days</option>
+                                                </select>
+                                                <div className="flex items-start gap-2 mt-2 p-3 bg-[var(--color-warning)]/5 rounded-lg border border-[var(--color-warning)]/10">
+                                                    <div className="w-1 h-1 rounded-full bg-[var(--color-warning)] mt-1.5"></div>
+                                                    <p className="text-xs text-[var(--color-textSecondary)] leading-relaxed">
+                                                        After {settings.bin.retentionDays} days, deleted tasks will be permanently removed and cannot be recovered
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Feature Description */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="p-4 bg-[var(--color-success)]/5 rounded-lg border border-[var(--color-success)]/10">
+                                                <h5 className="font-semibold text-[var(--color-success)] mb-2 flex items-center">
+                                                    <Archive className="w-4 h-4 mr-2" />
+                                                    Safe Deletion
+                                                </h5>
+                                                <p className="text-xs text-[var(--color-textSecondary)]">
+                                                    Deleted tasks are moved to recycle bin instead of permanent deletion, allowing recovery if needed.
+                                                </p>
+                                            </div>
+                                            <div className="p-4 bg-[var(--color-info)]/5 rounded-lg border border-[var(--color-info)]/10">
+                                                <h5 className="font-semibold text-[var(--color-info)] mb-2 flex items-center">
+                                                    <RefreshCw className="w-4 h-4 mr-2" />
+                                                    Auto-Cleanup
+                                                </h5>
+                                                <p className="text-xs text-[var(--color-textSecondary)]">
+                                                    Automatic cleanup prevents storage bloat by permanently deleting old items from recycle bin.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
 
 
                 </div>

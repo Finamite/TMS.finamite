@@ -6,6 +6,8 @@ import { fileURLToPath } from 'url';
 import multer from 'multer';
 import fs from 'fs';
 import dotenv from 'dotenv';
+import cron from "node-cron";
+import Task from "./models/Task.js";
 
 
 // Import routes
@@ -109,6 +111,24 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('✅ Connected to MongoDB');
 
+     cron.schedule("0 * * * *", async () => {
+      try {
+        const now = new Date();
+        const result = await Task.deleteMany({
+          isActive: false,
+          autoDeleteAt: { $lte: now }
+        });
+
+        if (result.deletedCount > 0) {
+          console.log(`🧹 Auto-cleanup: Deleted ${result.deletedCount} expired bin tasks`);
+        }
+      } catch (err) {
+        console.error("❌ Auto-delete cron error:", err);
+      }
+    });
+
+    console.log("⏰ Auto-Delete Cron Started");
+
     // Create default superadmin if not exists
     const User = mongoose.model('User');
     User.findOne({ email: 'superadmin@system.com' })
@@ -128,6 +148,7 @@ mongoose.connect(process.env.MONGO_URI)
               canManageUsers: true,
               canEditRecurringTaskSchedules: true,
               canManageSettings: true,
+              canManageRecycle: true,
               canManageCompanies: true,
             }
           });
@@ -139,6 +160,7 @@ mongoose.connect(process.env.MONGO_URI)
         }
       })
       .catch(err => console.error('Error checking for superadmin user:', err));
+      
 
       app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);

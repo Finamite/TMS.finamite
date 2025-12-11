@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { RotateCcw, Calendar, Filter, Search, Trash2, Users, Paperclip, FileText, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CreditCard as Edit, Info, Download, ExternalLink, Settings, Loader } from 'lucide-react';
+import { RotateCcw, Calendar, Filter, Search, Trash2, Users, Paperclip, FileText, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CreditCard as Edit, Info, Download, ExternalLink, Settings, Loader, AlertTriangle, XCircle } from 'lucide-react';
 import axios from 'axios';
 import ViewToggle from '../components/ViewToggle';
 import StatusBadge from '../components/StatusBadge';
@@ -59,6 +59,17 @@ interface User {
   email: string;
 }
 
+interface LightMasterTask {
+  taskGroupId: string;
+  title: string;
+  description: string;
+  taskType: string;
+  priority: string;
+  assignedTo?: { _id: string; username?: string };
+  assignedBy?: { _id: string; username?: string };
+  dateRange: { start: string | Date; end: string | Date };
+}
+
 interface MasterTask {
   taskGroupId: string;
   title: string;
@@ -110,16 +121,18 @@ interface EditFormData {
   weekOffDays: number[];
 }
 
+
 interface CacheEntry {
   data: any;
   timestamp: number;
   params: string;
 }
 
-// Cache manager for API responses
+// ⚡ ULTRA-FAST Cache manager with instant edit mode support
 class CacheManager {
   private cache: Map<string, CacheEntry> = new Map();
-  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+  private readonly CACHE_DURATION = 30 * 60 * 1000; // 30 minutes for edit mode data
+  private readonly LIGHT_CACHE_DURATION = 60 * 60 * 1000; // 1 hour for light data
 
   set(key: string, data: any, params: any): void {
     this.cache.set(key, {
@@ -133,7 +146,8 @@ class CacheManager {
     const entry = this.cache.get(key);
     if (!entry) return null;
 
-    const isExpired = Date.now() - entry.timestamp > this.CACHE_DURATION;
+    const duration = key.includes('light') ? this.LIGHT_CACHE_DURATION : this.CACHE_DURATION;
+    const isExpired = Date.now() - entry.timestamp > duration;
     const paramsChanged = entry.params !== JSON.stringify(params);
 
     if (isExpired || paramsChanged) {
@@ -154,6 +168,13 @@ class CacheManager {
         this.cache.delete(key);
       }
     }
+  }
+
+  // ⚡ Instant cache check for edit mode
+  hasEditModeCache(companyId: string): boolean {
+    const key = `master-tasks-light-${companyId}`;
+    const entry = this.cache.get(key);
+    return entry !== null;
   }
 }
 
@@ -262,6 +283,7 @@ const MasterRecurringTasks: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [editModeLoading, setEditModeLoading] = useState(false);
   const [view, setView] = useState<'table' | 'card'>(getInitialViewPreference);
   const [isEditMode, setIsEditMode] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -294,7 +316,7 @@ const MasterRecurringTasks: React.FC = () => {
     taskType: '',
     status: '',
     priority: '',
-     assignedBy: '',
+    assignedBy: '',
     assignedTo: '',
     search: '',
     dateFrom: '',
@@ -306,8 +328,9 @@ const MasterRecurringTasks: React.FC = () => {
   const [selectedImagePreview, setSelectedImagePreview] = useState<string | null>(null);
   const [showRemarksModal, setShowRemarksModal] = useState<Task | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [binEnabled, setBinEnabled] = useState(false);
   const [deleteConfig, setDeleteConfig] = useState<{
-    type: "single" | "master";
+    type: "single" | "master" | "permanent";
     taskId?: string;
     masterTask?: MasterTask;
   } | null>(null);
@@ -325,137 +348,178 @@ const MasterRecurringTasks: React.FC = () => {
   const canDeleteTasks = user?.permissions?.canDeleteTasks || false;
   const hasMasterTaskActions = canEditRecurringTaskSchedules || canDeleteTasks;
 
-  // Optimized fetch functions with caching and server-side filtering
-  const fetchMasterTasks = useCallback(async (page: number = currentPage, useCache: boolean = true) => {
-    let effectivePage = isEditMode ? 1 : page;
-    let effectiveLimit = isEditMode ? 1000 : itemsPerPage;
-    const cacheKey = isEditMode
-      ? `master-tasks-edit-${effectiveLimit}-${isAdmin ? 1 : 0}`
-      : `master-tasks-${page}-${itemsPerPage}-${isAdmin ? 1 : 0}`;
+  // ⚡ LIGHTNING FAST: Ultra-optimized edit mode data fetching
+  const fetchMasterTasksUltraFast = useCallback(async (useCache: boolean = true) => {
+    const companyId = user?.company?.companyId || '';
+    if (!companyId) return;
 
-    const params = {
-      page: effectivePage,
-      limit: effectiveLimit,
-      taskType: filter.taskType,
-      status: '',
-      priority: filter.priority,
-      assignedBy: filter.assignedBy,
-      search: debouncedSearch,
-      dateFrom: debouncedDateFrom,
-      dateTo: debouncedDateTo,
-      companyId: user?.company?.companyId || '',
-    };
+    const cacheKey = `master-tasks-light-${companyId}`;
 
-    // Check cache first
-    if (useCache) {
-      const cachedData = cacheRef.current.get(cacheKey, params);
+    // ⚡ INSTANT: Check cache first for lightning speed
+    if (useCache && cacheRef.current.hasEditModeCache(companyId)) {
+      const cachedData = cacheRef.current.get(cacheKey, { companyId });
       if (cachedData) {
-        if (!isEditMode) {
-          setMasterTasks(cachedData.masterTasks || []);
-          setTotalPages(cachedData.totalPages || 1);
-          setTotalCount(cachedData.total || 0);
-          setHasMore(cachedData.hasMore || false);
-          return;
-        } else {
-          // Process cached data for edit mode
-          let processedFull = cachedData.masterTasks || [];
-          const targetUserId = isAdmin && filter.assignedTo && filter.assignedTo !== ''
-            ? filter.assignedTo
-            : !isAdmin
-              ? user?.id
-              : null;
-          if (targetUserId !== null && targetUserId !== undefined) {
-            processedFull = processedFull.filter((mt: MasterTask) => mt.assignedTo._id.toString() === targetUserId.toString());
-          }
-          setFullMasterTasks(processedFull);
-          const totalFiltered = processedFull.length;
-          setTotalCount(totalFiltered);
-          setTotalPages(Math.ceil(totalFiltered / itemsPerPage));
-          setHasMore(false);
-          const startIndex = (page - 1) * itemsPerPage;
-          const endIndex = startIndex + itemsPerPage;
-          setMasterTasks(processedFull.slice(startIndex, endIndex));
-          return;
-        }
+        console.log('⚡ INSTANT: Using cached edit mode data');
+        setFullMasterTasks(cachedData);
+        setTotalCount(cachedData.length);
+        setTotalPages(Math.ceil(cachedData.length / itemsPerPage));
+        setMasterTasks(cachedData.slice(0, itemsPerPage));
+        setEditModeLoading(false);
+        return;
       }
     }
 
     try {
-      setLoading(effectivePage === 1);
+      setEditModeLoading(true);
+      console.log('🚀 ULTRA-FAST: Fetching light edit mode data...');
 
-      const queryParams = new URLSearchParams();
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== '') {
-          queryParams.append(key, value.toString());
+      // ⚡ Use the ultra-fast light endpoint
+      const response = await axios.get(
+        `${address}/api/tasks/master-recurring-light?companyId=${companyId}`,
+        {
+          timeout: 5000 // Quick timeout for immediate response
         }
-      });
+      );
 
-      const response = await axios.get(`${address}/api/tasks/master-recurring?${queryParams}`, {
-        timeout: 10000, // 10 second timeout
-      });
+      const lightData = response.data || [];
+      console.log(`⚡ LIGHTNING: Got ${lightData.length} master tasks from API`);
 
-      const backendData = response.data;
-      const rawMasterTasks = backendData.masterTasks || [];
-      const backendTotal = backendData.total || 0;
-      const backendTotalPages = backendData.totalPages || 1;
-      const backendHasMore = backendData.hasMore || false;
+      if (lightData.length === 0) {
+        console.log('⚠️ No master tasks returned from API - checking if user has any tasks...');
 
-      if (!isEditMode) {
-        setMasterTasks(rawMasterTasks);
-        setTotalPages(backendTotalPages);
-        setTotalCount(backendTotal);
-        setHasMore(backendHasMore);
+        // Try to fetch regular master tasks as fallback
+        try {
+          const fallbackResponse = await axios.get(
+            `${address}/api/tasks/master-recurring?companyId=${companyId}&limit=1000`,
+            { timeout: 10000 }
+          );
 
-        // Cache the result
-        cacheRef.current.set(cacheKey, backendData, params);
-      } else {
-        let processedFull: MasterTask[] = rawMasterTasks;
-        const targetUserId = isAdmin && filter.assignedTo && filter.assignedTo !== ''
-          ? filter.assignedTo
-          : !isAdmin
-            ? user?.id
-            : null;
-        if (targetUserId !== null && targetUserId !== undefined) {
-          processedFull = rawMasterTasks.filter((mt: MasterTask) => mt.assignedTo._id.toString() === targetUserId.toString());
+          const fallbackData = fallbackResponse.data?.masterTasks || [];
+          console.log(`🔄 Fallback: Got ${fallbackData.length} master tasks from regular endpoint`);
+
+          if (fallbackData.length > 0) {
+            // Use fallback data
+            let filteredData = fallbackData;
+            if (!isAdmin && user?.id) {
+              filteredData = fallbackData.filter((task: MasterTask) =>
+                task.assignedTo._id.toString() === user.id.toString()
+              );
+            }
+
+            setFullMasterTasks(filteredData);
+            setTotalCount(filteredData.length);
+            setTotalPages(Math.ceil(filteredData.length / itemsPerPage));
+            setMasterTasks(filteredData.slice(0, itemsPerPage));
+
+            // Cache the fallback data
+            cacheRef.current.set(cacheKey, fallbackData, { companyId });
+
+            console.log('✅ Using fallback data successfully');
+            setEditModeLoading(false);
+            return;
+          }
+        } catch (fallbackError) {
+          console.error('❌ Fallback fetch failed:', fallbackError);
         }
-        setFullMasterTasks(processedFull);
-        const totalFiltered = processedFull.length;
-        setTotalCount(totalFiltered);
-        setTotalPages(Math.ceil(totalFiltered / itemsPerPage));
-        setHasMore(false);
-        const startIndex = (page - 1) * itemsPerPage;
-        const endIndex = startIndex + itemsPerPage;
-        setMasterTasks(processedFull.slice(startIndex, endIndex));
-
-        // Cache the raw result
-        const cacheData = {
-          masterTasks: rawMasterTasks,
-          totalPages: backendTotalPages,
-          total: backendTotal,
-          hasMore: backendHasMore,
-        };
-        cacheRef.current.set(cacheKey, cacheData, params);
       }
+
+      // ⚡ INSTANT: Apply user filter if needed
+      let filteredData = lightData;
+
+      // Apply AssignedTo filter for non admins
+      if (!isAdmin && user?.id) {
+        filteredData = filteredData.filter(
+          (task: LightMasterTask) =>
+            task.assignedTo?._id?.toString() === user.id.toString()
+        );
+      }
+
+      // Admin filter by assignedTo
+      if (isAdmin && filter.assignedTo) {
+        filteredData = filteredData.filter(
+          (task: LightMasterTask) =>
+            task.assignedTo?._id?.toString() === filter.assignedTo.toString()
+        );
+      }
+
+      // Filter by task type
+      if (filter.taskType) {
+        filteredData = filteredData.filter(
+          (task: LightMasterTask) => task.taskType === filter.taskType
+        );
+      }
+
+      // Filter by priority
+      if (filter.priority) {
+        filteredData = filteredData.filter(
+          (task: LightMasterTask) => task.priority === filter.priority
+        );
+      }
+
+      // Filter by assignedBy
+      if (filter.assignedBy) {
+        filteredData = filteredData.filter(
+          (task: LightMasterTask) =>
+            task.assignedBy?.username?.toLowerCase() ===
+            filter.assignedBy.toLowerCase()
+        );
+      }
+
+      // Search filter
+      if (debouncedSearch) {
+        const s = debouncedSearch.toLowerCase();
+        filteredData = filteredData.filter(
+          (task: LightMasterTask) =>
+            task.title?.toLowerCase().includes(s) ||
+            task.description?.toLowerCase().includes(s)
+        );
+      }
+
+      // Filter by date range
+      if (debouncedDateFrom && debouncedDateTo) {
+        const from = new Date(debouncedDateFrom);
+        const to = new Date(debouncedDateTo);
+
+        filteredData = filteredData.filter((task: LightMasterTask) => {
+          const date = new Date(task.dateRange.start);
+          return date >= from && date <= to;
+        });
+      }
+
+      // ⚡ INSTANT: Set all data immediately
+      setFullMasterTasks(filteredData);
+      setTotalCount(filteredData.length);
+      setTotalPages(Math.ceil(filteredData.length / itemsPerPage));
+      setMasterTasks(filteredData.slice(0, itemsPerPage));
+
+      // ⚡ CACHE: Store for instant future access
+      cacheRef.current.set(cacheKey, lightData, { companyId });
+
+      console.log('✅ ULTRA-FAST: Edit mode data loaded instantly');
 
     } catch (error) {
-      console.error('Error fetching master tasks:', error);
-      if (axios.isAxiosError(error) && error.code === 'ECONNABORTED') {
-        toast.error('Request timeout. Please try again with fewer filters.');
-      } else {
-        toast.error('Failed to load master tasks');
-      }
+      console.error('❌ Error in ultra-fast fetch:', error);
+      toast.error('Failed to load master tasks');
       setMasterTasks([]);
-      if (isEditMode) {
-        setFullMasterTasks([]);
-      }
+      setFullMasterTasks([]);
       setTotalPages(1);
       setTotalCount(0);
-      setHasMore(false);
     } finally {
-      setLoading(false);
-      setInitialLoading(false);
+      setEditModeLoading(false);
     }
-  }, [currentPage, itemsPerPage, filter, debouncedSearch, debouncedDateFrom, debouncedDateTo, user, isAdmin]);
+  }, [
+    user,
+    itemsPerPage,
+    isAdmin,
+    filter.taskType,
+    filter.priority,
+    filter.assignedBy,
+    filter.assignedTo,
+    debouncedSearch,
+    debouncedDateFrom,
+    debouncedDateTo
+  ]);
+
 
   // Replace the existing useEffect for pagination changes
   useEffect(() => {
@@ -472,6 +536,25 @@ const MasterRecurringTasks: React.FC = () => {
       fetchIndividualTasks(currentPage);
     }
   }, [currentPage, itemsPerPage, fullMasterTasks, isEditMode]);
+
+  useEffect(() => {
+    const fetchBinSettings = async () => {
+      try {
+        const res = await axios.get(`${address}/api/settings/bin?companyId=${user?.company?.companyId}`);
+        setBinEnabled(res.data.enabled ?? false);
+      } catch (err) {
+        console.error("Error loading bin settings", err);
+      }
+    };
+
+    fetchBinSettings();
+
+    // Update when settings saved from Settings page
+    const listener = () => fetchBinSettings();
+    window.addEventListener("bin-settings-updated", listener);
+
+    return () => window.removeEventListener("bin-settings-updated", listener);
+  }, [user]);
 
   const fetchIndividualTasks = useCallback(async (page: number = currentPage, useCache: boolean = true) => {
     const params = {
@@ -512,9 +595,7 @@ const MasterRecurringTasks: React.FC = () => {
         }
       });
 
-      const response = await axios.get(`${address}/api/tasks/recurring-instances?${queryParams}`, {
-        timeout: 10000, // 10 second timeout
-      });
+      const response = await axios.get(`${address}/api/tasks/recurring-instances?${queryParams}`);
 
       const data = response.data;
       setIndividualTasks(data.tasks || []);
@@ -526,12 +607,8 @@ const MasterRecurringTasks: React.FC = () => {
       cacheRef.current.set(cacheKey, data, params);
 
     } catch (error) {
-      console.error('Error fetching individual tasks:', error);
-      if (axios.isAxiosError(error) && error.code === 'ECONNABORTED') {
-        toast.error('Request timeout. Please try again with fewer filters.');
-      } else {
-        toast.error('Failed to load tasks');
-      }
+      console.error('❌ Error fetching individual tasks:', error);
+      toast.error('Failed to load tasks');
       setIndividualTasks([]);
       setTotalPages(1);
       setTotalCount(0);
@@ -541,6 +618,26 @@ const MasterRecurringTasks: React.FC = () => {
       setInitialLoading(false);
     }
   }, [currentPage, itemsPerPage, filter, debouncedSearch, debouncedDateFrom, debouncedDateTo, user, isAdmin]);
+
+  // ⚡ LIGHTNING FAST: Ultra-optimized edit mode toggle
+  const handleEditModeToggle = useCallback(async () => {
+    const newEditMode = !isEditMode;
+    console.log(`🚀 LIGHTNING TOGGLE: Switching to ${newEditMode ? 'edit' : 'view'} mode`);
+
+    setIsEditMode(newEditMode);
+    setCurrentPage(1);
+
+    if (newEditMode) {
+      // ⚡ INSTANT: Use ultra-fast light endpoint for edit mode
+      setEditModeLoading(true);
+      setMasterTasks([]); // Clear current data to show loading
+      await fetchMasterTasksUltraFast(true); // Use cache if available
+    } else {
+      // Switching back to normal mode
+      cacheRef.current.clearByPattern('individual');
+      await fetchIndividualTasks(1, false);
+    }
+  }, [isEditMode, fetchMasterTasksUltraFast, fetchIndividualTasks]);
 
   // Fetch users with caching
   const fetchUsers = useCallback(async () => {
@@ -578,7 +675,8 @@ const MasterRecurringTasks: React.FC = () => {
   // Effect for initial data loading
   useEffect(() => {
     if (isEditMode) {
-      fetchMasterTasks(1, false);
+      setEditModeLoading(true);
+      fetchMasterTasksUltraFast(true); // ⚡ Use ultra-fast method
     } else {
       fetchIndividualTasks(1, false);
     }
@@ -594,16 +692,20 @@ const MasterRecurringTasks: React.FC = () => {
     cacheRef.current.clear(); // Clear cache when filters change
 
     if (isEditMode) {
-      fetchMasterTasks(1, false);
+      setEditModeLoading(true);
+      fetchMasterTasksUltraFast(false); // ⚡ Force fresh data with filters
     } else {
       fetchIndividualTasks(1, false);
     }
-  }, [filter.taskType, filter.status, filter.priority, filter.assignedBy,filter.assignedTo, debouncedSearch, debouncedDateFrom, debouncedDateTo, isEditMode]);
+  }, [filter.taskType, filter.status, filter.priority, filter.assignedBy, filter.assignedTo, debouncedSearch, debouncedDateFrom, debouncedDateTo, isEditMode]);
 
   // Effect for pagination changes
   useEffect(() => {
     if (isEditMode) {
-      fetchMasterTasks(currentPage);
+      if (fullMasterTasks.length === 0) {
+        setEditModeLoading(true);
+        fetchMasterTasksUltraFast(true); // ⚡ Use cached if available
+      }
     } else {
       fetchIndividualTasks(currentPage);
     }
@@ -669,7 +771,7 @@ const MasterRecurringTasks: React.FC = () => {
 
       // Clear cache and refresh data
       cacheRef.current.clearByPattern("master-tasks");
-      await fetchMasterTasks(1, false);
+      await fetchMasterTasksUltraFast(false); // ⚡ Refresh with ultra-fast method
       setCurrentPage(1);
 
       // Close modal
@@ -696,7 +798,7 @@ const MasterRecurringTasks: React.FC = () => {
     } finally {
       setIsSaving(false);
     }
-  }, [editFormData, editingMasterTask, fetchMasterTasks, currentPage]);
+  }, [editFormData, editingMasterTask, fetchMasterTasksUltraFast]);
 
   const handleCancelEdit = useCallback(() => {
     setShowEditModal(false);
@@ -793,7 +895,7 @@ const MasterRecurringTasks: React.FC = () => {
                 <button
                   onClick={() => handleDeleteMasterTask(masterTask)}
                   className="flex items-center gap-1 p-2 text-[--color-error] hover:bg-[--color-error] hover:text-white hover:scale-105 rounded-lg transition-all duration-150 ease-in-out"
-                  title="Delete master task"
+                  title="Move to recycle bin"
                 >
                   <Trash2 size={16} />
                 </button>
@@ -1065,8 +1167,8 @@ const MasterRecurringTasks: React.FC = () => {
                 Instances
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
-                  Assigned By
-                </th>
+                Assigned By
+              </th>
               {isAdmin && (
                 <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
                   Assigned To
@@ -1138,8 +1240,8 @@ const MasterRecurringTasks: React.FC = () => {
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-semibold text-[--color-text]">{masterTask.assignedBy.username}</div>
-                  </td>
+                  <div className="text-sm font-semibold text-[--color-text]">{masterTask.assignedBy.username}</div>
+                </td>
                 {isAdmin && (
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-[--color-text]">{masterTask.assignedTo.username}</div>
@@ -1190,7 +1292,7 @@ const MasterRecurringTasks: React.FC = () => {
                         <button
                           onClick={() => handleDeleteMasterTask(masterTask)}
                           className="p-2 text-[--color-error] hover:bg-[--color-error] hover:text-white hover:scale-105 rounded-lg transition-all duration-150 ease-in-out"
-                          title="Delete master task"
+                          title="Move to recycle bin"
                         >
                           <Trash2 size={18} />
                         </button>
@@ -1233,8 +1335,8 @@ const MasterRecurringTasks: React.FC = () => {
                 Priority
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
-                  Assigned By
-                </th>
+                Assigned By
+              </th>
               {isAdmin && (
                 <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
                   Assigned To
@@ -1302,8 +1404,8 @@ const MasterRecurringTasks: React.FC = () => {
                   <PriorityBadge priority={task.priority} />
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-semibold text-[--color-text]">{task.assignedBy.username}</div>
-                  </td>
+                  <div className="text-sm font-semibold text-[--color-text]">{task.assignedBy.username}</div>
+                </td>
                 {isAdmin && (
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-[--color-text]">{task.assignedTo.username}</div>
@@ -1375,7 +1477,7 @@ const MasterRecurringTasks: React.FC = () => {
                     <button
                       onClick={() => handleDeleteTask(task._id)}
                       className="flex items-center gap-1 p-2 text-[--color-error] hover:bg-[--color-error] hover:text-white hover:scale-105 rounded-lg transition-all duration-150 ease-in-out"
-                      title="Delete task"
+                      title="Move to recycle bin"
                     >
                       <Trash2 size={18} />
                     </button>
@@ -1389,6 +1491,7 @@ const MasterRecurringTasks: React.FC = () => {
     </div>
   );
 
+  // ✅ FIXED: Show proper loading states instead of "No master tasks found"
   if (initialLoading) {
     return (
       <div className="min-h-screen bg-[var(--color-background)] p-4 space-y-6">
@@ -1428,7 +1531,7 @@ const MasterRecurringTasks: React.FC = () => {
             {isEditMode ? `${masterTasks.length} master task series` : `${individualTasks.length} recurring task(s) found`}
             {isAdmin ? ' (All team members)' : ' (Your tasks)'}
             {totalCount > currentData.length && ` - Showing ${currentData.length} of ${totalCount}`}
-            {loading && (
+            {(loading || editModeLoading) && (
               <Loader className="ml-2 h-3 w-3 animate-spin text-[--color-primary]" />
             )}
           </p>
@@ -1436,17 +1539,15 @@ const MasterRecurringTasks: React.FC = () => {
         <div className="flex items-center mt-4 sm:mt-0 space-x-3">
           {canEditRecurringTaskSchedules && (
             <button
-              onClick={() => {
-                setIsEditMode(!isEditMode);
-                cacheRef.current.clear();
-              }}
+              onClick={handleEditModeToggle}
+              disabled={editModeLoading}
               className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center ${isEditMode
                 ? 'bg-[--color-primary] text-white hover:bg-[--color-primary]'
                 : 'text-[--color-text] bg-[--color-surface] hover:bg-[--color-border]'
-                }`}
+                } ${editModeLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <Settings size={16} className="inline mr-2" />
-              {isEditMode ? 'Exit Edit Mode' : 'Master Task Settings'}
+              {editModeLoading ? '⚡ Loading...' : isEditMode ? 'Exit Edit Mode' : 'Master Task Settings'}
             </button>
           )}
           <button
@@ -1467,31 +1568,37 @@ const MasterRecurringTasks: React.FC = () => {
       {showFilters && (
         <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] p-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-[--color-text] mb-1">
-                <Calendar size={14} className="inline mr-1" />
-                Date From
-              </label>
-              <input
-                type="date"
-                value={filter.dateFrom}
-                onChange={(e) => setFilter({ ...filter, dateFrom: e.target.value })}
-                className="w-full text-sm px-3 py-2 border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] bg-[--color-surface] text-[--color-text]"
-              />
-            </div>
+            {!isEditMode && (
+              <div>
+                <label className="block text-sm font-medium text-[--color-text] mb-1">
+                  <Calendar size={14} className="inline mr-1" />
+                  Date From
+                </label>
+                <input
+                  type="date"
+                  value={filter.dateFrom}
+                  onChange={(e) => setFilter({ ...filter, dateFrom: e.target.value })}
+                  className="w-full text-sm px-3 py-2 border border-[--color-border] rounded-lg 
+      bg-[--color-surface] text-[--color-text]"
+                />
+              </div>
+            )}
 
-            <div>
-              <label className="block text-sm font-medium text-[--color-text] mb-1">
-                <Calendar size={14} className="inline mr-1" />
-                Date To
-              </label>
-              <input
-                type="date"
-                value={filter.dateTo}
-                onChange={(e) => setFilter({ ...filter, dateTo: e.target.value })}
-                className="w-full text-sm px-3 py-2 border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] bg-[--color-surface] text-[--color-text]"
-              />
-            </div>
+            {!isEditMode && (
+              <div>
+                <label className="block text-sm font-medium text-[--color-text] mb-1">
+                  <Calendar size={14} className="inline mr-1" />
+                  Date To
+                </label>
+                <input
+                  type="date"
+                  value={filter.dateTo}
+                  onChange={(e) => setFilter({ ...filter, dateTo: e.target.value })}
+                  className="w-full text-sm px-3 py-2 border border-[--color-border] rounded-lg 
+      bg-[--color-surface] text-[--color-text]"
+                />
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-[--color-text] mb-1">Task Type</label>
@@ -1537,34 +1644,32 @@ const MasterRecurringTasks: React.FC = () => {
               </select>
             </div>
 
-        
-{isAdmin && (
-  <div>
-    <label className="block text-sm font-medium text-[--color-text] mb-1">
-      Assigned By
-    </label>
+            {isAdmin && (
+              <div>
+                <label className="block text-sm font-medium text-[--color-text] mb-1">
+                  Assigned By
+                </label>
 
-    <select
-      value={filter.assignedBy}
-      onChange={(e) => setFilter({ ...filter, assignedBy: e.target.value })}
-      className="w-full text-sm px-3 py-2 border border-[--color-border] rounded-lg 
+                <select
+                  value={filter.assignedBy}
+                  onChange={(e) => setFilter({ ...filter, assignedBy: e.target.value })}
+                  className="w-full text-sm px-3 py-2 border border-[--color-border] rounded-lg 
                  bg-[--color-surface] text-[--color-text]
                  focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary]"
-    >
-      <option value="">All Assigners</option>
+                >
+                  <option value="">All Assigners</option>
 
-      {[...new Set(
-        [
-          ...masterTasks.map(t => t.assignedBy?.username),
-          ...individualTasks.map(t => t.assignedBy?.username)
-        ].filter(Boolean)
-      )].map(name => (
-        <option key={name} value={name}>{name}</option>
-      ))}
-    </select>
-  </div>
-)}
-
+                  {[...new Set(
+                    [
+                      ...masterTasks.map(t => t.assignedBy?.username),
+                      ...individualTasks.map(t => t.assignedBy?.username)
+                    ].filter(Boolean)
+                  )].map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {isAdmin && (
               <div>
@@ -1617,18 +1722,20 @@ const MasterRecurringTasks: React.FC = () => {
         </div>
       )}
 
-      {/* Loading overlay */}
-      {loading && !initialLoading && (
+      {/* ✅ OPTIMIZED: Show loading for edit mode instead of "No master tasks found" */}
+      {(loading || editModeLoading) && !initialLoading && (
         <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] p-8">
           <div className="flex items-center justify-center">
             <Loader className="h-8 w-8 animate-spin text-[--color-primary] mr-3" />
-            <span className="text-[--color-textSecondary]">Loading tasks...</span>
+            <span className="text-[--color-textSecondary]">
+              {editModeLoading ? 'loading edit mode...' : 'Loading tasks...'}
+            </span>
           </div>
         </div>
       )}
 
       {/* Content */}
-      {currentData.length === 0 && !loading ? (
+      {currentData.length === 0 && !loading && !editModeLoading ? (
         <div className="text-center py-12">
           <RotateCcw size={48} className="mx-auto mb-4 text-[--color-textSecondary]" />
           <p className="text-lg text-[--color-textSecondary]">
@@ -1649,7 +1756,7 @@ const MasterRecurringTasks: React.FC = () => {
         </div>
       ) : (
         <>
-          {!loading && (
+          {!loading && !editModeLoading && (
             <>
               {isEditMode
                 ? (view === 'card' ? renderMasterTaskCardView() : renderMasterTaskTableView())
@@ -1715,7 +1822,6 @@ const MasterRecurringTasks: React.FC = () => {
                           } else {
                             pageNumber = currentPage - 1 + i;
                           }
-
 
                           return (
                             <button
@@ -1928,66 +2034,193 @@ const MasterRecurringTasks: React.FC = () => {
 
       {/* Delete Modal */}
       {showDeleteModal && deleteConfig && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-[var(--color-background)] rounded-lg shadow-lg p-6 w-96">
-            <h2 className="text-[var(--color-text)] font-semibold mb-4">Confirm Delete</h2>
-            {deleteConfig.type === "master" ? (
-              <p className="mb-6 text-[var(--color-text)]">
-                Are you sure you want to delete all{" "}
-                {deleteConfig.masterTask?.instanceCount} instances of this recurring
-                task series?
-              </p>
-            ) : (
-              <p className="mb-6 text-[var(--color-text)]">
-                Are you sure you want to delete this recurring task?
-              </p>
-            )}
-            <div className="flex justify-end space-x-3">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[--color-surface] rounded-2xl shadow-2xl w-full max-w-md transform transition-all">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-200 dark:border-gray-800">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
+                  <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-[--color-text]">
+                    Delete Task
+                  </h2>
+                  <p className="text-sm text-[--color-textsecondary] mt-0.5">
+                    This action requires confirmation
+                  </p>
+                  {!binEnabled && (
+                    <div className="bg-yellow-100 text-yellow-700 p-2 rounded mt-2 text-sm">
+                      Recycle Bin is turned off. Please enable it from Settings to use the Move to Bin feature.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer - Buttons */}
+            <div className="p-6 border-t border-gray-200 dark:border-gray-800 space-y-4">
+
+              {/* Row: Move to Bin + Permanent Delete */}
+              <div className="grid grid-cols-2 gap-3">
+
+                {/* Move to Bin */}
+                <button
+                  onClick={async () => {
+                    if (!binEnabled) {
+                      toast.error("Recycle Bin is turned OFF. Please enable it from Settings.");
+                      return;
+                    }
+
+                    try {
+                      if (!user?.company?.companyId) {
+                        toast.error("Company ID is missing");
+                        return;
+                      }
+
+                      let tasksToDelete: { _id: string }[] = [];
+
+                      if (deleteConfig?.type === "single") {
+                        tasksToDelete = [{ _id: deleteConfig.taskId! }];
+                      } else if (deleteConfig?.type === "master" && deleteConfig.masterTask) {
+                        if (deleteConfig.masterTask.tasks && deleteConfig.masterTask.tasks.length > 0) {
+                          tasksToDelete = deleteConfig.masterTask.tasks.map(t => ({ _id: t._id }));
+                        } else {
+                          // Fetch full master task details for this group in light mode
+                          const companyId = user.company.companyId;
+                          const response = await axios.get(
+                            `${address}/api/tasks/master-recurring?companyId=${companyId}&taskGroupId=${deleteConfig.masterTask.taskGroupId}&limit=1000`
+                          );
+                          const fullMaster = response.data.masterTasks?.[0];
+                          if (fullMaster && fullMaster.tasks && fullMaster.tasks.length > 0) {
+                            tasksToDelete = fullMaster.tasks.map((t: { _id: any; }) => ({ _id: t._id }));
+                          } else {
+                            toast.error("No tasks found for this master task group.");
+                            return;
+                          }
+                        }
+                      }
+
+                      if (tasksToDelete.length === 0) {
+                        toast.error("No tasks to delete.");
+                        return;
+                      }
+
+                      await Promise.all(
+                        tasksToDelete.map(t =>
+                          axios.delete(
+                            `${address}/api/tasks/${t._id}?moveToRecycleBin=true&companyId=${user?.company?.companyId || ''}`,
+                            {
+                              data: {
+                                deletedAt: new Date().toISOString()
+                              }
+                            }
+                          )
+                        )
+                      );
+
+                      cacheRef.current.clear();
+                      await fetchMasterTasksUltraFast(false); // ⚡ Use ultra-fast method for refresh
+
+                      toast.success("Moved to Bin Successfully");
+
+                      setShowDeleteModal(false);
+                      setDeleteConfig(null);
+                    } catch (err) {
+                      console.error(err);
+                      toast.error("Error moving to bin");
+                    }
+                  }}
+                  disabled={!binEnabled}
+                  className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-white font-medium transition-all shadow-lg
+        ${binEnabled
+                      ? "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 cursor-pointer"
+                      : "bg-gray-400 cursor-not-allowed opacity-60 shadow-none"
+                    }`}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Move to Bin
+                </button>
+
+                {/* Permanent Delete */}
+                <button
+                  onClick={async () => {
+                    try {
+                      if (!user?.company?.companyId) {
+                        toast.error("Company ID is missing");
+                        return;
+                      }
+
+                      let tasksToDelete: { _id: string }[] = [];
+
+                      if (deleteConfig?.type === "single") {
+                        tasksToDelete = [{ _id: deleteConfig.taskId! }];
+                      } else if (deleteConfig?.type === "master" && deleteConfig.masterTask) {
+                        if (deleteConfig.masterTask.tasks && deleteConfig.masterTask.tasks.length > 0) {
+                          tasksToDelete = deleteConfig.masterTask.tasks.map(t => ({ _id: t._id }));
+                        } else {
+                          // Fetch full master task details for this group in light mode
+                          const companyId = user.company.companyId;
+                          const response = await axios.get(
+                            `${address}/api/tasks/master-recurring?companyId=${companyId}&taskGroupId=${deleteConfig.masterTask.taskGroupId}&limit=1000`
+                          );
+                          const fullMaster = response.data.masterTasks?.[0];
+                          if (fullMaster && fullMaster.tasks && fullMaster.tasks.length > 0) {
+                            tasksToDelete = fullMaster.tasks.map((t: { _id: any; }) => ({ _id: t._id }));
+                          } else {
+                            toast.error("No tasks found for this master task group.");
+                            return;
+                          }
+                        }
+                      }
+
+                      if (tasksToDelete.length === 0) {
+                        toast.error("No tasks to delete.");
+                        return;
+                      }
+
+                      await Promise.all(
+                        tasksToDelete.map(t =>
+                          axios.delete(
+                            `${address}/api/tasks/${t._id}?moveToRecycleBin=false&companyId=${user.company?.companyId || ''}`
+                          )
+                        )
+                      );
+
+                      cacheRef.current.clear();
+                      await fetchMasterTasksUltraFast(false); // ⚡ Use ultra-fast method for refresh
+
+                      toast.success("Deleted Permanently");
+
+                      setShowDeleteModal(false);
+                      setDeleteConfig(null);
+                    } catch (err) {
+                      console.error(err);
+                      toast.error("Error deleting permanently");
+                    }
+                  }}
+                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-white bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 font-medium transition-all shadow-lg shadow-red-500/25"
+                >
+                  <XCircle className="w-4 h-4" />
+                  Delete
+                </button>
+
+              </div>
+
+              {/* Cancel Button (full width below) */}
               <button
                 onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 text-gray-800 rounded bg-gray-200 hover:bg-gray-300"
+                className="w-full px-4 py-3 rounded-xl text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 font-medium transition-all"
               >
                 Cancel
               </button>
-              <button
-                onClick={async () => {
-                  try {
-                    if (deleteConfig.type === "master" && deleteConfig.masterTask) {
-                      await Promise.all(
-                        deleteConfig.masterTask.tasks.map(task =>
-                          axios.delete(`${address}/api/tasks/${task._id}`)
-                        )
-                      );
-                    } else if (deleteConfig.type === "single" && deleteConfig.taskId) {
-                      await axios.delete(`${address}/api/tasks/${deleteConfig.taskId}`);
-                    }
 
-                    // Clear cache and refresh data
-                    cacheRef.current.clear();
-                    if (isEditMode) {
-                      cacheRef.current.clearByPattern("master-tasks");
-                      await fetchMasterTasks(1, false);
-                      setCurrentPage(1);
-                    } else {
-                      await fetchIndividualTasks(currentPage, false);
-                    }
-
-                    setShowDeleteModal(false);
-                    setDeleteConfig(null);
-                    toast.success("Deleted Successfully");
-                  } catch (error) {
-                    console.error("Error deleting task:", error);
-                    toast.error("Failed to delete task");
-                  }
-                }}
-                className="px-4 py-2 rounded bg-red-500 text-white hover:bg-red-600"
-              >
-                Delete
-              </button>
             </div>
+
           </div>
         </div>
       )}
+
     </div>
   );
 };

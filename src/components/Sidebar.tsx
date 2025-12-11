@@ -19,7 +19,9 @@ import {
   Zap,
   Crown,
   MessageCircle,
-  Shield
+  Shield,
+  Recycle,
+  HelpCircle
 } from 'lucide-react';
 
 
@@ -135,8 +137,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { icon: UserPlus, label: 'Assign Task', path: '/assign-task', permission: user?.permissions?.canAssignTasks },
     { icon: Zap, label: 'Performance', path: '/performance', permission: cp.performance },
     { icon: MessageCircle, label: 'Chat Support', path: '/chat', permission: cp.chat },
+    { icon: Recycle, label: 'Recycle bin', path: '/recycle-bin', permission: user?.permissions?.canManageRecycle },
     { icon: Shield, label: 'Admin Panel', path: '/admin', permission: user?.permissions?.canManageUsers },
     { icon: Settings, label: 'Settings', path: '/settings-page', permission: user?.permissions?.canManageSettings  },
+    { icon: HelpCircle, label: 'Help & Support', path: '/help-support', permission: cp.helpsupport  },
     { icon: Crown, label: 'SuperAdmin Panel', path: '/superadmin', requireSuperAdmin: true },
   ];
 

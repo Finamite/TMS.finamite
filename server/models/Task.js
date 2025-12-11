@@ -105,6 +105,9 @@ const taskSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  deletedAt: Date,
+autoDeleteAt: Date,
+
   // Group related tasks together
   taskGroupId: String,
   sequenceNumber: Number,
