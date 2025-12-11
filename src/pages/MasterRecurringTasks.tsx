@@ -381,8 +381,19 @@ const MasterRecurringTasks: React.FC = () => {
         }
       );
 
-      const lightData = response.data || [];
-      console.log(`⚡ LIGHTNING: Got ${lightData.length} master tasks from API`);
+      let lightData = Array.isArray(response.data)
+  ? response.data
+  : Array.isArray(response.data?.masterTasks)
+  ? response.data.masterTasks
+  : [];
+
+// Prevent runtime errors
+if (!Array.isArray(lightData)) {
+  console.warn("Unexpected API format:", response.data);
+  lightData = [];
+}
+
+console.log(`⚡ LIGHTNING: Got ${lightData.length} master tasks from API`);
 
       if (lightData.length === 0) {
         console.log('⚠️ No master tasks returned from API - checking if user has any tasks...');
@@ -493,7 +504,7 @@ const MasterRecurringTasks: React.FC = () => {
       setMasterTasks(filteredData.slice(0, itemsPerPage));
 
       // ⚡ CACHE: Store for instant future access
-      cacheRef.current.set(cacheKey, lightData, { companyId });
+      cacheRef.current.set(cacheKey, Array.isArray(lightData) ? lightData : [], { companyId });
 
       console.log('✅ ULTRA-FAST: Edit mode data loaded instantly');
 
