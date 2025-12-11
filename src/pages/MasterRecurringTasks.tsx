@@ -377,7 +377,7 @@ const MasterRecurringTasks: React.FC = () => {
       const response = await axios.get(
         `${address}/api/tasks/master-recurring-light?companyId=${companyId}`,
         {
-          timeout: 5000 // Quick timeout for immediate response
+          timeout: 100000 // Quick timeout for immediate response
         }
       );
 
@@ -402,7 +402,7 @@ console.log(`⚡ LIGHTNING: Got ${lightData.length} master tasks from API`);
         try {
           const fallbackResponse = await axios.get(
             `${address}/api/tasks/master-recurring?companyId=${companyId}&limit=1000`,
-            { timeout: 10000 }
+            { timeout: 100000 }
           );
 
           const fallbackData = fallbackResponse.data?.masterTasks || [];
