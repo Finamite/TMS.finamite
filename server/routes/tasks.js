@@ -642,7 +642,7 @@ router.get("/master-recurring-light", async (req, res) => {
 
     console.log(`🔍 Searching for master tasks with companyId: ${companyId}`);
 
-    // FIRST: Try reading from MasterTask collection
+    // 🔥 Try to get from MasterTask collection first
     let masters = await MasterTask.find(
       { companyId, isActive: { $ne: false } },
       {
@@ -667,178 +667,158 @@ router.get("/master-recurring-light", async (req, res) => {
 
     console.log(`📊 Found ${masters.length} master tasks in MasterTask collection`);
 
-    // If no MasterTasks exist → fallback generate from Task collection
+    // 🚀 FALLBACK: If no master tasks found, generate from Task collection
     if (!masters.length) {
       console.log('🔄 No master tasks found, generating from Task collection...');
 
-      const grouped = await Task.aggregate([
+      const taskGroups = await Task.aggregate([
         {
           $match: {
             companyId,
             isActive: true,
-            taskType: { $in: ["daily", "weekly", "monthly", "quarterly", "yearly"] },
+            taskType: { $in: ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'] },
             taskGroupId: { $exists: true, $ne: null }
           }
         },
         {
           $group: {
-            _id: "$taskGroupId",
-            title: { $first: "$title" },
-            description: { $first: "$description" },
-            taskType: { $first: "$taskType" },
-            priority: { $first: "$priority" },
-            assignedTo: { $first: "$assignedTo" },
-            assignedBy: { $first: "$assignedBy" },
-            attachments: { $first: "$attachments" },
-            parentTaskInfo: { $first: "$parentTaskInfo" },
-            weekOffDays: { $first: "$weekOffDays" },
-            firstDueDate: { $min: "$dueDate" },
-            lastDueDate: { $max: "$dueDate" },
-            createdAt: { $first: "$createdAt" }
+            _id: '$taskGroupId',
+            title: { $first: '$title' },
+            description: { $first: '$description' },
+            taskType: { $first: '$taskType' },
+            priority: { $first: '$priority' },
+            assignedTo: { $first: '$assignedTo' },
+            assignedBy: { $first: '$assignedBy' },
+            attachments: { $first: '$attachments' },
+            parentTaskInfo: { $first: '$parentTaskInfo' },
+            weekOffDays: { $first: '$weekOffDays' },
+            firstDueDate: { $min: '$dueDate' },
+            lastDueDate: { $max: '$dueDate' },
+            createdAt: { $first: '$createdAt' }
           }
         },
         { $limit: 1000 }
       ]).allowDiskUse(true);
 
-      console.log(`🔄 Generated ${grouped.length} master tasks`);
+      console.log(`🔄 Generated ${taskGroups.length} master tasks from Task collection`);
 
-      masters = grouped.map(g => ({
-        taskGroupId: g._id,
-        title: g.title,
-        description: g.description,
-        taskType: g.taskType,
-        priority: g.priority,
-        assignedTo: g.assignedTo,
-        assignedBy: g.assignedBy,
-        startDate: g.parentTaskInfo?.originalStartDate || g.firstDueDate,
-        endDate: g.parentTaskInfo?.originalEndDate || g.lastDueDate,
-        includeSunday: g.parentTaskInfo?.includeSunday ?? true,
-        isForever: g.parentTaskInfo?.isForever ?? false,
-        weeklyDays: g.parentTaskInfo?.weeklyDays || [],
-        weekOffDays: g.parentTaskInfo?.weekOffDays || g.weekOffDays || [],
-        monthlyDay: g.parentTaskInfo?.monthlyDay,
-        yearlyDuration: g.parentTaskInfo?.yearlyDuration || 1,
-        attachments: g.attachments || [],
-        createdAt: g.createdAt
+      // Convert task groups to master task format
+      masters = taskGroups.map(group => ({
+        taskGroupId: group._id,
+        title: group.title,
+        description: group.description,
+        taskType: group.taskType,
+        priority: group.priority,
+        assignedTo: group.assignedTo,
+        assignedBy: group.assignedBy,
+        startDate: group.parentTaskInfo?.originalStartDate || group.firstDueDate,
+        endDate: group.parentTaskInfo?.originalEndDate || group.lastDueDate,
+        includeSunday: group.parentTaskInfo?.includeSunday ?? true,
+        isForever: group.parentTaskInfo?.isForever ?? false,
+        weeklyDays: group.parentTaskInfo?.weeklyDays || [],
+        weekOffDays: group.parentTaskInfo?.weekOffDays || group.weekOffDays || [],
+        monthlyDay: group.parentTaskInfo?.monthlyDay,
+        yearlyDuration: group.parentTaskInfo?.yearlyDuration || 1,
+        attachments: group.attachments || [],
+        createdAt: group.createdAt
       }));
 
-      // Sync to MasterTask collection
-      if (masters.length) {
-        console.log("💾 Syncing fallback masters to MasterTask collection...");
-
-        const ops = masters.map(m => ({
+      // 🚀 SYNC: Create missing MasterTask entries for future use
+      if (masters.length > 0) {
+        console.log('💾 Syncing master tasks to MasterTask collection...');
+        const masterTaskOps = masters.map(master => ({
           updateOne: {
-            filter: { taskGroupId: m.taskGroupId },
-            update: { $setOnInsert: m },
+            filter: { taskGroupId: master.taskGroupId },
+            update: { $setOnInsert: master },
             upsert: true
           }
         }));
 
         try {
-          await MasterTask.bulkWrite(ops, { ordered: false });
-          console.log("✅ Sync complete");
-        } catch (err) {
-          console.error("⚠️ Sync error:", err);
+          await MasterTask.bulkWrite(masterTaskOps, { ordered: false });
+          console.log('✅ Master tasks synced successfully');
+        } catch (syncError) {
+          console.error('⚠️ Error syncing master tasks:', syncError);
         }
       }
     }
 
     if (!masters.length) {
-      console.log("❌ Still no master tasks found");
+      console.log('❌ No master tasks found in either collection');
       return res.json([]);
     }
 
-    // ---------------------------------------------------------
-    // Populate usernames WITHOUT slow .populate()
-    // ---------------------------------------------------------
+    // ---------------------------------------------------
+    // 🧠 Populate Usernames manually — MUCH FASTER than .populate()
+    // ---------------------------------------------------
     const userIds = [
       ...new Set([
-        ...masters.map(m => m.assignedTo?.toString()),
-        ...masters.map(m => m.assignedBy?.toString())
+        ...masters.map((m) => m.assignedTo?.toString()),
+        ...masters.map((m) => m.assignedBy?.toString())
       ])
     ].filter(Boolean);
 
     const users = await User.find(
       { _id: { $in: userIds } },
       { username: 1, email: 1 }
-    ).lean();
+    )
+      .lean();
 
     const userMap = {};
-    users.forEach(u => {
+    users.forEach((u) => {
       userMap[u._id.toString()] = u;
     });
 
-    console.log(`👥 User map size: ${Object.keys(userMap).length}`);
+    console.log(`👥 Populated ${Object.keys(userMap).length} users`);
 
-    // ---------------------------------------------------------
-    // Preload counts for all master tasks
-    // ---------------------------------------------------------
     const taskGroupIds = masters.map(m => m.taskGroupId);
 
-    const stats = await Task.aggregate([
+    const counts = await Task.aggregate([
       { $match: { taskGroupId: { $in: taskGroupIds }, isActive: true } },
       {
         $group: {
           _id: "$taskGroupId",
           instanceCount: { $sum: 1 },
-          completedCount: { $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] } },
-          pendingCount: { $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] } },
-          lastDueDate: { $max: "$dueDate" }
+          completedCount: {
+            $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] }
+          },
+          pendingCount: {
+            $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] }
+          }
         }
       }
     ]);
 
-    const statMap = {};
-    stats.forEach(s => (statMap[s._id] = s));
+    const countMap = {};
+    counts.forEach(c => (countMap[c._id] = c));
 
-    // ---------------------------------------------------------
-    // FINAL OUTPUT + FOREVER END DATE FIX
-    // ---------------------------------------------------------
-    const finalOutput = [];
+    // ---------------------------------------------------
+    // 🧩 FINAL FORMAT (safe for React)
+    // ---------------------------------------------------
+    const formatted = masters.map((m) => ({
+      ...m,
+      assignedTo: userMap[m.assignedTo?.toString()] || null,
+      assignedBy: userMap[m.assignedBy?.toString()] || null,
+      dateRange: {
+        start: m.startDate,
+        end: m.endDate
+      },
+      parentTaskInfo: {
+        includeSunday: m.includeSunday,
+        isForever: m.isForever,
+        weeklyDays: m.weeklyDays,
+        weekOffDays: m.weekOffDays,
+        monthlyDay: m.monthlyDay,
+        yearlyDuration: m.yearlyDuration
+      },
+      instanceCount: countMap[m.taskGroupId]?.instanceCount || 0,
+      completedCount: countMap[m.taskGroupId]?.completedCount || 0,
+      pendingCount: countMap[m.taskGroupId]?.pendingCount || 0
+    }));
 
-    for (const m of masters) {
-      let correctedEndDate = m.endDate;
+    console.log(`✅ Returning ${formatted.length} formatted master tasks`);
 
-      // ⚡ FOREVER TASK FIX — use last task date
-      if (m.isForever === true) {
-        const lastDue = statMap[m.taskGroupId]?.lastDueDate;
-
-        if (lastDue) {
-          correctedEndDate = lastDue;
-
-          // Auto-update in MasterTask collection for future requests
-          await MasterTask.updateOne(
-            { taskGroupId: m.taskGroupId },
-            { $set: { endDate: correctedEndDate } }
-          );
-        }
-      }
-
-      finalOutput.push({
-        ...m,
-        assignedTo: userMap[m.assignedTo?.toString()] || null,
-        assignedBy: userMap[m.assignedBy?.toString()] || null,
-        dateRange: {
-          start: m.startDate,
-          end: correctedEndDate
-        },
-        parentTaskInfo: {
-          includeSunday: m.includeSunday,
-          isForever: m.isForever,
-          weeklyDays: m.weeklyDays,
-          weekOffDays: m.weekOffDays,
-          monthlyDay: m.monthlyDay,
-          yearlyDuration: m.yearlyDuration
-        },
-        instanceCount: statMap[m.taskGroupId]?.instanceCount || 0,
-        completedCount: statMap[m.taskGroupId]?.completedCount || 0,
-        pendingCount: statMap[m.taskGroupId]?.pendingCount || 0
-      });
-    }
-
-    console.log(`✅ Returning ${finalOutput.length} master tasks`);
-    return res.json(finalOutput);
-
+    return res.json(formatted);
   } catch (error) {
     console.error("❌ master-recurring-light error:", error);
     res.status(500).json({
@@ -847,7 +827,6 @@ router.get("/master-recurring-light", async (req, res) => {
     });
   }
 });
-
 // ✅ ULTRA-OPTIMIZED: Individual recurring tasks endpoint
 router.get('/recurring-instances', async (req, res) => {
   try {
