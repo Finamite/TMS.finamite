@@ -329,6 +329,8 @@ const MasterRecurringTasks: React.FC = () => {
   const [showRemarksModal, setShowRemarksModal] = useState<Task | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [binEnabled, setBinEnabled] = useState(false);
+  const [isProcessingDelete, setIsProcessingDelete] = useState(false);
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const [deleteConfig, setDeleteConfig] = useState<{
     type: "single" | "master" | "permanent";
     taskId?: string;
@@ -382,18 +384,18 @@ const MasterRecurringTasks: React.FC = () => {
       );
 
       let lightData = Array.isArray(response.data)
-  ? response.data
-  : Array.isArray(response.data?.masterTasks)
-  ? response.data.masterTasks
-  : [];
+        ? response.data
+        : Array.isArray(response.data?.masterTasks)
+          ? response.data.masterTasks
+          : [];
 
-// Prevent runtime errors
-if (!Array.isArray(lightData)) {
-  console.warn("Unexpected API format:", response.data);
-  lightData = [];
-}
+      // Prevent runtime errors
+      if (!Array.isArray(lightData)) {
+        console.warn("Unexpected API format:", response.data);
+        lightData = [];
+      }
 
-console.log(`⚡ LIGHTNING: Got ${lightData.length} master tasks from API`);
+      console.log(`⚡ LIGHTNING: Got ${lightData.length} master tasks from API`);
 
       if (lightData.length === 0) {
         console.log('⚠️ No master tasks returned from API - checking if user has any tasks...');
@@ -2083,6 +2085,9 @@ console.log(`⚡ LIGHTNING: Got ${lightData.length} master tasks from API`);
                       return;
                     }
 
+                    setIsProcessingDelete(true);
+                    setProcessingId('bin');
+
                     try {
                       if (!user?.company?.companyId) {
                         toast.error("Company ID is missing");
@@ -2131,7 +2136,12 @@ console.log(`⚡ LIGHTNING: Got ${lightData.length} master tasks from API`);
                       );
 
                       cacheRef.current.clear();
-                      await fetchMasterTasksUltraFast(false); // ⚡ Use ultra-fast method for refresh
+                      if (isEditMode) {
+                        await fetchMasterTasksUltraFast(false); // ⚡ Use ultra-fast method for refresh
+                      } else {
+                        await fetchIndividualTasks(1, false);
+                      }
+                      setCurrentPage(1);
 
                       toast.success("Moved to Bin Successfully");
 
@@ -2140,22 +2150,32 @@ console.log(`⚡ LIGHTNING: Got ${lightData.length} master tasks from API`);
                     } catch (err) {
                       console.error(err);
                       toast.error("Error moving to bin");
+                    } finally {
+                      setIsProcessingDelete(false);
+                      setProcessingId(null);
                     }
                   }}
-                  disabled={!binEnabled}
+                  disabled={isProcessingDelete || !binEnabled}
                   className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-white font-medium transition-all shadow-lg
-        ${binEnabled
+    ${binEnabled && !isProcessingDelete
                       ? "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 cursor-pointer"
                       : "bg-gray-400 cursor-not-allowed opacity-60 shadow-none"
                     }`}
                 >
-                  <Trash2 className="w-4 h-4" />
-                  Move to Bin
+                  {isProcessingDelete && processingId === 'bin' ? (
+                    <Loader className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
+                  {isProcessingDelete && processingId === 'bin' ? 'Moving...' : 'Move to Bin'}
                 </button>
 
                 {/* Permanent Delete */}
                 <button
                   onClick={async () => {
+                    setIsProcessingDelete(true);
+                    setProcessingId('delete');
+
                     try {
                       if (!user?.company?.companyId) {
                         toast.error("Company ID is missing");
@@ -2199,7 +2219,12 @@ console.log(`⚡ LIGHTNING: Got ${lightData.length} master tasks from API`);
                       );
 
                       cacheRef.current.clear();
-                      await fetchMasterTasksUltraFast(false); // ⚡ Use ultra-fast method for refresh
+                      if (isEditMode) {
+                        await fetchMasterTasksUltraFast(false); // ⚡ Use ultra-fast method for refresh
+                      } else {
+                        await fetchIndividualTasks(1, false);
+                      }
+                      setCurrentPage(1);
 
                       toast.success("Deleted Permanently");
 
@@ -2208,12 +2233,24 @@ console.log(`⚡ LIGHTNING: Got ${lightData.length} master tasks from API`);
                     } catch (err) {
                       console.error(err);
                       toast.error("Error deleting permanently");
+                    } finally {
+                      setIsProcessingDelete(false);
+                      setProcessingId(null);
                     }
                   }}
-                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-white bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 font-medium transition-all shadow-lg shadow-red-500/25"
+                  disabled={isProcessingDelete}
+                  className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-white font-medium transition-all shadow-lg
+    ${isProcessingDelete
+                      ? "bg-gray-400 cursor-not-allowed opacity-60 shadow-none"
+                      : "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 shadow-lg shadow-red-500/25"
+                    }`}
                 >
-                  <XCircle className="w-4 h-4" />
-                  Delete
+                  {isProcessingDelete && processingId === 'delete' ? (
+                    <Loader className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <XCircle className="w-4 h-4" />
+                  )}
+                  {isProcessingDelete && processingId === 'delete' ? 'Deleting...' : 'Delete'}
                 </button>
 
               </div>
@@ -2221,7 +2258,9 @@ console.log(`⚡ LIGHTNING: Got ${lightData.length} master tasks from API`);
               {/* Cancel Button (full width below) */}
               <button
                 onClick={() => setShowDeleteModal(false)}
-                className="w-full px-4 py-3 rounded-xl text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 font-medium transition-all"
+                disabled={isProcessingDelete}
+                className={`w-full px-4 py-3 rounded-xl text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 font-medium transition-all
+    ${isProcessingDelete ? "cursor-not-allowed opacity-50" : "hover:bg-gray-200 dark:hover:bg-gray-700"}`}
               >
                 Cancel
               </button>

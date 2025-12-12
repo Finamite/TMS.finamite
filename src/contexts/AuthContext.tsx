@@ -64,10 +64,19 @@ axios.interceptors.request.use((config) => {
 axios.interceptors.response.use(
   (response) => response,
   (error) => {
+    const url = error?.config?.url || "";
+
+    // ❌ Do NOT redirect when login fails (invalid email/password)
+    if (url.includes("/api/auth/login")) {
+      return Promise.reject(error);
+    }
+
+    // ✅ Redirect only when session expired
     if (error.response?.status === 401) {
       localStorage.removeItem("user");
       window.location.href = "/login";
     }
+
     return Promise.reject(error);
   }
 );
