@@ -432,6 +432,22 @@ router.get('/team-pending-fast', async (req, res) => {
   }
 });
 
+router.get("/master/:taskGroupId", async (req, res) => {
+  try {
+    const { taskGroupId } = req.params;
+
+    const master = await MasterTask.findOne({ taskGroupId }).lean();
+
+    if (!master) return res.status(404).json({ message: "Master Task not found" });
+
+    res.json(master);
+
+  } catch (err) {
+    console.error("Error fetching master task:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 // ✅ ULTRA-OPTIMIZED: Master recurring tasks endpoint with maximum performance
 router.get('/master-recurring', async (req, res) => {
   try {
@@ -646,7 +662,11 @@ router.get("/master-recurring-light", async (req, res) => {
     // 1) LOAD BASE MASTER TASKS (super fast lean() read)
     // ---------------------------------------------------------
     let masters = await MasterTask.find(
-      { companyId, isActive: { $ne: false } },
+      {
+        companyId,
+        isActive: { $ne: false },
+        taskType: { $ne: "one-time" }   // ✅ ADD THIS
+      },
       {
         taskGroupId: 1,
         title: 1,
@@ -2267,6 +2287,133 @@ router.delete('/bin/permanent/:id', async (req, res) => {
   } catch (error) {
     console.error('Error deleting permanently:', error);
     return res.status(500).json({ message: 'Server error', error });
+  }
+});
+
+router.post("/reassign/:taskGroupId", async (req, res) => {
+  console.log("⚡ REASSIGN API HIT");
+
+  try {
+    const { taskGroupId } = req.params;
+    const { includeFiles, companyId } = req.body;
+
+    console.log("➡ taskGroupId:", taskGroupId);
+    console.log("➡ includeFiles:", includeFiles);
+    console.log("➡ companyId:", companyId);
+
+    // 1️⃣ Load the original MasterTask
+    const oldMaster = await MasterTask.findOne({ taskGroupId, companyId }).lean();
+    console.log("📌 Loaded Old Master:", oldMaster);
+
+    if (!oldMaster) {
+      console.log("❌ Master task not found");
+      return res.status(404).json({ message: "Master task not found" });
+    }
+
+    if (!oldMaster.isForever) {
+      console.log("❌ Reassign only allowed for forever tasks");
+      return res.status(400).json({ message: "Reassign allowed only for forever tasks" });
+    }
+
+    // 2️⃣ Calculate new start/end dates
+    const lastEnd = new Date(oldMaster.endDate);
+    lastEnd.setDate(lastEnd.getDate() + 1); // Next day start
+
+    const newStartDate = lastEnd;
+    const newEndDate = new Date(newStartDate);
+    newEndDate.setFullYear(newEndDate.getFullYear() + 1);
+
+
+    // 3️⃣ Create NEW MasterTask
+    const newGroupId = `MT-${Date.now()}`;
+
+    const newMaster = await MasterTask.create({
+      taskGroupId: newGroupId,
+      title: oldMaster.title,
+      description: oldMaster.description,
+      taskType: oldMaster.taskType,
+      priority: oldMaster.priority,
+      companyId,
+
+      assignedTo: oldMaster.assignedTo,
+      assignedBy: oldMaster.assignedBy,
+
+      startDate: newStartDate,
+      endDate: newEndDate,
+
+      includeSunday: oldMaster.includeSunday,
+      isForever: true,
+      weeklyDays: oldMaster.weeklyDays,
+      weekOffDays: oldMaster.weekOffDays,
+      monthlyDay: oldMaster.monthlyDay,
+      yearlyDuration: oldMaster.yearlyDuration,
+
+      attachments: includeFiles ? oldMaster.attachments : []
+    });
+
+
+
+    // 4️⃣ Generate new task instances
+    let dates = [];
+
+    if (oldMaster.taskType === "daily") {
+      dates = getDailyTaskDates(newStartDate, newEndDate, oldMaster.includeSunday, oldMaster.weekOffDays);
+    } else if (oldMaster.taskType === "weekly") {
+      dates = getWeeklyTaskDates(newStartDate, newEndDate, oldMaster.weeklyDays, oldMaster.weekOffDays);
+    } else if (oldMaster.taskType === "monthly") {
+      dates = getMonthlyTaskDates(newStartDate, newEndDate, oldMaster.monthlyDay, oldMaster.includeSunday, oldMaster.weekOffDays);
+    } else if (oldMaster.taskType === "quarterly") {
+      dates = getQuarterlyTaskDates(newStartDate, oldMaster.includeSunday, oldMaster.weekOffDays);
+    } else if (oldMaster.taskType === "yearly") {
+      dates = getYearlyTaskDates(newStartDate, oldMaster.yearlyDuration, oldMaster.includeSunday, oldMaster.weekOffDays);
+    }
+
+
+    const newTasks = [];
+
+    for (let i = 0; i < dates.length; i++) {
+      const t = await Task.create({
+        title: oldMaster.title,
+        description: oldMaster.description,
+        taskType: oldMaster.taskType,
+        priority: oldMaster.priority,
+        companyId,
+
+        assignedBy: oldMaster.assignedBy,
+        assignedTo: oldMaster.assignedTo,
+
+        dueDate: dates[i],
+        taskGroupId: newGroupId,
+        sequenceNumber: i + 1,
+
+        parentTaskInfo: {
+          originalStartDate: newStartDate,
+          originalEndDate: newEndDate,
+          isForever: true,
+          includeSunday: oldMaster.includeSunday,
+          weeklyDays: oldMaster.weeklyDays,
+          weekOffDays: oldMaster.weekOffDays,
+          monthlyDay: oldMaster.monthlyDay,
+          yearlyDuration: oldMaster.yearlyDuration
+        },
+
+        attachments: includeFiles ? oldMaster.attachments : []
+      });
+
+      newTasks.push(t);
+    }
+
+    console.log("🆕 CREATED TASK INSTANCES:", newTasks.length);
+
+    return res.json({
+      message: "Reassigned successfully",
+      newMasterTask: newMaster,
+      createdTasks: newTasks
+    });
+
+  } catch (err) {
+    console.error("❌ REASSIGN ERROR:", err);
+    return res.status(500).json({ message: "Server error", error: err.message });
   }
 });
 

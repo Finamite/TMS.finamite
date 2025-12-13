@@ -72,6 +72,9 @@ const AssignTask: React.FC = () => {
   const [showUserDropdown, setShowUserDropdown] = useState<{ [key: string]: boolean }>({});
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [mode, setMode] = useState("");
+  const [taskGroupId, setTaskGroupId] = useState("");
+  const loadedReassignDataRef = useRef(false);
 
   // Store refs for each task's voice recorder
   const voiceRecorderRefs = useRef<{ [key: string]: VoiceRecorderRef | null }>({});
@@ -94,6 +97,29 @@ const AssignTask: React.FC = () => {
     }
   }, [user]);
 
+
+  useEffect(() => {
+    if (mode === "reassign" && users.length > 0 && taskForms.length > 0) {
+      setTaskForms((prev) => {
+        const updated = [...prev];
+
+        const assignedId = updated[0].assignedTo?.[0];
+        if (!assignedId) return updated;
+
+        const exists = users.some(u => u._id.toString() === assignedId.toString());
+
+        if (exists) {
+          console.log("🎉 Assigned user synced after users loaded:", assignedId);
+          updated[0].assignedTo = [assignedId]; // reapply to force dropdown update
+        } else {
+          console.warn("⚠ Assigned user NOT FOUND in users list:", assignedId);
+        }
+
+        return updated;
+      });
+    }
+  }, [users, mode, taskForms.length]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -107,24 +133,47 @@ const AssignTask: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const m = params.get("mode");
+    const id = params.get("taskGroupId");
+
+    if (m) setMode(m);
+    if (id) setTaskGroupId(id);
+  }, []);
+
+  useEffect(() => {
+    if (mode === "reassign" && taskGroupId) {
+      loadReassignData();
+    }
+  }, [mode, taskGroupId]);
+
   const fetchUsers = async () => {
     try {
       const params = new URLSearchParams();
-      if (user?.companyId) {
-        params.append('companyId', user.companyId);
+
+      // FIXED COMPANY ID SOURCE
+      if (user?.company?.companyId) {
+        params.append("companyId", user.company.companyId);
       }
+
       if (user?.role) {
-        params.append('role', user.role);
+        params.append("role", user.role);
       }
 
       const response = await axios.get(`${address}/api/users?${params.toString()}`);
-      const sortedUsers = response.data
-        .sort((a: User, b: User) => a.username.localeCompare(b.username));
+
+      const sortedUsers = response.data.sort((a: User, b: User) =>
+        a.username.localeCompare(b.username)
+      );
 
       setUsers(sortedUsers);
+
+      console.log("Users loaded:", sortedUsers);
+
     } catch (error) {
-      console.error('Error fetching users:', error);
-      toast.error('Failed to fetch users.', { theme: isDark ? 'dark' : 'light' });
+      console.error("Error fetching users:", error);
+      toast.error("Failed to fetch users.");
     }
   };
 
@@ -150,6 +199,140 @@ const AssignTask: React.FC = () => {
     };
     setTaskForms([...taskForms, newTask]);
     toast.success('New task added!', { theme: isDark ? 'dark' : 'light' });
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "";
+    return dateString.split("T")[0];
+  };
+
+  const loadReassignData = async () => {
+    try {
+      const res = await axios.get(`${address}/api/tasks/master/${taskGroupId}`);
+      const data = res.data;
+
+      console.log("📌 Prefill data for reassign:", data);
+      loadedReassignDataRef.current = true;
+
+      // ----------------------------
+      // 1️⃣ Ensure assigned user is available
+      // ----------------------------
+      if (data.assignedTo) {
+        setUsers(prev => {
+          const exists = prev.some(u => u._id === data.assignedTo);
+          if (!exists) {
+            return [
+              ...prev,
+              {
+                _id: data.assignedTo,
+                username: "Loading...",
+                email: "",
+                department: "General",
+                companyId: data.companyId
+              }
+            ];
+          }
+          return prev;
+        });
+      }
+
+      // ----------------------------
+      // 2️⃣ Extract weekOff & weeklyDays from correct location
+      // ----------------------------
+      const weeklyDays =
+        (data.weeklyDays || data.parentTaskInfo?.weeklyDays || []).map(Number);
+
+      const weekOffDays =
+        (data.weekOffDays || data.parentTaskInfo?.weekOffDays || []).map(Number);
+
+      // Include Sunday flag
+      const includeSunday =
+        data.includeSunday ??
+        data.parentTaskInfo?.includeSunday ??
+        false;
+
+      const monthlyDay =
+        data.monthlyDay ||
+        data.parentTaskInfo?.monthlyDay ||
+        1;
+
+      const yearlyDuration =
+        data.yearlyDuration ||
+        data.parentTaskInfo?.yearlyDuration ||
+        1;
+
+      setShowWeekOff(prev => ({
+        ...prev,
+        [taskForms[0].id]: weekOffDays.length > 0
+      }));
+
+      // ----------------------------
+      // 3️⃣ Load attachments & voice recordings
+      // ----------------------------
+      const convertedAttachments: File[] = [];
+
+      if (Array.isArray(data.attachments)) {
+        for (const file of data.attachments) {
+
+          // ✅ CORRECT PUBLIC URL
+          const fileUrl = `${address}/uploads/${file.filename}`;
+
+          const response = await fetch(fileUrl);
+          if (!response.ok) {
+            console.error("Failed to fetch file:", fileUrl);
+            continue;
+          }
+
+          const blob = await response.blob();
+
+          // ✅ Blob size will now be correct
+          const constructedFile = new File([blob], file.originalName, {
+            type: blob.type || "application/octet-stream",
+            lastModified: new Date(file.uploadedAt).getTime()
+          });
+
+          convertedAttachments.push(constructedFile);
+        }
+      }
+
+
+      // ----------------------------
+      // 4️⃣ Update form fields
+      // ----------------------------
+      setTaskForms(prev => {
+        const upd = [...prev];
+        upd[0] = {
+          ...upd[0],
+
+          title: data.title || "",
+          description: data.description || "",
+          priority: data.priority || "normal",
+          taskType: data.taskType || "daily",
+
+          assignedTo: data.assignedTo ? [data.assignedTo] : [],
+
+          startDate: formatDate(data.startDate),
+          endDate: formatDate(data.endDate),
+
+          isForever: data.isForever || data.parentTaskInfo?.isForever || false,
+          includeSunday,
+
+          weeklyDays,
+          weekOffDays,
+          monthlyDay,
+          yearlyDuration,
+
+          attachments: convertedAttachments
+        };
+        return upd;
+      });
+
+      console.log("🎉 Prefill DONE → WeekOff, WeeklyDays, Attachments, Voice all loaded");
+
+    } catch (err) {
+      console.error("❌ Failed to load reassign data:", err);
+      toast.error("Failed to load task details");
+    }
   };
 
   // Remove task form

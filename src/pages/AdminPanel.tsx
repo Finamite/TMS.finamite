@@ -52,6 +52,23 @@ interface CompanyData {
   createdAt: string;
 }
 
+const formatDateTime = (dateValue: string | number | Date) => {
+  if (!dateValue) return "No data";
+
+  const date = new Date(dateValue);
+
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const yyyy = date.getFullYear();
+
+  const hh = String(date.getHours()).padStart(2, "0");
+  const min = String(date.getMinutes()).padStart(2, "0");
+  const ss = String(date.getSeconds()).padStart(2, "0");
+
+  return `${dd}/${mm}/${yyyy} ${hh}:${min}:${ss}`;
+};
+
+
 const AdminPanel: React.FC = () => {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
@@ -714,7 +731,7 @@ const [showAccessModal, setShowAccessModal] = useState(false);
 
     {/* Last Access Text */}
     <span className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>
-      {user.lastAccess ? new Date(user.lastAccess).toLocaleString() : "No data"}
+      {formatDateTime(user.lastAccess)}
     </span>
 
     {/* Info Icon */}
@@ -826,7 +843,7 @@ const [showAccessModal, setShowAccessModal] = useState(false);
   <p className="text-xs text-[var(--color-textSecondary)]">
     Last Access:
     <span className="ml-1 text-xs text-[var(--color-text)]">
-      {user.lastAccess ? new Date(user.lastAccess).toLocaleString() : "No data"}
+      {formatDateTime(user.lastAccess)}
     </span>
   </p>
 
@@ -1678,7 +1695,7 @@ const [showAccessModal, setShowAccessModal] = useState(false);
                 <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
               </div>
               <span className="text-sm text-[var(--color-text)]">
-                {new Date(time).toLocaleString()}
+                {formatDateTime(time)}
               </span>
             </div>
           ))}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { RotateCcw, Calendar, Filter, Search, Trash2, Users, Paperclip, FileText, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CreditCard as Edit, Info, Download, ExternalLink, Settings, Loader, AlertTriangle, XCircle } from 'lucide-react';
+import { RotateCcw, Calendar, Filter, Search, Trash2, Users, Paperclip, FileText, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CreditCard as Edit, Info, Download, ExternalLink, Settings, Loader, AlertTriangle, XCircle, Edit3, RefreshCw, X } from 'lucide-react';
 import axios from 'axios';
 import ViewToggle from '../components/ViewToggle';
 import StatusBadge from '../components/StatusBadge';
@@ -311,7 +311,7 @@ const MasterRecurringTasks: React.FC = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [fullMasterTasks, setFullMasterTasks] = useState<MasterTask[]>([]);
-
+  const [showIncludeFilesModal, setShowIncludeFilesModal] = useState(false);
   const [filter, setFilter] = useState({
     taskType: '',
     status: '',
@@ -331,10 +331,13 @@ const MasterRecurringTasks: React.FC = () => {
   const [binEnabled, setBinEnabled] = useState(false);
   const [isProcessingDelete, setIsProcessingDelete] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [showReassignModal, setShowReassignModal] = useState(false);
+  const [reassignTask, setReassignTask] = useState<MasterTask | null>(null);
   const [deleteConfig, setDeleteConfig] = useState<{
     type: "single" | "master" | "permanent";
     taskId?: string;
-    masterTask?: MasterTask;
+    taskGroupId?: string; // Add this to store the taskGroupId for master task deletion
+    title?: string;
   } | null>(null);
 
   // Debounced filter values for performance
@@ -418,6 +421,21 @@ const MasterRecurringTasks: React.FC = () => {
                 task.assignedTo._id.toString() === user.id.toString()
               );
             }
+
+            filteredData = filteredData.filter(
+              (task: MasterTask) => task.taskType !== "one-time"
+            );
+
+            filteredData = filteredData.map((task: any) => ({
+              ...task,
+              tasks:
+                task.tasks?.sort(
+                  (a: any, b: any) =>
+                    new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+                ) || []
+            }));
+
+
 
             setFullMasterTasks(filteredData);
             setTotalCount(filteredData.length);
@@ -730,8 +748,14 @@ const MasterRecurringTasks: React.FC = () => {
     setShowDeleteModal(true);
   }, []);
 
+  // ✅ FIXED: Updated handleDeleteMasterTask to store taskGroupId instead of full task data
   const handleDeleteMasterTask = useCallback((masterTask: MasterTask) => {
-    setDeleteConfig({ type: "master", masterTask });
+    console.log('🗑️ Setting up delete for master task:', masterTask.taskGroupId);
+    setDeleteConfig({
+      type: "master",
+      taskGroupId: masterTask.taskGroupId, // Store the taskGroupId, not the full task object
+      title: masterTask.title.substring(0, 60)
+    });
     setShowDeleteModal(true);
   }, []);
 
@@ -755,6 +779,59 @@ const MasterRecurringTasks: React.FC = () => {
     setEditFormData(formData);
     setShowEditModal(true);
   }, []);
+
+  const openReassignModal = (task: MasterTask) => {
+    setReassignTask(task);
+    setShowReassignModal(true);
+  };
+
+ const handleReassign = async () => {
+  if (!reassignTask) {
+    toast.error("Task data not loaded");
+    return;
+  }
+
+  const hasAttachments =
+    Array.isArray(reassignTask.attachments) &&
+    reassignTask.attachments.length > 0;
+
+  if (hasAttachments) {
+    // ✅ Ask user only if attachments exist
+    setShowIncludeFilesModal(true);
+  } else {
+    // ✅ No attachments → directly reassign
+    proceedReassign(false);
+  }
+};
+
+const proceedReassign = async (includeFiles: boolean) => {
+  if (!reassignTask || !user?.company?.companyId) return;
+
+  try {
+    const res = await axios.post(
+      `${address}/api/tasks/reassign/${reassignTask.taskGroupId}`,
+      {
+        includeFiles,
+        companyId: user.company.companyId
+      }
+    );
+
+    toast.success("Task reassigned successfully!");
+
+    // clear cache properly
+    cacheRef.current.clearByPattern("master-tasks-light");
+    cacheRef.current.clearByPattern("master-tasks");
+
+    await fetchMasterTasksUltraFast(false);
+
+    setShowIncludeFilesModal(false);
+    setReassignTask(null);
+
+  } catch (err) {
+    toast.error("Failed to reassign task");
+    console.error(err);
+  }
+};
 
   const handleSaveMasterTask = useCallback(async () => {
     if (!editingMasterTask) return;
@@ -783,6 +860,7 @@ const MasterRecurringTasks: React.FC = () => {
       toast.success('Master task updated and rescheduled successfully.');
 
       // Clear cache and refresh data
+      cacheRef.current.clearByPattern("master-tasks-light");
       cacheRef.current.clearByPattern("master-tasks");
       await fetchMasterTasksUltraFast(false); // ⚡ Refresh with ultra-fast method
       setCurrentPage(1);
@@ -885,6 +963,42 @@ const MasterRecurringTasks: React.FC = () => {
     }
   }, []);
 
+  // ✅ FIXED: Function to get actual task IDs for a master task group
+  const getTaskIdsForMasterTask = useCallback(async (taskGroupId: string): Promise<string[]> => {
+    try {
+      console.log(`🔍 Fetching task IDs for master task group: ${taskGroupId}`);
+
+      const companyId = user?.company?.companyId;
+      if (!companyId) {
+        throw new Error("Company ID is missing");
+      }
+
+      // Fetch the full master task details with all task instances
+      const response = await axios.get(
+        `${address}/api/tasks/master-recurring?companyId=${companyId}&limit=1000`
+      );
+
+      const masterTasks = response.data?.masterTasks || [];
+      const targetMasterTask = masterTasks.find((mt: MasterTask) => mt.taskGroupId === taskGroupId);
+
+      if (!targetMasterTask) {
+        throw new Error(`Master task with taskGroupId ${taskGroupId} not found`);
+      }
+
+      if (!targetMasterTask.tasks || targetMasterTask.tasks.length === 0) {
+        throw new Error(`No task instances found for master task ${taskGroupId}`);
+      }
+
+      const taskIds = targetMasterTask.tasks.map((task: Task) => task._id);
+      console.log(`✅ Found ${taskIds.length} task IDs for deletion:`, taskIds);
+
+      return taskIds;
+    } catch (error) {
+      console.error('❌ Error getting task IDs for master task:', error);
+      throw error;
+    }
+  }, [user?.company?.companyId]);
+
   // Memoized components for better performance
   const MasterTaskCard = memo<{ masterTask: MasterTask }>(({ masterTask }) => (
     <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] hover:shadow-md transition-all duration-200 overflow-hidden">
@@ -913,6 +1027,13 @@ const MasterRecurringTasks: React.FC = () => {
                   <Trash2 size={16} />
                 </button>
               )}
+              <button
+                className="p-2 text-[--color-success] hover:bg-[--color-success] hover:text-white hover:scale-105 rounded-lg transition-all duration-150 ease-in-out"
+                onClick={() => openReassignModal(masterTask)}
+              >
+                <RotateCcw size={18} />
+              </button>
+
             </div>
           )}
         </div>
@@ -1310,6 +1431,13 @@ const MasterRecurringTasks: React.FC = () => {
                           <Trash2 size={18} />
                         </button>
                       )}
+                      <button
+                        className="p-2 text-[--color-success] hover:bg-[--color-success] hover:text-white hover:scale-105 rounded-lg transition-all duration-150 ease-in-out"
+                        onClick={() => openReassignModal(masterTask)}
+                        title="Reassign Tasks"
+                      >
+                        <RotateCcw size={18} />
+                      </button>
                     </div>
                   </td>
                 )}
@@ -1710,7 +1838,7 @@ const MasterRecurringTasks: React.FC = () => {
                 <Search size={14} className="inline mr-1" />
                 Search
               </label>
-              <div className="relative">
+              <div className="relative">``
                 <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[--color-textSecondary]" />
                 <input
                   type="text"
@@ -2059,6 +2187,11 @@ const MasterRecurringTasks: React.FC = () => {
                   <h2 className="text-xl font-semibold text-[--color-text]">
                     Delete Task
                   </h2>
+                  {deleteConfig?.title && (
+                    <p className="text-sm text-gray-600 mt-2">
+                      <span className="font-semibold">Task:</span> {deleteConfig.title}
+                    </p>
+                  )}
                   <p className="text-sm text-[--color-textsecondary] mt-0.5">
                     This action requires confirmation
                   </p>
@@ -2094,38 +2227,28 @@ const MasterRecurringTasks: React.FC = () => {
                         return;
                       }
 
-                      let tasksToDelete: { _id: string }[] = [];
+                      let taskIds: string[] = [];
 
-                      if (deleteConfig?.type === "single") {
-                        tasksToDelete = [{ _id: deleteConfig.taskId! }];
-                      } else if (deleteConfig?.type === "master" && deleteConfig.masterTask) {
-                        if (deleteConfig.masterTask.tasks && deleteConfig.masterTask.tasks.length > 0) {
-                          tasksToDelete = deleteConfig.masterTask.tasks.map(t => ({ _id: t._id }));
-                        } else {
-                          // Fetch full master task details for this group in light mode
-                          const companyId = user.company.companyId;
-                          const response = await axios.get(
-                            `${address}/api/tasks/master-recurring?companyId=${companyId}&taskGroupId=${deleteConfig.masterTask.taskGroupId}&limit=1000`
-                          );
-                          const fullMaster = response.data.masterTasks?.[0];
-                          if (fullMaster && fullMaster.tasks && fullMaster.tasks.length > 0) {
-                            tasksToDelete = fullMaster.tasks.map((t: { _id: any; }) => ({ _id: t._id }));
-                          } else {
-                            toast.error("No tasks found for this master task group.");
-                            return;
-                          }
-                        }
+                      // ✅ FIXED: Proper handling for both single and master task deletion
+                      if (deleteConfig?.type === "single" && deleteConfig.taskId) {
+                        taskIds = [deleteConfig.taskId];
+                      } else if (deleteConfig?.type === "master" && deleteConfig.taskGroupId) {
+                        console.log('🔍 Getting task IDs for master task deletion...');
+                        taskIds = await getTaskIdsForMasterTask(deleteConfig.taskGroupId);
                       }
 
-                      if (tasksToDelete.length === 0) {
-                        toast.error("No tasks to delete.");
+                      if (taskIds.length === 0) {
+                        toast.error("No tasks found to delete.");
                         return;
                       }
 
+                      console.log(`🗑️ Moving ${taskIds.length} tasks to bin:`, taskIds);
+
+                      // Delete each task individually
                       await Promise.all(
-                        tasksToDelete.map(t =>
+                        taskIds.map(taskId =>
                           axios.delete(
-                            `${address}/api/tasks/${t._id}?moveToRecycleBin=true&companyId=${user?.company?.companyId || ''}`,
+                            `${address}/api/tasks/${taskId}?moveToRecycleBin=true&companyId=${user?.company?.companyId || ''}`,
                             {
                               data: {
                                 deletedAt: new Date().toISOString()
@@ -2135,20 +2258,20 @@ const MasterRecurringTasks: React.FC = () => {
                         )
                       );
 
+                      // Clear cache and refresh data
                       cacheRef.current.clear();
                       if (isEditMode) {
-                        await fetchMasterTasksUltraFast(false); // ⚡ Use ultra-fast method for refresh
+                        await fetchMasterTasksUltraFast(false);
                       } else {
                         await fetchIndividualTasks(1, false);
                       }
                       setCurrentPage(1);
 
-                      toast.success("Moved to Bin Successfully");
-
+                      toast.success(`Moved ${taskIds.length} task(s) to Bin Successfully`);
                       setShowDeleteModal(false);
                       setDeleteConfig(null);
                     } catch (err) {
-                      console.error(err);
+                      console.error('❌ Error moving to bin:', err);
                       toast.error("Error moving to bin");
                     } finally {
                       setIsProcessingDelete(false);
@@ -2174,7 +2297,7 @@ const MasterRecurringTasks: React.FC = () => {
                 <button
                   onClick={async () => {
                     setIsProcessingDelete(true);
-                    setProcessingId('delete');
+                    setProcessingId("delete");
 
                     try {
                       if (!user?.company?.companyId) {
@@ -2182,56 +2305,46 @@ const MasterRecurringTasks: React.FC = () => {
                         return;
                       }
 
-                      let tasksToDelete: { _id: string }[] = [];
+                      let taskIds: string[] = [];
 
-                      if (deleteConfig?.type === "single") {
-                        tasksToDelete = [{ _id: deleteConfig.taskId! }];
-                      } else if (deleteConfig?.type === "master" && deleteConfig.masterTask) {
-                        if (deleteConfig.masterTask.tasks && deleteConfig.masterTask.tasks.length > 0) {
-                          tasksToDelete = deleteConfig.masterTask.tasks.map(t => ({ _id: t._id }));
-                        } else {
-                          // Fetch full master task details for this group in light mode
-                          const companyId = user.company.companyId;
-                          const response = await axios.get(
-                            `${address}/api/tasks/master-recurring?companyId=${companyId}&taskGroupId=${deleteConfig.masterTask.taskGroupId}&limit=1000`
-                          );
-                          const fullMaster = response.data.masterTasks?.[0];
-                          if (fullMaster && fullMaster.tasks && fullMaster.tasks.length > 0) {
-                            tasksToDelete = fullMaster.tasks.map((t: { _id: any; }) => ({ _id: t._id }));
-                          } else {
-                            toast.error("No tasks found for this master task group.");
-                            return;
-                          }
-                        }
+                      // ✅ FIXED: Proper handling for both single and master task deletion
+                      if (deleteConfig?.type === "single" && deleteConfig.taskId) {
+                        taskIds = [deleteConfig.taskId];
+                      } else if (deleteConfig?.type === "master" && deleteConfig.taskGroupId) {
+                        console.log('🔍 Getting task IDs for permanent master task deletion...');
+                        taskIds = await getTaskIdsForMasterTask(deleteConfig.taskGroupId);
                       }
 
-                      if (tasksToDelete.length === 0) {
-                        toast.error("No tasks to delete.");
+                      if (taskIds.length === 0) {
+                        toast.error("No tasks found to delete.");
                         return;
                       }
 
+                      console.log(`🗑️ Permanently deleting ${taskIds.length} tasks:`, taskIds);
+
+                      // Delete each task permanently
                       await Promise.all(
-                        tasksToDelete.map(t =>
+                        taskIds.map(taskId =>
                           axios.delete(
-                            `${address}/api/tasks/${t._id}?moveToRecycleBin=false&companyId=${user.company?.companyId || ''}`
+                            `${address}/api/tasks/${taskId}?moveToRecycleBin=false&companyId=${user.company?.companyId}`
                           )
                         )
                       );
 
+                      // Clear cache and refresh data
                       cacheRef.current.clear();
                       if (isEditMode) {
-                        await fetchMasterTasksUltraFast(false); // ⚡ Use ultra-fast method for refresh
+                        await fetchMasterTasksUltraFast(false);
                       } else {
                         await fetchIndividualTasks(1, false);
                       }
                       setCurrentPage(1);
 
-                      toast.success("Deleted Permanently");
-
+                      toast.success(`Permanently deleted ${taskIds.length} task(s)`);
                       setShowDeleteModal(false);
                       setDeleteConfig(null);
                     } catch (err) {
-                      console.error(err);
+                      console.error('❌ Error deleting permanently:', err);
                       toast.error("Error deleting permanently");
                     } finally {
                       setIsProcessingDelete(false);
@@ -2245,13 +2358,16 @@ const MasterRecurringTasks: React.FC = () => {
                       : "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 shadow-lg shadow-red-500/25"
                     }`}
                 >
-                  {isProcessingDelete && processingId === 'delete' ? (
+                  {isProcessingDelete && processingId === "delete" ? (
                     <Loader className="w-4 h-4 animate-spin" />
                   ) : (
                     <XCircle className="w-4 h-4" />
                   )}
-                  {isProcessingDelete && processingId === 'delete' ? 'Deleting...' : 'Delete'}
+                  {isProcessingDelete && processingId === "delete"
+                    ? "Deleting..."
+                    : "Delete"}
                 </button>
+
 
               </div>
 
@@ -2270,6 +2386,143 @@ const MasterRecurringTasks: React.FC = () => {
           </div>
         </div>
       )}
+
+      {showReassignModal && reassignTask && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[--color-surface] rounded-2xl shadow-2xl w-full max-w-md transform transition-all">
+            {/* Header */}
+            <div className="relative p-6 pb-4 border-b border-gray-100">
+              <button
+                onClick={() => setShowReassignModal(false)}
+                className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+              <h2 className="text-2xl font-bold text-[--color-text] pr-8">
+                Reassign Task
+              </h2>
+              <p className="text-sm text-[--color-textsecondary] mt-2 font-medium">
+                {reassignTask.title}
+              </p>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-3">
+              {/* Reassign Button */}
+              {/* Info Box */}
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 mt-4">
+                <div className="flex gap-3">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                      <RefreshCw className="w-4 h-4 text-blue-600" />
+                    </div>
+                  </div>
+                  <div className="text-sm text-blue-800">
+                    <p className="text-blue-600">
+                      <span className="font-bold">Reassign for Next Year:</span> Use the same task details for the next year.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 mt-4">
+                <div className="flex gap-3">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                      <RefreshCw className="w-4 h-4 text-blue-600" />
+                    </div>
+                  </div>
+                  <div className="text-sm text-blue-800">
+                    <p className="text-blue-600">
+                      <span className="font-bold">Reassign With Edit:</span> Use for edit to customize before reassigning.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                disabled={!reassignTask.parentTaskInfo?.isForever}
+                className={`w-full py-3.5 rounded-xl font-semibold text-white transition-all duration-200 flex items-center justify-center gap-2 ${reassignTask.parentTaskInfo?.isForever
+                  ? "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+                  : "bg-gray-300 cursor-not-allowed opacity-60"
+                  }`}
+                onClick={handleReassign}
+              >
+                <RefreshCw className="w-5 h-5" />
+                <span>Reassign for Next Year</span>
+              </button>
+
+              {!reassignTask.parentTaskInfo?.isForever && (
+                <p className="text-xs text-[--color-text] text-center -mt-1">
+                  Only available for forever recurring tasks
+                </p>
+              )}
+
+              {/* Reassign With Edit Button */}
+              <button
+                className="w-full py-3.5 rounded-xl font-semibold text-white bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 transform hover:scale-[1.02]"
+                onClick={() =>
+                  window.location.href = `/assign-task?mode=reassign&taskGroupId=${reassignTask.taskGroupId}`
+                }
+              >
+                <Edit3 className="w-5 h-5" />
+                <span>Reassign With Edit</span>
+              </button>
+
+
+              {/* Cancel Button */}
+              <button
+                className="w-full mt-4 py-3 rounded-xl font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all duration-200"
+                onClick={() => setShowReassignModal(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showIncludeFilesModal && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div className="bg-[--color-surface] rounded-xl shadow-lg w-full max-w-md p-6">
+      
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold text-[--color-text]">
+          Include attachments & voice recordings?
+        </h2>
+        <button
+          onClick={() => setShowIncludeFilesModal(false)}
+          className="text-[--color-text] hover:text-[--color-textSecondary]"
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      <p className="text-sm text-[--color-] mb-6">
+        Do you want to include all existing attachments and voice recordings
+        while reassigning this task?
+      </p>
+
+      <div className="flex justify-end gap-3">
+        <button
+          onClick={() => proceedReassign(false)}
+          className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300
+                     text-[--color-text] hover:bg-[--color-chat]"
+        >
+          No, continue without
+        </button>
+
+        <button
+          onClick={() => proceedReassign(true)}
+          className="px-4 py-2 text-sm font-medium rounded-lg
+                     bg-blue-600 text-white hover:bg-blue-700"
+        >
+          Yes, include
+        </button>
+      </div>
+
+    </div>
+  </div>
+)}
 
     </div>
   );
