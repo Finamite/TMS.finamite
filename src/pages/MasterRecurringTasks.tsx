@@ -1838,7 +1838,7 @@ const proceedReassign = async (includeFiles: boolean) => {
                 <Search size={14} className="inline mr-1" />
                 Search
               </label>
-              <div className="relative">``
+              <div className="relative">
                 <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[--color-textSecondary]" />
                 <input
                   type="text"
