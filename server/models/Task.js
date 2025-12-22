@@ -155,5 +155,16 @@ autoDeleteAt: Date,
 // Create compound index for companyId and assignedTo
 taskSchema.index({ companyId: 1, assignedTo: 1 });
 
+taskSchema.index({ companyId: 1, status: 1, isActive: 1 });
+
+// For team pending aggregation
+taskSchema.index({ companyId: 1, isActive: 1, status: 1, taskType: 1, dueDate: 1 });
+
+// For assigned user grouping
+taskSchema.index({ assignedTo: 1, companyId: 1 });
+
+// Optional but helpful
+taskSchema.index({ companyId: 1, dueDate: 1 });
+
 const Task = mongoose.model('Task', taskSchema);
 export default Task;

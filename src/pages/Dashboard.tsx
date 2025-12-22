@@ -586,21 +586,30 @@ const Dashboard: React.FC = () => {
   }, [user, adminApprovalEnabled]);
 
   useEffect(() => {
-    let isMounted = true;
+  if (!user?.id) return;
 
-    const loadTeamPending = async () => {
-      const pending = await fetchTeamPendingTasks();
-      if (isMounted) setTeamPendingData(pending);
-    };
+  let isMounted = true;
 
-    // fetch only once when user loads dashboard
-    if (user?.id) {
-      loadTeamPending();
-    }
+  const idleLoad = async () => {
+    const data = await fetchTeamPendingTasks();
+    if (isMounted) setTeamPendingData(data);
+  };
+
+  if ('requestIdleCallback' in window) {
+    const id = requestIdleCallback(idleLoad);
     return () => {
       isMounted = false;
+      cancelIdleCallback?.(id);
     };
-  }, [user?.id]);
+  } else {
+    const timeout = setTimeout(idleLoad, 300);
+    return () => {
+      isMounted = false;
+      clearTimeout(timeout);
+    };
+  };
+}, [user?.id]);
+
 
   // Load member trend data when selected team member changes
   useEffect(() => {

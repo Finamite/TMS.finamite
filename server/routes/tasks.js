@@ -27,6 +27,10 @@ const getDailyTaskDates = (startDate, endDate, includeSunday, weekOffDays = []) 
   return dates;
 };
 
+let teamPendingCache = {};
+let lastCacheTime = 0;
+const CACHE_TTL = 30 * 1000;
+
 // Helper function to get all dates for weekly tasks within a range based on selected days
 const getWeeklyTaskDates = (startDate, endDate, selectedDays, weekOffDays = []) => {
   const dates = [];
@@ -297,53 +301,90 @@ router.get('/pending', async (req, res) => {
 // ✅ ULTRA-OPTIMIZED: Get pending recurring tasks with maximum performance
 router.get('/pending-recurring', async (req, res) => {
   try {
-    const { userId, companyId } = req.query;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normalize today to start of day for comparison
-    const fiveDaysFromNow = new Date(today);
-    fiveDaysFromNow.setDate(fiveDaysFromNow.getDate() + 5);
+    const { companyId, userId } = req.query;
 
-    // ✅ Super optimized query with better indexing
-    const query = {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
+    const fiveDaysLater = new Date(startOfToday);
+    fiveDaysLater.setDate(fiveDaysLater.getDate() + 5);
+
+    const match = {
+      companyId,
       isActive: true,
-      taskType: { $in: ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'] },
-      status: { $in: ['pending', 'overdue'] },
-      dueDate: { $lte: fiveDaysFromNow }
+      status: 'pending'
     };
 
-    if (companyId) {
-      query.companyId = companyId;
+    if (userId) {
+      match.assignedTo = userId;
     }
 
-    if (userId) query.assignedTo = userId;
+    const tasks = await Task.find({
+      ...match,
+      $or: [
+        // ✅ DAILY → today only (FIXED)
+        {
+          taskType: 'daily',
+          dueDate: {
+            $gte: startOfToday,
+            $lte: endOfToday
+          }
+        },
 
-    // ✅ Ultra-fast query with minimal data transfer
-    const tasks = await Task.find(query)
-      .select('title description taskType assignedBy assignedTo dueDate priority status lastCompletedDate createdAt attachments')
+        // ✅ CYCLIC → overdue + today + next 5 days
+        {
+          taskType: { $in: ['weekly', 'monthly', 'quarterly', 'yearly'] },
+          dueDate: {
+            $lte: fiveDaysLater
+          }
+        }
+      ]
+    })
       .populate('assignedBy', 'username email')
-      .populate('assignedTo', '_id username email')
-      .sort({ dueDate: 1 })
-      .lean(); // ✅ Lean for maximum performance
+      .populate('assignedTo', 'username email')
+      .sort({ dueDate: 1 });
 
     res.json(tasks);
-  } catch (error) {
-    console.error('Error fetching pending recurring tasks:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Failed to load pending recurring tasks' });
   }
 });
+
 
 // ✅ ULTRA-FAST: Team pending tasks with aggregation optimization
 router.get('/team-pending-fast', async (req, res) => {
   try {
     const { companyId } = req.query;
 
-    // ✅ Super optimized aggregation pipeline
-    const tasks = await Task.aggregate([
+    if (!companyId) {
+      return res.status(400).json([]);
+    }
+
+    const nowTs = Date.now();
+
+    // ✅ Serve from cache if valid
+    if (
+      teamPendingCache[companyId] &&
+      nowTs - lastCacheTime < CACHE_TTL
+    ) {
+      return res.json(teamPendingCache[companyId]);
+    }
+
+    // ✅ Use fixed date references (no per-doc new Date())
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
+
+    // ✅ Ultra-optimized aggregation
+    const data = await Task.aggregate([
       {
         $match: {
           companyId,
           isActive: true,
-          status: { $in: ["pending", "overdue"] }
+          status: { $in: ['pending', 'overdue'] }
         }
       },
       {
@@ -355,82 +396,115 @@ router.get('/team-pending-fast', async (req, res) => {
       },
       {
         $lookup: {
-          from: "users",
-          localField: "assignedTo",
-          foreignField: "_id",
-          as: "user",
-          pipeline: [{ $project: { username: 1 } }] // ✅ Only select username field
+          from: 'users',
+          localField: 'assignedTo',
+          foreignField: '_id',
+          as: 'user',
+          pipeline: [
+            { $project: { username: 1 } } // ✅ minimal user payload
+          ]
         }
       },
-      { $unwind: "$user" },
+      { $unwind: '$user' },
       {
         $addFields: {
-          username: "$user.username",
-          isToday: {
-            $eq: [
-              { $dateToString: { format: "%Y-%m-%d", date: "$dueDate" } },
-              { $dateToString: { format: "%Y-%m-%d", date: new Date() } }
-            ]
+          username: '$user.username',
+          dueDateStr: {
+            $dateToString: { format: '%Y-%m-%d', date: '$dueDate' }
           },
-          isOverdue: { $lt: ["$dueDate", new Date()] }
+          isOverdue: { $lt: ['$dueDate', now] }
+        }
+      },
+      {
+        $addFields: {
+          isToday: { $eq: ['$dueDateStr', todayStr] }
         }
       },
       {
         $group: {
-          _id: "$username",
+          _id: '$username',
+
           oneTimeToday: {
             $sum: {
               $cond: [
-                { $and: [{ $eq: ["$taskType", "one-time"] }, "$isToday"] }, 1, 0
+                { $and: [{ $eq: ['$taskType', 'one-time'] }, '$isToday'] },
+                1,
+                0
               ]
             }
           },
+
           oneTimeOverdue: {
             $sum: {
               $cond: [
-                { $and: [{ $eq: ["$taskType", "one-time"] }, "$isOverdue"] }, 1, 0
+                { $and: [{ $eq: ['$taskType', 'one-time'] }, '$isOverdue'] },
+                1,
+                0
               ]
             }
           },
+
           dailyToday: {
             $sum: {
               $cond: [
-                { $and: [{ $eq: ["$taskType", "daily"] }, "$isToday"] }, 1, 0
+                { $and: [{ $eq: ['$taskType', 'daily'] }, '$isToday'] },
+                1,
+                0
               ]
             }
           },
+
           recurringToday: {
             $sum: {
               $cond: [
                 {
                   $and: [
-                    { $in: ["$taskType", ["weekly", "monthly", "quarterly", "yearly"]] },
-                    "$isToday"
+                    {
+                      $in: [
+                        '$taskType',
+                        ['weekly', 'monthly', 'quarterly', 'yearly']
+                      ]
+                    },
+                    '$isToday'
                   ]
-                }, 1, 0
+                },
+                1,
+                0
               ]
             }
           },
+
           recurringOverdue: {
             $sum: {
               $cond: [
                 {
                   $and: [
-                    { $in: ["$taskType", ["weekly", "monthly", "quarterly", "yearly"]] },
-                    "$isOverdue"
+                    {
+                      $in: [
+                        '$taskType',
+                        ['weekly', 'monthly', 'quarterly', 'yearly']
+                      ]
+                    },
+                    '$isOverdue'
                   ]
-                }, 1, 0
+                },
+                1,
+                0
               ]
             }
           }
         }
       },
-      { $sort: { _id: 1 } } // ✅ Sort by username for consistent ordering
-    ]).allowDiskUse(true); // ✅ Allow disk use for large datasets
+      { $sort: { _id: 1 } }
+    ]).allowDiskUse(true);
 
-    res.json(tasks);
+    // ✅ Save to cache
+    teamPendingCache[companyId] = data;
+    lastCacheTime = nowTs;
+
+    res.json(data);
   } catch (err) {
-    console.error('Error in team-pending-fast:', err);
+    console.error('❌ Error in team-pending-fast:', err);
     res.json([]);
   }
 });
