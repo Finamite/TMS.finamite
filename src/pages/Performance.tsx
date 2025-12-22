@@ -142,7 +142,13 @@ const Performance: React.FC = () => {
     };
 
     const badge = rank ? getRankBadge(rank) : { icon: <Users size={18} />, gradient: 'from-blue-400 to-blue-600', bg: 'bg-blue-50', text: 'text-blue-700' };
-    const completed = member.completedTasks || 0;
+    const completed =
+  (member.oneTimeCompleted || 0) +
+  (member.dailyCompleted || 0) +
+  (member.weeklyCompleted || 0) +
+  (member.monthlyCompleted || 0) +
+  (member.quarterlyCompleted || 0) +
+  (member.yearlyCompleted || 0);
 
     const actualCompletionRate = member.completionRate ?? 0;
     const actualOnTimeRate = member.onTimeRate ?? 0;
@@ -247,7 +253,7 @@ const Performance: React.FC = () => {
                   {(member.onTimeCompletedTasks || 0) +
                     (member.onTimeRecurringCompleted || 0)}
                   {" / "}
-                  {member.totalTasks}
+                  {completed}
                 </span>
               )}
 
