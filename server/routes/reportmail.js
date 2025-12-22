@@ -1166,7 +1166,6 @@ function convertToCron(timeString) {
 const activeCronJobs = new Map();
 
 export async function startReportCron() {
-    console.log("⏳ Initializing enhanced report cron scheduler...");
 
     // Clear existing cron jobs
     activeCronJobs.forEach((job, key) => {
@@ -1182,8 +1181,6 @@ export async function startReportCron() {
             { "data.enableEveningReport": true }
         ]
     });
-
-    console.log(`📊 Found ${companies.length} companies with report settings enabled`);
 
     companies.forEach((s) => {
         const companyId = s.companyId;
@@ -1244,7 +1241,6 @@ export async function startReportCron() {
         }
     });
 
-    console.log(`🚀 Enhanced report cron scheduler initialized with ${activeCronJobs.size} active jobs`);
 }
 
 // Function to restart cron jobs (useful when settings change)

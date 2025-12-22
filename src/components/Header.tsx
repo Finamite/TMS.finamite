@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { Menu, LogOut, Moon, UserPlus, Bell, Clock, CheckSquare, Sun } from 'lucide-react';
+import { Menu, LogOut, Moon, UserPlus, Bell, Clock, CheckSquare, Sun, AlertTriangle, MoreVertical } from 'lucide-react';
 import { address } from '../../utils/ipAddress';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -17,7 +17,7 @@ interface CompanyData {
 
 const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const { user, logout } = useAuth();
-  const { theme, setTheme, isDark } = useTheme();
+  const { setTheme, isDark } = useTheme();
   const [company, setCompany] = useState<CompanyData | null>(null);
 
   const navigate = useNavigate();
@@ -32,9 +32,14 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
 
   const [mainTab, setMainTab] = useState<'one' | 'rec'>('one');
   const [subTab, setSubTab] = useState<'today' | 'overdue'>('today');
+  const [approvalCount, setApprovalCount] = useState(0);
+  const [adminApprovalEnabled, setAdminApprovalEnabled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement | null>(null);
 
   const canViewAll = user?.permissions?.canViewAllTeamTasks;
   const canAssignTasks = user?.permissions?.canAssignTasks;
+  const canManageApproval = user?.permissions?.canManageApproval === true;
 
   /* ---------------- DATE HELPERS ------------------ */
   const normalize = (date: string | Date) => {
@@ -54,6 +59,11 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
     const d = normalize(date);
     return d.getTime() < today.getTime();
   };
+
+  const formatCount = (count: number) => {
+  if (count > 99) return "99+";
+  return count.toString();
+};
 
   /* ---------------- FETCH NOTIFICATIONS ------------------ */
   const fetchNotif = async () => {
@@ -89,6 +99,44 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
       console.log("Notification fetch error:", e);
     } finally {
       setInitialLoading(false); // Only once
+    }
+  };
+
+  const showApprovalAlert =
+    canManageApproval && adminApprovalEnabled;
+
+  const fetchApprovalCount = async () => {
+    if (!showApprovalAlert) return; // 🚫 STOP HARD
+
+    try {
+      if (!user?.company?.companyId) return;
+
+      const res = await axios.get(
+        `${address}/api/tasks/approval-count`,
+        {
+          params: { companyId: user.company.companyId }
+        }
+      );
+
+      setApprovalCount(res.data.count || 0);
+    } catch (e) {
+      console.log('Approval alert error:', e);
+    }
+  };
+
+  const fetchAdminApprovalSetting = async () => {
+    try {
+      if (!user?.company?.companyId) return;
+
+      const res = await axios.get(
+        `${address}/api/settings/admin-approval`,
+        { params: { companyId: user.company.companyId } }
+      );
+
+      setAdminApprovalEnabled(res.data?.enabled === true);
+    } catch (e) {
+      console.log("Admin approval setting error:", e);
+      setAdminApprovalEnabled(false);
     }
   };
 
@@ -141,6 +189,33 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  useEffect(() => {
+    fetchAdminApprovalSetting();
+  }, [user?.company?.companyId]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (
+        mobileMenuRef.current &&
+        !mobileMenuRef.current.contains(e.target as Node)
+      ) {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+
+  useEffect(() => {
+    if (!showApprovalAlert) return;
+
+    fetchApprovalCount();
+    const i = setInterval(fetchApprovalCount, 3000);
+    return () => clearInterval(i);
+  }, [showApprovalAlert, user?.company?.companyId]);
+
   /* ---------------- FETCH COMPANY ------------------ */
   useEffect(() => {
     const load = async () => {
@@ -185,7 +260,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
       </div>
 
       {/* RIGHT */}
-      <div className="flex items-center space-x-3">
+      <div className="flex items-center gap-2 sm:gap-3">
 
         {/* 🔔 NOTIFICATION */}
         <div className="relative" ref={notifRef}>
@@ -204,7 +279,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
                 className="absolute -top-1 -right-1 text-xs px-1.5 py-0.5 rounded-full"
                 style={{ background: "var(--color-error)", color: "white" }}
               >
-                {totalCount}
+                {formatCount(totalCount)}
               </span>
             )}
           </button>
@@ -486,11 +561,33 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
               </div>
             </div>
           )}
-
-
-
-
         </div>
+
+        {showApprovalAlert && (
+          <button
+            onClick={() => navigate('/for-approval')}
+            className="relative p-2 rounded-xl shadow-sm hover:scale-105 transition"
+            style={{
+              backgroundColor: "var(--color-surface)",
+              border: "1px solid var(--color-border)",
+              color: "var(--color-warning)"
+            }}
+          >
+            <AlertTriangle size={18} />
+
+            {approvalCount > 0 && (
+              <span
+                className="absolute -top-1 -right-1 text-xs px-1.5 py-0.5 rounded-full"
+                style={{
+                  background: "var(--color-error)",
+                  color: "white"
+                }}
+              >
+                {formatCount(approvalCount)}
+              </span>
+            )}
+          </button>
+        )}
 
         {/* Assign Task */}
         {canAssignTasks &&
@@ -507,7 +604,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           </button>
         }
         {/* Theme Toggle */}
-        <div className="relative">
+        <div className="hidden sm:block">
           <button
             onClick={() => setTheme(isDark ? 'light' : 'dark')}
             className="p-2 rounded-xl shadow-sm hover:scale-105 transition"
@@ -537,13 +634,60 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           {/* Logout always visible */}
           <button
             onClick={logout}
-            className="p-2 rounded-lg"
+            className="hidden sm:block p-2 rounded-lg"
             style={{ color: 'var(--color-error)' }}
           >
             <LogOut size={20} />
           </button>
 
         </div>
+        <div className="relative sm:hidden" ref={mobileMenuRef}>
+  <button
+    onClick={() => setMobileMenuOpen(o => !o)}
+    className="p-2 rounded-xl shadow-sm"
+    style={{
+      backgroundColor: "var(--color-surface)",
+      border: "1px solid var(--color-border)",
+      color: "var(--color-text)"
+    }}
+  >
+    <MoreVertical size={20} />
+  </button>
+
+  {mobileMenuOpen && (
+    <div
+      className="absolute right-0 mt-2 w-40 rounded-xl shadow-xl border z-50"
+      style={{
+        background: "var(--color-background)",
+        borderColor: "var(--color-border)"
+      }}
+    >
+      {/* Theme Toggle */}
+      <button
+        onClick={() => {
+          setTheme(isDark ? 'light' : 'dark');
+          setMobileMenuOpen(false);
+        }}
+        className="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-[var(--color-surface)]"
+      >
+        {isDark ? <Sun size={16} /> : <Moon size={16} />}
+        {isDark ? 'Light Mode' : 'Dark Mode'}
+      </button>
+
+      {/* Divider */}
+      <div className="h-[1px] mx-2 my-1" style={{ background: 'var(--color-border)' }} />
+
+      {/* Logout */}
+      <button
+        onClick={logout}
+        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+      >
+        <LogOut size={16} />
+        Logout
+      </button>
+    </div>
+  )}
+</div>
 
       </div>
     </header>

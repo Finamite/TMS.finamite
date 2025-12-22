@@ -97,6 +97,7 @@ router.post('/', async (req, res) => {
         canEditRecurringTaskSchedules: true,
         canManageSettings: true,
         canManageRecycle: true,
+        canManageApproval: true,
       }
     });
 

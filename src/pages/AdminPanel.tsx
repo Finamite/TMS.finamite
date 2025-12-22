@@ -24,6 +24,7 @@ interface User {
     canEditRecurringTaskSchedules: boolean;
     canManageSettings: boolean;
     canManageRecycle: boolean;
+    canManageApproval: boolean;
   };
   isActive: boolean;
   createdAt: string;
@@ -98,6 +99,7 @@ const AdminPanel: React.FC = () => {
       canEditRecurringTaskSchedules: false,
       canManageSettings: false,
       canManageRecycle: false,
+      canManageApproval:false,
     }
   });
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -113,9 +115,9 @@ const [showAccessModal, setShowAccessModal] = useState(false);
   // Define allowed permissions for each role
   const rolePermissions = {
     employee: ['canViewTasks', 'canAssignTasks'],
-    manager: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings', 'canManageRecycle'],
-    admin: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings', 'canManageRecycle'],
-    superadmin: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings','canManageRecycle']
+    manager: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings', 'canManageRecycle','canManageApproval'],
+    admin: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings', 'canManageRecycle','canManageApproval'],
+    superadmin: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings','canManageRecycle','canManageApproval']
   };
   const [passwordUser, setPasswordUser] = useState<User | null>(null);
   const [newPassword, setNewPassword] = useState("");
@@ -429,6 +431,7 @@ const [showAccessModal, setShowAccessModal] = useState(false);
         canEditRecurringTaskSchedules: false,
         canManageSettings: false,
         canManageRecycle: false,
+        canManageApproval:false,
       }
     });
   };
@@ -454,6 +457,7 @@ const [showAccessModal, setShowAccessModal] = useState(false);
       canEditRecurringTaskSchedules: 'Edit Recurring Task Schedules',
       canManageSettings: 'Manage Settings',
       canManageRecycle: 'Manage Recycle Bin',
+      canManageApproval: 'Manage Approval'
     };
     return names[key] || null;
   };

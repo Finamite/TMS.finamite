@@ -38,6 +38,7 @@ interface TaskForm {
   monthlyDay: number;
   yearlyDuration: number;
   attachments: File[]; // Individual attachments per task
+  requiresApproval: boolean;
 }
 
 const AssignTask: React.FC = () => {
@@ -63,7 +64,8 @@ const AssignTask: React.FC = () => {
       weeklyDays: [],
       monthlyDay: 1,
       yearlyDuration: 3,
-      attachments: [] // Individual attachments
+      attachments: [],
+      requiresApproval: false,
     }
   ]);
 
@@ -74,7 +76,9 @@ const AssignTask: React.FC = () => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState("");
   const [taskGroupId, setTaskGroupId] = useState("");
+  const [originalTaskId, setOriginalTaskId] = useState(""); // Add this
   const loadedReassignDataRef = useRef(false);
+  const [adminApprovalSettings, setAdminApprovalSettings] = useState({ enabled: false, defaultForOneTime: false });
 
   // Store refs for each task's voice recorder
   const voiceRecorderRefs = useRef<{ [key: string]: VoiceRecorderRef | null }>({});
@@ -96,6 +100,18 @@ const AssignTask: React.FC = () => {
       fetchUsers();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (!adminApprovalSettings.enabled) return;
+
+    setTaskForms(prev =>
+      prev.map(task =>
+        task.taskType === "one-time"
+          ? { ...task, requiresApproval: adminApprovalSettings.defaultForOneTime }
+          : task
+      )
+    );
+  }, [adminApprovalSettings]);
 
 
   useEffect(() => {
@@ -121,6 +137,14 @@ const AssignTask: React.FC = () => {
   }, [users, mode, taskForms.length]);
 
   useEffect(() => {
+    if (user?.company?.companyId) {
+      axios.get(`${address}/api/settings/admin-approval?companyId=${user.company.companyId}`)
+        .then(res => setAdminApprovalSettings(res.data))
+        .catch(err => console.error('Error fetching admin approval settings:', err));
+    }
+  }, [user]);
+
+  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setShowUserDropdown({});
@@ -137,9 +161,11 @@ const AssignTask: React.FC = () => {
     const params = new URLSearchParams(window.location.search);
     const m = params.get("mode");
     const id = params.get("taskGroupId");
+    const originalId = params.get("originalTaskId"); // Add this
 
     if (m) setMode(m);
     if (id) setTaskGroupId(id);
+    if (originalId) setOriginalTaskId(originalId); // Add this
   }, []);
 
   useEffect(() => {
@@ -195,8 +221,14 @@ const AssignTask: React.FC = () => {
       weeklyDays: [],
       monthlyDay: 1,
       yearlyDuration: 3,
-      attachments: [] // New task starts with empty attachments
+      attachments: [],
+      requiresApproval: false,
     };
+
+    if (newTask.taskType === 'one-time') {
+      newTask.requiresApproval = adminApprovalSettings.defaultForOneTime;
+    }
+
     setTaskForms([...taskForms, newTask]);
     toast.success('New task added!', { theme: isDark ? 'dark' : 'light' });
   };
@@ -367,9 +399,35 @@ const AssignTask: React.FC = () => {
 
   // Update specific task form
   const updateTaskForm = (taskId: string, field: string, value: any) => {
-    setTaskForms(taskForms.map(task =>
-      task.id === taskId ? { ...task, [field]: value } : task
-    ));
+    setTaskForms(prev =>
+      prev.map(task => {
+        if (task.id !== taskId) return task;
+
+        // ✅ ONE-TIME TASK → apply admin approval rule
+        if (
+          field === "taskType" &&
+          value === "one-time" &&
+          adminApprovalSettings.enabled
+        ) {
+          return {
+            ...task,
+            taskType: value,
+            requiresApproval: adminApprovalSettings.defaultForOneTime
+          };
+        }
+
+        // ❌ NON ONE-TIME TASK → FORCE approval OFF
+        if (field === "taskType" && value !== "one-time") {
+          return {
+            ...task,
+            taskType: value,
+            requiresApproval: false
+          };
+        }
+
+        return { ...task, [field]: value };
+      })
+    );
   };
 
   const handleUserSelection = (taskId: string, userId: string) => {
@@ -514,7 +572,10 @@ const AssignTask: React.FC = () => {
             endDate: task.startDate
           })
         })),
-        totalUsers: taskForms.reduce((sum, task) => sum + task.assignedTo.length, 0)
+        totalUsers: taskForms.reduce((sum, task) => sum + task.assignedTo.length, 0),
+        // Add reassign mode data
+        isReassignMode: mode === "reassign",
+        originalTaskId: originalTaskId
       };
 
       // ⚡ Step 4: Single API call for ALL tasks - SUPER FAST!
@@ -532,6 +593,11 @@ const AssignTask: React.FC = () => {
           successMessage += `, ${totalVoiceRecordings} voice recording${totalVoiceRecordings > 1 ? 's' : ''}`;
         }
         successMessage += ')';
+      }
+
+      // Add reassign success message
+      if (mode === "reassign" && originalTaskId) {
+        successMessage += '. Original task has been marked as rejected.';
       }
 
       toast.success(successMessage, {
@@ -556,7 +622,8 @@ const AssignTask: React.FC = () => {
         weeklyDays: [],
         monthlyDay: 1,
         yearlyDuration: 3,
-        attachments: []
+        attachments: [],
+        requiresApproval: false,
       }]);
       setUserSearchTerm('');
       setShowUserDropdown({});
@@ -593,7 +660,8 @@ const AssignTask: React.FC = () => {
       weeklyDays: [],
       monthlyDay: 1,
       yearlyDuration: 3,
-      attachments: []
+      attachments: [],
+      requiresApproval: false,
     }]);
     setUserSearchTerm('');
     setShowUserDropdown({});
@@ -959,6 +1027,27 @@ const AssignTask: React.FC = () => {
                         <option value="high">High</option>
                       </select>
                     </div>
+
+                    {task.taskType === 'one-time' && (
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          id={`requiresApproval-${task.id}`}
+                          checked={task.requiresApproval}
+                          onChange={(e) => {
+                            setTaskForms(prev => prev.map(t => t.id === task.id ? { ...t, requiresApproval: e.target.checked } : t));
+                          }}
+                          disabled={!adminApprovalSettings.enabled}
+                          className="rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
+                        />
+                        <label htmlFor={`requiresApproval-${task.id}`} className="text-sm font-medium cursor-pointer select-none" style={{ color: 'var(--color-text)' }}>
+                          Requires Admin Approval
+                          {adminApprovalSettings.enabled && !adminApprovalSettings.defaultForOneTime && (
+                            <span className="text-xs text-[var(--color-textSecondary)] ml-1">(Optional)</span>
+                          )}
+                        </label>
+                      </div>
+                    )}
                   </div>
 
                   {/* Date Configuration */}

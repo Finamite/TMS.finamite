@@ -21,7 +21,9 @@ import {
   MessageCircle,
   Shield,
   Recycle,
-  HelpCircle
+  HelpCircle,
+  ArrowLeftRight,
+  ClipboardCheck,
 } from 'lucide-react';
 
 
@@ -36,6 +38,7 @@ const Tooltip = ({ children, content, show }: TooltipProps) => {
   const triggerRef = React.useRef<HTMLDivElement>(null);
   const [visible, setVisible] = React.useState(false);
   const [pos, setPos] = React.useState({ top: 0, left: 0 });
+
 
   const updatePosition = () => {
     if (!triggerRef.current) return;
@@ -97,9 +100,11 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { user } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(true);
+  const [approvalPendingCount, setApprovalPendingCount] = useState(0);
 
-  // 🔴 unread chat counter
   const [unreadChatsCount, setUnreadChatsCount] = useState(0);
+  const [pendingTaskCount, setPendingTaskCount] = useState(0);
+  const [pendingRecurringCount, setPendingRecurringCount] = useState(0);
 
   // Fetch unread messages every 2 seconds
   useEffect(() => {
@@ -126,6 +131,131 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    const companyId = user?.company?.companyId;
+    if (!companyId) return;
+
+    const interval = setInterval(() => {
+      axios
+        .get(`${address}/api/tasks`, {
+          params: {
+            status: "in-progress",
+            requiresApproval: true,
+            companyId,
+            limit: 1
+          }
+        })
+        .then((res) => {
+          const total = res.data?.total ?? res.data?.tasks?.length ?? 0;
+          setApprovalPendingCount(total);
+        })
+        .catch(() => {
+          setApprovalPendingCount(0);
+        });
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [user?.company?.companyId]);
+
+  useEffect(() => {
+    const companyId = user?.company?.companyId;
+    if (!companyId) return;
+
+    const fetchPendingCount = async () => {
+      try {
+        const params: {
+          companyId: string;
+          taskType: string;
+          userId?: string;
+        } = {
+          companyId,
+          taskType: "one-time",
+        };
+
+        // same rule as PendingTasks page
+        if (!user.permissions.canViewAllTeamTasks && user.id) {
+          params.userId = user.id;
+        }
+
+        const res = await axios.get(`${address}/api/tasks/pending`, { params });
+        setPendingTaskCount(res.data.length);
+      } catch {
+        setPendingTaskCount(0);
+      }
+    };
+
+    fetchPendingCount();
+
+    const interval = setInterval(fetchPendingCount, 10000);
+    return () => clearInterval(interval);
+
+  }, [user]);
+
+  useEffect(() => {
+    const companyId = user?.company?.companyId;
+    if (!companyId) return;
+
+    const fetchPendingRecurringCount = async () => {
+      try {
+        const params: {
+          companyId: string;
+          userId?: string;
+        } = { companyId };
+
+        if (!user.permissions.canViewAllTeamTasks && user.id) {
+          params.userId = user.id;
+        }
+
+        const res = await axios.get(
+          `${address}/api/tasks/pending-recurring`,
+          { params }
+        );
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        let count = 0;
+
+        res.data.forEach((task: any) => {
+          const due = new Date(task.dueDate);
+          due.setHours(0, 0, 0, 0);
+
+          // ✅ DAILY → only today
+          if (task.taskType === "daily") {
+            if (due.getTime() === today.getTime()) {
+              count++;
+            }
+          }
+
+          // ✅ OTHER RECURRING → overdue or today
+          else if (
+            ["weekly", "monthly", "quarterly", "yearly"].includes(task.taskType)
+          ) {
+            if (due.getTime() <= today.getTime()) {
+              count++;
+            }
+          }
+        });
+
+        setPendingRecurringCount(count);
+      } catch {
+        setPendingRecurringCount(0);
+      }
+    };
+
+    fetchPendingRecurringCount();
+    const interval = setInterval(fetchPendingRecurringCount, 10000);
+    return () => clearInterval(interval);
+
+  }, [user]);
+
+  const formatCount = (count: number) => {
+    if (count > 9) return "9+";
+    return count.toString();
+  };
+
+
+
   const cp = (user?.company?.permissions || {}) as Record<string, boolean>;
 
   const menuItems = [
@@ -135,12 +265,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { icon: Archive, label: 'Master Single', path: '/master-tasks', permission: cp.masterTasks },
     { icon: RotateCcw, label: 'Master Recurring', path: '/master-recurring', permission: cp.masterRecurringTasks },
     { icon: UserPlus, label: 'Assign Task', path: '/assign-task', permission: user?.permissions?.canAssignTasks },
-    { icon: Zap, label: 'Performance', path: '/performance', permission: cp.performance },
+    { icon: ClipboardCheck, label: 'For Approval', path: '/For-Approval', permission: user?.permissions?.canManageApproval },
+    { icon: ArrowLeftRight, label: 'Task Shift', path: '/task-shift', permission: cp.taskshift && ['admin', 'manager', 'superadmin'].includes(user?.role || '') },
     { icon: MessageCircle, label: 'Chat Support', path: '/chat', permission: cp.chat },
     { icon: Recycle, label: 'Recycle bin', path: '/recycle-bin', permission: user?.permissions?.canManageRecycle },
+    { icon: Zap, label: 'Performance', path: '/performance', permission: cp.performance },
     { icon: Shield, label: 'Admin Panel', path: '/admin', permission: user?.permissions?.canManageUsers },
-    { icon: Settings, label: 'Settings', path: '/settings-page', permission: user?.permissions?.canManageSettings  },
-    { icon: HelpCircle, label: 'Help & Support', path: '/help-support', permission: cp.helpsupport  },
+    { icon: Settings, label: 'Settings', path: '/settings-page', permission: user?.permissions?.canManageSettings },
+    { icon: HelpCircle, label: 'Help & Support', path: '/help-support', permission: cp.helpsupport },
     { icon: Crown, label: 'SuperAdmin Panel', path: '/superadmin', requireSuperAdmin: true },
   ];
 
@@ -168,10 +300,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       <div
         className={`
           fixed inset-y-0 left-0 z-30 
-          overflow-y-auto 
-          border-r shadow-sm
-          transition-[transform,width] duration-300 ease-out
-          lg:static lg:inset-0
+    border-r shadow-sm
+    transition-[transform,width] duration-300 ease-out
+    lg:static lg:inset-0
+    flex flex-col
           ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
         style={{
@@ -226,7 +358,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         </div>
 
         {/* Navigation */}
-        <nav className="mt-4">
+        <nav
+          className="
+    flex-1
+    overflow-y-auto
+    mt-4
+    pb-24
+  "
+        >
           <div className="px-2 space-y-2">
             {filteredMenuItems.map((item) => (
               <Tooltip
@@ -249,15 +388,65 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                   })}
                 >
 
+
                   {/* ICON + RED DOT */}
                   <div className="relative">
                     <item.icon size={16} className={isCollapsed ? '' : 'mr-3'} />
 
+                    {item.label === "Pending Single" && pendingTaskCount > 0 && (
+                      <span
+                        className={`
+      absolute -top-2
+      ${isCollapsed ? "-right-4" : "-top-1 left-2"}
+      bg-red-600 text-white text-[10px]
+      rounded-full min-w-[18px] h-[18px]
+      flex items-center justify-center px-1
+    `}
+                      >
+                        {formatCount(pendingTaskCount)}
+                      </span>
+                    )}
+
+                    {item.label === "Pending Recurring" && pendingRecurringCount > 0 && (
+                      <span
+                        className={`
+      absolute -top-2
+      ${isCollapsed ? "-right-4" : "-top-1 left-2"}
+      bg-red-600 text-white text-[10px]
+      rounded-full min-w-[18px] h-[18px]
+      flex items-center justify-center px-1
+    `}
+                      >
+                        {formatCount(pendingRecurringCount)}
+                      </span>
+                    )}
+
+
                     {item.label === "Chat Support" && unreadChatsCount > 0 && (
                       <span
-                        className={`absolute bg-red-600 rounded-full h-2 w-2 
-        ${isCollapsed ? "-top-1 -right-1" : "-top-1 left-4"}`}
-                      ></span>
+                        className={`
+      absolute -top-2
+      ${isCollapsed ? "-right-4" : "left-2"}
+      bg-red-600 text-white text-[10px]
+      rounded-full min-w-[18px] h-[18px]
+      flex items-center justify-center px-1
+    `}
+                      >
+                        {formatCount(unreadChatsCount)}
+                      </span>
+                    )}
+                    {item.label === "For Approval" && approvalPendingCount > 0 && (
+                      <span
+                        className={`
+      absolute -top-2
+      ${isCollapsed ? "-right-4" : "left-2"}
+      bg-red-600 text-white text-[10px]
+      rounded-full min-w-[18px] h-[18px]
+      flex items-center justify-center px-1
+    `}
+                      >
+                        {formatCount(approvalPendingCount)}
+                      </span>
                     )}
                   </div>
 
@@ -273,34 +462,54 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         </nav>
 
         {/* User Profile */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
+        <div
+          className="
+    sticky
+    bottom-0
+    left-0
+    p-4
+    border-t
+    bg-[var(--color-background)]
+  "
+          style={{ borderColor: 'var(--color-border)' }}
+        >
           {isCollapsed ? (
             <Tooltip content={`${user?.username} (${user?.role})`} show={true}>
               <div className="flex justify-center">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium"
-                  style={{ backgroundColor: 'var(--color-primary)' }}>
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium"
+                  style={{ backgroundColor: 'var(--color-primary)' }}
+                >
                   {user?.username?.charAt(0).toUpperCase()}
                 </div>
               </div>
             </Tooltip>
           ) : (
             <div className="flex items-center">
-              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium"
-                style={{ backgroundColor: 'var(--color-primary)' }}>
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium"
+                style={{ backgroundColor: 'var(--color-primary)' }}
+              >
                 {user?.username?.charAt(0).toUpperCase()}
               </div>
-              <div className="ml-3">
-                <p className="text-xs font-medium" style={{ color: 'var(--color-text)' }}>
+
+              <div className="ml-3 min-w-0">
+                <p
+                  className="text-xs font-medium truncate"
+                  style={{ color: 'var(--color-text)' }}
+                >
                   {user?.username}
                 </p>
-                <p className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>
+                <p
+                  className="text-xs truncate"
+                  style={{ color: 'var(--color-textSecondary)' }}
+                >
                   {user?.role}
                 </p>
               </div>
             </div>
           )}
         </div>
-
       </div>
     </>
   );

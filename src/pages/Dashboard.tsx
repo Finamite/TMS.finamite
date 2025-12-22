@@ -8,7 +8,7 @@ import {
   CheckSquare, Clock, AlertTriangle, TrendingUp, Calendar,
   Target, Activity, CheckCircle, XCircle, Timer,
   ChevronDown, Star, Zap, BarChart3,
-  PieChart as PieChartIcon, Users, RotateCcw,
+  PieChart as PieChartIcon, Users, RotateCcw, ClipboardCheck
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
@@ -170,31 +170,34 @@ const Dashboard: React.FC = () => {
   const [teamPendingData, setTeamPendingData] = useState<TeamPendingData>({});
   const monthListRef = React.useRef<HTMLDivElement>(null);
   const [openSelector, setOpenSelector] = useState<string | null>(null);
+  const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
+  const [adminApprovalEnabled, setAdminApprovalEnabled] = useState(false);
+
 
   const handleCardClick = (card: string) => {
-  setOpenSelector(openSelector === card ? null : card);
-};
+    setOpenSelector(openSelector === card ? null : card);
+  };
 
-const navigate = useNavigate();
+  const navigate = useNavigate();
 
-const goToPage = (type: string, category: string) => {
-  setOpenSelector(null);
+  const goToPage = (type: string, category: string) => {
+    setOpenSelector(null);
 
-  if (category === "total") {
-    navigate(type === "single" ? "/master-tasks" : "/master-recurring");
-  }
-  if (category === "pending") {
-    navigate(type === "single" ? "/pending-tasks" : "/pending-recurring");
-  }
-  if (category === "completed") {
-    navigate(type === "single" ? "/master-tasks" : "/master-recurring");
-  }
-  if (category === "overdue") {
-    navigate(type === "single" ? "/master-tasks" : "/master-recurring");
-  }
-};
+    if (category === "total") {
+      navigate(type === "single" ? "/master-tasks" : "/master-recurring");
+    }
+    if (category === "pending") {
+      navigate(type === "single" ? "/pending-tasks" : "/pending-recurring");
+    }
+    if (category === "completed") {
+      navigate(type === "single" ? "/master-tasks" : "/master-recurring");
+    }
+    if (category === "overdue") {
+      navigate(type === "single" ? "/master-tasks" : "/master-recurring");
+    }
+  };
 
-  const ThemeCard = ({ children, className = "", variant = "default", hover = true,  onClick }: {
+  const ThemeCard = ({ children, className = "", variant = "default", hover = true, onClick }: {
     children: React.ReactNode;
     className?: string;
     variant?: 'default' | 'glass' | 'elevated' | 'bordered';
@@ -213,8 +216,8 @@ const goToPage = (type: string, category: string) => {
     const hoverClasses = hover ? "hover:shadow-xl hover:scale-[1.02] hover:border-[var(--color-primary)]/30" : "";
 
     return (
-      <div onClick={onClick} 
-      className={`${baseClasses} ${variants[variant]} ${hoverClasses} ${className}`}>
+      <div onClick={onClick}
+        className={`${baseClasses} ${variants[variant]} ${hoverClasses} ${className}`}>
         {children}
       </div>
     );
@@ -249,49 +252,49 @@ const goToPage = (type: string, category: string) => {
 
     return (
       <div className="relative">
-      <ThemeCard
-      onClick={slug ? () => handleCardClick(title) : undefined}
-        className={`p-2 sm:p-3 rounded-xl transition-shadow duration-300 hover:shadow-lg ${isMain ? "col-span-2" : ""
-          }`}
-        variant="glass"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-2">
-          {/* Left: Icon + Title */}
-          <div className="flex items-center gap-3">
-            <div
-              className="p-2 rounded-xl ring-1 ring-white/10 shadow-md backdrop-blur"
-              style={{
-                backgroundColor: `var(--color-primary)12`,
-                boxShadow: `0 4px 14px var(--color-primary)25`
-              }}
-            >
+        <ThemeCard
+          onClick={slug ? () => handleCardClick(title) : undefined}
+          className={`p-2 sm:p-3 rounded-xl transition-shadow duration-300 hover:shadow-lg ${isMain ? "col-span-2" : ""
+            }`}
+          variant="glass"
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between mb-2">
+            {/* Left: Icon + Title */}
+            <div className="flex items-center gap-3">
               <div
-                className="w-6 h-6 flex items-center justify-center"
-                style={{ color: "var(--color-primary)" }}
+                className="p-2 rounded-xl ring-1 ring-white/10 shadow-md backdrop-blur"
+                style={{
+                  backgroundColor: `var(--color-primary)12`,
+                  boxShadow: `0 4px 14px var(--color-primary)25`
+                }}
               >
-                {icon}
+                <div
+                  className="w-6 h-6 flex items-center justify-center"
+                  style={{ color: "var(--color-primary)" }}
+                >
+                  {icon}
+                </div>
               </div>
+
+              <p className="text-xl font-semibold text-[var(--color-text)] truncate">{title}</p>
             </div>
 
-            <p className="text-xl font-semibold text-[var(--color-text)] truncate">{title}</p>
+            {/* Right: Value */}
+            <p
+              className="text-xl font-bold text-right leading-tight mr-2"
+              style={{ color: valueColor || "var(--color-text)" }}
+            >
+              {value}
+            </p>
           </div>
 
-          {/* Right: Value */}
-          <p
-            className="text-xl font-bold text-right leading-tight mr-2"
-            style={{ color: valueColor || "var(--color-text)" }}
-          >
-            {value}
-          </p>
-        </div>
+          {/* Subtitle */}
+          {subtitle && (
+            <p className="text-sm text-[var(--color-textSecondary)] ml-10 mb-2">{subtitle}</p>
+          )}
 
-        {/* Subtitle */}
-        {subtitle && (
-          <p className="text-sm text-[var(--color-textSecondary)] ml-10 mb-2">{subtitle}</p>
-        )}
-
-        {/* Percentage Bar
+          {/* Percentage Bar
       <div className="mb-2">
         <div className="flex items-center justify-between mb-1">
           <span className="text-[10px] font-medium text-[var(--color-textSecondary)] flex items-center gap-1">
@@ -313,52 +316,52 @@ const goToPage = (type: string, category: string) => {
         </div>
       </div> */}
 
-        {/* Pending / Completed */}
-        {(pendingValue !== undefined || completedValue !== undefined) && (
-          <div className="flex justify-between text-[11px] text-[var(--color-textSecondary)] pt-2 border-t border-[var(--color-border)]">
-            {pendingValue !== undefined && (
-              <div className="flex items-center gap-1">
-                <Clock size={13} style={{ color: "#04b9ddff" }} />
-                <span className="text-xs font-bold text-[#04b9ddff]">{pendingValue}</span>
-              </div>
-            )}
+          {/* Pending / Completed */}
+          {(pendingValue !== undefined || completedValue !== undefined) && (
+            <div className="flex justify-between text-[11px] text-[var(--color-textSecondary)] pt-2 border-t border-[var(--color-border)]">
+              {pendingValue !== undefined && (
+                <div className="flex items-center gap-1">
+                  <Clock size={13} style={{ color: "#04b9ddff" }} />
+                  <span className="text-xs font-bold text-[#04b9ddff]">{pendingValue}</span>
+                </div>
+              )}
 
-            {completedValue !== undefined && (
-              <div className="flex items-center gap-1">
-                <CheckCircle size={13} style={{ color: "#5b88dbff" }} />
-                <span className="text-xs font-bold text-[#5b88dbff]">{completedValue}</span>
-              </div>
-            )}
-          </div>
-        )}
+              {completedValue !== undefined && (
+                <div className="flex items-center gap-1">
+                  <CheckCircle size={13} style={{ color: "#5b88dbff" }} />
+                  <span className="text-xs font-bold text-[#5b88dbff]">{completedValue}</span>
+                </div>
+              )}
+            </div>
+          )}
 
-        {/* Sparkline */}
-        {sparklineData && sparklineData.length > 0 && (
-          <div className="mt-3 h-10">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={sparklineData.map((v, i) => ({ value: v, index: i }))}>
-                <defs>
-                  <linearGradient id={`gradient-${title}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <Area
-                  type="monotone"
-                  dataKey="value"
-                  stroke="var(--color-primary)"
-                  strokeWidth={1.5}
-                  fill={`url(#gradient-${title})`}
-                  dot={false}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </ThemeCard>
-    {openSelector === title && slug && (
-      <div
-        className="
+          {/* Sparkline */}
+          {sparklineData && sparklineData.length > 0 && (
+            <div className="mt-3 h-10">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={sparklineData.map((v, i) => ({ value: v, index: i }))}>
+                  <defs>
+                    <linearGradient id={`gradient-${title}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <Area
+                    type="monotone"
+                    dataKey="value"
+                    stroke="var(--color-primary)"
+                    strokeWidth={1.5}
+                    fill={`url(#gradient-${title})`}
+                    dot={false}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </ThemeCard>
+        {openSelector === title && slug && (
+          <div
+            className="
           absolute 
           left-1/2 
           -translate-x-1/2 
@@ -372,32 +375,32 @@ const goToPage = (type: string, category: string) => {
           z-[9999]
           w-44
         "
-      >
-        <p className="text-sm font-semibold mb-2">Choose Type</p>
+          >
+            <p className="text-sm font-semibold mb-2">Choose Type</p>
 
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            goToPage("single", slug);
-          }}
-          className="block w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg"
-        >
-          Single Tasks
-        </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                goToPage("single", slug);
+              }}
+              className="block w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg"
+            >
+              Single Tasks
+            </button>
 
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            goToPage("recurring", slug);
-          }}
-          className="block w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg"
-        >
-          Recurring Tasks
-        </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                goToPage("recurring", slug);
+              }}
+              className="block w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg"
+            >
+              Recurring Tasks
+            </button>
+          </div>
+        )}
       </div>
-    )}
-  </div>
-);
+    );
   };
 
 
@@ -464,7 +467,7 @@ const goToPage = (type: string, category: string) => {
   }, []);
 
 
-const memoTeamPendingData = useMemo(() => teamPendingData, [teamPendingData]);
+  const memoTeamPendingData = useMemo(() => teamPendingData, [teamPendingData]);
 
   const fetchTaskCounts = useCallback(async (startDate?: string, endDate?: string) => {
     try {
@@ -553,6 +556,36 @@ const memoTeamPendingData = useMemo(() => teamPendingData, [teamPendingData]);
   }, [showMonthFilter]);
 
   useEffect(() => {
+    if (!user?.companyId) return;
+
+    axios
+      .get(`${address}/api/settings/admin-approval?companyId=${user.companyId}`)
+      .then(res => {
+        setAdminApprovalEnabled(res.data.enabled === true);
+      })
+      .catch(() => setAdminApprovalEnabled(false));
+
+  }, [user?.companyId]);
+
+  useEffect(() => {
+    if (!user?.companyId || !adminApprovalEnabled) return;
+
+    axios
+      .get(`${address}/api/tasks/pending-approval-count`, {
+        params: {
+          companyId: user.companyId,
+          userId: user.id,
+          role: user.role
+        }
+      })
+      .then(res => {
+        setPendingApprovalCount(res.data.count || 0);
+      })
+      .catch(() => setPendingApprovalCount(0));
+
+  }, [user, adminApprovalEnabled]);
+
+  useEffect(() => {
     let isMounted = true;
 
     const loadTeamPending = async () => {
@@ -611,6 +644,10 @@ const memoTeamPendingData = useMemo(() => teamPendingData, [teamPendingData]);
 
     return options;
   };
+
+        const gridColsClass = adminApprovalEnabled
+  ? "xl:grid-cols-5"
+  : "xl:grid-cols-4";
 
   const monthOptions = generateMonthOptions();
 
@@ -851,50 +888,74 @@ const memoTeamPendingData = useMemo(() => teamPendingData, [teamPendingData]);
       </div>
 
       {/* Main Metrics Grid with Real Trends */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 p-4 sm:p-2 lg:p-4">
-        <MetricCard
-          icon={<CheckSquare size={24} className="text-green-600" />}
-          title="Total Tasks"
-          slug="total"
-          value={displayData?.totalTasks || 0}
-          valueColor="#1f8825ff"
-          subtitle={
-            viewMode === 'current' && isSameMonth(selectedMonth, new Date()) && isSameYear(selectedMonth, new Date())
-              ? 'Current Month'
-              : viewMode === 'current'
-                ? format(selectedMonth, 'MMMM yyyy')
-                : 'All time'
-          }
-          percentage={100}
-        />
-        <MetricCard
-          icon={<Clock size={24} className="text-cyan-500" />}
-          title="Pending"
-          slug="pending"
-          value={displayData?.pendingTasks || 0}
-          valueColor="#04b9ddff"
-          subtitle="Awaiting completion"
-          percentage={((displayData?.pendingTasks || 0) / (displayData?.totalTasks || 1)) * 100}
-        />
-        <MetricCard
-          icon={<CheckCircle size={24} className="text-blue-500" />}
-          title="Completed"
-          slug="completed"
-          value={displayData?.completedTasks || 0}
-          valueColor="#5b88dbff"
-          subtitle="Successfully finished"
-          percentage={((displayData?.completedTasks || 0) / (displayData?.totalTasks || 1)) * 100}
-        />
-        <MetricCard
-          icon={<AlertTriangle size={24} className="text-red-500" />}
-          title="Overdue"
-          slug="overdue"
-          value={displayData?.overdueTasks || 0}
-          valueColor="#ef4444"
-          subtitle={`${displayData?.overduePercentage?.toFixed(1)}% of total`}
-          percentage={displayData?.overduePercentage || 0}
-        />
-      </div>
+<div
+  className={`
+    grid grid-cols-1
+    sm:grid-cols-2
+    md:grid-cols-3
+    lg:grid-cols-4
+    ${gridColsClass}
+    gap-4 sm:gap-6 lg:gap-8
+    p-4 sm:p-2 lg:p-4
+  `}
+>
+  <MetricCard
+    icon={<CheckSquare size={24} className="text-green-600" />}
+    title="Total Tasks"
+    slug="total"
+    value={displayData?.totalTasks || 0}
+    valueColor="#1f8825ff"
+    subtitle={
+      viewMode === 'current' && isSameMonth(selectedMonth, new Date()) && isSameYear(selectedMonth, new Date())
+        ? 'Current Month'
+        : viewMode === 'current'
+          ? format(selectedMonth, 'MMMM yyyy')
+          : 'All time'
+    }
+  />
+
+  <MetricCard
+    icon={<Clock size={24} className="text-cyan-500" />}
+    title="Pending"
+    slug="pending"
+    value={displayData?.pendingTasks || 0}
+    valueColor="#04b9ddff"
+    subtitle="Awaiting completion"
+  />
+
+  <MetricCard
+    icon={<CheckCircle size={24} className="text-blue-500" />}
+    title="Completed"
+    slug="completed"
+    value={displayData?.completedTasks || 0}
+    valueColor="#5b88dbff"
+    subtitle="Successfully finished"
+  />
+
+  <MetricCard
+    icon={<AlertTriangle size={24} className="text-red-500" />}
+    title="Overdue"
+    slug="overdue"
+    value={displayData?.overdueTasks || 0}
+    valueColor="#ef4444"
+    subtitle={`${displayData?.overduePercentage?.toFixed(1)}% of total`}
+  />
+
+  {adminApprovalEnabled && user && (
+    <MetricCard
+      icon={<ClipboardCheck />}
+      title="Approval Due"
+      value={pendingApprovalCount}
+      valueColor="#f59e0b"
+      subtitle={
+        user.role === "user"
+          ? "Your tasks awaiting approval"
+          : "Tasks awaiting approval"
+      }
+    />
+  )}
+</div>
+
       {/* Task Type Distribution - Now includes quarterly and updated to 6 columns */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5 lg:gap-6 p-4 sm:p-2 lg:p-4">
         {taskTypeData.map((type) => (
@@ -960,8 +1021,13 @@ const memoTeamPendingData = useMemo(() => teamPendingData, [teamPendingData]);
 
                   {/* Completed - Professional Green */}
                   <linearGradient id="statusGrad-2" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#10B981" stopOpacity={1} />
-                    <stop offset="100%" stopColor="#059669" stopOpacity={1} />
+                    <stop offset="0%" stopColor="#7a36e9ff" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#592ca1ff" stopOpacity={1} />
+                  </linearGradient>
+
+                  <linearGradient id="statusGrad-3" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#2f9ad8ff" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#10718aff" stopOpacity={1} />
                   </linearGradient>
 
                   {/* Subtle Shadow */}
@@ -1020,12 +1086,13 @@ const memoTeamPendingData = useMemo(() => teamPendingData, [teamPendingData]);
             </ResponsiveContainer>
 
             {/* Clean, Professional Legend */}
-            <div className="mt-2 flex flex-wrap justify-center gap-2 sm:gap-6">
+            <div className="mt-2 flex flex-wrap justify-center gap-1">
               {statusData.map((entry, index) => {
                 const colors = [
                   { primary: '#516ff8ff', light: '#FEF3C7' },
                   { primary: '#c13bf6ff', light: '#DBEAFE' },
-                  { primary: '#10B981', light: '#D1FAE5' }
+                  { primary: '#916fc7ff', light: '#D1FAE5' },
+                  { primary: '#49b2ccff', light: '#D1FAE5' },
                 ];
 
                 const percentage = ((entry.value / statusData.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(0);
@@ -1033,11 +1100,11 @@ const memoTeamPendingData = useMemo(() => teamPendingData, [teamPendingData]);
                 return (
                   <div
                     key={index}
-                    className="flex items-center space-x-3 px-4 py-2 rounded-lg transition-all duration-200 hover:scale-105"
+                    className="flex items-center space-x-3 px-3 py-1 rounded-lg transition-all duration-200 hover:scale-105"
 
                   >
                     <div
-                      className="w-3 h-3 rounded-full"
+                      className="w-2 h-2 rounded-full"
                       style={{ backgroundColor: colors[index].primary }}
                     ></div>
                     <span className="text-sm font-semibold text-[var(--color-text)]">

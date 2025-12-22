@@ -17,7 +17,8 @@ interface User {
     canManageUsers: boolean;
     canEditRecurringTaskSchedules: boolean;
     canManageSettings: boolean;
-    canManageRecycle: boolean
+    canManageRecycle: boolean;
+    canManageApproval: boolean
   };
   company?: {
     companyId: string;
@@ -40,6 +41,7 @@ interface User {
     recyclebin: boolean,
     settingsPage: boolean,
     helpsupport: boolean,
+    taskshift: boolean,
   };
   };
 }

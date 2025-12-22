@@ -17,6 +17,8 @@ interface Company {
     settingspage: boolean,
     recyclebin: boolean,
     helpsupport: boolean,
+    taskshift:boolean,
+    forapproval: boolean
   };
   _id: string;
   companyId: string;
@@ -68,6 +70,8 @@ const SuperAdminPanel: React.FC = () => {
     settingspage: true,
     recyclebin: true,
     helpsupport: true,
+    taskshift: true,
+    forapproval:true,
   };
   const [formData, setFormData] = useState({
     companyName: '',
@@ -308,6 +312,8 @@ const SuperAdminPanel: React.FC = () => {
         settingspage: true,
         recyclebin: true,
         helpsupport: true,
+        taskshift:true,
+        forapproval:true,
       }
     });
   };

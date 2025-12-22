@@ -68,6 +68,10 @@ interface EmailSettings {
 
 interface SettingsData {
     taskCompletion: any;
+    adminApproval: {
+        enabled: boolean;
+        defaultForOneTime: boolean;
+    },
     revision: RevisionSettings;
     email: EmailSettings;
     bin: {
@@ -75,6 +79,7 @@ interface SettingsData {
         retentionDays: number;
     };
 }
+
 
 interface User {
     _id: string;
@@ -153,6 +158,10 @@ const SettingsPage: React.FC = () => {
             enabled: false,
             retentionDays: 15
         },
+        adminApproval: {
+            enabled: false,
+            defaultForOneTime: false
+        },
         taskCompletion: {
             enabled: false,  // 🔥 MAIN TOGGLE
             pendingTasks: {
@@ -184,6 +193,7 @@ const SettingsPage: React.FC = () => {
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
     const [expandedTask, setExpandedTask] = useState(false);
+    const [expandedAdminApproval, setExpandedAdminApproval] = useState(false);
 
 
     useEffect(() => {
@@ -191,6 +201,7 @@ const SettingsPage: React.FC = () => {
         fetchUsers();
         fetchTaskSettings();
         fetchBinSettings();
+        fetchAdminApproval();
     }, [currentUser?.companyId]);
 
     useEffect(() => {
@@ -226,44 +237,53 @@ const SettingsPage: React.FC = () => {
     }, []);
 
     useEffect(() => {
-  const days = settings.revision.days;
-  const values = Object.values(days);
+        const days = settings.revision.days;
+        const values = Object.values(days);
 
-  if (values.length === 0) return;
+        if (values.length === 0) return;
 
-  const allSame = values.every(v => v === values[0]);
+        const allSame = values.every(v => v === values[0]);
 
-  // If different → maxDays should reflect Revision 1
-  if (!allSame) {
-    setSettings(prev => ({
-      ...prev,
-      revision: {
-        ...prev.revision,
-        maxDays: days[1] ?? values[0]
-      }
-    }));
-  }
-}, [settings.revision.days]);
+        // If different → maxDays should reflect Revision 1
+        if (!allSame) {
+            setSettings(prev => ({
+                ...prev,
+                revision: {
+                    ...prev.revision,
+                    maxDays: days[1] ?? values[0]
+                }
+            }));
+        }
+    }, [settings.revision.days]);
+
+    const fetchAdminApproval = async () => {
+        if (!currentUser?.companyId) return;
+        const res = await axios.get(`${address}/api/settings/admin-approval?companyId=${currentUser.companyId}`);
+        setSettings(prev => ({
+            ...prev,
+            adminApproval: res.data
+        }));
+    };
 
     const handleMaxDaysChange = (newMax: number) => {
-  setHasUnsavedChanges(true);
+        setHasUnsavedChanges(true);
 
-  setSettings(prev => {
-    const updatedDays: Record<number, number> = {};
-    for (let i = 0; i <= prev.revision.limit; i++) {
-        updatedDays[i] = newMax;
-    }
+        setSettings(prev => {
+            const updatedDays: Record<number, number> = {};
+            for (let i = 0; i <= prev.revision.limit; i++) {
+                updatedDays[i] = newMax;
+            }
 
-    return {
-      ...prev,
-      revision: {
-        ...prev.revision,
-        maxDays: newMax,
-        days: updatedDays
-      }
+            return {
+                ...prev,
+                revision: {
+                    ...prev.revision,
+                    maxDays: newMax,
+                    days: updatedDays
+                }
+            };
+        });
     };
-  });
-};
 
     const fetchTaskSettings = async () => {
         if (!currentUser?.companyId) return;
@@ -375,7 +395,7 @@ const SettingsPage: React.FC = () => {
             setGoogleLoading(false);
         }
     };
-    
+
 
     const handleResetDays = () => {
         const max = settings.revision.maxDays;
@@ -486,7 +506,7 @@ const SettingsPage: React.FC = () => {
             setLoading(false);
         }
     };
-    
+
 
     const handleSave = async () => {
         if (!currentUser?.companyId) return;
@@ -527,6 +547,12 @@ const SettingsPage: React.FC = () => {
                 enabled: settings.taskCompletion.enabled,
                 pendingTasks: settings.taskCompletion.pendingTasks,
                 pendingRecurringTasks: settings.taskCompletion.pendingRecurringTasks
+            });
+
+            await axios.post(`${address}/api/settings/admin-approval`, {
+                companyId: currentUser.companyId,
+                enabled: settings.adminApproval.enabled,
+                defaultForOneTime: settings.adminApproval.defaultForOneTime
             });
 
             await axios.post(`${address}/api/settings/bin`, {
@@ -795,10 +821,10 @@ const SettingsPage: React.FC = () => {
                         </button>
                     </div>
                     {hasUnsavedChanges && (
-    <div className="sm:hidden w-full text-red-500 font-medium text-xs blink-warning">
-        ⚠ Changes are pending to save
-    </div>
-)}
+                        <div className="sm:hidden w-full text-red-500 font-medium text-xs blink-warning">
+                            ⚠ Changes are pending to save
+                        </div>
+                    )}
 
                     {/* LEFT SIDE — DESKTOP VERSION (Mobile hidden) */}
                     <div className="hidden sm:flex items-center">
@@ -1962,6 +1988,136 @@ const SettingsPage: React.FC = () => {
                             </div>
                         )}
                     </div>
+
+                    {/* Admin Approval Settings */}
+                    <div className="bg-[var(--color-surface)] rounded-2xl shadow-xl border border-[var(--color-border)] overflow-hidden transition-all duration-300">
+                        {/* Header */}
+                        <div
+                            className="
+            flex items-center justify-between
+            p-3 lg:p-6 cursor-pointer
+            hover:bg-[var(--color-background)]
+            transition-colors
+        "
+                            onClick={() => setExpandedAdminApproval(prev => !prev)}
+                        >
+                            {/* LEFT CONTENT */}
+                            <div className="flex items-center gap-4 min-w-0 max-w-[75%]">
+                                <div className="p-3 bg-[var(--color-primary)]/10 rounded-xl">
+                                    <ClipboardCheck className="h-6 w-6 text-[var(--color-primary)]" />
+                                </div>
+
+                                <div className="min-w-0">
+                                    <h2 className="text-md lg:text-xl font-semibold text-[var(--color-text)] truncate">
+                                        Admin Approval
+                                    </h2>
+                                    <p className="text-[var(--color-textSecondary)] text-xs lg:text-sm mt-1 truncate">
+                                        Require admin approval before completing one-time tasks
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* RIGHT TOGGLE */}
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (!currentUser?.permissions.canManageSettings) return;
+
+                                    setHasUnsavedChanges(true);
+                                    setSettings(prev => ({
+                                        ...prev,
+                                        adminApproval: {
+                                            ...prev.adminApproval,
+                                            enabled: !prev.adminApproval.enabled
+                                        }
+                                    }));
+                                    setExpandedAdminApproval(true);
+                                }}
+                                disabled={!currentUser?.permissions.canManageSettings}
+                                className={`
+                relative inline-flex h-5 lg:h-7 w-8 lg:w-12 mr-2 lg:mr-0
+                items-center rounded-full transition-all duration-200 shadow-inner
+                ${settings.adminApproval.enabled
+                                        ? 'bg-[var(--color-primary)]'
+                                        : 'bg-[var(--color-border)]'}
+                ${!currentUser?.permissions.canManageSettings
+                                        ? 'opacity-50 cursor-not-allowed'
+                                        : ''}
+            `}
+                            >
+                                <span
+                                    className={`
+                    inline-block h-3 lg:h-5 w-3 lg:w-5
+                    transform rounded-full bg-white shadow-lg
+                    transition-transform duration-200
+                    ${settings.adminApproval.enabled
+                                            ? 'translate-x-4 lg:translate-x-6'
+                                            : 'translate-x-1'}
+                `}
+                                />
+                            </button>
+                        </div>
+
+                        {/* Expanded Content */}
+                        {expandedAdminApproval && (
+                            <div className="px-6 pb-6 pt-2 border-t border-[var(--color-border)] bg-[var(--color-background)]">
+                                <div className="space-y-6 mt-6">
+
+                                    {/* Configuration */}
+                                    <div className="space-y-4">
+                                        <h3 className="text-xs font-bold text-[var(--color-text)] uppercase tracking-wider flex items-center gap-2">
+                                            <span className="w-1 h-4 bg-[var(--color-primary)] rounded-full"></span>
+                                            Configuration
+                                        </h3>
+
+                                        {/* Default for One-Time */}
+                                        <div
+                                            className={`p-4 rounded-xl border transition-all
+                            ${settings.adminApproval.enabled
+                                                    ? 'bg-[var(--color-surface)] border-[var(--color-border)] hover:border-[var(--color-primary)]/30'
+                                                    : 'bg-[var(--color-surface)] border-[var(--color-border)] opacity-50'}
+                        `}
+                                        >
+                                            <div className="flex items-center justify-between gap-4">
+                                                <div>
+                                                    <p className="font-medium text-[var(--color-text)]">
+                                                        Default approval for one-time tasks
+                                                    </p>
+                                                    <p className="text-xs text-[var(--color-textSecondary)] mt-1">
+                                                        New one-time tasks will automatically require admin approval
+                                                    </p>
+                                                </div>
+
+                                                <ToggleSwitch
+                                                    checked={settings.adminApproval.defaultForOneTime}
+                                                    disabled={!settings.adminApproval.enabled}
+                                                    onChange={(val) => {
+                                                        setHasUnsavedChanges(true);
+                                                        setSettings(prev => ({
+                                                            ...prev,
+                                                            adminApproval: {
+                                                                ...prev.adminApproval,
+                                                                defaultForOneTime: val
+                                                            }
+                                                        }));
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Info Box */}
+                                        <div className="p-4 bg-[var(--color-info)]/5 rounded-lg border border-[var(--color-info)]/10">
+                                            <p className="text-xs text-[var(--color-textSecondary)] leading-relaxed">
+                                                When enabled, completed one-time tasks move to <b>For Approval</b>.
+                                                Admins can approve (mark complete) or reject (send for reassignment).
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
 
 
                 </div>

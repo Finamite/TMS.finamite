@@ -90,6 +90,55 @@ router.post('/task-completion', async (req, res) => {
   }
 });
 
+router.get('/admin-approval', async (req, res) => {
+  try {
+    const { companyId } = req.query;
+    if (!companyId) return res.status(400).json({ message: 'companyId required' });
+
+    let settings = await Settings.findOne({ type: 'adminApproval', companyId });
+
+    if (!settings) {
+      settings = new Settings({
+        type: 'adminApproval',
+        companyId,
+        data: {
+          enabled: false,  // Default disabled
+          defaultForOneTime: false  // Checkbox default when enabled
+        }
+      });
+      await settings.save();
+    }
+
+    res.json(settings.data);
+  } catch (error) {
+    console.error('Error fetching admin approval settings:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.post('/admin-approval', async (req, res) => {
+  try {
+    const { companyId, enabled, defaultForOneTime } = req.body;
+
+    if (!companyId) return res.status(400).json({ message: 'companyId required' });
+
+    const payload = {
+      enabled: enabled ?? false,
+      defaultForOneTime: defaultForOneTime ?? false
+    };
+
+    const settings = await Settings.findOneAndUpdate(
+      { type: 'adminApproval', companyId },
+      { $set: { data: payload } },
+      { upsert: true, new: true }
+    );
+
+    res.json({ message: 'Admin approval settings saved', data: settings.data });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // ---------------------------
 // Revision endpoints
 // ---------------------------

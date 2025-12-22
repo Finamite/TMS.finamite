@@ -8,6 +8,7 @@ import PriorityBadge from '../components/PriorityBadge';
 import TaskTypeBadge from '../components/TaskTypeBadge';
 import EditMasterTaskModal from '../components/EditMasterTaskModal';
 import { address } from '../../utils/ipAddress';
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from 'react-toastify';
 
 interface Attachment {
@@ -333,6 +334,10 @@ const MasterRecurringTasks: React.FC = () => {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [reassignTask, setReassignTask] = useState<MasterTask | null>(null);
+  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [showBulkReassignModal, setShowBulkReassignModal] = useState(false);
+  const [bulkIncludeFiles, setBulkIncludeFiles] = useState<Record<string, boolean>>({});
   const [deleteConfig, setDeleteConfig] = useState<{
     type: "single" | "master" | "permanent";
     taskId?: string;
@@ -656,6 +661,8 @@ const MasterRecurringTasks: React.FC = () => {
     console.log(`🚀 LIGHTNING TOGGLE: Switching to ${newEditMode ? 'edit' : 'view'} mode`);
 
     setIsEditMode(newEditMode);
+    setIsSelectionMode(false);
+    setSelectedTasks(new Set());
     setCurrentPage(1);
 
     if (newEditMode) {
@@ -785,53 +792,160 @@ const MasterRecurringTasks: React.FC = () => {
     setShowReassignModal(true);
   };
 
- const handleReassign = async () => {
-  if (!reassignTask) {
-    toast.error("Task data not loaded");
-    return;
-  }
-
-  const hasAttachments =
-    Array.isArray(reassignTask.attachments) &&
-    reassignTask.attachments.length > 0;
-
-  if (hasAttachments) {
-    // ✅ Ask user only if attachments exist
-    setShowIncludeFilesModal(true);
-  } else {
-    // ✅ No attachments → directly reassign
-    proceedReassign(false);
-  }
-};
-
-const proceedReassign = async (includeFiles: boolean) => {
-  if (!reassignTask || !user?.company?.companyId) return;
-
-  try {
-    const res = await axios.post(
-      `${address}/api/tasks/reassign/${reassignTask.taskGroupId}`,
-      {
-        includeFiles,
-        companyId: user.company.companyId
+  // Selection handlers
+  const handleTaskSelection = useCallback((taskGroupId: string, isSelected: boolean) => {
+    setSelectedTasks(prev => {
+      const newSet = new Set(prev);
+      if (isSelected) {
+        newSet.add(taskGroupId);
+      } else {
+        newSet.delete(taskGroupId);
       }
-    );
+      return newSet;
+    });
+  }, []);
 
-    toast.success("Task reassigned successfully!");
+  const handleSelectAll = useCallback(() => {
+    const foreverTasks = masterTasks.filter(task => task.parentTaskInfo?.isForever);
+    const allForeverTaskIds = new Set(foreverTasks.map(task => task.taskGroupId));
+    setSelectedTasks(allForeverTaskIds);
+  }, [masterTasks]);
 
-    // clear cache properly
-    cacheRef.current.clearByPattern("master-tasks-light");
-    cacheRef.current.clearByPattern("master-tasks");
+  const handleDeselectAll = useCallback(() => {
+    setSelectedTasks(new Set());
+  }, []);
 
-    await fetchMasterTasksUltraFast(false);
+  const toggleSelectionMode = useCallback(() => {
+    setIsSelectionMode(!isSelectionMode);
+    setSelectedTasks(new Set());
+  }, [isSelectionMode]);
 
-    setShowIncludeFilesModal(false);
-    setReassignTask(null);
+  const handleBulkReassign = useCallback(async () => {
+    if (selectedTasks.size === 0) {
+      toast.error("Please select at least one task to reassign");
+      return;
+    }
 
-  } catch (err) {
-    toast.error("Failed to reassign task");
-    console.error(err);
-  }
-};
+    const companyId = user?.company?.companyId;
+    if (!companyId) {
+      toast.error("Company ID missing");
+      return;
+    }
+
+    // 🔒 VALIDATION: force Add / Don’t Add selection
+    const invalidTasks: string[] = [];
+
+    selectedTasks.forEach(taskGroupId => {
+      const task = masterTasks.find(t => t.taskGroupId === taskGroupId);
+      const hasAttachments =
+        task && Array.isArray(task.attachments) && task.attachments.length > 0;
+
+      if (hasAttachments && bulkIncludeFiles[taskGroupId] === undefined) {
+        invalidTasks.push(task?.title || taskGroupId);
+      }
+    });
+
+    if (invalidTasks.length > 0) {
+      toast.error(
+        `Please choose "Add" or "Don't Add" for attachments`
+      );
+      return; // ⛔ STOP REASSIGN
+    }
+
+    try {
+      setIsSaving(true);
+
+      const taskGroupIds = Array.from(selectedTasks);
+
+      await Promise.all(
+        taskGroupIds.map(async (taskGroupId) => {
+          const includeFiles = bulkIncludeFiles[taskGroupId] === true;
+
+          await axios.post(
+            `${address}/api/tasks/reassign/${taskGroupId}`,
+            {
+              includeFiles,
+              companyId
+            }
+          );
+        })
+      );
+
+      toast.success(`Successfully reassigned ${taskGroupIds.length} task(s)`);
+
+      // cleanup
+      cacheRef.current.clearByPattern("master-tasks-light");
+      cacheRef.current.clearByPattern("master-tasks");
+
+      await fetchMasterTasksUltraFast(false);
+
+      setSelectedTasks(new Set());
+      setBulkIncludeFiles({});
+      setIsSelectionMode(false);
+      setShowBulkReassignModal(false);
+
+    } catch (error) {
+      console.error("❌ Bulk reassign failed:", error);
+      toast.error("Failed to reassign tasks");
+    } finally {
+      setIsSaving(false);
+    }
+  }, [
+    selectedTasks,
+    bulkIncludeFiles,
+    masterTasks,
+    user,
+    fetchMasterTasksUltraFast
+  ]);
+
+
+  const handleReassign = async () => {
+    if (!reassignTask) {
+      toast.error("Task data not loaded");
+      return;
+    }
+
+    const hasAttachments =
+      Array.isArray(reassignTask.attachments) &&
+      reassignTask.attachments.length > 0;
+
+    if (hasAttachments) {
+      // ✅ Ask user only if attachments exist
+      setShowIncludeFilesModal(true);
+    } else {
+      // ✅ No attachments → directly reassign
+      proceedReassign(false);
+    }
+  };
+
+  const proceedReassign = async (includeFiles: boolean) => {
+    if (!reassignTask || !user?.company?.companyId) return;
+
+    try {
+      const res = await axios.post(
+        `${address}/api/tasks/reassign/${reassignTask.taskGroupId}`,
+        {
+          includeFiles,
+          companyId: user.company.companyId
+        }
+      );
+
+      toast.success("Task reassigned successfully!");
+
+      // clear cache properly
+      cacheRef.current.clearByPattern("master-tasks-light");
+      cacheRef.current.clearByPattern("master-tasks");
+
+      await fetchMasterTasksUltraFast(false);
+
+      setShowIncludeFilesModal(false);
+      setReassignTask(null);
+
+    } catch (err) {
+      toast.error("Failed to reassign task");
+      console.error(err);
+    }
+  };
 
   const handleSaveMasterTask = useCallback(async () => {
     if (!editingMasterTask) return;
@@ -1001,8 +1115,37 @@ const proceedReassign = async (includeFiles: boolean) => {
 
   // Memoized components for better performance
   const MasterTaskCard = memo<{ masterTask: MasterTask }>(({ masterTask }) => (
-    <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] hover:shadow-md transition-all duration-200 overflow-hidden">
+    <div
+      onClick={() => {
+        if (!isSelectionMode) return;
+        if (!masterTask.parentTaskInfo?.isForever) return;
+
+        const isSelected = selectedTasks.has(masterTask.taskGroupId);
+        handleTaskSelection(masterTask.taskGroupId, !isSelected);
+      }}
+      className={`cursor-pointer bg-[--color-background] rounded-xl shadow-sm border transition-all duration-200 overflow-hidden ${isSelectionMode && masterTask.parentTaskInfo?.isForever
+        ? selectedTasks.has(masterTask.taskGroupId)
+          ? 'border-blue-400 bg-[--color-surface] shadow-lg'
+          : 'border-[--color-border] hover:border-blue-300'
+        : 'border-[--color-border] hover:shadow-md'
+        }`}
+    >
       <div className="p-6">
+        {/* Selection checkbox for forever tasks */}
+        {isSelectionMode && masterTask.parentTaskInfo?.isForever && (
+          <div className="flex items-center mb-4">
+            <input
+              type="checkbox"
+              checked={selectedTasks.has(masterTask.taskGroupId)}
+              onChange={(e) => handleTaskSelection(masterTask.taskGroupId, e.target.checked)}
+              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+            />
+            <label className="ml-2 text-sm font-medium text-blue-600">
+              Select for reassign
+            </label>
+          </div>
+        )}
+
         <div className="flex items-start justify-between mb-4">
           <div className="text-lg font-semibold text-[--color-text] mb-2">
             <ReadMore text={masterTask.title} maxLength={60} />
@@ -1037,6 +1180,15 @@ const proceedReassign = async (includeFiles: boolean) => {
             </div>
           )}
         </div>
+
+        {/* Selection indicator for non-forever tasks */}
+        {isSelectionMode && !masterTask.parentTaskInfo?.isForever && (
+          <div className="mb-4 p-2 bg-gray-100 rounded-lg">
+            <span className="text-xs text-gray-500">
+              Not available for reassign (not a forever task)
+            </span>
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-2 mb-4">
           <TaskTypeBadge taskType={masterTask.taskType} />
@@ -1288,6 +1440,11 @@ const proceedReassign = async (includeFiles: boolean) => {
         <table className="min-w-full divide-y divide-[--color-border]">
           <thead className="bg-[--color-surface]">
             <tr>
+              {isSelectionMode && (
+                <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
+                  Select
+                </th>
+              )}
               <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
                 Master Task
               </th>
@@ -1323,7 +1480,35 @@ const proceedReassign = async (includeFiles: boolean) => {
           </thead>
           <tbody className="bg-[--color-background] divide-y divide-[--color-border]">
             {masterTasks.map((masterTask: MasterTask) => (
-              <tr key={masterTask.taskGroupId} className="hover:bg-[--color-surface] transition-colors">
+              <tr
+                onClick={() => {
+                  if (!isSelectionMode) return;
+                  if (!masterTask.parentTaskInfo?.isForever) return;
+
+                  const isSelected = selectedTasks.has(masterTask.taskGroupId);
+                  handleTaskSelection(masterTask.taskGroupId, !isSelected);
+                }}
+                className={`cursor-pointer transition-colors ${isSelectionMode && masterTask.parentTaskInfo?.isForever
+                  ? selectedTasks.has(masterTask.taskGroupId)
+                    ? 'bg-[--color-chat] hover:bg-[--color-surfacechat]'
+                    : 'hover:bg-[--color-surface]'
+                  : 'hover:bg-[--color-surface]'
+                  }`}
+              >
+                {isSelectionMode && (
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {masterTask.parentTaskInfo?.isForever ? (
+                      <input
+                        type="checkbox"
+                        checked={selectedTasks.has(masterTask.taskGroupId)}
+                        onChange={(e) => handleTaskSelection(masterTask.taskGroupId, e.target.checked)}
+                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                      />
+                    ) : (
+                      <span className="text-xs text-gray-400">N/A</span>
+                    )}
+                  </td>
+                )}
                 <td className="px-6 py-4">
                   <div>
                     <div className="text-sm font-medium text-[--color-text] mb-1">
@@ -1632,7 +1817,7 @@ const proceedReassign = async (includeFiles: boolean) => {
     </div>
   );
 
-  // ✅ FIXED: Show proper loading states instead of "No master tasks found"
+  // ✅ OPTIMIZED: Show loading for edit mode instead of "No master tasks found"
   if (initialLoading) {
     return (
       <div className="min-h-screen bg-[var(--color-background)] p-4 space-y-6">
@@ -1662,48 +1847,177 @@ const proceedReassign = async (includeFiles: boolean) => {
   return (
     <div className="min-h-full bg-[var(--color-background)] p-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
-        <div>
-          <h1 className="text-xl font-bold text-[--color-text]">
-            Master Recurring Tasks
-            {isAdmin && <span className="text-xs font-normal text-[--color-primary] ml-2">(Admin View - All Team)</span>}
-          </h1>
-          <p className="mt-1 text-xs text-[--color-textSecondary] flex items-center">
-            {isEditMode ? `${masterTasks.length} master task series` : `${individualTasks.length} recurring task(s) found`}
-            {isAdmin ? ' (All team members)' : ' (Your tasks)'}
-            {totalCount > currentData.length && ` - Showing ${currentData.length} of ${totalCount}`}
-            {(loading || editModeLoading) && (
-              <Loader className="ml-2 h-3 w-3 animate-spin text-[--color-primary]" />
+      <div className="mb-3">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+
+          {/* LEFT: Title + Meta */}
+          <div className="flex flex-col">
+            <h1 className="text-lg lg:text-xl font-bold text-[--color-text] leading-tight whitespace-nowrap">
+              Master Recurring Tasks
+              {isAdmin && (
+                <span className="hidden lg:inline text-xs font-normal text-[--color-primary] ml-2">
+                  (Admin View - All Team)
+                </span>
+              )}
+            </h1>
+
+            <p className="text-xs text-[--color-textSecondary] flex items-center gap-1 whitespace-nowrap">
+              {isEditMode
+                ? `${masterTasks.length} master task series`
+                : `${individualTasks.length} recurring task(s) found`}
+              {isAdmin ? ' (All team members)' : ' (Your tasks)'}
+              {totalCount > currentData.length &&
+                ` - Showing ${currentData.length} of ${totalCount}`}
+              {(loading || editModeLoading) && (
+                <Loader className="h-3 w-3 animate-spin text-[--color-primary]" />
+              )}
+            </p>
+          </div>
+
+          {/* RIGHT: Actions */}
+          <div className="flex flex-wrap lg:flex-nowrap items-center gap-2">
+            {canEditRecurringTaskSchedules && (
+              <button
+                onClick={handleEditModeToggle}
+                disabled={editModeLoading}
+                className={`
+    px-3 py-2 text-xs lg:text-sm font-medium rounded-lg
+    flex items-center whitespace-nowrap
+    transition-all duration-300 ease-out
+    active:scale-95
+    ${isEditMode
+                    ? 'bg-[--color-primary] text-white shadow-lg'
+                    : 'bg-[--color-surface] text-[--color-text] hover:bg-[--color-border]'
+                  }
+    ${editModeLoading ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.04]'}
+  `}
+              >
+                <Settings
+                  size={14}
+                  className={`
+      mr-1 transition-transform duration-500
+      ${isEditMode ? 'rotate-180' : 'rotate-0'}
+    `}
+                />
+                {isEditMode ? 'Exit Edit' : 'Edit Mode'}
+              </button>
             )}
-          </p>
-        </div>
-        <div className="flex items-center mt-4 sm:mt-0 space-x-3">
-          {canEditRecurringTaskSchedules && (
+
+            {isEditMode && canEditRecurringTaskSchedules && (
+              <div className="flex items-center gap-2">
+                {/* Bulk Reassign Button */}
+                <motion.button
+                  layout="position"
+                  onClick={toggleSelectionMode}
+                  transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                  className={`px-3 py-2 text-xs lg:text-sm font-medium rounded-lg flex items-center whitespace-nowrap ${isSelectionMode
+                    ? "bg-blue-600 text-white"
+                    : "bg-[--color-surface] text-[--color-text] hover:bg-[--color-border]"
+                    }`}
+                >
+                  <Users size={14} className="mr-1" />
+                  {isSelectionMode ? "Exit Selection" : "Bulk Reassign"}
+                </motion.button>
+
+                {/* Animated group */}
+                <AnimatePresence mode="wait">
+                  {isSelectionMode && (
+                    <motion.div
+                      key="bulk-actions"
+                      layout
+                      className="flex items-center gap-2 overflow-hidden"
+                      initial={{ opacity: 0, width: 0 }}
+                      animate={{
+                        opacity: 1,
+                        width: "auto",
+                        transition: { duration: 0.3, ease: [0.4, 0, 0.2, 1] }
+                      }}
+                      exit={{
+                        opacity: 0,
+                        width: 0,
+                        transition: {
+                          duration: 0.3,
+                          ease: [0.4, 0, 0.2, 1],
+                          delay: 0.12 // ⭐ wait for children to exit
+                        }
+                      }}
+                    >
+                      {/* Select All */}
+                      <motion.button
+                        layout
+                        initial={{ y: 8, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{
+                          y: 8,
+                          opacity: 0,
+                          transition: { duration: 0.18 }
+                        }}
+                        onClick={handleSelectAll}
+                        className="px-3 py-2 text-xs lg:text-sm font-medium text-blue-600 bg-blue-50 rounded-lg whitespace-nowrap"
+                      >
+                        Select All
+                      </motion.button>
+
+                      {/* Clear */}
+                      <motion.button
+                        layout
+                        initial={{ y: 8, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{
+                          y: 8,
+                          opacity: 0,
+                          transition: { duration: 0.18 }
+                        }}
+                        onClick={handleDeselectAll}
+                        className="px-3 py-2 text-xs lg:text-sm font-medium text-gray-600 bg-gray-100 rounded-lg whitespace-nowrap"
+                      >
+                        Clear
+                      </motion.button>
+
+                      {/* Reassign */}
+                      <AnimatePresence>
+                        {selectedTasks.size > 0 && (
+                          <motion.button
+                            layout
+                            initial={{ scale: 0.94, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{
+                              scale: 0.94,
+                              opacity: 0,
+                              transition: { duration: 0.18 }
+                            }}
+                            onClick={() => setShowBulkReassignModal(true)}
+                            className="px-3 py-2 text-xs lg:text-sm font-medium text-white bg-green-600 rounded-lg flex items-center whitespace-nowrap"
+                          >
+                            <RotateCcw size={14} className="mr-1" />
+                            Reassign ({selectedTasks.size})
+                          </motion.button>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+
+
+
             <button
-              onClick={handleEditModeToggle}
-              disabled={editModeLoading}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center ${isEditMode
-                ? 'bg-[--color-primary] text-white hover:bg-[--color-primary]'
-                : 'text-[--color-text] bg-[--color-surface] hover:bg-[--color-border]'
-                } ${editModeLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={() => setShowFilters(!showFilters)}
+              className="px-3 py-2 text-xs lg:text-sm font-medium text-[--color-textSecondary] bg-[--color-surface] rounded-lg flex items-center whitespace-nowrap"
             >
-              <Settings size={16} className="inline mr-2" />
-              {editModeLoading ? '⚡ Loading...' : isEditMode ? 'Exit Edit Mode' : 'Master Task Settings'}
+              <Filter size={14} className="mr-1" />
+              Filters
             </button>
-          )}
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="px-4 py-2 text-sm font-medium text-[--color-textSecondary] bg-[--color-surface] hover:bg-[--color-border] rounded-lg transition-colors flex items-center"
-            title={showFilters ? "Hide Filters" : "Show Filters"}
-          >
-            <Filter size={16} className="inline mr-2" />
-            {showFilters ? "Hide Filters" : "Show Filters"}
-          </button>
-          <div className="hidden sm:block">
-            <ViewToggle view={view} onViewChange={setView} />
+
+            {/* Desktop only */}
+            <div className="hidden lg:block">
+              <ViewToggle view={view} onViewChange={setView} />
+            </div>
           </div>
         </div>
       </div>
+
 
       {/* Filters */}
       {showFilters && (
@@ -2481,48 +2795,199 @@ const proceedReassign = async (includeFiles: boolean) => {
         </div>
       )}
 
+      {/* Bulk Reassign Confirmation Modal */}
+      {showBulkReassignModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[--color-surface] rounded-2xl shadow-2xl w-full max-w-[680px] max-h[650px] transform transition-all">
+            {/* Header */}
+            <div className="relative p-6 pb-4 border-b border-gray-100">
+              <button
+                onClick={() => setShowBulkReassignModal(false)}
+                className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+              <h2 className="text-2xl font-bold text-[--color-text] pr-8">
+                Bulk Reassign Tasks
+              </h2>
+              <p className="text-sm text-[--color-textsecondary] mt-2 font-medium">
+                {selectedTasks.size} task(s) selected for reassignment
+              </p>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-4">
+              {/* Info Box */}
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
+                <div className="flex gap-3">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                      <RefreshCw className="w-4 h-4 text-blue-600" />
+                    </div>
+                  </div>
+                  <div className="text-sm text-blue-800">
+                    <p className="font-semibold text-blue-900 mb-1">Bulk Reassign for Next Year</p>
+                    <p className="text-blue-700">
+                      All selected forever tasks will be reassigned for the next year period.
+                      This will create new task instances starting from the day after the current end date.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Selected Tasks List */}
+              <div className="max-h-48 overflow-y-auto bg-gray-50 rounded-lg p-3">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">
+                  Selected Tasks:
+                </h4>
+
+                <ul className="space-y-2">
+                  {Array.from(selectedTasks).map(taskGroupId => {
+                    const task = masterTasks.find(t => t.taskGroupId === taskGroupId);
+                    const hasAttachments =
+                      !!task && Array.isArray(task.attachments) && task.attachments.length > 0;
+                    return (
+                      <li
+                        key={taskGroupId}
+                        className={`flex items-center justify-between text-xs text-gray-700 bg-white p-2 rounded border transition-all duration-200
+    ${hasAttachments && bulkIncludeFiles[taskGroupId] === undefined
+                            ? 'border-red-500 bg-red-50 animate-pulse'
+                            : 'border-gray-200 hover:bg-gray-50'
+                          }`}
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <span className="truncate font-medium">
+                            • {task?.title || taskGroupId}
+                          </span>
+
+                          {hasAttachments && (
+                            <span className="flex items-center gap-1 text-blue-600 mr-2">
+                              <Paperclip size={14} />
+                              <span>Attachment</span>
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Attachment option */}
+                        {hasAttachments && (
+                          <div className="flex items-center gap-2 text-xs">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setBulkIncludeFiles(prev => ({
+                                  ...prev,
+                                  [taskGroupId]: true
+                                }))
+                              }
+                              className={`px-2 py-1 rounded border transition-all duration-200
+    ${bulkIncludeFiles[taskGroupId] === true
+                                  ? 'bg-blue-600 text-white border-blue-600'
+                                  : bulkIncludeFiles[taskGroupId] === undefined && hasAttachments
+                                    ? 'border-red-500 bg-red-50 text-red-700 hover:bg-red-100 font-semibold'
+                                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'
+                                }`}
+                            >
+                              Add
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setBulkIncludeFiles(prev => ({
+                                  ...prev,
+                                  [taskGroupId]: false
+                                }))
+                              }
+                              className={`px-2 py-1 rounded border transition-all duration-200
+    ${bulkIncludeFiles[taskGroupId] === false
+                                  ? 'bg-red-500 text-white border-red-500'
+                                  : bulkIncludeFiles[taskGroupId] === undefined && hasAttachments
+                                    ? 'border-red-500 bg-red-50 text-red-700 hover:bg-red-100 font-semibold'
+                                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'
+                                }`}
+                            >
+                              Don’t Add
+                            </button>
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={handleBulkReassign}
+                  disabled={isSaving}
+                  className={`flex-1 py-3 rounded-xl font-semibold text-white transition-all duration-200 flex items-center justify-center gap-2 ${isSaving
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+                    }`}
+                >
+                  {isSaving ? (
+                    <Loader className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-5 h-5" />
+                  )}
+                  <span>{isSaving ? 'Processing...' : `Reassign ${selectedTasks.size} Task(s)`}</span>
+                </button>
+
+                <button
+                  onClick={() => setShowBulkReassignModal(false)}
+                  disabled={isSaving}
+                  className="flex-1 py-3 rounded-xl font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all duration-200"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showIncludeFilesModal && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-    <div className="bg-[--color-surface] rounded-xl shadow-lg w-full max-w-md p-6">
-      
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-[--color-text]">
-          Include attachments & voice recordings?
-        </h2>
-        <button
-          onClick={() => setShowIncludeFilesModal(false)}
-          className="text-[--color-text] hover:text-[--color-textSecondary]"
-        >
-          <X size={18} />
-        </button>
-      </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-[--color-surface] rounded-xl shadow-lg w-full max-w-md p-6">
 
-      <p className="text-sm text-[--color-] mb-6">
-        Do you want to include all existing attachments and voice recordings
-        while reassigning this task?
-      </p>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-[--color-text]">
+                Include attachments & voice recordings?
+              </h2>
+              <button
+                onClick={() => setShowIncludeFilesModal(false)}
+                className="text-[--color-text] hover:text-[--color-textSecondary]"
+              >
+                <X size={18} />
+              </button>
+            </div>
 
-      <div className="flex justify-end gap-3">
-        <button
-          onClick={() => proceedReassign(false)}
-          className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300
+            <p className="text-sm text-[--color-] mb-6">
+              Do you want to include all existing attachments and voice recordings
+              while reassigning this task?
+            </p>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => proceedReassign(false)}
+                className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300
                      text-[--color-text] hover:bg-[--color-chat]"
-        >
-          No, continue without
-        </button>
+              >
+                No, continue without
+              </button>
 
-        <button
-          onClick={() => proceedReassign(true)}
-          className="px-4 py-2 text-sm font-medium rounded-lg
+              <button
+                onClick={() => proceedReassign(true)}
+                className="px-4 py-2 text-sm font-medium rounded-lg
                      bg-blue-600 text-white hover:bg-blue-700"
-        >
-          Yes, include
-        </button>
-      </div>
+              >
+                Yes, include
+              </button>
+            </div>
 
-    </div>
-  </div>
-)}
+          </div>
+        </div>
+      )}
 
     </div>
   );

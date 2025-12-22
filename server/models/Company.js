@@ -42,6 +42,8 @@ const companySchema = new mongoose.Schema({
   settingspage: { type: Boolean, default: true},
   recyclebin: { type: Boolean, default: true},
   helpsupport: { type: Boolean, default: true},
+  taskshift: {type: Boolean, default: true},
+  forapproval: {type: Boolean, default: true}
 }
 }, {
   timestamps: true

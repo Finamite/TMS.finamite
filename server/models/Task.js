@@ -48,6 +48,7 @@ const taskSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  
   dueDate: {
     type: Date,
     required: true
@@ -65,13 +66,18 @@ const taskSchema = new mongoose.Schema({
     enum: ['low', 'normal', 'high', 'urgent'],
     default: 'normal'
   },
+  requiresApproval: {
+  type: Boolean,
+  default: false
+},
+
   weekOffDays: {
   type: [Number], // 0=Sunday, 1=Monday, ...
   default: []
 },
   status: {
     type: String,
-    enum: ['pending', 'in-progress', 'completed', 'overdue'],
+    enum: ['pending', 'in-progress', 'completed', 'overdue', 'rejected'],
     default: 'pending'
   },
   completedAt: Date,
@@ -101,10 +107,30 @@ const taskSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+
+  rejectionRemarks: {
+  type: String,
+  trim: true
+},
+rejectedAt: {
+  type: Date
+},
+rejectedBy: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'User'
+},
+
+approvedAt: Date,
+approvedBy: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'User'
+},
+
   isActive: {
     type: Boolean,
     default: true
   },
+  
   deletedAt: Date,
 autoDeleteAt: Date,
 
@@ -124,7 +150,7 @@ autoDeleteAt: Date,
   }
 }, {
   timestamps: true
-});
+},);
 
 // Create compound index for companyId and assignedTo
 taskSchema.index({ companyId: 1, assignedTo: 1 });

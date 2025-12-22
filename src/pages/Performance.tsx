@@ -203,7 +203,10 @@ const Performance: React.FC = () => {
           <div className="space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-[var(--color-text)]">Done</span>
-              <span className="text-sm font-bold" style={{ color: '#5b88dbff' }}>{completed}</span>
+              <span className="text-sm font-bold" style={{ color: '#5b88dbff' }}>
+                {completed}
+                {member.totalTasks ? ` / ${member.totalTasks}` : ''}
+              </span>
             </div>
             <div className="w-full h-2 bg-[var(--color-border)] rounded-full overflow-hidden">
               <div
@@ -239,7 +242,15 @@ const Performance: React.FC = () => {
           <div className="space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-[var(--color-text)]">On-Time</span>
-              <span className="text-sm font-bold" style={{ color: '#04b9ddff' }}>{member.onTimeCompletedTasks}</span>
+              {member.totalTasks > 0 && (
+                <span className="text-sm font-bold" style={{ color: '#04b9ddff' }}>
+                  {(member.onTimeCompletedTasks || 0) +
+                    (member.onTimeRecurringCompleted || 0)}
+                  {" / "}
+                  {member.totalTasks}
+                </span>
+              )}
+
             </div>
             <div className="w-full h-2 bg-[var(--color-border)] rounded-full overflow-hidden">
               <div

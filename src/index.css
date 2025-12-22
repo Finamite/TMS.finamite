@@ -60,3 +60,15 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 .animate-out-right { animation: slide-out-right 0.35s ease forwards; }
 .animate-in-left { animation: slide-in-left 0.35s ease forwards; }
+
+
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spinSlow 1.4s linear infinite;
+}
+
+

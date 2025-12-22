@@ -17,6 +17,8 @@ import Chat from './pages/Chat';
 import SettingsPage from './pages/SettingsPage';
 import RecycleBin from './pages/RecycleBin';
 import HelpSupport from './pages/HelpSupport';
+import TaskShift from './pages/TaskShift';
+import ForApproval from './pages/ForApproval';
 import { ToastContainer } from 'react-toastify';
 
 function App() {
@@ -125,6 +127,22 @@ function App() {
                   element={
                     <ProtectedRoute requirePermission="helpsupport">
                       <HelpSupport />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="task-shift"
+                  element={
+                    <ProtectedRoute requireAdmin requirePermission="taskshift">
+                      <TaskShift />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="for-approval"
+                  element={
+                    <ProtectedRoute requirePermission="forapproval">
+                      <ForApproval />
                     </ProtectedRoute>
                   }
                 />

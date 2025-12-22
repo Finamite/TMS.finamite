@@ -4,6 +4,7 @@ import User from '../models/User.js';
 import Settings from '../models/Settings.js';
 import { sendSystemEmail } from '../Utils/sendEmail.js';
 import MasterTask from "../models/MasterTask.js";
+import mongoose from "mongoose";
 
 const router = express.Router();
 
@@ -242,6 +243,8 @@ router.get('/', async (req, res) => {
     const tasks = await Task.find(query)
       .populate('assignedBy', 'username email companyId')
       .populate('assignedTo', 'username email companyId')
+      .populate('approvedBy', 'username email')
+      .populate('rejectedBy', 'username email')
       .sort({ dueDate: 1, createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit)
@@ -267,7 +270,7 @@ router.get('/pending', async (req, res) => {
     const { userId, taskType, companyId } = req.query;
     const query = {
       isActive: true,
-      status: { $in: ['pending', 'overdue'] } // Only show pending or overdue
+      status: { $in: ['pending', 'in-progress', 'overdue'] } // Only show pending or overdue
     };
 
     // Add company filter - CRITICAL for multi-tenant security
@@ -448,6 +451,8 @@ router.get("/master/:taskGroupId", async (req, res) => {
   }
 });
 
+
+
 // ✅ ULTRA-OPTIMIZED: Master recurring tasks endpoint with maximum performance
 router.get('/master-recurring', async (req, res) => {
   try {
@@ -465,7 +470,6 @@ router.get('/master-recurring', async (req, res) => {
       companyId
     } = req.query;
 
-    console.log('🚀 Fetching master recurring tasks - Ultra-optimized version');
 
     // ✅ Build super-optimized aggregation pipeline
     const pipeline = [];
@@ -624,7 +628,6 @@ router.get('/master-recurring', async (req, res) => {
     );
 
     // ✅ Execute ultra-fast aggregation
-    console.log('⚡ Executing ultra-fast aggregation pipeline...');
     const masterTasks = await Task.aggregate(pipeline).allowDiskUse(true);
 
     // ✅ Sort tasks within each group efficiently
@@ -632,7 +635,6 @@ router.get('/master-recurring', async (req, res) => {
       masterTask.tasks.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
     });
 
-    console.log(`✅ Ultra-fast fetch completed: ${masterTasks.length} master tasks`);
 
     res.json({
       masterTasks,
@@ -655,8 +657,6 @@ router.get("/master-recurring-light", async (req, res) => {
     if (!companyId) {
       return res.status(400).json({ message: "companyId is required" });
     }
-
-    console.log(`🔍 Searching for master tasks with companyId: ${companyId}`);
 
     // ---------------------------------------------------------
     // 1) LOAD BASE MASTER TASKS (super fast lean() read)
@@ -687,13 +687,11 @@ router.get("/master-recurring-light", async (req, res) => {
       }
     ).lean();
 
-    console.log(`📊 Found ${masters.length} master tasks in MasterTask collection`);
 
     // ---------------------------------------------------------
     // 2) FALLBACK: Generate from Task collection if no MasterTask exists
     // ---------------------------------------------------------
     if (!masters.length) {
-      console.log("🔄 No master tasks found, generating from Task collection...");
 
       const grouped = await Task.aggregate([
         {
@@ -858,7 +856,6 @@ router.get("/master-recurring-light", async (req, res) => {
     // ---------------------------------------------------------
     // 7) SEND FINAL OUTPUT
     // ---------------------------------------------------------
-    console.log(`✅ Returning ${finalOutput.length} master tasks`);
     return res.json(finalOutput);
 
   } catch (error) {
@@ -870,6 +867,27 @@ router.get("/master-recurring-light", async (req, res) => {
   }
 });
 
+router.get('/approval-count', async (req, res) => {
+  try {
+    const { companyId } = req.query;
+
+    if (!companyId) {
+      return res.json({ count: 0 });
+    }
+
+    const count = await Task.countDocuments({
+      companyId,
+      isActive: true,
+      status: 'in-progress',
+      requiresApproval: true
+    });
+
+    res.json({ count });
+  } catch (err) {
+    console.error('Approval count error:', err);
+    res.json({ count: 0 });
+  }
+});
 
 // ✅ ULTRA-OPTIMIZED: Individual recurring tasks endpoint
 router.get('/recurring-instances', async (req, res) => {
@@ -966,13 +984,14 @@ router.get('/recurring-instances', async (req, res) => {
 // ⚡ LIGHTNING-FAST BULK CREATE: Single API endpoint for all tasks
 router.post('/bulk-create', async (req, res) => {
   try {
-    const { tasks, totalUsers } = req.body;
+    const { tasks, totalUsers, isReassignMode, originalTaskId } = req.body;
 
     if (!tasks || !Array.isArray(tasks) || tasks.length === 0) {
       return res.status(400).json({ message: 'No tasks provided' });
     }
 
-    console.log(`🚀 LIGHTNING BULK CREATE: Processing ${tasks.length} task types for ${totalUsers} users`);
+    if (isReassignMode && originalTaskId) {
+    }
     const startTime = Date.now();
 
     let totalTasksCreated = 0;
@@ -1090,23 +1109,44 @@ router.post('/bulk-create', async (req, res) => {
 
     // ⚡ LIGHTNING STRIKE: Single ultra-fast bulk write operation
     if (allBulkOperations.length > 0) {
-      console.log(`⚡ LIGHTNING BULK INSERT: Writing ${allBulkOperations.length} tasks to database...`);
       await Task.bulkWrite(allBulkOperations, {
         ordered: false,
         bypassDocumentValidation: false // ✅ Keep validation for data integrity
       });
+
+      // ✅ UPDATE ORIGINAL TASK STATUS TO REJECTED (only after successful task creation)
+      if (isReassignMode && originalTaskId) {
+        try {
+          const updatedTask = await Task.findByIdAndUpdate(
+            originalTaskId,
+            {
+              status: 'rejected',
+              rejectedAt: new Date(),
+              reassignCompleted: true // Flag to indicate reassignment was completed
+            },
+            { new: true }
+          );
+
+          if (updatedTask) {
+          } else {
+          }
+        } catch (updateError) {
+          console.error(`❌ Error updating original task ${originalTaskId} status:`, updateError);
+          // Don't fail the entire operation if status update fails
+        }
+      }
     }
 
     const endTime = Date.now();
     const duration = ((endTime - startTime) / 1000).toFixed(1);
 
-    console.log(`⚡ LIGHTNING BULK CREATE COMPLETED: ${totalTasksCreated} tasks created in ${duration}s`);
 
     res.status(201).json({
       message: `⚡ Lightning fast! Successfully created ${totalTasksCreated} tasks in ${duration}s`,
       totalTasksCreated,
       totalUsers,
       duration,
+      originalTaskUpdated: isReassignMode && originalTaskId ? true : false,
       performance: {
         tasksPerSecond: Math.round(totalTasksCreated / (duration || 1)),
         averageTimePerTask: Math.round((endTime - startTime) / totalTasksCreated),
@@ -1342,12 +1382,15 @@ router.put('/:id', async (req, res) => {
 // ✅ FIXED: Complete task - with proper email notification
 router.post('/:id/complete', async (req, res) => {
   try {
-    const { completionRemarks, completionAttachments, companyId, userId } = req.body;
-    const findQuery = { _id: req.params.id };
+    const {
+      completionRemarks,
+      completionAttachments,
+      companyId,
+      userId
+    } = req.body;
 
-    if (companyId) {
-      findQuery.companyId = companyId;
-    }
+    const findQuery = { _id: req.params.id };
+    if (companyId) findQuery.companyId = companyId;
 
     const task = await Task.findOne(findQuery);
 
@@ -1355,83 +1398,127 @@ router.post('/:id/complete', async (req, res) => {
       return res.status(404).json({ message: 'Task not found' });
     }
 
-    // 1. Mark the current task instance as completed
-    task.status = 'completed';
-    task.completedAt = new Date();
-
+    // --------------------------------------------------
+    // SAVE COMPLETION DATA (COMMON FOR BOTH FLOWS)
+    // --------------------------------------------------
     if (completionRemarks && completionRemarks.trim()) {
       task.completionRemarks = completionRemarks.trim();
     }
 
-    if (completionAttachments && completionAttachments.length > 0) {
+    if (completionAttachments?.length > 0) {
       task.completionAttachments = completionAttachments;
     }
 
-    task.lastCompletedDate = new Date();
+    task.completedAt = new Date();
 
-    // SAVE TASK FIRST
-    await task.save();
+    // --------------------------------------------------
+    // 🔥 APPROVAL VS NORMAL COMPLETION LOGIC
+    // --------------------------------------------------
+    let emailSubject = '';
+    let emailText = '';
 
-    // ✅ EMAIL: SEND ON TASK COMPLETION
-    const emailSettings = await Settings.findOne({
-      type: "email",
-      companyId: task.companyId
-    });
+    if (task.requiresApproval === true) {
+      // ✅ SEND TO APPROVAL
+      task.status = 'in-progress';
 
-    if (emailSettings?.data?.enabled && emailSettings?.data?.sendOnTaskComplete) {
-      // Get all admins + managers of same company
-      const admins = await User.find({
-        companyId: task.companyId,
-        role: { $in: ["admin", "manager"] },
-        isActive: true
-      }).lean(); // ✅ Added lean()
+      emailSubject = `Task Submitted for Approval: ${task.title}`;
+      emailText = `
+A task has been completed and is awaiting approval:
 
-      // Get user who completed the task
-      const completingUser = userId ? await User.findById(userId).lean() : null;
-      const assignedToUser = await User.findById(task.assignedTo).lean();
+Title: ${task.title}
+Description: ${task.description}
 
-      const subject = `Task Completed: ${task.title}`;
-      const attachmentsText =
-        task.completionAttachments?.length > 0
-          ? `\nAttached Files:\n${task.completionAttachments
-            .map(a => "- " + (a.filename || a.originalName || a.name || "file"))
-            .join("\n")}\n`
-          : '';
-      const text = `
+Submitted by: ${task.assignedTo}
+Submitted at: ${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
+
+${completionRemarks ? `Remarks:\n${completionRemarks}\n` : ''}
+
+Please review this task in the "For Approval" section:
+https://tms.finamite.in
+`;
+
+    } else {
+      // ✅ NORMAL COMPLETION
+      task.status = 'completed';
+
+      emailSubject = `Task Completed: ${task.title}`;
+      emailText = `
 The following task has been completed:
 
 Title: ${task.title}
 Description: ${task.description}
 
-Completed by: ${assignedToUser?.username || 'Unknown User'}
 Completed at: ${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
 
-${completionRemarks ? `Completion Remarks: ${completionRemarks}` : ''}
+${completionRemarks ? `Remarks:\n${completionRemarks}\n` : ''}
 
-${attachmentsText}
-
-Please check the Task Dashboard for more details:
+Please check the Task Dashboard:
 https://tms.finamite.in
 `;
+    }
+
+    // --------------------------------------------------
+    // SAVE TASK
+    // --------------------------------------------------
+    await task.save();
+
+    // --------------------------------------------------
+    // 📩 EMAIL NOTIFICATION
+    // --------------------------------------------------
+    const emailSettings = await Settings.findOne({
+      type: "email",
+      companyId: task.companyId
+    });
+
+    if (
+      emailSettings?.data?.enabled &&
+      (
+        (task.requiresApproval && emailSettings.data.sendOnTaskApproval) ||
+        (!task.requiresApproval && emailSettings.data.sendOnTaskComplete)
+      )
+    ) {
+      const admins = await User.find({
+        companyId: task.companyId,
+        role: { $in: ["admin", "manager"] },
+        isActive: true
+      }).lean();
 
       for (const admin of admins) {
-        await sendSystemEmail(task.companyId, admin.email, subject, text, "", task.completionAttachments || []);
+        await sendSystemEmail(
+          task.companyId,
+          admin.email,
+          emailSubject,
+          emailText,
+          "",
+          task.completionAttachments || []
+        );
       }
     }
 
-    // Populate for frontend response
+    // --------------------------------------------------
+    // RESPONSE
+    // --------------------------------------------------
     const populatedTask = await Task.findById(task._id)
       .populate('assignedBy', 'username email companyId')
       .populate('assignedTo', 'username email companyId')
-      .lean(); // ✅ Added lean()
+      .lean();
 
-    res.json(populatedTask);
+    res.json({
+      success: true,
+      requiresApproval: task.requiresApproval,
+      status: task.status,
+      task: populatedTask
+    });
 
   } catch (error) {
     console.error('Error completing task:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({
+      message: 'Server error',
+      error: error.message
+    });
   }
 });
+
 
 // ✅ FIXED: Revise task - with proper email notification
 router.post('/:id/revise', async (req, res) => {
@@ -1585,7 +1672,6 @@ router.put('/reschedule/:taskGroupId', async (req, res) => {
     const { taskGroupId } = req.params;
     const updates = req.body;
 
-    console.log(`⚡ Ultra-fast rescheduling master task: ${taskGroupId}`);
 
     // 1. Find existing tasks for the group (lean and minimal fields)
     const existingTasks = await Task.find({ taskGroupId, isActive: true })
@@ -1682,7 +1768,6 @@ router.put('/reschedule/:taskGroupId', async (req, res) => {
       await Task.bulkWrite(bulkOps, { ordered: false });
     }
 
-    console.log(`⚡ Ultra-fast rescheduling completed: ${bulkOps.length} tasks`);
 
     res.json({
       message: "Master Task Rescheduled Successfully",
@@ -1694,6 +1779,48 @@ router.put('/reschedule/:taskGroupId', async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
+
+// ✅ DELETE one-time task (soft delete)
+router.delete('/onetime/:onetimeid', async (req, res) => {
+  try {
+    const { onetimeid } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(onetimeid)) {
+      return res.status(400).json({ message: 'Invalid task ID' });
+    }
+
+    const task = await Task.findOne({
+      _id: onetimeid,
+      taskType: 'one-time',
+      isActive: true
+    });
+
+    if (!task) {
+      return res.status(404).json({
+        message: 'One-time task not found or already deleted'
+      });
+    }
+
+    // ✅ Soft delete
+    task.isActive = false;
+    task.deletedAt = new Date();
+
+    await task.save();
+
+    return res.json({
+      message: 'One-time task deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ Error deleting one-time task:', error);
+    res.status(500).json({
+      message: 'Failed to delete task',
+      error: error.message
+    });
+  }
+});
+
+
 
 // ✅ OPTIMIZED: Delete task endpoint
 router.delete('/:id', async (req, res) => {
@@ -2177,6 +2304,39 @@ router.get('/bin/recurring-instances', async (req, res) => {
   }
 });
 
+router.get("/pending-approval-count", async (req, res) => {
+  try {
+    const { companyId, userId, role } = req.query;
+
+    if (!companyId) {
+      return res.status(400).json({ count: 0 });
+    }
+
+    const query = {
+      companyId,
+      isActive: true,
+      status: "in-progress",
+      requiresApproval: true
+    };
+
+    // 🔒 STRICT USER FILTER
+    if (role === "employee") {
+      if (!userId) {
+        return res.json({ count: 0 });
+      }
+      query.assignedTo = userId;
+    }
+
+    const count = await Task.countDocuments(query);
+    res.json({ count });
+
+  } catch (error) {
+    console.error("Pending approval count error:", error);
+    res.status(500).json({ count: 0 });
+  }
+});
+
+
 // Restore single task
 router.post('/bin/restore/:id', async (req, res) => {
   try {
@@ -2270,6 +2430,9 @@ router.post('/bin/restore-master/:taskGroupId', async (req, res) => {
   }
 });
 
+
+
+
 // Permanently delete single task
 router.delete('/bin/permanent/:id', async (req, res) => {
   try {
@@ -2291,27 +2454,19 @@ router.delete('/bin/permanent/:id', async (req, res) => {
 });
 
 router.post("/reassign/:taskGroupId", async (req, res) => {
-  console.log("⚡ REASSIGN API HIT");
-
   try {
     const { taskGroupId } = req.params;
     const { includeFiles, companyId } = req.body;
 
-    console.log("➡ taskGroupId:", taskGroupId);
-    console.log("➡ includeFiles:", includeFiles);
-    console.log("➡ companyId:", companyId);
 
     // 1️⃣ Load the original MasterTask
     const oldMaster = await MasterTask.findOne({ taskGroupId, companyId }).lean();
-    console.log("📌 Loaded Old Master:", oldMaster);
 
     if (!oldMaster) {
-      console.log("❌ Master task not found");
       return res.status(404).json({ message: "Master task not found" });
     }
 
     if (!oldMaster.isForever) {
-      console.log("❌ Reassign only allowed for forever tasks");
       return res.status(400).json({ message: "Reassign allowed only for forever tasks" });
     }
 
@@ -2403,7 +2558,6 @@ router.post("/reassign/:taskGroupId", async (req, res) => {
       newTasks.push(t);
     }
 
-    console.log("🆕 CREATED TASK INSTANCES:", newTasks.length);
 
     return res.json({
       message: "Reassigned successfully",
@@ -2416,6 +2570,198 @@ router.post("/reassign/:taskGroupId", async (req, res) => {
     return res.status(500).json({ message: "Server error", error: err.message });
   }
 });
+
+router.post('/:id/approve', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userid } = req.headers; // admin user id
+    const { remarks } = req.body;
+
+    const task = await Task.findById(id);
+    if (!task || task.status !== 'in-progress') {
+      return res.status(400).json({ message: 'Invalid task for approval' });
+    }
+
+    // ✅ FINALIZE TASK
+    task.status = 'completed';
+
+    task.approvedAt = new Date();
+
+    // ✅ WHO APPROVED (optional but recommended)
+    if (userid) {
+      task.approvedBy = userid;
+    }
+
+    // Optional admin remarks
+    if (remarks && remarks.trim()) {
+      task.completionRemarks = remarks.trim();
+    }
+
+    await task.save();
+
+    // 📩 Notify assignee
+    const assignedUser = await User.findById(task.assignedTo);
+    if (assignedUser) {
+      await sendSystemEmail(
+        task.companyId,
+        assignedUser.email,
+        'Task Approved',
+        `Your task "${task.title}" has been approved.`
+      );
+    }
+
+    res.json({
+      success: true,
+      message: 'Task approved successfully',
+      approvedAt: task.approvedAt
+    });
+
+  } catch (error) {
+    console.error('Approve task error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+router.post('/:id/reject', async (req, res) => {
+  try {
+    const { action, remarks } = req.body;
+    const taskId = req.params.id;
+    const { userid } = req.headers;
+
+    // ✅ Validate action
+    if (!['noAction', 'reassign', 'finalize-reassign'].includes(action)) {
+      return res.status(400).json({ message: 'Invalid reject action' });
+    }
+
+    // ✅ Remarks required
+    if (!remarks || !remarks.trim()) {
+      return res.status(400).json({ message: 'Remarks are required' });
+    }
+
+    // ✅ Fetch task ONCE
+    const task = await Task.findById(taskId);
+    if (!task) {
+      return res.status(404).json({ message: 'Task not found' });
+    }
+
+    // ✅ Common rejection fields
+    task.rejectionRemarks = remarks.trim();
+    task.rejectedAt = new Date();
+
+    // =====================================================
+    // 1️⃣ NO ACTION REQUIRED (final reject)
+    // =====================================================
+    if (action === 'noAction') {
+      task.status = 'rejected';
+      task.requiresApproval = false;
+      task.reassignRequested = false;
+      task.rejectedBy = userid;
+
+      await task.save();
+
+      return res.json({
+        success: true,
+        message: 'Task rejected (No action required)',
+        taskId: task._id
+      });
+    }
+
+    // =====================================================
+    // 2️⃣ FINALIZE REASSIGN (after new task created)
+    // =====================================================
+    if (action === 'finalize-reassign') {
+      task.status = 'rejected';
+      task.reassignRequested = false;
+
+      await task.save();
+
+      return res.json({
+        success: true,
+        message: 'Task rejected after reassignment'
+      });
+    }
+
+    // =====================================================
+    // 3️⃣ REASSIGN (intent only, redirect to Assign Task)
+    // =====================================================
+    task.reassignRequested = true;
+    await task.save();
+
+    // Ensure taskGroupId exists
+    if (!task.taskGroupId) {
+      task.taskGroupId = `${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 8)}-${task.assignedTo}`;
+      await task.save();
+    }
+
+    // Ensure MasterTask exists
+    let master = await MasterTask.findOne({ taskGroupId: task.taskGroupId });
+
+    if (!master) {
+      master = await MasterTask.create({
+        taskGroupId: task.taskGroupId,
+        title: task.title,
+        description: task.description,
+        taskType: task.taskType,
+        priority: task.priority,
+        assignedBy: task.assignedBy,
+        assignedTo: task.assignedTo,
+        companyId: task.companyId,
+
+        // Reference dates only
+        startDate: task.dueDate,
+        endDate: task.dueDate,
+
+        weeklyDays: task.weeklyDays || [],
+        weekOffDays: task.weekOffDays || [],
+        monthlyDay: task.monthlyDay || 1,
+        yearlyDuration: task.yearlyDuration || 1,
+
+        includeSunday: task.parentTaskInfo?.includeSunday ?? true,
+        isForever: task.parentTaskInfo?.isForever ?? false,
+
+        attachments: task.attachments || [],
+        parentTaskInfo: task.parentTaskInfo || {}
+      });
+    }
+
+    return res.json({
+      success: true,
+      action: 'reassign',
+      reassignPayload: {
+        taskGroupId: master.taskGroupId,
+        originalTaskId: task._id
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error rejecting task:', error);
+    res.status(500).json({
+      message: 'Failed to reject task',
+      error: error.message
+    });
+  }
+});
+
+
+
+router.post('/:id/archive', async (req, res) => {
+  try {
+    const task = await Task.findById(req.params.id);
+    if (!task) return res.status(404).json({ message: 'Task not found' });
+
+    task.isActive = false;
+    task.status = 'pending';
+    await task.save();
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to archive task' });
+  }
+});
+
 
 // Auto-cleanup expired tasks (cron job endpoint)
 router.post('/bin/cleanup', async (req, res) => {

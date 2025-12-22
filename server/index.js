@@ -20,6 +20,7 @@ import settingsRoutes from './routes/settings.js';
 import performanceRoutes from './routes/performance.js';
 import chat from './routes/chat.js';
 import reportMailRoutes from "./routes/reportmail.js";
+import taskshiftRoutes from "./routes/taskshift.js";
 import { startReportCron } from "./routes/reportmail.js";
 
 
@@ -96,6 +97,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/chat', chat);
 app.use('/api/reports', reportMailRoutes);
+app.use('/api/taskshift', taskshiftRoutes);
 
 // Serve frontend in production
 if (process.env.NODE_ENV === 'production') {
@@ -127,8 +129,6 @@ mongoose.connect(process.env.MONGO_URI)
       }
     });
 
-    console.log("⏰ Auto-Delete Cron Started");
-
     // Create default superadmin if not exists
     const User = mongoose.model('User');
     User.findOne({ email: 'superadmin@system.com' })
@@ -149,6 +149,7 @@ mongoose.connect(process.env.MONGO_URI)
               canEditRecurringTaskSchedules: true,
               canManageSettings: true,
               canManageRecycle: true,
+              canManageApproval:true,
               canManageCompanies: true,
             }
           });
@@ -163,11 +164,9 @@ mongoose.connect(process.env.MONGO_URI)
       
 
       app.listen(PORT, '0.0.0.0', () => {
-      console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
 
       // START CRON AFTER SERVER START
       startReportCron();
-      console.log("⏰ Report Cron Started Successfully");
     });
 
   })

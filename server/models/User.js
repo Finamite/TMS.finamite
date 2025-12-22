@@ -48,7 +48,8 @@ const userSchema = new mongoose.Schema({
     canEditRecurringTaskSchedules: { type: Boolean, default: false },
     canManageCompanies: { type: Boolean, default: false },
     canManageSettings: { type: Boolean, default: false },
-    canManageRecycle: { type: Boolean, default: false }
+    canManageRecycle: { type: Boolean, default: false },
+    canManageApproval: { type:Boolean, default: false}
   },
   isActive: {
     type: Boolean,

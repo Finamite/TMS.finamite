@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Archive, History, Filter, Search, Trash2, Users, Calendar, ChevronDown, ChevronUp, ArrowUpDown, Eye, Paperclip, FileText, Edit3, RotateCcw, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Info, Download, ExternalLink } from 'lucide-react';
+import { Archive, History, Filter, Search, Trash2, Users, Calendar, ChevronDown, ChevronUp, ArrowUpDown, Eye, Paperclip, FileText, Edit3, RotateCcw, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Info, Download, ExternalLink, Check } from 'lucide-react';
 import axios from 'axios';
 import ViewToggle from '../components/ViewToggle';
 import StatusBadge from '../components/StatusBadge';
@@ -25,6 +25,25 @@ interface User {
   email: string;
 }
 
+const timeAgo = (date?: string) => {
+  if (!date) return '—';
+  const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+  const intervals: [number, string][] = [
+    [31536000, 'year'],
+    [2592000, 'month'],
+    [86400, 'day'],
+    [3600, 'hour'],
+    [60, 'minute'],
+  ];
+
+  for (const [secs, label] of intervals) {
+    const value = Math.floor(seconds / secs);
+    if (value >= 1) return `${value} ${label}${value > 1 ? 's' : ''} ago`;
+  }
+  return 'Just now';
+};
+
+
 // Replace the filterTasks helper function with this updated version:
 const filterTasks = (tasks: Task[], filter: any) => {
   return tasks.filter((task: Task) => {
@@ -43,12 +62,14 @@ const filterTasks = (tasks: Task[], filter: any) => {
     // Status filter (handle 'overdue' as computed status)
     if (filter.status) {
       if (filter.status === 'overdue') {
-        // Inline overdue logic
-        if (task.status === 'completed' || !task.dueDate) return false;
+        if (task.status !== 'pending' || !task.dueDate) return false;
+
         const dueDateTime = new Date(task.dueDate);
         dueDateTime.setHours(0, 0, 0, 0);
+
         const today = new Date();
         today.setHours(0, 0, 0, 0);
+
         if (dueDateTime >= today) return false;
       } else if (task.status !== filter.status) {
         return false;
@@ -120,6 +141,8 @@ const MasterTasks: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [taskIdToDelete, setTaskIdToDelete] = useState<string | null>(null);
   const [expandedTitles, setExpandedTitles] = useState<Set<string>>(new Set());
+  const [showRejectInfoModal, setShowRejectInfoModal] = useState<Task | null>(null);
+  const [showApproveInfoModal, setShowApproveInfoModal] = useState<Task | null>(null);
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredTasks.length / itemsPerPage);
@@ -251,7 +274,7 @@ const MasterTasks: React.FC = () => {
     if (!taskIdToDelete) return;
 
     try {
-      await axios.delete(`${address}/api/tasks/${taskIdToDelete}`);
+      await axios.delete(`${address}/api/tasks/onetime/${taskIdToDelete}`);
       fetchTasks();
     } catch (error) {
       console.error("Error deleting task:", error);
@@ -330,7 +353,7 @@ const MasterTasks: React.FC = () => {
   };
 
   const isTaskOverdue = (dueDate?: string, status?: string) => {
-    if (status === 'completed' || !dueDate) return false;
+    if (status !== 'pending' || !dueDate) return false;
 
     const dueDateTime = new Date(dueDate);
     dueDateTime.setHours(0, 0, 0, 0);
@@ -433,6 +456,24 @@ const MasterTasks: React.FC = () => {
 
               <div className="flex flex-wrap gap-2 mb-4">
                 <StatusBadge status={task.status} />
+                {task.status === 'rejected' && (
+                  <button
+                    onClick={() => setShowRejectInfoModal(task)}
+                    className="ml-1 p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900"
+                    title="View rejection details"
+                  >
+                    <Info size={14} className="text-red-600 dark:text-red-400" />
+                  </button>
+                )}
+                {task.status === 'completed' && task.approvedAt && task.approvedBy && (
+                  <button
+                    onClick={() => setShowApproveInfoModal(task)}
+                    className="ml-1 p-1 rounded-full hover:bg-green-100 dark:hover:bg-green-900"
+                    title="View approval details"
+                  >
+                    <Info size={14} className="text-green-600 dark:text-green-400" />
+                  </button>
+                )}
                 <PriorityBadge priority={task.priority} />
                 {task.revisionCount > 0 && (
                   <span className={`px-2 py-1 text-xs font-medium rounded-full ${isDark ? 'bg-orange-700 text-orange-200 border-orange-600' : 'bg-orange-100 text-orange-800 border border-orange-200'}`}>
@@ -676,7 +717,28 @@ const MasterTasks: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <StatusBadge status={task.status} />
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={task.status} />
+
+                      {task.status === 'rejected' && (
+                        <button
+                          onClick={() => setShowRejectInfoModal(task)}
+                          className="p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900 transition"
+                          title="View rejection details"
+                        >
+                          <Info size={14} className="text-red-600 dark:text-red-400" />
+                        </button>
+                      )}
+                      {task.status === 'completed' && task.approvedAt && task.approvedBy && (
+                        <button
+                          onClick={() => setShowApproveInfoModal(task)}
+                          className="p-1 rounded-full hover:bg-green-100 dark:hover:bg-green-900"
+                          title="View approval details"
+                        >
+                          <Info size={14} className="text-green-600 dark:text-green-400" />
+                        </button>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <PriorityBadge priority={task.priority} />
@@ -909,6 +971,7 @@ const MasterTasks: React.FC = () => {
                 <option value="in-progress">In Progress</option>
                 <option value="completed">Completed</option>
                 <option value="overdue">Overdue</option>
+                <option value="rejected">Rejected</option>
               </select>
             </div>
 
@@ -1432,6 +1495,257 @@ const MasterTasks: React.FC = () => {
         onCancel={() => setShowDeleteModal(false)}
         onConfirm={confirmDelete}
       />
+
+      {showRejectInfoModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-lg px-4">
+
+          {/* Animated container */}
+          <div
+            className={`w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-[0_25px_80px_rgba(0,0,0,0.4)]
+      border 
+      ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}
+    `}
+          >
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b
+        ${isDark ? 'border-gray-700' : 'border-gray-200'}
+      ">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/40 
+            flex items-center justify-center">
+                  <Info size={22} className="text-red-600 dark:text-red-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-[var(--color-text)]">
+                    Task Rejected
+                  </h3>
+                  <p className="text-xs text-[var(--color-textSecondary)]">
+                    Action required / review details
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowRejectInfoModal(null)}
+                className="h-9 w-9 rounded-full flex items-center justify-center
+          text-gray-400 hover:text-gray-600 dark:hover:text-gray-300
+          hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-6">
+
+              {/* Timeline */}
+              <div className="relative pl-6">
+                <div className="absolute left-2 top-1 bottom-1 w-px bg-red-300 dark:bg-red-700" />
+
+                <div className="flex-1 space-y-3">
+
+                  {/* Meta cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                    {/* Date */}
+                    <div className={`rounded-xl p-4 border
+                  ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}
+                `}>
+                      <p className="text-xs text-[var(--color-textSecondary)] mb-1">Rejected On</p>
+                      <p className="text-sm font-medium text-[var(--color-text)]">
+                        {showRejectInfoModal.rejectedAt
+                          ? new Date(showRejectInfoModal.rejectedAt).toLocaleString('en-GB')
+                          : '—'}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {timeAgo(showRejectInfoModal.rejectedAt)}
+                      </p>
+                    </div>
+
+                    {/* Rejected By */}
+                    <div className={`rounded-xl p-4 border flex items-center gap-3
+                  ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}
+                `}>
+                      {/* Avatar */}
+                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-red-500 to-red-700
+                    flex items-center justify-center text-white font-semibold">
+                        {showRejectInfoModal.rejectedBy?.username?.charAt(0).toUpperCase() || 'A'}
+                      </div>
+
+                      <div>
+                        <p className="text-xs text-[var(--color-textSecondary)]">Rejected By</p>
+                        <p className="text-sm font-medium text-[var(--color-text)]">
+                          {showRejectInfoModal.rejectedBy?.username || 'Admin'}
+                        </p>
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* Remark */}
+                  <div>
+                    <p className="text-xs text-[var(--color-textSecondary)] mb-2">Rejection Remark</p>
+                    <div className={`rounded-xl p-4 border text-sm leading-relaxed
+                  ${isDark
+                        ? 'bg-gray-800 border-gray-700 text-gray-200'
+                        : 'bg-gray-50 border-gray-200 text-gray-800'}
+                `}>
+                      {showRejectInfoModal.rejectionRemarks || 'No remarks provided'}
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className={`px-6 py-4 border-t flex justify-end
+        ${isDark ? 'border-gray-700' : 'border-gray-200'}
+      `}>
+              <button
+                onClick={() => setShowRejectInfoModal(null)}
+                className="px-6 py-2 rounded-xl bg-red-600 text-white
+          hover:bg-red-700 active:scale-95 transition-all"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+
+          {/* Animations */}
+          <style>
+            {`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: scale(0.96); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes shake {
+          0% { transform: translateX(0); }
+          25% { transform: translateX(-2px); }
+          50% { transform: translateX(2px); }
+          75% { transform: translateX(-1px); }
+          100% { transform: translateX(0); }
+        }
+      `}
+          </style>
+
+        </div>
+      )}
+
+      {showApproveInfoModal && (
+  <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center
+    bg-black/70 backdrop-blur-lg px-4">
+
+    <div className={`w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl border
+      ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}
+    `}>
+
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-5 border-b
+        ${isDark ? 'border-gray-700' : 'border-gray-200'}
+      ">
+        <div className="flex items-center gap-4">
+          <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/40
+            flex items-center justify-center">
+            <Check size={22} className="text-green-600 dark:text-green-400" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold">Task Approved</h3>
+            <p className="text-xs text-gray-500">Approval details</p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => setShowApproveInfoModal(null)}
+          className="h-9 w-9 rounded-full text- [var(--color-text)] hover:bg-[var(--color-chat)] "
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Body */}
+      <div className="p-6 space-y-5">
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+          {/* Approved Date */}
+          <div className={`rounded-xl p-4 border
+            ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}
+          `}>
+            <p className="text-xs text-gray-500">Approved On</p>
+            <p className="text-sm font-medium">
+              {new Date(showApproveInfoModal.approvedAt!).toLocaleString('en-GB')}
+            </p>
+            <p className="text-xs text-gray-400">
+              {timeAgo(showApproveInfoModal.approvedAt)}
+            </p>
+          </div>
+
+          {/* Approved By */}
+          <div className={`rounded-xl p-4 border flex items-center gap-3
+            ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}
+          `}>
+            <div className="h-10 w-10 rounded-full bg-gradient-to-br
+              from-green-500 to-green-700 text-white flex items-center justify-center font-semibold">
+              {showApproveInfoModal.approvedBy?.username?.[0]?.toUpperCase()}
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Approved By</p>
+              <p className="text-sm font-medium">
+                {showApproveInfoModal.approvedBy?.username}
+              </p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="px-6 py-4 border-t flex justify-end">
+        <button
+  onClick={() => setShowApproveInfoModal(null)}
+  className="
+    relative flex items-center gap-2
+    px-6 py-2.5 rounded-xl
+    bg-green-600 text-white
+    border border-green-700
+    overflow-hidden
+    transition-colors duration-300
+    hover:bg-green-700
+    group
+  "
+>
+  {/* Sliding fill bar */}
+  <span
+    className="
+      absolute left-0 top-0 h-full w-full
+      bg-green-800
+      -translate-x-full
+      group-hover:translate-x-0
+      transition-transform duration-500 ease-in-out
+    "
+  />
+
+  {/* Icon */}
+  <Check
+    size={16}
+    className="relative z-10 opacity-90"
+  />
+
+  {/* Label */}
+  <span className="relative z-10 font-medium tracking-wide">
+    Close
+  </span>
+</button>
+
+
+      </div>
+    </div>
+  </div>
+)}
+
+
     </div>
   );
 };

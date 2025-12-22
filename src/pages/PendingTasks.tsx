@@ -35,6 +35,7 @@ interface Task {
   createdAt: string;
   attachments: Attachment[];
   lastPlannedDate?: string;
+  requiresApproval?: boolean;
 }
 
 interface User {
@@ -229,6 +230,8 @@ const PendingTasks: React.FC = () => {
       setLoading(false);
     }
   };
+
+
 
   const parseDate = (dateStr: string): Date | null => {
     if (!dateStr) return null;
@@ -593,6 +596,7 @@ const PendingTasks: React.FC = () => {
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
         {currentTasks.map((task) => {
+          const isInProgress = task.status === 'in-progress';
           const disableForHighPriority =
             revisionSettings?.enableRevisions === true &&   // 🔥 Only restrict when revisions ON
             revisionSettings?.restrictHighPriorityRevision === true &&
@@ -625,7 +629,7 @@ const PendingTasks: React.FC = () => {
                   <div className="flex space-x-1 ml-2 group-hover:opacity-100 transition-opacity">
                     <button
                       disabled={
-                        disableForHighPriority ||
+                        isInProgress || disableForHighPriority ||
                         (
                           revisionSettings?.enableRevisions &&
                           revisionSettings?.enableMaxRevision &&
@@ -653,7 +657,7 @@ const PendingTasks: React.FC = () => {
 
                         setShowReviseModal(task._id);
                       }}
-                      className={`transition-all transform hover:scale-110 ${disableForHighPriority ||
+                      className={`transition-all transform hover:scale-110 ${isInProgress || disableForHighPriority ||
                         (
                           revisionSettings?.enableRevisions &&
                           revisionSettings?.enableMaxRevision &&
@@ -662,15 +666,20 @@ const PendingTasks: React.FC = () => {
                         ? "opacity-50 cursor-not-allowed text-gray-400"
                         : "text-[--color-warning]"
                         }`}
+                        title={isInProgress ? "Task is under approval" : "Revise task"}
                     >
                       <RefreshCcw size={16} />
                     </button>
 
                     <button
                       onClick={() => setShowCompleteModal(task._id)}
-                      disabled={!canManageTask(task) || task.status !== 'pending'}
-                      className={`... ${!canManageTask(task) ? 'opacity-50 cursor-not-allowed' : 'transition-all transform hover:scale-110 text-[--color-success]'}`}
-                      title="Complete task"
+                      disabled={isInProgress || !canManageTask(task) || task.status !== 'pending'}
+                      className={`... ${isInProgress || !canManageTask(task) ? 'opacity-50 cursor-not-allowed' : 'transition-all transform hover:scale-110 text-[--color-success]'}`}
+                      title={
+                        isInProgress
+                          ? "Task is under approval"
+                          : "Complete task"
+                      }
                     >
                       <CheckSquare size={16} />
                     </button>
@@ -678,18 +687,24 @@ const PendingTasks: React.FC = () => {
                 </div>
 
                 <div className="flex flex-wrap gap-2 mb-4">
+                  {task.status === 'in-progress' && (
+                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-500 text-white">
+                      ⏳ IN PROGRESS
+                    </span>
+                  )}
                   <PriorityBadge priority={task.priority} />
                   {task.revisionCount > 0 && (
                     <span className="px-2 py-1 text-xs font-medium rounded-full bg-[--color-warning] text-[--color-background]">
                       Revised {task.revisionCount}x
                     </span>
                   )}
-                  {task.dueDate && isOverdue(task.dueDate) && (
+                  {task.status !== 'in-progress' && task.dueDate && isOverdue(task.dueDate) && (
                     <span className="px-2 py-1 text-xs font-medium rounded-full shadow-sm animate-pulse bg-[--color-error] text-[--color-background]">
                       🚨 OVERDUE
                     </span>
                   )}
-                  {task.dueDate && isDueToday(task.dueDate) && (
+
+                  {task.status !== 'in-progress' && task.dueDate && isDueToday(task.dueDate) && (
                     <span className="px-2 py-1 text-xs font-medium rounded-full shadow-sm animate-pulse bg-[--color-accent] text-[--color-background]">
                       🗓️ DUE TODAY
                     </span>
@@ -814,7 +829,7 @@ const PendingTasks: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-[--color-border]">
               {currentTasks.map((task, index) => {
-
+                const isInProgress = task.status === 'in-progress';
                 const disableForHighPriority =
                   revisionSettings?.enableRevisions === true &&   // 🔥 Only restrict when revisions ON
                   revisionSettings?.restrictHighPriorityRevision === true &&
@@ -854,17 +869,22 @@ const PendingTasks: React.FC = () => {
                           )}
                         </div>
                         <div className="flex items-center mt-2 space-x-2">
+                          {task.status === 'in-progress' && (
+                            <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-500 text-white">
+                              ⏳ IN PROGRESS
+                            </span>
+                          )}
                           {task.revisionCount > 0 && (
                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[--color-warning] text-[--color-background]">
                               Revised {task.revisionCount}x
                             </span>
                           )}
-                          {task.dueDate && isOverdue(task.dueDate) && (
+                          {task.status !== 'in-progress' && task.dueDate && isOverdue(task.dueDate) && (
                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium shadow-sm animate-pulse bg-[--color-error] text-[--color-background]">
                               🚨 OVERDUE
                             </span>
                           )}
-                          {task.dueDate && isDueToday(task.dueDate) && (
+                          {task.status !== 'in-progress' && task.dueDate && isDueToday(task.dueDate) && (
                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium shadow-sm animate-pulse bg-[--color-accent] text-[--color-background]">
                               🗓️ DUE TODAY
                             </span>
@@ -922,7 +942,7 @@ const PendingTasks: React.FC = () => {
                       <div className="flex space-x-2">
                         <button
                           disabled={
-                            disableForHighPriority ||
+                            isInProgress || disableForHighPriority ||
                             (
                               revisionSettings?.enableRevisions &&
                               revisionSettings?.enableMaxRevision &&
@@ -950,7 +970,7 @@ const PendingTasks: React.FC = () => {
 
                             setShowReviseModal(task._id);
                           }}
-                          className={`transition-all transform hover:scale-110 ${disableForHighPriority ||
+                          className={`transition-all transform hover:scale-110 ${isInProgress || disableForHighPriority ||
                             (
                               revisionSettings?.enableRevisions &&
                               revisionSettings?.enableMaxRevision &&
@@ -959,15 +979,20 @@ const PendingTasks: React.FC = () => {
                             ? "opacity-50 cursor-not-allowed text-gray-400"
                             : "text-[--color-warning]"
                             }`}
+                            title={isInProgress ? "Task is under approval" : "Revise task"}
                         >
                           <RefreshCcw size={16} />
                         </button>
 
                         <button
                           onClick={() => setShowCompleteModal(task._id)}
-                          disabled={!canManageTask(task) || task.status !== 'pending'}
-                          className={`... ${!canManageTask(task) ? 'opacity-50 cursor-not-allowed' : 'transition-all transform hover:scale-110 text-[--color-success]'}`}
-                          title="Complete task"
+                          disabled={isInProgress || !canManageTask(task) || task.status !== 'pending'}
+                          className={`... ${isInProgress || !canManageTask(task) ? 'opacity-50 cursor-not-allowed' : 'transition-all transform hover:scale-110 text-[--color-success]'}`}
+                          title={
+                            isInProgress
+                              ? "Task is under approval"
+                              : "Complete task"
+                          }
                         >
                           <CheckSquare size={16} />
                         </button>
