@@ -318,7 +318,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           className="flex items-center justify-between px-4"
           style={{
             borderBottom: "1px solid var(--color-border)",
-            minHeight: "64px",
+            minHeight: "55px",
           }}
         >
           {/* Logo */}

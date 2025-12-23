@@ -41,53 +41,103 @@ const buildUserPerformanceData = async (userId, companyId, dateQuery = {}) => {
   oneTimeTasks,
   oneTimePending,
   oneTimeCompleted,
+
   dailyTasks,
   dailyPending,
   dailyCompleted,
+
   weeklyTasks,
   weeklyPending,
   weeklyCompleted,
+
   monthlyTasks,
   monthlyPending,
   monthlyCompleted,
+
   quarterlyTasks,
   quarterlyPending,
   quarterlyCompleted,
+
   yearlyTasks,
   yearlyPending,
   yearlyCompleted,
-  revisedOneTimeTasks,
+
+  revisedOneTimeTasks,          // ✅ revisions FIRST
+  rejectedOneTimeTasks,         // ✅ rejected one-time NEXT
+
   onTimeCompletedTasksCount,
-  onTimeCompletedRecurringTasks
+  onTimeCompletedRecurringTasks,
+
+  rejectedTasks,
+  onTimeRejectedOneTime,
+  onTimeRejectedRecurring
+
 ] = await Promise.all([
   Task.countDocuments(userBaseQuery),
-  Task.countDocuments({ ...userBaseQuery, status: 'completed', completedAt: { $ne: null } }),
+
+  Task.countDocuments({
+    ...userBaseQuery,
+    status: { $in: ['completed', 'rejected'] },
+    $or: [{ completedAt: { $ne: null } }, { rejectedAt: { $ne: null } }]
+  }),
+
   Task.countDocuments({ ...userBaseQuery, status: 'pending' }),
+
   Task.countDocuments({ ...userBaseQuery, taskType: 'one-time' }),
   Task.countDocuments({ ...userBaseQuery, taskType: 'one-time', status: 'pending' }),
-  Task.countDocuments({ ...userBaseQuery, taskType: 'one-time', status: 'completed' }),
+  Task.countDocuments({
+    ...userBaseQuery,
+    taskType: 'one-time',
+    status: { $in: ['completed', 'rejected'] },
+    $or: [{ completedAt: { $ne: null } }, { rejectedAt: { $ne: null } }]
+  }),
 
   Task.countDocuments({ ...userBaseQuery, taskType: 'daily' }),
   Task.countDocuments({ ...userBaseQuery, taskType: 'daily', status: 'pending' }),
-  Task.countDocuments({ ...userBaseQuery, taskType: 'daily', status: 'completed' }),
+  Task.countDocuments({
+    ...userBaseQuery,
+    taskType: 'daily',
+    status: { $in: ['completed', 'rejected'] },
+    $or: [{ completedAt: { $ne: null } }, { rejectedAt: { $ne: null } }]
+  }),
 
   Task.countDocuments({ ...userBaseQuery, taskType: 'weekly' }),
   Task.countDocuments({ ...userBaseQuery, taskType: 'weekly', status: 'pending' }),
-  Task.countDocuments({ ...userBaseQuery, taskType: 'weekly', status: 'completed' }),
+  Task.countDocuments({
+    ...userBaseQuery,
+    taskType: 'weekly',
+    status: { $in: ['completed', 'rejected'] },
+    $or: [{ completedAt: { $ne: null } }, { rejectedAt: { $ne: null } }]
+  }),
 
   Task.countDocuments({ ...userBaseQuery, taskType: 'monthly' }),
   Task.countDocuments({ ...userBaseQuery, taskType: 'monthly', status: 'pending' }),
-  Task.countDocuments({ ...userBaseQuery, taskType: 'monthly', status: 'completed' }),
+  Task.countDocuments({
+    ...userBaseQuery,
+    taskType: 'monthly',
+    status: { $in: ['completed', 'rejected'] },
+    $or: [{ completedAt: { $ne: null } }, { rejectedAt: { $ne: null } }]
+  }),
 
   Task.countDocuments({ ...userBaseQuery, taskType: 'quarterly' }),
   Task.countDocuments({ ...userBaseQuery, taskType: 'quarterly', status: 'pending' }),
-  Task.countDocuments({ ...userBaseQuery, taskType: 'quarterly', status: 'completed' }),
+  Task.countDocuments({
+    ...userBaseQuery,
+    taskType: 'quarterly',
+    status: { $in: ['completed', 'rejected'] },
+    $or: [{ completedAt: { $ne: null } }, { rejectedAt: { $ne: null } }]
+  }),
 
   Task.countDocuments({ ...userBaseQuery, taskType: 'yearly' }),
   Task.countDocuments({ ...userBaseQuery, taskType: 'yearly', status: 'pending' }),
-  Task.countDocuments({ ...userBaseQuery, taskType: 'yearly', status: 'completed' }),
+  Task.countDocuments({
+    ...userBaseQuery,
+    taskType: 'yearly',
+    status: { $in: ['completed', 'rejected'] },
+    $or: [{ completedAt: { $ne: null } }, { rejectedAt: { $ne: null } }]
+  }),
 
-  // FIX: correct revised query HERE
+  // 🔁 revisions
   Task.countDocuments({
     ...userBaseQuery,
     taskType: 'one-time',
@@ -95,14 +145,19 @@ const buildUserPerformanceData = async (userId, companyId, dateQuery = {}) => {
     completedAt: { $ne: null }
   }),
 
-  // legacy on time
+  // ❌ rejected one-time (THIS WAS MISPLACED BEFORE)
+  Task.countDocuments({
+    ...userBaseQuery,
+    taskType: 'one-time',
+    status: 'rejected',
+    rejectedAt: { $ne: null }
+  }),
+
   Task.countDocuments({
     ...userBaseQuery,
     status: 'completed',
     completedAt: { $ne: null },
-    $expr: {
-      $lte: ['$completedAt', { $add: ['$dueDate', 24 * 60 * 60 * 1000] }]
-    },
+    $expr: { $lte: ['$completedAt', { $add: ['$dueDate', 86400000] }] },
     taskType: 'one-time'
   }),
 
@@ -110,9 +165,27 @@ const buildUserPerformanceData = async (userId, companyId, dateQuery = {}) => {
     ...userBaseQuery,
     status: 'completed',
     completedAt: { $ne: null },
-    $expr: {
-      $lte: ['$completedAt', { $ifNull: ['$nextDueDate', { $add: ['$dueDate', 24 * 60 * 60 * 1000] }] }]
-    },
+    $expr: { $lte: ['$completedAt', { $ifNull: ['$nextDueDate', { $add: ['$dueDate', 86400000] }] }] },
+    taskType: { $in: ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'] }
+  }),
+
+  Task.countDocuments({
+    ...userBaseQuery,
+    status: 'rejected',
+    rejectedAt: { $ne: null }
+  }),
+
+  Task.countDocuments({
+    ...userBaseQuery,
+    status: 'rejected',
+    rejectedAt: { $ne: null },
+    taskType: 'one-time'
+  }),
+
+  Task.countDocuments({
+    ...userBaseQuery,
+    status: 'rejected',
+    rejectedAt: { $ne: null },
     taskType: { $in: ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'] }
   })
 ]);
@@ -120,8 +193,10 @@ const buildUserPerformanceData = async (userId, companyId, dateQuery = {}) => {
 
   const recurringTasks = dailyTasks + weeklyTasks + monthlyTasks + quarterlyTasks + yearlyTasks;
   const recurringPending = dailyPending + weeklyPending + monthlyPending + quarterlyPending + yearlyPending;
+  // UPDATED: Include rejected in recurringCompleted
   const recurringCompleted = dailyCompleted + weeklyCompleted + monthlyCompleted + quarterlyCompleted + yearlyCompleted;
-
+  const onTimeRejectedTotal = onTimeRejectedOneTime + onTimeRejectedRecurring;
+  const effectiveCompleted = completedTasks - (rejectedTasks * 0.5);  // Partial for rates only
   // --- NEW: compute on-time scoring using revision scoringRules if enabled ---
   // Load revision settings for the company and pick the first enabled scoring mapping
   const revisionSettings = await Settings.findOne({ type: 'revision', companyId });
@@ -131,115 +206,163 @@ const buildUserPerformanceData = async (userId, companyId, dateQuery = {}) => {
   const defaultMapping = { 0: 100, 1: 70, 2: 40, 3: 0 };
   let mapping = defaultMapping;
 
-// check if ANY scoring rule is enabled
-const rules = revisionSettings?.data?.scoringRules || [];
-const enabledRule = rules.find(r => r.enabled === true);
+  // check if ANY scoring rule is enabled
+  const rules = revisionSettings?.data?.scoringRules || [];
+  const enabledRule = rules.find(r => r.enabled === true);
 
-if (enabledRule && enabledRule.mapping) {
-  // use enabled rule
-  mapping = enabledRule.mapping;
-} else {
-  // No scoring rule enabled → disable revision scoring completely
-  enableRevisions = false;
-}
+  if (enabledRule && enabledRule.mapping) {
+    // use enabled rule
+    mapping = enabledRule.mapping;
+  } else {
+    // No scoring rule enabled → disable revision scoring completely
+    enableRevisions = false;
+  }
 
   // If revisions are enabled, compute total applied score for completed tasks
   // We'll sum per-task: (isOnTime ? mapping[revisionCount] : 0). We'll compute via aggregation for accuracy
   let onTimeScoreSum = 0;
-  try {
-    // Build $switch branches dynamically from mapping
-    const switchBranches = Object.keys(mapping).map(key => {
-      const revNum = parseInt(key, 10);
-      const mappedValue = mapping[key];
-      return {
-        case: { $eq: ['$revisionCount', revNum] },
-        then: mappedValue
-      };
-    });
+  if (enableRevisions) {
+    try {
+      // Build $switch branches dynamically from mapping
+      const switchBranches = Object.keys(mapping).map(key => ({
+        case: { $eq: ['$revisionCount', parseInt(key, 10)] },
+        then: mapping[key]
+      }));
 
-    const scorePipeline = [
-      { $match: { ...userBaseQuery, status: 'completed', completedAt: { $ne: null } } },
-      // compute effectiveDue (prefer nextDueDate if set)
-      {
-        $addFields: {
-          effectiveDue: { $ifNull: ['$nextDueDate', '$dueDate'] }
-        }
-      },
-      // determine isOnTime boolean (completedAt <= effectiveDue + 24h)
-      {
-        $addFields: {
-          isOnTime: { $lte: ['$completedAt', { $add: ['$effectiveDue', 24 * 60 * 60 * 1000] }] }
-        }
-      },
-      // map revisionCount -> mapping value
-      {
-        $addFields: {
-          mappedScore: {
-            $switch: {
-              branches: switchBranches,
-              default: 0
+      const scorePipeline = [
+        {
+          $match: {
+            ...userBaseQuery,
+            status: { $in: ['completed', 'rejected'] },
+            $or: [
+              { status: 'completed', completedAt: { $ne: null } },
+              { status: 'rejected', rejectedAt: { $ne: null } }
+            ]
+          }
+        },
+        // compute effectiveDue (prefer nextDueDate if set)
+        {
+          $addFields: {
+            effectiveDue: { $ifNull: ['$nextDueDate', '$dueDate'] }
+          }
+        },
+        // Handle completion date and rejected flag
+        {
+          $addFields: {
+            isRejected: { $eq: ['$status', 'rejected'] },
+            completionDate: {
+              $cond: {
+                if: { $eq: ['$status', 'rejected'] },
+                then: '$rejectedAt',
+                else: '$completedAt'
+              }
             }
           }
+        },
+        // determine isOnTime boolean (use completionDate <= effectiveDue + 24h)
+        {
+          $addFields: {
+            isOnTime: { $lte: ['$completionDate', { $add: ['$effectiveDue', 24 * 60 * 60 * 1000] }] }
+          }
+        },
+        // map revisionCount -> mapping value (for completed) OR fixed 50 for rejected
+        {
+          $addFields: {
+            baseScore: {
+              $cond: {
+                if: '$isRejected',
+                then: {
+                  $multiply: [
+                    {
+                      $switch: {
+                        branches: switchBranches,
+                        default: 0  // Default 0 if unknown rev for rejected
+                      }
+                    },
+                    0.5  // 50% partial credit for rejected
+                  ]
+                },
+                else: {
+                  $switch: {
+                    branches: switchBranches,
+                    default: 0
+                  }
+                }
+              }
+            }
+          }
+        },
+        // apply score only if on time
+        {
+          $project: {
+            scoreApplied: { $cond: ['$isOnTime', '$baseScore', 0] }
+          }
+        },
+        // sum
+        {
+          $group: {
+            _id: null,
+            totalScore: { $sum: '$scoreApplied' }
+          }
         }
-      },
-      // apply score only if on time
-      { $project: { scoreApplied: { $cond: ['$isOnTime', '$mappedScore', 0] } } },
-      // sum
-      { $group: { _id: null, totalScore: { $sum: '$scoreApplied' }, onTimeCount: { $sum: { $cond: ['$isOnTime', 1, 0] } } } }
-    ];
+      ];
 
-    const scoreRes = await Task.aggregate(scorePipeline);
-    if (scoreRes && scoreRes.length > 0) {
-      onTimeScoreSum = scoreRes[0].totalScore || 0;
-      // optional: we also have onTimeCount if needed: scoreRes[0].onTimeCount
+      const result = await Task.aggregate(scorePipeline);
+      onTimeScoreSum = result[0]?.totalScore || 0;
+    } catch (e) {
+      console.error('Aggregation error for on-time scoring:', e);
+      onTimeScoreSum = 0;
     }
-  } catch (e) {
-    console.warn('Error computing onTimeScoreSum, falling back to legacy on-time rate', e);
-    onTimeScoreSum = 0;
   }
-
   // Now compute rates:
-  const completionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+  const completionRate = totalTasks > 0 ? (effectiveCompleted / totalTasks) * 100 : 0;
 
   // If revisions enabled -> use mapped scoring; else fallback to legacy onTimeRate
   let onTimeRate = 0;
-  if (enableRevisions && totalTasks > 0) {
-    // mapping values are 0-100 for each task; average across all tasks
-    onTimeRate = onTimeScoreSum / (totalTasks); // gives percentage (0-100)
+  if (enableRevisions) {
+    // Average on-time % score across ALL tasks (totalScore sums per-task scores like 100/50/0)
+    onTimeRate = totalTasks > 0 ? (onTimeScoreSum / totalTasks) : 0;
   } else {
-    onTimeRate = completedTasks > 0 ? Math.min((onTimeCompletedTasksCount + onTimeCompletedRecurringTasks) / completedTasks * 100, 100) : 0;
+    const effectiveOnTimeCompleted = onTimeCompletedTasksCount + onTimeCompletedRecurringTasks;
+    const effectiveOnTimeRejected = onTimeRejectedTotal * 0.5;
+    const effectiveOnTime = effectiveOnTimeCompleted + effectiveOnTimeRejected;
+    // FIXED: Denominator = totalTasks (not effectiveCompleted) for % across all assigned tasks
+    onTimeRate = totalTasks > 0 ? (effectiveOnTime / totalTasks) * 100 : 0;
   }
 
   return {
     totalTasks,
-    completedTasks,
+    completedTasks,  // Now includes rejected
     pendingTasks,
     oneTimeTasks,
     oneTimePending,
-    oneTimeCompleted,
+    oneTimeCompleted,  // Now includes rejected one-time
+    revisedOneTimeTasks,
     dailyTasks,
     dailyPending,
-    dailyCompleted,
+    dailyCompleted,  // Now includes rejected daily
     weeklyTasks,
     weeklyPending,
-    weeklyCompleted,
+    weeklyCompleted,  // Now includes rejected weekly
     monthlyTasks,
     monthlyPending,
-    monthlyCompleted,
+    monthlyCompleted,  // Now includes rejected monthly
     quarterlyTasks,
     quarterlyPending,
-    quarterlyCompleted,
+    quarterlyCompleted,  // Now includes rejected quarterly
     yearlyTasks,
     yearlyPending,
-    yearlyCompleted,
+    yearlyCompleted,  // Now includes rejected yearly
     recurringTasks,
     recurringPending,
-    recurringCompleted,
-    revisedOneTimeTasks,
+    recurringCompleted,  // Now includes rejected recurring
+    rejectedTasks,
+    rejectedOneTimeTasks,
+    // UPDATED: Include on-time rejected in total on-time count for UI
+    onTimeCompletedTasks: (onTimeCompletedTasksCount + onTimeCompletedRecurringTasks) + (onTimeRejectedOneTime + onTimeRejectedRecurring),
+    onTimeRecurringCompleted: onTimeCompletedRecurringTasks + onTimeRejectedRecurring,  // For recurring on-time UI if used
     completionRate: Math.round(completionRate * 10) / 10,
-    onTimeRate: Math.round(onTimeRate * 10) / 10,
-    onTimeCompletedTasks: onTimeCompletedTasksCount,
-    onTimeRecurringCompleted: onTimeCompletedRecurringTasks
+    onTimeRate: Math.round(onTimeRate * 10) / 10
   };
 };
 
@@ -264,7 +387,8 @@ router.get('/analytics', async (req, res) => {
         $or: [
           { dueDate: { $gte: new Date(startDate), $lte: new Date(endDate) } },
           { nextDueDate: { $gte: new Date(startDate), $lte: new Date(endDate) } },
-          { completedAt: { $gte: new Date(startDate), $lte: new Date(endDate) } }
+          { completedAt: { $gte: new Date(startDate), $lte: new Date(endDate) } },
+          { rejectedAt: { $gte: new Date(startDate), $lte: new Date(endDate) } }
         ]
       };
     }
@@ -361,19 +485,23 @@ router.get('/member-trend', async (req, res) => {
         {
           $match: {
             ...baseQuery,
-            status: 'completed',
-            completedAt: {
-              $ne: null,
-              $gte: sixMonthsAgo,
-              $lte: endOfCurrentMonth
-            }
+            status: { $in: ['completed', 'rejected'] },  // UPDATED: Include rejected
+            $or: [  // UPDATED: Use appropriate date
+              { completedAt: { $ne: null, $gte: sixMonthsAgo, $lte: endOfCurrentMonth } },
+              { rejectedAt: { $ne: null, $gte: sixMonthsAgo, $lte: endOfCurrentMonth } }
+            ]
+          }
+        },
+        {
+          $addFields: {  // NEW: Unified completion date for grouping
+            completionDate: { $ifNull: ['$completedAt', '$rejectedAt'] }
           }
         },
         {
           $group: {
             _id: {
-              month: { $month: '$completedAt' },
-              year: { $year: '$completedAt' }
+              month: { $month: '$completionDate' },
+              year: { $year: '$completionDate' }
             },
             count: { $sum: 1 }
           }

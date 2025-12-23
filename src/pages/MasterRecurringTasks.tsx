@@ -1512,7 +1512,7 @@ const MasterRecurringTasks: React.FC = () => {
                 <td className="px-6 py-4">
                   <div>
                     <div className="text-sm font-medium text-[--color-text] mb-1">
-                      {masterTask.title}
+                      <ReadMore text={masterTask.title} maxLength={80} />
                     </div>
                     <ReadMore text={masterTask.description} maxLength={descriptionMaxLength} />
                     <div className="flex items-center mt-2 space-x-2">
@@ -1693,7 +1693,7 @@ const MasterRecurringTasks: React.FC = () => {
                 <td className="px-6 py-4">
                   <div>
                     <div className="text-sm font-medium text-[--color-text] mb-1">
-                      {task.title}
+                      <ReadMore text={task.title} maxLength={70} />
                     </div>
                     <ReadMore text={task.description} maxLength={descriptionMaxLength} />
                     <div className="flex items-center mt-2 space-x-2">

@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import {
   Calendar, CheckCircle, ChevronDown, Award, Star, BarChart3, Trophy, CalendarRange,
-  Clock, CalendarDays, RefreshCw, UserCheck, RotateCcw, Users
+  Clock, CalendarDays, RefreshCw, UserCheck, RotateCcw, Users,
+  XCircle
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
@@ -41,6 +42,7 @@ interface DashboardData {
     onTimeRate: number;
     onTimeCompletedTasks: number;
     onTimeRecurringCompleted: number;
+    rejectedOneTimeTasks?: number;
   }>;
   userPerformance?: {
     username: string;
@@ -51,6 +53,7 @@ interface DashboardData {
     oneTimePending: number;
     oneTimeCompleted: number;
     revisedOneTimeTasks?: number;
+    rejectedOneTimeTasks?: number;
     dailyTasks: number;
     dailyPending: number;
     dailyCompleted: number;
@@ -143,12 +146,12 @@ const Performance: React.FC = () => {
 
     const badge = rank ? getRankBadge(rank) : { icon: <Users size={18} />, gradient: 'from-blue-400 to-blue-600', bg: 'bg-blue-50', text: 'text-blue-700' };
     const completed =
-  (member.oneTimeCompleted || 0) +
-  (member.dailyCompleted || 0) +
-  (member.weeklyCompleted || 0) +
-  (member.monthlyCompleted || 0) +
-  (member.quarterlyCompleted || 0) +
-  (member.yearlyCompleted || 0);
+      (member.oneTimeCompleted || 0) +
+      (member.dailyCompleted || 0) +
+      (member.weeklyCompleted || 0) +
+      (member.monthlyCompleted || 0) +
+      (member.quarterlyCompleted || 0) +
+      (member.yearlyCompleted || 0);
 
     const actualCompletionRate = member.completionRate ?? 0;
     const actualOnTimeRate = member.onTimeRate ?? 0;
@@ -157,7 +160,7 @@ const Performance: React.FC = () => {
     const totalPerformanceRate = (actualCompletionRate * 0.5) + (actualOnTimeRate * 0.5);
 
     const taskTypes = [
-      { label: 'One-time', total: member.oneTimeTasks, pending: member.oneTimePending, completed: member.oneTimeCompleted, revised: member.revisedOneTimeTasks, color: '#3b82f6' },
+      { label: 'One-time', total: member.oneTimeTasks, pending: member.oneTimePending, completed: member.oneTimeCompleted, revised: member.revisedOneTimeTasks, rejected: member.rejectedOneTimeTasks, color: '#3b82f6' },
       { label: 'Daily', total: member.dailyTasks, pending: member.dailyPending, completed: member.dailyCompleted, icon: <RefreshCw size={16} />, color: '#10b981' },
       { label: 'Weekly', total: member.weeklyTasks, pending: member.weeklyPending, completed: member.weeklyCompleted, icon: <Calendar size={16} />, color: '#f59e0b' },
       { label: 'Monthly', total: member.monthlyTasks, pending: member.monthlyPending, completed: member.monthlyCompleted, icon: <CalendarDays size={16} />, color: '#8b5cf6' },
@@ -272,7 +275,7 @@ const Performance: React.FC = () => {
         </div>
 
         {/* Task Types Compact Display */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1 gap-2 mb-4">
           {taskTypes.map((item, index) => (
             <div
               key={index}
@@ -295,9 +298,10 @@ const Performance: React.FC = () => {
               </div>
 
               {/* Pending / Completed */}
-              <div className="flex justify-center gap-3 text-xs items-center">
+              <div className="flex justify-center gap-2 lg:gap-4 text-xs items-center">
                 {/* Pending */}
-                <div className="flex items-center gap-1 text-[#04b9ddff] font-semibold mr-2">
+                <div className="flex items-center gap-1 text-[#04b9ddff] font-semibold"
+                title="Pending">
                   <Clock size={12} strokeWidth={2} />
                   <span>{item.pending}</span>
                 </div>
@@ -305,16 +309,27 @@ const Performance: React.FC = () => {
 
 
                 {/* Completed */}
-                <div className="flex items-center gap-1 text-[#5b88dbff] font-semibold ml-2">
+                <div className="flex items-center gap-1 text-[#5b88dbff] font-semibold "
+                title="Completed">
                   <CheckCircle size={12} strokeWidth={2} />
                   <span>{item.completed}</span>
                 </div>
 
                 {/* Revised count (ONLY for One-time tasks) */}
                 {item.label === "One-time" && (
-                  <div className="flex items-center gap-1 text-orange-500 font-semibold ml-2">
+                  <div className="flex items-center gap-1 text-orange-500 font-semibold "
+                  title="Revised">
                     <RotateCcw size={12} strokeWidth={2} />
                     <span>{item.revised}</span>
+                  </div>
+                )}
+                {/* Rejected count (ONLY for One-time tasks) */}
+                {item.label === "One-time" && item.rejected !== undefined && (
+                  <div className="flex items-center gap-1 text-red-500 font-semibold "
+                  title="Rejected">
+                    
+                    <XCircle size={12} strokeWidth={2} />
+                    <span>{item.rejected}</span>
                   </div>
                 )}
               </div>

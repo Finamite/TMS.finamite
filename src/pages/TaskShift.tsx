@@ -141,6 +141,8 @@ const TaskShift: React.FC = () => {
         }
     }, [user]);
 
+    const TASK_CATEGORIES = ['one-time', 'recurring'] as const;
+
     const loadTasks = useCallback(async () => {
         if (!fromUser) return;
 
@@ -448,7 +450,7 @@ const TaskShift: React.FC = () => {
                                 Task Category
                             </label>
                             <div className="flex gap-2">
-                                {['one-time', 'recurring'].map(type => (
+                                {TASK_CATEGORIES.map(type => (
                                     <button
                                         key={type}
                                         onClick={() => setTaskCategory(type)}
@@ -875,7 +877,7 @@ const TaskShift: React.FC = () => {
                                                                 </div>
 
                                                                 <div className="mb-3">
-                                                                    <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
+                                                                    <div className="flex items-center justify-between text-xs text-[var(--color-text)] mb-1">
                                                                         <span>Progress</span>
                                                                         <span>{task.completedCount}/{task.instanceCount}</span>
                                                                     </div>

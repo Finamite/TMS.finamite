@@ -775,17 +775,6 @@ const Chat: React.FC = () => {
         setSearchResults(results);
         setIsSearching(true);
     };
-    const markMessagesAsRead = async () => {
-        if (!activeChat || !user) return;
-
-        try {
-            await axios.put(`${address}/api/chat/${activeChat._id}/messages/read`, {
-                userId: user.id
-            });
-        } catch (error) {
-            console.error('Error marking messages as read:', error);
-        }
-    };
 
     const formatFileSize = (bytes: number) => {
         return `${(bytes / 1024).toFixed(1)} KB`;
