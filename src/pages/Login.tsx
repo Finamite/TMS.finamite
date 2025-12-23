@@ -41,7 +41,7 @@ const Login: React.FC = () => {
         {/* LEFT IMAGE – DESKTOP ONLY */}
         <div className="relative hidden lg:block">
           <img
-            src="https://images.unsplash.com/photo-1504384308090-c894fdcc538d"
+            src="https://images.unsplash.com/photo-1522071820081-009f0129c71c"
             alt="Task management collaboration"
             className="absolute inset-0 w-full h-full object-cover"
           />
