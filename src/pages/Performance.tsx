@@ -229,37 +229,16 @@ const Performance: React.FC = () => {
             <p className="text-xs text-[var(--color-textSecondary)]">{actualCompletionRate.toFixed(0)}%</p>
           </div>
 
-          {/* Pending */}
-          {/* <div className="space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-[var(--color-text)]">Pending</span>
-              <span className="text-sm font-bold" style={{ color: '#04b9ddff' }}>{pending}</span>
-            </div>
-            <div className="w-full h-2 bg-[var(--color-border)] rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-1000"
-                style={{
-                  width: `${(pending / total) * 100}%`,
-                  background: 'linear-gradient(to right, #00d4ff, #04b9ddff)'
-                }}
-              />
-            </div>
-            <p className="text-xs text-[var(--color-textSecondary)]">{((pending / total) * 100).toFixed(0)}%</p>
-          </div> */}
-
           {/* On-Time */}
           <div className="space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-[var(--color-text)]">On-Time</span>
               {member.totalTasks > 0 && (
                 <span className="text-sm font-bold" style={{ color: '#04b9ddff' }}>
-                  {(member.onTimeCompletedTasks || 0) +
-                    (member.onTimeRecurringCompleted || 0)}
-                  {" / "}
-                  {completed}
+                  {member.onTimeCompletedTasks || 0}
+                  {member.totalTasks > 0 && completed > 0 ? ` / ${completed}` : ''}
                 </span>
               )}
-
             </div>
             <div className="w-full h-2 bg-[var(--color-border)] rounded-full overflow-hidden">
               <div
@@ -290,7 +269,6 @@ const Performance: React.FC = () => {
                   {item.label}
                 </span>
 
-
                 {/* Total */}
                 <div className="text-lg font-bold text-[var(--color-text)] mb-1 ml-2">
                   {item.total}
@@ -306,8 +284,6 @@ const Performance: React.FC = () => {
                   <span>{item.pending}</span>
                 </div>
 
-
-
                 {/* Completed */}
                 <div className="flex items-center gap-1 text-[#5b88dbff] font-semibold "
                 title="Completed">
@@ -320,14 +296,14 @@ const Performance: React.FC = () => {
                   <div className="flex items-center gap-1 text-orange-500 font-semibold "
                   title="Revised">
                     <RotateCcw size={12} strokeWidth={2} />
-                    <span>{item.revised}</span>
+                    <span>{item.revised || 0}</span>
                   </div>
                 )}
+                
                 {/* Rejected count (ONLY for One-time tasks) */}
                 {item.label === "One-time" && item.rejected !== undefined && (
                   <div className="flex items-center gap-1 text-red-500 font-semibold "
                   title="Rejected">
-                    
                     <XCircle size={12} strokeWidth={2} />
                     <span>{item.rejected}</span>
                   </div>
@@ -336,7 +312,6 @@ const Performance: React.FC = () => {
             </div>
           ))}
         </div>
-
 
         {/* Bottom Stats - More Compact */}
         <div className="pt-3 border-t border-[var(--color-border)]">
@@ -369,6 +344,8 @@ const Performance: React.FC = () => {
         userId: user?.id,
         isAdmin: (user?.role === 'admin' || user?.role === 'manager') ? 'true' : 'false',
       };
+      
+      // Only add date parameters if both are provided
       if (startDate && endDate) {
         params.startDate = startDate;
         params.endDate = endDate;
@@ -397,6 +374,7 @@ const Performance: React.FC = () => {
           const toDate = endOfDay(new Date(dateTo));
           analyticsData = await fetchPerformanceAnalytics(fromDate.toISOString(), toDate.toISOString());
         } else {
+          // For all-time, don't pass any date parameters
           analyticsData = await fetchPerformanceAnalytics();
         }
 
@@ -434,14 +412,9 @@ const Performance: React.FC = () => {
       .sort((a, b) => {
         const getPerformance = (member: any) => {
           const total = member.totalTasks || 0;
-
           const completionRate = member.completionRate ?? 0;
           const onTimeRate = member.onTimeRate ?? 0;
-
           const performanceRate = completionRate * 0.5 + onTimeRate * 0.5;
-
-          return { performanceRate, totalTasks: total };
-
           return { performanceRate, totalTasks: total };
         };
 
@@ -458,12 +431,11 @@ const Performance: React.FC = () => {
           return bData.totalTasks - aData.totalTasks;
         }
 
-        // CASE 3: One has percentage, one doesn’t → one with % goes higher
+        // CASE 3: One has percentage, one doesn't → one with % goes higher
         return bData.performanceRate - aData.performanceRate;
       })
       .slice(0, 10)
     : [];
-
 
   if (loading) {
     return (
@@ -489,6 +461,12 @@ const Performance: React.FC = () => {
             <p className="text-sm text-[var(--color-textSecondary)]">
               Welcome back, <span className="font-bold text-[var(--color-text)]">{user?.username}</span>!
               {(user?.role === 'admin' || user?.role === 'manager') ? ' Team performance overview' : ' Here\'s your performance overview'}
+              {viewMode === 'current' ? 
+                ` for ${isSameMonth(selectedMonth, new Date()) && isSameYear(selectedMonth, new Date()) ? 'this month' : format(selectedMonth, 'MMMM yyyy')}` :
+                viewMode === 'custom' ? 
+                  ` from ${format(new Date(dateFrom), 'MMM dd')} to ${format(new Date(dateTo), 'MMM dd, yyyy')}` :
+                  ' (all time)'
+              }
             </p>
           </div>
         </div>
@@ -647,7 +625,6 @@ const Performance: React.FC = () => {
 
       {(user?.role === 'admin' || user?.role === 'manager') && (
         <ThemeCard className="" variant="default">
-
           {top10Users.length > 0 ? (
             <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
               {top10Users.map((member, i) => (
@@ -691,4 +668,4 @@ const Performance: React.FC = () => {
   );
 };
 
-export default Performance; 
+export default Performance;
