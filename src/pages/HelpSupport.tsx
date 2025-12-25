@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Search, Mail, Phone, MessageCircle, HelpCircle, ChevronDown, ChevronRight, Settings, BarChart3, CheckSquare, Filter, CreditCard as Edit3, UserPlus, Bell, Trash2, RotateCcw, Shield, Clock, Target, FileText, Archive, Download, Star } from 'lucide-react';
+import { Search, Mail, Phone, MessageCircle, HelpCircle, ChevronDown, ChevronRight, Settings, BarChart3, CheckSquare, Filter, CreditCard as Edit3, UserPlus, Bell, Trash2, RotateCcw, Shield, Clock, Target, FileText, Archive, Star } from 'lucide-react';
 
 interface FAQItem {
   id: string;
@@ -159,10 +159,11 @@ const HelpSupport: React.FC = () => {
     // General FAQs
     {
       id: '13',
-      question: 'How do I change my password?',
-      answer: 'Click on your profile icon in the top right corner, select "Profile Settings", then navigate to "Security" tab. Enter your current password and your new password twice to confirm. Your password should be at least 8 characters long and include a mix of letters, numbers, and special characters.',
+      question: 'How do I change password?',
+      answer: 'Go to the Admin Panel and open the user list. Click on the "Change Password" icon for the user whose password you want to update. Enter the new password and submit. The password will be updated successfully.',
+      
       category: 'account',
-      roles: ['employee', 'manager', 'admin'],
+      roles: ['manager', 'admin'],
       icon: <Shield size={20} />,
       tags: ['password', 'security', 'account', 'profile']
     },
@@ -193,15 +194,6 @@ const HelpSupport: React.FC = () => {
       icon: <FileText size={20} />,
       tags: ['attachments', 'remarks', 'completion', 'mandatory']
     },
-    {
-      id: '17',
-      question: 'How can I export or download my task data?',
-      answer: 'Most data views include export options: 1) Look for the "Export" or "Download" button on task lists, 2) Choose your preferred format (Excel, CSV, PDF), 3) Select date ranges and filters before exporting, 4) Your exported file will include all visible data based on your current filters and permissions.',
-      category: 'data-management',
-      roles: ['employee', 'manager', 'admin'],
-      icon: <Download size={20} />,
-      tags: ['export', 'download', 'excel', 'csv', 'data']
-    }
   ];
 
   const categories = [
