@@ -771,6 +771,7 @@ const SuperAdminPanel: React.FC = () => {
                         onChange={handleInputChange}
                         placeholder={editingCompany?.admin?.phone || 'Current admin phone'}
                         className="w-full px-4 py-3 border rounded-lg"
+                        required
                         style={{
                           backgroundColor: 'var(--color-background)',
                           borderColor: 'var(--color-border)',

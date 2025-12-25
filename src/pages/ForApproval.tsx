@@ -103,13 +103,13 @@ const RejectionModal: React.FC<RejectionModalProps> = ({ isOpen, onClose, onNoAc
     `}
                     >
                         <div className="flex-shrink-0 mt-0.5">
-                            <div className="w-7 h-7 rounded-full flex items-center justify-center bg-red-100 dark:bg-red-900">
-                                <X size={14} className="text-red-600 dark:text-red-400" />
+                            <div className="w-7 h-7 rounded-full flex items-center justify-center bg-red-100">
+                                <X size={14} className="text-red-600" />
                             </div>
                         </div>
 
                         <div>
-                            <p className="font-semibold text-red-600 dark:text-red-400">
+                            <p className="font-semibold text-red-600">
                                 No Action Required
                             </p>
                             <p className="mt-0.5 text-(--color-text) leading-relaxed">
@@ -130,13 +130,13 @@ const RejectionModal: React.FC<RejectionModalProps> = ({ isOpen, onClose, onNoAc
     `}
                     >
                         <div className="flex-shrink-0 mt-0.5">
-                            <div className="w-7 h-7 rounded-full flex items-center justify-center bg-yellow-100 dark:bg-yellow-900">
-                                <User size={14} className="text-yellow-600 dark:text-yellow-400" />
+                            <div className="w-7 h-7 rounded-full flex items-center justify-center bg-yellow-100">
+                                <User size={14} className="text-yellow-600" />
                             </div>
                         </div>
 
                         <div>
-                            <p className="font-semibold text-yellow-600 dark:text-yellow-400">
+                            <p className="font-semibold text-yellow-600">
                                 Reassign Task
                             </p>
                             <p className="mt-0.5 text-(--color-text) leading-relaxed">

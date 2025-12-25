@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, Edit, Save, X, ChevronDown, ChevronUp, User, LockKeyhole, CreditCard, Info, Building2, UserCheck, UserCog, Loader2, Shield, Search, Activity, Building, Clock } from 'lucide-react';
+import { Users, Plus, Edit, Save, X, ChevronDown, ChevronUp, User, LockKeyhole, CreditCard, Info, Building2, UserCheck, UserCog, Loader2, Shield, Search, Activity, Building, Clock, EyeOff, Eye } from 'lucide-react';
 import axios from 'axios';
 import { address } from '../../utils/ipAddress';
 import { useAuth } from '../contexts/AuthContext';
@@ -99,7 +99,7 @@ const AdminPanel: React.FC = () => {
       canEditRecurringTaskSchedules: false,
       canManageSettings: false,
       canManageRecycle: false,
-      canManageApproval:false,
+      canManageApproval: false,
     }
   });
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -110,25 +110,20 @@ const AdminPanel: React.FC = () => {
   const [filterRole, setFilterRole] = useState("");
   const [filterDepartment, setFilterDepartment] = useState("");
   const [selectedUserAccess, setSelectedUserAccess] = useState<any>(null);
-const [showAccessModal, setShowAccessModal] = useState(false);
+  const [showAccessModal, setShowAccessModal] = useState(false);
+  const [showCreatePassword, setShowCreatePassword] = useState(false);
+  const [showUpdatePassword, setShowUpdatePassword] = useState(false);
 
   // Define allowed permissions for each role
   const rolePermissions = {
     employee: ['canViewTasks', 'canAssignTasks'],
-    manager: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings', 'canManageRecycle','canManageApproval'],
-    admin: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings', 'canManageRecycle','canManageApproval'],
-    superadmin: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings','canManageRecycle','canManageApproval']
+    manager: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings', 'canManageRecycle', 'canManageApproval'],
+    admin: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings', 'canManageRecycle', 'canManageApproval'],
+    superadmin: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings', 'canManageRecycle', 'canManageApproval']
   };
   const [passwordUser, setPasswordUser] = useState<User | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
-
-  // Get company ID from localStorage or context
-  // const getCompanyId = () => {
-  //   // This should come from your auth context or localStorage
-  //   // For now, using a placeholder - replace with actual implementation
-  //   return localStorage.getItem('companyId') || 'your-company-id';
-  // };
 
   const fetchCompanyData = async () => {
     if (!currentUser?.companyId) {
@@ -161,21 +156,21 @@ const [showAccessModal, setShowAccessModal] = useState(false);
     }
   };
 
- const openAccessModal = async (user: User) => {
-  try {
-    const res = await axios.get(`${address}/api/users/${user._id}/access-logs`);
+  const openAccessModal = async (user: User) => {
+    try {
+      const res = await axios.get(`${address}/api/users/${user._id}/access-logs`);
 
-    setSelectedUserAccess({
-      username: res.data.username || user.username,
-      logs: res.data.accessLogs || [],
-      lastAccess: res.data.lastAccess || null,
-    });
+      setSelectedUserAccess({
+        username: res.data.username || user.username,
+        logs: res.data.accessLogs || [],
+        lastAccess: res.data.lastAccess || null,
+      });
 
-    setShowAccessModal(true);
-  } catch (err) {
-    console.error("Access log fetch failed", err);
-  }
-};
+      setShowAccessModal(true);
+    } catch (err) {
+      console.error("Access log fetch failed", err);
+    }
+  };
 
 
   useEffect(() => {
@@ -279,6 +274,7 @@ const [showAccessModal, setShowAccessModal] = useState(false);
       await axios.put(`${address}/api/users/${passwordUser._id}/password`, { password: newPassword });
       setMessage({ type: "success", text: "Password updated successfully!" });
       setPasswordUser(null);
+      setShowUpdatePassword(false);
       setNewPassword("");
       fetchUsers();
     } catch (error: any) {
@@ -304,30 +300,50 @@ const [showAccessModal, setShowAccessModal] = useState(false);
     return allowedPermissions.includes(permissionKey);
   };
 
-  const updatePermissionsForRole = (role: string, currentPermissions: any) => {
-    const allowedPermissions = rolePermissions[role as keyof typeof rolePermissions] || [];
-    const updatedPermissions = { ...currentPermissions };
-
-    // Disable permissions not allowed for the role
-    Object.keys(updatedPermissions).forEach(permission => {
-      if (!allowedPermissions.includes(permission)) {
-        updatedPermissions[permission] = false;
-      }
-    });
-
-    return updatedPermissions;
-  };
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
 
     if (name === 'role') {
-      // When role changes, update permissions accordingly
-      const updatedPermissions = updatePermissionsForRole(value, formData.permissions);
+      let permissions = {
+        canViewTasks: false,
+        canViewAllTeamTasks: false,
+        canAssignTasks: false,
+        canDeleteTasks: false,
+        canEditTasks: false,
+        canManageUsers: false,
+        canEditRecurringTaskSchedules: false,
+        canManageSettings: false,
+        canManageRecycle: false,
+        canManageApproval: false,
+      };
+
+      // 🔥 ADMIN → ALL TRUE
+      if (value === 'admin') {
+        Object.keys(permissions).forEach(key => {
+          permissions[key as keyof typeof permissions] = true;
+        });
+      }
+
+      // 🧠 MANAGER → ALL TRUE except 3
+      if (value === 'manager') {
+        Object.keys(permissions).forEach(key => {
+          permissions[key as keyof typeof permissions] = true;
+        });
+
+        permissions.canManageUsers = false;
+        permissions.canManageSettings = false;
+        permissions.canManageApproval = false;
+      }
+
+      // 👤 USER (employee) → ONLY view tasks
+      if (value === 'employee') {
+        permissions.canViewTasks = true;
+      }
+
       setFormData(prev => ({
         ...prev,
         role: value,
-        permissions: updatedPermissions
+        permissions
       }));
     } else if (name.startsWith('permissions.')) {
       const permissionKey = name.split('.')[1];
@@ -360,6 +376,7 @@ const [showAccessModal, setShowAccessModal] = useState(false);
       setMessage({ type: 'success', text: 'User created successfully!' });
       setShowCreateModal(false);
       resetForm();
+      setShowCreatePassword(false);
       fetchUsers();
       fetchCompanyData();
     } catch (error: any) {
@@ -431,7 +448,7 @@ const [showAccessModal, setShowAccessModal] = useState(false);
         canEditRecurringTaskSchedules: false,
         canManageSettings: false,
         canManageRecycle: false,
-        canManageApproval:false,
+        canManageApproval: false,
       }
     });
   };
@@ -731,23 +748,23 @@ const [showAccessModal, setShowAccessModal] = useState(false);
                       </span>
                     </td>
                     <td className="py-3 px-4">
-  <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2">
 
-    {/* Last Access Text */}
-    <span className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>
-      {formatDateTime(user.lastAccess)}
-    </span>
+                        {/* Last Access Text */}
+                        <span className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>
+                          {formatDateTime(user.lastAccess)}
+                        </span>
 
-    {/* Info Icon */}
-    <button
-      onClick={() => openAccessModal(user)}
-      className="p-1 rounded hover:bg-gray-200 transition"
-    >
-      <Info size={16} className="text-blue-500" />
-    </button>
+                        {/* Info Icon */}
+                        <button
+                          onClick={() => openAccessModal(user)}
+                          className="p-1 rounded hover:bg-gray-200 transition"
+                        >
+                          <Info size={16} className="text-blue-500" />
+                        </button>
 
-  </div>
-</td>
+                      </div>
+                    </td>
                     <td className="py-3 px-4">
                       <div className="flex space-x-2">
                         <button
@@ -843,22 +860,22 @@ const [showAccessModal, setShowAccessModal] = useState(false);
                         {user.email}
                       </p>
                       {/* Last Access (Mobile) */}
-<div className="mt-1 flex items-center gap-1">
-  <p className="text-xs text-[var(--color-textSecondary)]">
-    Last Access:
-    <span className="ml-1 text-xs text-[var(--color-text)]">
-      {formatDateTime(user.lastAccess)}
-    </span>
-  </p>
+                      <div className="mt-1 flex items-center gap-1">
+                        <p className="text-xs text-[var(--color-textSecondary)]">
+                          Last Access:
+                          <span className="ml-1 text-xs text-[var(--color-text)]">
+                            {formatDateTime(user.lastAccess)}
+                          </span>
+                        </p>
 
-  {/* Info Icon */}
-  <button
-    onClick={() => openAccessModal(user)}
-    className="p-1 rounded hover:bg-gray-200 transition"
-  >
-    <Info size={16} className="text-blue-500" />
-  </button>
-</div>
+                        {/* Info Icon */}
+                        <button
+                          onClick={() => openAccessModal(user)}
+                          className="p-1 rounded hover:bg-gray-200 transition"
+                        >
+                          <Info size={16} className="text-blue-500" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2 ml-2">
@@ -1206,20 +1223,30 @@ const [showAccessModal, setShowAccessModal] = useState(false);
                     <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>
                       Password *
                     </label>
-                    <input
-                      type="password"
-                      name="password"
-                      value={formData.password}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 border rounded-lg text-sm"
-                      style={{
-                        backgroundColor: 'var(--color-background)',
-                        borderColor: 'var(--color-border)',
-                        color: 'var(--color-text)'
-                      }}
-                      placeholder="Enter password"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showCreatePassword ? "text" : "password"}
+                        name="password"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full px-3 py-2 border rounded-lg text-sm pr-10"
+                        placeholder="Enter password"
+                        style={{
+                          backgroundColor: 'var(--color-background)',
+                          borderColor: 'var(--color-border)',
+                          color: 'var(--color-text)'
+                        }}
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => setShowCreatePassword(prev => !prev)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                      >
+                        {showCreatePassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
                   </div>
 
                   <div>
@@ -1576,19 +1603,29 @@ const [showAccessModal, setShowAccessModal] = useState(false);
                 <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>
                   New Password
                 </label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 border rounded-lg text-sm"
-                  style={{
-                    backgroundColor: 'var(--color-background)',
-                    borderColor: 'var(--color-border)',
-                    color: 'var(--color-text)'
-                  }}
-                  placeholder="Enter new password"
-                />
+                <div className="relative">
+                  <input
+                    type={showUpdatePassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 border rounded-lg text-sm pr-10"
+                    placeholder="Enter new password"
+                    style={{
+                      backgroundColor: 'var(--color-background)',
+                      borderColor: 'var(--color-border)',
+                      color: 'var(--color-text)'
+                    }}
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => setShowUpdatePassword(prev => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  >
+                    {showUpdatePassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
 
               <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 pt-4">
@@ -1666,66 +1703,66 @@ const [showAccessModal, setShowAccessModal] = useState(false);
       )}
 
       {showAccessModal && (
-  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-  <div className="bg-[var(--color-surface)] rounded-2xl w-full max-w-md shadow-2xl transform transition-all">
-    {/* Header */}
-    <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-800">
-      <div>
-        <h2 className="text-lg font-semibold text-[var(--color-text)]">
-          Access Logs
-        </h2>
-        <p className="text-sm text-[var(--color-text)] mt-1">
-          {selectedUserAccess?.username}
-        </p>
-      </div>
-      <button
-        onClick={() => setShowAccessModal(false)}
-        className="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center transition-colors"
-      >
-        <X className="w-5 h-5 text-[var(--color-text)]" />
-      </button>
-    </div>
-
-    {/* Content */}
-    <div className="p-6 max-h-96 overflow-y-auto">
-      {selectedUserAccess?.logs?.length ? (
-        <div className="space-y-3">
-          {selectedUserAccess.logs.map((time: string | number | Date, idx: React.Key | null | undefined) => (
-            <div 
-              key={idx} 
-              className="flex items-center gap-3 p-3 rounded-xl bg-[var(--color-background)] border border-[var(--color-chat)] hover:border-[var(--color-primary)] transition-colors"
-            >
-              <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
-                <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[var(--color-surface)] rounded-2xl w-full max-w-md shadow-2xl transform transition-all">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-800">
+              <div>
+                <h2 className="text-lg font-semibold text-[var(--color-text)]">
+                  Access Logs
+                </h2>
+                <p className="text-sm text-[var(--color-text)] mt-1">
+                  {selectedUserAccess?.username}
+                </p>
               </div>
-              <span className="text-sm text-[var(--color-text)]">
-                {formatDateTime(time)}
-              </span>
+              <button
+                onClick={() => setShowAccessModal(false)}
+                className="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center transition-colors"
+              >
+                <X className="w-5 h-5 text-[var(--color-text)]" />
+              </button>
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-8">
-          <div className="w-16 h-16 rounded-full bg-[var(--color-surface)] dark:bg-gray-800 flex items-center justify-center mx-auto mb-3">
-            <Clock className="w-8 h-8 text-gray-400" />
+
+            {/* Content */}
+            <div className="p-6 max-h-96 overflow-y-auto">
+              {selectedUserAccess?.logs?.length ? (
+                <div className="space-y-3">
+                  {selectedUserAccess.logs.map((time: string | number | Date, idx: React.Key | null | undefined) => (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-3 p-3 rounded-xl bg-[var(--color-background)] border border-[var(--color-chat)] hover:border-[var(--color-primary)] transition-colors"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                        <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <span className="text-sm text-[var(--color-text)]">
+                        {formatDateTime(time)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 rounded-full bg-[var(--color-surface)] dark:bg-gray-800 flex items-center justify-center mx-auto mb-3">
+                    <Clock className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <p className="text-gray-500 dark:text-gray-400">No access logs available</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-gray-200 dark:border-gray-800">
+              <button
+                onClick={() => setShowAccessModal(false)}
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-2.5 rounded-xl font-medium transition-all shadow-lg shadow-blue-500/25"
+              >
+                Close
+              </button>
+            </div>
           </div>
-          <p className="text-gray-500 dark:text-gray-400">No access logs available</p>
         </div>
       )}
-    </div>
-
-    {/* Footer */}
-    <div className="p-6 border-t border-gray-200 dark:border-gray-800">
-      <button
-        onClick={() => setShowAccessModal(false)}
-        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-2.5 rounded-xl font-medium transition-all shadow-lg shadow-blue-500/25"
-      >
-        Close
-      </button>
-    </div>
-  </div>
-</div>
-)}
     </div>
   );
 };

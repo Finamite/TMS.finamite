@@ -1189,7 +1189,7 @@ const Chat: React.FC = () => {
                                         )
                                     );
                                 }}
-                                className={`p-4 border-b border-[var(--color-border)] cursor-pointer transition-colors ${(activeChatId === chat._id) ? 'bg-[var(--color-chat)] text-white dark:bg-blue-500 dark:text-white border-r-2 border-r-blue-600' : ''}`}
+                                className={`p-4 border-b border-[var(--color-border)] cursor-pointer transition-colors ${(activeChatId === chat._id) ? 'bg-[var(--color-chat)] text-[var(--color-text)] border-r-2 border-r-blue-600' : ''}`}
                             >
                                 <div className="flex items-center justify-between mb-2">
                                     <div className="flex items-center">
@@ -1197,7 +1197,7 @@ const Chat: React.FC = () => {
                                             <Users size={16} className="text-blue-600" />
                                         </div>
                                         <div>
-                                            <h3 className="font-medium text-[var(--color-text)] text-sm dark:text-white">
+                                            <h3 className="font-medium text-[var(--color-text)] text-sm ">
                                                 {chat.participants
                                                     .filter(p => p.userId !== currentUserId)
                                                     .map(p => p.username)
@@ -1261,10 +1261,10 @@ const Chat: React.FC = () => {
                                         setActiveChat(null);
                                         setActiveChatId(null);
                                     }}
-                                    className="sm:hidden mr-3 p-2 rounded-lg bg-gray-100 dark:bg-gray-700"
+                                    className="sm:hidden mr-3 p-2 rounded-lg bg-gray-100"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg"
-                                        className="h-5 w-5 text-gray-700 dark:text-white"
+                                        className="h-5 w-5 text-[var(--color-text)]"
                                         fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                                     </svg>

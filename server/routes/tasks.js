@@ -733,13 +733,13 @@ router.get("/master-recurring-light", async (req, res) => {
     }
 
     // ---------------------------------------------------------
-    // 1) LOAD BASE MASTER TASKS (super fast lean() read)
+    // 1) LOAD EXISTING MASTER TASKS
     // ---------------------------------------------------------
     let masters = await MasterTask.find(
       {
         companyId,
         isActive: { $ne: false },
-        taskType: { $ne: "one-time" }   // ✅ ADD THIS
+        taskType: { $ne: "one-time" }
       },
       {
         taskGroupId: 1,
@@ -761,42 +761,42 @@ router.get("/master-recurring-light", async (req, res) => {
       }
     ).lean();
 
-
     // ---------------------------------------------------------
-    // 2) FALLBACK: Generate from Task collection if no MasterTask exists
+    // 2) FIND & SYNC MISSING MASTER TASKS (🔥 REAL FIX)
     // ---------------------------------------------------------
-    if (!masters.length) {
+    const existingGroupIds = new Set(masters.map(m => m.taskGroupId));
 
-      const grouped = await Task.aggregate([
-        {
-          $match: {
-            companyId,
-            isActive: true,
-            taskType: { $in: ["daily", "weekly", "monthly", "quarterly", "yearly"] },
-            taskGroupId: { $exists: true, $ne: null }
-          }
-        },
-        {
-          $group: {
-            _id: "$taskGroupId",
-            title: { $first: "$title" },
-            description: { $first: "$description" },
-            taskType: { $first: "$taskType" },
-            priority: { $first: "$priority" },
-            assignedTo: { $first: "$assignedTo" },
-            assignedBy: { $first: "$assignedBy" },
-            attachments: { $first: "$attachments" },
-            parentTaskInfo: { $first: "$parentTaskInfo" },
-            weekOffDays: { $first: "$weekOffDays" },
-            firstDueDate: { $min: "$dueDate" },
-            lastDueDate: { $max: "$dueDate" },
-            createdAt: { $first: "$createdAt" }
-          }
-        },
-        { $limit: 1000 }
-      ]).allowDiskUse(true);
+    const missingGroups = await Task.aggregate([
+      {
+        $match: {
+          companyId,
+          isActive: true,
+          taskType: { $in: ["daily", "weekly", "monthly", "quarterly", "yearly"] },
+          taskGroupId: { $exists: true, $ne: null, $nin: Array.from(existingGroupIds) }
+        }
+      },
+      {
+        $group: {
+          _id: "$taskGroupId",
+          title: { $first: "$title" },
+          description: { $first: "$description" },
+          taskType: { $first: "$taskType" },
+          priority: { $first: "$priority" },
+          assignedTo: { $first: "$assignedTo" },
+          assignedBy: { $first: "$assignedBy" },
+          attachments: { $first: "$attachments" },
+          parentTaskInfo: { $first: "$parentTaskInfo" },
+          weekOffDays: { $first: "$weekOffDays" },
+          requiresApproval: { $first: "$requiresApproval" },
+          firstDueDate: { $min: "$dueDate" },
+          lastDueDate: { $max: "$dueDate" },
+          createdAt: { $first: "$createdAt" }
+        }
+      }
+    ]).allowDiskUse(true);
 
-      masters = grouped.map(g => ({
+    if (missingGroups.length > 0) {
+      const newMasters = missingGroups.map(g => ({
         taskGroupId: g._id,
         title: g.title,
         description: g.description,
@@ -804,6 +804,7 @@ router.get("/master-recurring-light", async (req, res) => {
         priority: g.priority,
         assignedTo: g.assignedTo,
         assignedBy: g.assignedBy,
+        requiresApproval: g.requiresApproval ?? false,
         startDate: g.parentTaskInfo?.originalStartDate || g.firstDueDate,
         endDate: g.parentTaskInfo?.originalEndDate || g.lastDueDate,
         includeSunday: g.parentTaskInfo?.includeSunday ?? true,
@@ -816,17 +817,18 @@ router.get("/master-recurring-light", async (req, res) => {
         createdAt: g.createdAt
       }));
 
-      // Sync fallback data
-      if (masters.length) {
-        const ops = masters.map(m => ({
+      await MasterTask.bulkWrite(
+        newMasters.map(m => ({
           updateOne: {
             filter: { taskGroupId: m.taskGroupId },
             update: { $setOnInsert: m },
             upsert: true
           }
-        }));
-        await MasterTask.bulkWrite(ops, { ordered: false });
-      }
+        })),
+        { ordered: false }
+      );
+
+      masters.push(...newMasters);
     }
 
     if (!masters.length) {
@@ -834,7 +836,7 @@ router.get("/master-recurring-light", async (req, res) => {
     }
 
     // ---------------------------------------------------------
-    // 3) FAST LOAD USERNAMES (no populate)
+    // 3) LOAD USER MAP
     // ---------------------------------------------------------
     const userIds = [
       ...new Set([
@@ -852,7 +854,7 @@ router.get("/master-recurring-light", async (req, res) => {
     users.forEach(u => (userMap[u._id.toString()] = u));
 
     // ---------------------------------------------------------
-    // 4) LOAD COUNTS + LAST DUE DATE (SUPER FAST aggregation)
+    // 4) LOAD COUNTS + LAST DUE DATE
     // ---------------------------------------------------------
     const taskGroupIds = masters.map(m => m.taskGroupId);
 
@@ -862,8 +864,12 @@ router.get("/master-recurring-light", async (req, res) => {
         $group: {
           _id: "$taskGroupId",
           instanceCount: { $sum: 1 },
-          completedCount: { $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] } },
-          pendingCount: { $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] } },
+          completedCount: {
+            $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] }
+          },
+          pendingCount: {
+            $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] }
+          },
           lastDueDate: { $max: "$dueDate" }
         }
       }
@@ -873,7 +879,7 @@ router.get("/master-recurring-light", async (req, res) => {
     stats.forEach(s => (statMap[s._id] = s));
 
     // ---------------------------------------------------------
-    // 5) FOREVER TASK FIX — bulk update (super fast)
+    // 5) FOREVER TASK END DATE FIX
     // ---------------------------------------------------------
     const foreverUpdateOps = [];
     const finalOutput = [];
@@ -881,23 +887,17 @@ router.get("/master-recurring-light", async (req, res) => {
     for (const m of masters) {
       let correctedEndDate = m.endDate;
 
-      if (m.isForever === true) {
-        const lastDue = statMap[m.taskGroupId]?.lastDueDate;
+      if (m.isForever === true && statMap[m.taskGroupId]?.lastDueDate) {
+        correctedEndDate = statMap[m.taskGroupId].lastDueDate;
 
-        if (lastDue) {
-          correctedEndDate = lastDue;
-
-          // Collect update for bulk write
-          foreverUpdateOps.push({
-            updateOne: {
-              filter: { taskGroupId: m.taskGroupId },
-              update: { $set: { endDate: correctedEndDate } }
-            }
-          });
-        }
+        foreverUpdateOps.push({
+          updateOne: {
+            filter: { taskGroupId: m.taskGroupId },
+            update: { $set: { endDate: correctedEndDate } }
+          }
+        });
       }
 
-      // Build final output object
       finalOutput.push({
         ...m,
         assignedTo: userMap[m.assignedTo?.toString()] || null,
@@ -920,26 +920,24 @@ router.get("/master-recurring-light", async (req, res) => {
       });
     }
 
-    // ---------------------------------------------------------
-    // 6) BULK UPDATE FOREVER END DATES (only once)
-    // ---------------------------------------------------------
-    if (foreverUpdateOps.length > 0) {
+    if (foreverUpdateOps.length) {
       await MasterTask.bulkWrite(foreverUpdateOps, { ordered: false });
     }
 
     // ---------------------------------------------------------
-    // 7) SEND FINAL OUTPUT
+    // 6) SEND RESPONSE
     // ---------------------------------------------------------
     return res.json(finalOutput);
 
   } catch (error) {
     console.error("❌ master-recurring-light error:", error);
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to fetch master tasks",
       error: error.message
     });
   }
 });
+
 
 router.get('/approval-count', async (req, res) => {
   try {

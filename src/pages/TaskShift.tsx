@@ -332,21 +332,21 @@ const TaskShift: React.FC = () => {
 
     const getPriorityColor = (priority: string) => {
         switch (priority.toLowerCase()) {
-            case 'high': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
-            case 'medium': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300';
-            case 'low': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
-            default: return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+            case 'high': return 'bg-red-100 text-red-700';
+            case 'medium': return 'bg-yellow-100 text-yellow-700';
+            case 'low': return 'bg-green-100 text-green-700';
+            default: return 'bg-gray-100 text-gray-700';
         }
     };
 
     const getTaskTypeColor = (type: string) => {
         switch (type) {
-            case 'daily': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
-            case 'weekly': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
-            case 'monthly': return 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300';
-            case 'quarterly': return 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300';
-            case 'yearly': return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300';
-            default: return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+            case 'daily': return 'bg-blue-100 text-blue-700';
+            case 'weekly': return 'bg-purple-100 text-purple-700';
+            case 'monthly': return 'bg-indigo-100 text-indigo-700';
+            case 'quarterly': return 'bg-pink-100 text-pink-700';
+            case 'yearly': return 'bg-orange-100 text-orange-700';
+            default: return 'bg-gray-100 text-gray-700';
         }
     };
 
@@ -370,7 +370,7 @@ const TaskShift: React.FC = () => {
     return (
         <div className={`min-h-screen transition-colors duration-300 'bg-[var(--color-background)]'}`}>
             {/* Header */}
-            <div className="sticky top-0 z-10 bg-[var(--color-surface)] dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-700">
+            <div className="sticky top-0 z-10 bg-[var(--color-surface)] backdrop-blur-xl border-b border-gray-200">
                 <div className="px-4 sm:px-6 lg:px-8 py-4">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div className="flex items-center gap-3">
@@ -392,12 +392,12 @@ const TaskShift: React.FC = () => {
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     placeholder="Search tasks..."
-                                    className="pl-10 pr-4 py-2 w-64 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[var(--color-background)] text-[var(--color-text)] placeholder-[var(--color-textSecondary)] transition-all duration-200"
+                                    className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[var(--color-background)] text-[var(--color-text)] placeholder-[var(--color-textSecondary)] transition-all duration-200"
                                 />
                                 {searchTerm && (
                                     <button
                                         onClick={() => setSearchTerm('')}
-                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                                     >
                                         <X className="w-4 h-4" />
                                     </button>
@@ -408,8 +408,8 @@ const TaskShift: React.FC = () => {
                             <button
                                 onClick={() => setShowFilters(!showFilters)}
                                 className={`p-2 rounded-lg border transition-all duration-200 ${showFilters
-                                    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700 text-blue-600 dark:text-blue-400'
-                                    : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                    ? 'bg-blue-50  border-blue-200 text-blue-600'
+                                    : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
                                     }`}
                             >
                                 <Filter className="w-5 h-5" />
@@ -422,7 +422,7 @@ const TaskShift: React.FC = () => {
             {/* Filters Panel */}
             <div className={`transition-all duration-300 ease-in-out overflow-hidden ${showFilters ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
                 }`}>
-                <div className="bg-[var(--color-surface)] border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 lg:px-8 py-6">
+                <div className="bg-[var(--color-surface)] border-b border-gray-200 px-4 sm:px-6 lg:px-8 py-6">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-7 gap-4">
 
                         {/* From User */}
@@ -457,7 +457,7 @@ const TaskShift: React.FC = () => {
                                         className={`flex-1 h-9 rounded-lg text-sm font-medium transition-all
               ${taskCategory === type
                                                 ? 'bg-blue-600 text-white shadow-sm'
-                                                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}
+                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}
             `}
                                     >
                                         {type === 'one-time' ? 'One-time' : 'Recurring'}
@@ -533,7 +533,7 @@ const TaskShift: React.FC = () => {
                         <div className="flex items-end">
                             <button
                                 onClick={clearFilters}
-                                className="w-full h-9 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 transition flex items-center justify-center gap-2"
+                                className="w-full h-9 rounded-lg border border-gray-300 bg-gray-50 text-sm font-medium text-gray-700 hover:bg-red-50 hover:text-red-600 transition flex items-center justify-center gap-2"
                             >
                                 <X className="w-4 h-4" />
                                 Clear
@@ -548,7 +548,7 @@ const TaskShift: React.FC = () => {
             <div className="px-4 sm:px-6 lg:px-8 py-6">
                 {!fromUser ? (
                     <div className="text-center py-12">
-                        <div className="p-4 rounded-full bg-gray-100 dark:bg-gray-800 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                        <div className="p-4 rounded-full bg-gray-100 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                             <UserCheck className="w-8 h-8 text-gray-400" />
                         </div>
                         <h3 className="text-lg font-medium text-[var(--color-text)] mb-2">Select a User</h3>
@@ -562,7 +562,7 @@ const TaskShift: React.FC = () => {
                                 <h2 className="text-lg font-semibold text-[var(--color-text)]">
                                     {taskCategory === 'one-time' ? 'One-time Tasks' : 'Recurring Tasks'}
                                 </h2>
-                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
                                     {taskCategory === 'one-time' ? filteredOneTimeTasks.length : filteredMasterTasks.length}
                                 </span>
                             </div>
@@ -604,7 +604,7 @@ const TaskShift: React.FC = () => {
                                                     <table className="w-full">
                                                         <thead className="sticky top-0 z-10 bg-[var(--color-background)] shadow-sm">
                                                             <tr>
-                                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                                     <input
                                                                         type="checkbox"
                                                                         checked={selectedTasks.size === filteredOneTimeTasks.length && filteredOneTimeTasks.length > 0}
@@ -686,7 +686,7 @@ const TaskShift: React.FC = () => {
                                                     <table className="w-full">
                                                         <thead className="sticky top-0 z-10 bg-[var(--color-background)] shadow-sm">
                                                             <tr>
-                                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                                     <input
                                                                         type="checkbox"
                                                                         checked={selectedMasterTasks.size === filteredMasterTasks.length && filteredMasterTasks.length > 0}
@@ -741,7 +741,7 @@ const TaskShift: React.FC = () => {
                                                                     </td>
                                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                                         <div className="flex items-center gap-2">
-                                                                            <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                                                            <div className="flex-1 bg-gray-200 rounded-full h-2">
                                                                                 <div
                                                                                     className="bg-green-500 h-2 rounded-full transition-all duration-300"
                                                                                     style={{ width: `${(task.completedCount / task.instanceCount) * 100}%` }}
@@ -786,7 +786,7 @@ const TaskShift: React.FC = () => {
                                                         onClick={() => handleTaskSelection(task._id, !selectedTasks.has(task._id))}
                                                         className={`bg-[var(--color-surface)] rounded-xl p-4 border transition-all duration-200 ${selectedTasks.has(task._id)
                                                             ? 'border-blue-500 bg-[var(--color-chat)]'
-                                                            : 'border-gray-200 dark:border-gray-700'
+                                                            : 'border-gray-200'
                                                             }`}
                                                         style={{ animationDelay: `${index * 50}ms` }}
                                                     >
@@ -846,7 +846,7 @@ const TaskShift: React.FC = () => {
                                                         onClick={() => handleMasterTaskSelection(task.taskGroupId, !selectedMasterTasks.has(task.taskGroupId))}
                                                         className={`bg-[var(--color-surface)] rounded-xl p-4 border transition-all duration-200 ${selectedMasterTasks.has(task.taskGroupId)
                                                             ? 'border-blue-500 bg-[var(--color-chat)]'
-                                                            : 'border-gray-200 dark:border-gray-700'
+                                                            : 'border-gray-200'
                                                             }`}
                                                         style={{ animationDelay: `${index * 50}ms` }}
                                                     >
@@ -917,7 +917,7 @@ const TaskShift: React.FC = () => {
             {/* Bulk Action Panel */}
             <div className={`fixed bottom-0 left-0 right-0 z-50 transition-all duration-300 ease-in-out ${showBulkPanel ? 'translate-y-0' : 'translate-y-full'
                 }`}>
-                <div className="bg-[var(--color-surface)] border-t border-gray-200 dark:border-gray-700 shadow-2xl">
+                <div className="bg-[var(--color-surface)] border-t border-gray-200 shadow-2xl">
                     <div className="px-4 sm:px-6 lg:px-8 py-4">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                             <div className="flex items-center gap-4">
@@ -951,7 +951,7 @@ const TaskShift: React.FC = () => {
                                         setSelectedTasks(new Set());
                                         setSelectedMasterTasks(new Set());
                                     }}
-                                    className="px-4 py-2 text-sm font-medium text-[var(--color-text)] hover:text-gray-800 dark:hover:text-gray-200 transition-colors duration-200"
+                                    className="px-4 py-2 text-sm font-medium text-[var(--color-text)] hover:text-gray-800 transition-colors duration-200"
                                 >
                                     Cancel
                                 </button>
@@ -959,7 +959,7 @@ const TaskShift: React.FC = () => {
                                     onClick={handleShiftTasks}
                                     disabled={!toUser || loading}
                                     className={`px-6 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${!toUser || loading
-                                        ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                         : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105'
                                         }`}
                                 >
