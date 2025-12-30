@@ -462,19 +462,19 @@ const MasterTasks: React.FC = () => {
                 {task.status === 'rejected' && (
                   <button
                     onClick={() => setShowRejectInfoModal(task)}
-                    className="ml-1 p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900"
+                    className="ml-1 p-1 rounded-full hover:bg-red-100"
                     title="View rejection details"
                   >
-                    <Info size={14} className="text-red-600 dark:text-red-400" />
+                    <Info size={14} className="text-red-600" />
                   </button>
                 )}
                 {task.status === 'completed' && task.approvedAt && task.approvedBy && (
                   <button
                     onClick={() => setShowApproveInfoModal(task)}
-                    className="ml-1 p-1 rounded-full hover:bg-green-100 dark:hover:bg-green-900"
+                    className="ml-1 p-1 rounded-full hover:bg-green-100"
                     title="View approval details"
                   >
-                    <Info size={14} className="text-green-600 dark:text-green-400" />
+                    <Info size={14} className="text-green-600" />
                   </button>
                 )}
                 <PriorityBadge priority={task.priority} />
@@ -726,19 +726,19 @@ const MasterTasks: React.FC = () => {
                       {task.status === 'rejected' && (
                         <button
                           onClick={() => setShowRejectInfoModal(task)}
-                          className="p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900 transition"
+                          className="p-1 rounded-full hover:bg-red-100 transition"
                           title="View rejection details"
                         >
-                          <Info size={14} className="text-red-600 dark:text-red-400" />
+                          <Info size={14} className="text-red-600" />
                         </button>
                       )}
                       {task.status === 'completed' && task.approvedAt && task.approvedBy && (
                         <button
                           onClick={() => setShowApproveInfoModal(task)}
-                          className="p-1 rounded-full hover:bg-green-100 dark:hover:bg-green-900"
+                          className="p-1 rounded-full hover:bg-green-100"
                           title="View approval details"
                         >
-                          <Info size={14} className="text-green-600 dark:text-green-400" />
+                          <Info size={14} className="text-green-600" />
                         </button>
                       )}
                     </div>
@@ -1112,7 +1112,7 @@ const MasterTasks: React.FC = () => {
           {Object.values(filter).some(value => value !== '') && (
             <button
               onClick={resetFilters}
-              className="mt-4 px-4 py-2 text-sm font-medium text-[--color-primary] hover:text-[--color-primary-dark] transition-colors"
+              className="mt-4 px-4 py-2 text-sm font-medium text-[--color-primary] hover:text-[--color-primary] transition-colors"
             >
               Clear all filters
             </button>
@@ -1576,7 +1576,7 @@ const MasterTasks: React.FC = () => {
 
               {/* Timeline */}
               <div className="relative pl-6">
-                <div className="absolute left-2 top-1 bottom-1 w-px bg-red-300 dark:bg-red-700" />
+                <div className="absolute left-2 top-1 bottom-1 w-px bg-red-300" />
 
                 <div className="flex-1 space-y-3">
 
@@ -1681,9 +1681,9 @@ const MasterTasks: React.FC = () => {
         ${isDark ? 'border-gray-700' : 'border-gray-200'}
       ">
               <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/40
+                <div className="h-12 w-12 rounded-full bg-green-100
             flex items-center justify-center">
-                  <Check size={22} className="text-green-600 dark:text-green-400" />
+                  <Check size={22} className="text-green-600" />
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold">Task Approved</h3>
