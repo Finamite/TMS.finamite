@@ -590,24 +590,61 @@ function generateNewHtmlReport({
                     <div class="section-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white;">📊</div>
                     Current Status
                 </h3>
-                <div class="metrics-grid">
-                    <div class="metric-card pending">
-                        <div class="metric-number">${data.totalPending || 0}</div>
-                        <div class="metric-label">Today's Tasks</div>
-                    </div>
-                    <div class="metric-card overdue">
-                        <div class="metric-number">${data.totalOverdue || 0}</div>
-                        <div class="metric-label">Overdue Tasks</div>
-                    </div>
-                    <div class="metric-card completed">
-                        <div class="metric-number">${data.completedToday || 0}</div>
-                        <div class="metric-label">Completed Today</div>
-                    </div>
-                    <div class="metric-card upcoming">
-                        <div class="metric-number">${data.completionRate || 0}%</div>
-                        <div class="metric-label">Weekly Success Rate</div>
-                    </div>
-                </div>
+                <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:30px;">
+  <tr>
+    <!-- Today's Tasks -->
+    <td width="33.33%" align="center" style="padding:10px;">
+      <div style="
+        border:2px solid #e2e8f0;
+        border-radius:16px;
+        padding:22px;
+        background:#ffffff;
+      ">
+        <div style="font-size:36px;font-weight:800;color:#3b82f6;">
+          ${data.totalPending || 0}
+        </div>
+        <div style="font-size:13px;color:#64748b;font-weight:600;letter-spacing:0.5px;">
+          TODAY’S TASKS
+        </div>
+      </div>
+    </td>
+
+    <!-- Overdue Tasks -->
+    <td width="33.33%" align="center" style="padding:10px;">
+      <div style="
+        border:2px solid #e2e8f0;
+        border-radius:16px;
+        padding:22px;
+        background:#ffffff;
+      ">
+        <div style="font-size:36px;font-weight:800;color:#ef4444;">
+          ${data.totalOverdue || 0}
+        </div>
+        <div style="font-size:13px;color:#64748b;font-weight:600;letter-spacing:0.5px;">
+          OVERDUE TASKS
+        </div>
+      </div>
+    </td>
+
+    <!-- Completed Today -->
+    <td width="33.33%" align="center" style="padding:10px;">
+      <div style="
+        border:2px solid #e2e8f0;
+        border-radius:16px;
+        padding:22px;
+        background:#ffffff;
+      ">
+        <div style="font-size:36px;font-weight:800;color:#10b981;">
+          ${data.completedToday || 0}
+        </div>
+        <div style="font-size:13px;color:#64748b;font-weight:600;letter-spacing:0.5px;">
+          COMPLETED TODAY
+        </div>
+      </div>
+    </td>
+  </tr>
+</table>
+
             </div>
 
             <!-- Staff Performance -->
@@ -692,24 +729,37 @@ function generateNewHtmlReport({
                     <div class="section-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white;">📊</div>
                     Current Status
                 </h3>
-                <div class="metrics-grid">
-                    <div class="metric-card pending">
-                        <div class="metric-number">${data.dueTodayPending || 0}</div>
-                        <div class="metric-label">Due Today Pending</div>
-                    </div>
-                    <div class="metric-card overdue">
-                        <div class="metric-number">${data.totalOverdue || 0}</div>
-                        <div class="metric-label">Overdue</div>
-                    </div>
-                    <div class="metric-card progress">
-                        <div class="metric-number">${data.inProgressTasks || 0}</div>
-                        <div class="metric-label">In Progress</div>
-                    </div>
-                    <div class="metric-card completed">
-                        <div class="metric-number">${data.completedToday || 0}</div>
-                        <div class="metric-label">Completed Today</div>
-                    </div>
-                </div>
+                <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:30px;">
+  <tr>
+    <td width="25%" align="center" style="padding:10px;">
+      <div style="border:2px solid #e2e8f0;border-radius:16px;padding:20px;">
+        <div style="font-size:36px;font-weight:800;color:#3b82f6;">${data.dueTodayPending || 0}</div>
+        <div style="font-size:13px;color:#64748b;font-weight:600;">DUE TODAY PENDING</div>
+      </div>
+    </td>
+
+    <td width="25%" align="center" style="padding:10px;">
+      <div style="border:2px solid #e2e8f0;border-radius:16px;padding:20px;">
+        <div style="font-size:36px;font-weight:800;color:#ef4444;">${data.totalOverdue || 0}</div>
+        <div style="font-size:13px;color:#64748b;font-weight:600;">OVERDUE</div>
+      </div>
+    </td>
+
+    <td width="25%" align="center" style="padding:10px;">
+      <div style="border:2px solid #e2e8f0;border-radius:16px;padding:20px;">
+        <div style="font-size:36px;font-weight:800;color:#f59e0b;">${data.inProgressTasks || 0}</div>
+        <div style="font-size:13px;color:#64748b;font-weight:600;">IN PROGRESS</div>
+      </div>
+    </td>
+
+    <td width="25%" align="center" style="padding:10px;">
+      <div style="border:2px solid #e2e8f0;border-radius:16px;padding:20px;">
+        <div style="font-size:36px;font-weight:800;color:#10b981;">${data.completedToday || 0}</div>
+        <div style="font-size:13px;color:#64748b;font-weight:600;">COMPLETED TODAY</div>
+      </div>
+    </td>
+  </tr>
+</table>
             </div>
 
             <!-- Coming Up -->
@@ -718,20 +768,61 @@ function generateNewHtmlReport({
                     <div class="section-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white;">📅</div>
                     Coming Up (Next 7 Days)
                 </h3>
-                <div class="metrics-grid metrics-grid-3">
-                    <div class="metric-card upcoming">
-                        <div class="metric-number">${data.upcomingOneTime || 0}</div>
-                        <div class="metric-label">One Time Tasks</div>
-                    </div>
-                    <div class="metric-card upcoming">
-                        <div class="metric-number">${data.upcomingDaily || 0}</div>
-                        <div class="metric-label">Daily Tasks</div>
-                    </div>
-                    <div class="metric-card upcoming">
-                        <div class="metric-number">${data.upcomingRecurring || 0}</div>
-                        <div class="metric-label">Recurring Tasks</div>
-                    </div>
-                </div>
+               <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:30px;">
+  <tr>
+    <!-- One Time Tasks -->
+    <td width="33.33%" align="center" style="padding:10px;">
+      <div style="
+        border:2px solid #e2e8f0;
+        border-radius:16px;
+        padding:20px;
+        background:#ffffff;
+      ">
+        <div style="font-size:34px;font-weight:800;color:#8b5cf6;">
+          ${data.upcomingOneTime || 0}
+        </div>
+        <div style="font-size:13px;color:#64748b;font-weight:600;letter-spacing:0.5px;">
+          ONE TIME TASKS
+        </div>
+      </div>
+    </td>
+
+    <!-- Daily Tasks -->
+    <td width="33.33%" align="center" style="padding:10px;">
+      <div style="
+        border:2px solid #e2e8f0;
+        border-radius:16px;
+        padding:20px;
+        background:#ffffff;
+      ">
+        <div style="font-size:34px;font-weight:800;color:#8b5cf6;">
+          ${data.upcomingDaily || 0}
+        </div>
+        <div style="font-size:13px;color:#64748b;font-weight:600;letter-spacing:0.5px;">
+          DAILY TASKS
+        </div>
+      </div>
+    </td>
+
+    <!-- Recurring Tasks -->
+    <td width="33.33%" align="center" style="padding:10px;">
+      <div style="
+        border:2px solid #e2e8f0;
+        border-radius:16px;
+        padding:20px;
+        background:#ffffff;
+      ">
+        <div style="font-size:34px;font-weight:800;color:#8b5cf6;">
+          ${data.upcomingRecurring || 0}
+        </div>
+        <div style="font-size:13px;color:#64748b;font-weight:600;letter-spacing:0.5px;">
+          RECURRING TASKS
+        </div>
+      </div>
+    </td>
+  </tr>
+</table>
+
             </div>
 
             <!-- High Priority Tasks for This Week/Today -->
