@@ -193,9 +193,14 @@ const Dashboard: React.FC = () => {
       navigate(type === "single" ? "/master-tasks" : "/master-recurring");
     }
     if (category === "overdue") {
-      navigate(type === "single" ? "/master-tasks" : "/master-recurring");
+      navigate(type === "single" ? "/pending-tasks" : "/pending-recurring");
     }
   };
+
+  const canOpenApprovalPage =
+    user &&
+    (user.role === 'admin' ||
+      (user.role === 'manager' && user.permissions?.canManageApproval));
 
   const ThemeCard = ({ children, className = "", variant = "default", hover = true, onClick }: {
     children: React.ReactNode;
@@ -208,7 +213,7 @@ const Dashboard: React.FC = () => {
 
     const variants = {
       default: `rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-lg`,
-      glass: `rounded-2xl bg-[var(--color-surface)]/80 backdrop-blur-xl border border-[var(--color-border)]/50 shadow-xl`,
+      glass: `rounded-2xl bg-[var(--color-surface)]/80 backdrop-blur-xl border border-[var(--color-border)] shadow-xl`,
       elevated: `rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-2xl`,
       bordered: `rounded-2xl bg-[var(--color-primary)]/10 border-2 border-[var(--color-primary)]/20`
     };
@@ -234,7 +239,8 @@ const Dashboard: React.FC = () => {
     isMain = false,
     pendingValue,
     completedValue,
-    valueColor
+    valueColor,
+    onClick,
   }: {
     icon: React.ReactNode;
     title: string;
@@ -247,13 +253,20 @@ const Dashboard: React.FC = () => {
     pendingValue?: number;
     completedValue?: number;
     valueColor?: string;
+    onClick?: () => void;
   }) => {
 
 
     return (
       <div className="relative">
         <ThemeCard
-          onClick={slug ? () => handleCardClick(title) : undefined}
+          onClick={
+            onClick
+              ? onClick
+              : slug
+                ? () => handleCardClick(title)
+                : undefined
+          }
           className={`p-2 sm:p-3 rounded-xl transition-shadow duration-300 hover:shadow-lg ${isMain ? "col-span-2" : ""
             }`}
           variant="glass"
@@ -320,14 +333,14 @@ const Dashboard: React.FC = () => {
           {(pendingValue !== undefined || completedValue !== undefined) && (
             <div className="flex justify-between text-[11px] text-[var(--color-textSecondary)] pt-2 border-t border-[var(--color-border)]">
               {pendingValue !== undefined && (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center ml-3 sm:ml-0 gap-1">
                   <Clock size={13} style={{ color: "#04b9ddff" }} />
                   <span className="text-xs font-bold text-[#04b9ddff]">{pendingValue}</span>
                 </div>
               )}
 
               {completedValue !== undefined && (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center mr-3 sm:mr-0 gap-1">
                   <CheckCircle size={13} style={{ color: "#5b88dbff" }} />
                   <span className="text-xs font-bold text-[#5b88dbff]">{completedValue}</span>
                 </div>
@@ -383,7 +396,7 @@ const Dashboard: React.FC = () => {
                 e.stopPropagation();
                 goToPage("single", slug);
               }}
-              className="block w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg"
+              className="block w-full text-left px-3 py-2 hover:bg-[var(--color-chat)] rounded-lg"
             >
               Single Tasks
             </button>
@@ -393,7 +406,7 @@ const Dashboard: React.FC = () => {
                 e.stopPropagation();
                 goToPage("recurring", slug);
               }}
-              className="block w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg"
+              className="block w-full text-left px-3 py-2 hover:bg-[var(--color-chat)] rounded-lg"
             >
               Recurring Tasks
             </button>
@@ -586,29 +599,29 @@ const Dashboard: React.FC = () => {
   }, [user, adminApprovalEnabled]);
 
   useEffect(() => {
-  if (!user?.id) return;
+    if (!user?.id) return;
 
-  let isMounted = true;
+    let isMounted = true;
 
-  const idleLoad = async () => {
-    const data = await fetchTeamPendingTasks();
-    if (isMounted) setTeamPendingData(data);
-  };
-
-  if ('requestIdleCallback' in window) {
-    const id = requestIdleCallback(idleLoad);
-    return () => {
-      isMounted = false;
-      cancelIdleCallback?.(id);
+    const idleLoad = async () => {
+      const data = await fetchTeamPendingTasks();
+      if (isMounted) setTeamPendingData(data);
     };
-  } else {
-    const timeout = setTimeout(idleLoad, 300);
-    return () => {
-      isMounted = false;
-      clearTimeout(timeout);
+
+    if ('requestIdleCallback' in window) {
+      const id = requestIdleCallback(idleLoad);
+      return () => {
+        isMounted = false;
+        cancelIdleCallback?.(id);
+      };
+    } else {
+      const timeout = setTimeout(idleLoad, 300);
+      return () => {
+        isMounted = false;
+        clearTimeout(timeout);
+      };
     };
-  };
-}, [user?.id]);
+  }, [user?.id]);
 
 
   // Load member trend data when selected team member changes
@@ -654,9 +667,9 @@ const Dashboard: React.FC = () => {
     return options;
   };
 
-        const gridColsClass = adminApprovalEnabled
-  ? "xl:grid-cols-5"
-  : "xl:grid-cols-4";
+  const gridColsClass = adminApprovalEnabled
+    ? "xl:grid-cols-5"
+    : "xl:grid-cols-4";
 
   const monthOptions = generateMonthOptions();
 
@@ -897,8 +910,8 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Main Metrics Grid with Real Trends */}
-<div
-  className={`
+      <div
+        className={`
     grid grid-cols-1
     sm:grid-cols-2
     md:grid-cols-3
@@ -907,63 +920,64 @@ const Dashboard: React.FC = () => {
     gap-4 sm:gap-6 lg:gap-8
     p-4 sm:p-2 lg:p-4
   `}
->
-  <MetricCard
-    icon={<CheckSquare size={24} className="text-green-600" />}
-    title="Total Tasks"
-    slug="total"
-    value={displayData?.totalTasks || 0}
-    valueColor="#1f8825ff"
-    subtitle={
-      viewMode === 'current' && isSameMonth(selectedMonth, new Date()) && isSameYear(selectedMonth, new Date())
-        ? 'Current Month'
-        : viewMode === 'current'
-          ? format(selectedMonth, 'MMMM yyyy')
-          : 'All time'
-    }
-  />
+      >
+        <MetricCard
+          icon={<CheckSquare size={24} className="text-green-600" />}
+          title="Total Tasks"
+          slug="total"
+          value={displayData?.totalTasks || 0}
+          valueColor="#1f8825ff"
+          subtitle={
+            viewMode === 'current' && isSameMonth(selectedMonth, new Date()) && isSameYear(selectedMonth, new Date())
+              ? 'Current Month'
+              : viewMode === 'current'
+                ? format(selectedMonth, 'MMMM yyyy')
+                : 'All time'
+          }
+        />
 
-  <MetricCard
-    icon={<Clock size={24} className="text-cyan-500" />}
-    title="Pending"
-    slug="pending"
-    value={displayData?.pendingTasks || 0}
-    valueColor="#04b9ddff"
-    subtitle="Awaiting completion"
-  />
+        <MetricCard
+          icon={<Clock size={24} className="text-cyan-500" />}
+          title="Pending"
+          slug="pending"
+          value={displayData?.pendingTasks || 0}
+          valueColor="#04b9ddff"
+          subtitle="Awaiting completion"
+        />
 
-  <MetricCard
-    icon={<CheckCircle size={24} className="text-blue-500" />}
-    title="Completed"
-    slug="completed"
-    value={displayData?.completedTasks || 0}
-    valueColor="#5b88dbff"
-    subtitle="Successfully finished"
-  />
+        <MetricCard
+          icon={<CheckCircle size={24} className="text-blue-500" />}
+          title="Completed"
+          slug="completed"
+          value={displayData?.completedTasks || 0}
+          valueColor="#5b88dbff"
+          subtitle="Successfully finished"
+        />
 
-  <MetricCard
-    icon={<AlertTriangle size={24} className="text-red-500" />}
-    title="Overdue"
-    slug="overdue"
-    value={displayData?.overdueTasks || 0}
-    valueColor="#ef4444"
-    subtitle={`${displayData?.overduePercentage?.toFixed(1)}% of total`}
-  />
+        <MetricCard
+          icon={<AlertTriangle size={24} className="text-red-500" />}
+          title="Overdue"
+          slug="overdue"
+          value={displayData?.overdueTasks || 0}
+          valueColor="#ef4444"
+          subtitle={`${displayData?.overduePercentage?.toFixed(1)}% of total`}
+        />
 
-  {adminApprovalEnabled && user && (
-    <MetricCard
-      icon={<ClipboardCheck />}
-      title="Approval Due"
-      value={pendingApprovalCount}
-      valueColor="#f59e0b"
-      subtitle={
-        user.role === "user"
-          ? "Your tasks awaiting approval"
-          : "Tasks awaiting approval"
-      }
-    />
-  )}
-</div>
+        {adminApprovalEnabled && user && (
+          <MetricCard
+            icon={<ClipboardCheck size={24} className="text-purple-600" />}
+            title="Approval Due"
+            value={pendingApprovalCount}
+            valueColor="#7c3aed"
+            subtitle="Tasks waiting for approval"
+            onClick={
+              canOpenApprovalPage
+                ? () => navigate('/for-approval')
+                : undefined
+            }
+          />
+        )}
+      </div>
 
       {/* Task Type Distribution - Now includes quarterly and updated to 6 columns */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5 lg:gap-6 p-4 sm:p-2 lg:p-4">

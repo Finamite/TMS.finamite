@@ -13,6 +13,7 @@ interface Task {
     _id: string;
     title: string;
     description: string;
+    assignedBy: { username: string; email: string; _id: string };
     assignedTo: { username: string; email: string; _id: string };
     dueDate: string;
     completedAt?: string;
@@ -81,8 +82,8 @@ const RejectionModal: React.FC<RejectionModalProps> = ({ isOpen, onClose, onNoAc
                     <button
                         onClick={onClose}
                         className={`p-1 rounded-full transition-colors shrink-0 ${theme === 'light'
-                                ? 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
-                                : 'text-gray-400 hover:bg-gray-700 hover:text-white'
+                            ? 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+                            : 'text-gray-400 hover:bg-gray-700 hover:text-white'
                             }`}
                         title="Close"
                     >
@@ -268,6 +269,7 @@ const ForApproval: React.FC = () => {
 
 
 
+
     // Save view preference
     useEffect(() => {
         localStorage.setItem('approvalViewPreference', view);
@@ -283,6 +285,18 @@ const ForApproval: React.FC = () => {
             fetchPendingApprovalTasks();
         }
     }, [user]);
+
+    useEffect(() => {
+        if (!user) return;
+
+        const allowed =
+            user.role === 'admin' ||
+            (user.role === 'manager' && user.permissions?.canManageApproval);
+
+        if (!allowed) {
+            navigate('/dashboard', { replace: true });
+        }
+    }, [user, navigate]);
 
     useEffect(() => {
         if (currentPage > totalPages) {
@@ -321,6 +335,15 @@ const ForApproval: React.FC = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const isSelfAssignedForManager = (task: Task) => {
+        if (!user) return false;
+
+        return (
+            user.role === 'manager' &&
+            task.assignedTo?._id === user.id
+        );
     };
 
     const handleApprove = async (taskId: string, remarks?: string) => {
@@ -454,23 +477,38 @@ const ForApproval: React.FC = () => {
                                             setApproveTaskId(task._id);
                                             setShowApproveConfirm(true);
                                         }}
-                                        disabled={approving === task._id}
-                                        className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors hover:scale-110 disabled:opacity-50"
-                                        title="Approve task"
+                                        disabled={
+                                            approving === task._id || isSelfAssignedForManager(task)
+                                        }
+                                        className={`p-2 rounded-lg transition-colors
+    ${isSelfAssignedForManager(task)
+                                                ? 'opacity-40 cursor-not-allowed'
+                                                : 'text-green-600 hover:bg-green-100 hover:scale-110'
+                                            }`}
+                                        title={
+                                            isSelfAssignedForManager(task)
+                                                ? 'You cannot approve your own task'
+                                                : 'Approve task'
+                                        }
                                     >
-                                        {approving === task._id ? (
-                                            <RefreshCw size={18} className="animate-spin" />
-                                        ) : (
-                                            <Check size={18} />
-                                        )}
+                                        <Check size={18} />
                                     </button>
                                     <button
                                         onClick={() => {
                                             setSelectedTask(task);
                                             setShowRejectionModal(true);
                                         }}
-                                        className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors hover:scale-110"
-                                        title="Reject task"
+                                        disabled={isSelfAssignedForManager(task)}
+                                        className={`p-2 rounded-lg transition-colors
+    ${isSelfAssignedForManager(task)
+                                                ? 'opacity-40 cursor-not-allowed'
+                                                : 'text-red-600 hover:bg-red-100 hover:scale-110'
+                                            }`}
+                                        title={
+                                            isSelfAssignedForManager(task)
+                                                ? 'You cannot reject your own task'
+                                                : 'Reject task'
+                                        }
                                     >
                                         <X size={18} />
                                     </button>
@@ -494,6 +532,10 @@ const ForApproval: React.FC = () => {
                             </p>
 
                             <div className="space-y-3 text-sm">
+                                <div className={`flex justify-between items-center py-2 px-3 ${theme === 'light' ? 'bg-gray-50' : 'bg-gray-700'} rounded-lg`}>
+                                    <span className={theme === 'light' ? 'text-gray-600' : 'text-gray-400'}>Assigned by:</span>
+                                    <span className={`font-medium ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{task.assignedBy?.username || '—'}</span>
+                                </div>
                                 <div className={`flex justify-between items-center py-2 px-3 ${theme === 'light' ? 'bg-gray-50' : 'bg-gray-700'} rounded-lg`}>
                                     <span className={theme === 'light' ? 'text-gray-600' : 'text-gray-400'}>Assigned to:</span>
                                     <span className={`font-medium ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{task.assignedTo.username}</span>
@@ -605,7 +647,8 @@ const ForApproval: React.FC = () => {
                     <thead className={theme === 'light' ? 'bg-gray-50' : 'bg-gray-700'}>
                         <tr>
                             <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>Task</th>
-                            <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>Assignee</th>
+                            <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>Assigned By</th>
+                            <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>Assigned To</th>
                             <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>Priority</th>
                             <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>Due Date</th>
                             <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>Completed On</th>
@@ -647,6 +690,16 @@ const ForApproval: React.FC = () => {
                                                         {showFullDescription[task._id] ? 'See Less' : 'See More'}
                                                     </button>
                                                 )}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="flex items-center">
+                                            <User className="mr-2 text-gray-400" size={16} />
+                                            <div>
+                                                <div className={`text-sm font-medium ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>
+                                                    {task.assignedBy?.username || '—'}
+                                                </div>
                                             </div>
                                         </div>
                                     </td>
@@ -729,33 +782,59 @@ const ForApproval: React.FC = () => {
                                     </td>
 
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <div className="flex space-x-2">
-                                            <button
-                                                onClick={() => {
-                                                    setApproveTaskId(task._id);
-                                                    setShowApproveConfirm(true);
-                                                }}
-                                                disabled={approving === task._id}
-                                                className="px-3 py-1 rounded-lg bg-green-500 text-white text-sm hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1 transition-colors"
-                                            >
-                                                {approving === task._id ? (
-                                                    <RefreshCw size={14} className="animate-spin" />
-                                                ) : (
-                                                    <Check size={14} />
-                                                )}
-                                                <span>Approve</span>
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    setSelectedTask(task);
-                                                    setShowRejectionModal(true);
-                                                }}
-                                                className="px-3 py-1 rounded-lg bg-red-500 text-white text-sm hover:bg-red-600 flex items-center space-x-1 transition-colors"
-                                            >
-                                                <X size={14} />
-                                                <span>Reject</span>
-                                            </button>
-                                        </div>
+                                        {(() => {
+                                            const disabled = isSelfAssignedForManager(task);
+
+                                            return (
+                                                <div className="flex items-center gap-3">
+                                                    {/* ✅ APPROVE */}
+                                                    <button
+                                                        onClick={() => {
+                                                            setApproveTaskId(task._id);
+                                                            setShowApproveConfirm(true);
+                                                        }}
+                                                        disabled={approving === task._id || disabled}
+                                                        title={
+                                                            disabled
+                                                                ? 'You cannot approve your own task'
+                                                                : 'Approve task'
+                                                        }
+                                                        className={`p-2 rounded-lg transition-colors
+                                                        ${disabled
+                                                                ? 'opacity-40 cursor-not-allowed'
+                                                                : 'text-green-600 hover:bg-green-100'
+                                                            }`}
+                                                    >
+                                                        {approving === task._id ? (
+                                                            <RefreshCw size={16} className="animate-spin" />
+                                                        ) : (
+                                                            <Check size={16} />
+                                                        )}
+                                                    </button>
+
+                                                    {/* ❌ REJECT */}
+                                                    <button
+                                                        onClick={() => {
+                                                            setSelectedTask(task);
+                                                            setShowRejectionModal(true);
+                                                        }}
+                                                        disabled={disabled}
+                                                        title={
+                                                            disabled
+                                                                ? 'You cannot reject your own task'
+                                                                : 'Reject task'
+                                                        }
+                                                        className={`p-2 rounded-lg transition-colors
+                                                           ${disabled
+                                                                ? 'opacity-40 cursor-not-allowed'
+                                                                : 'text-red-600 hover:bg-red-100'
+                                                            }`}
+                                                    >
+                                                        <X size={16} />
+                                                    </button>
+                                                </div>
+                                            );
+                                        })()}
                                     </td>
                                 </tr>
                             );
@@ -1113,7 +1192,7 @@ const ForApproval: React.FC = () => {
                                                     {isImage(attachment.filename) && (
                                                         <button
                                                             onClick={() => setSelectedImagePreview(`${address}/uploads/${attachment.filename}`)}
-                                                            className="px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-lg transition-colors flex items-center gap-1"
+                                                            className="px-3 py-2 text-sm font-medium text-[var(--color-primary)] hover:text-blue-800 hover:bg-blue-100 rounded-lg transition-colors flex items-center gap-1"
                                                         >
                                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -1124,7 +1203,7 @@ const ForApproval: React.FC = () => {
                                                     )}
                                                     <button
                                                         onClick={() => downloadFile(attachment.filename, attachment.originalName)}
-                                                        className="px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-lg transition-colors flex items-center gap-1"
+                                                        className="px-3 py-2 text-sm font-medium text-[var(--color-primary)] hover:text-blue-800 hover:bg-blue-100 rounded-lg transition-colors flex items-center gap-1"
                                                     >
                                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                                             <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -1176,10 +1255,16 @@ const ForApproval: React.FC = () => {
                         />
                         <button
                             onClick={() => setSelectedImagePreview(null)}
-                            className="absolute -top-2 -right-2 text-white text-2xl bg-red-500 hover:bg-red-600 rounded-full w-8 h-8 flex items-center justify-center transition-colors shadow-lg"
+                            className="absolute -top-2 -right-2
+             w-7 h-7 rounded-full
+             bg-red-500 backdrop-blur-md
+             text-white text-xl
+             flex items-center justify-center
+             hover:bg-red-600
+             transition-all"
                             title="Close"
                         >
-                            &times;
+                            ✕
                         </button>
                         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-75 text-white px-4 py-2 rounded-lg text-sm">
                             Click anywhere to close

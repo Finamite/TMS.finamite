@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import {
     Users,
@@ -90,6 +90,8 @@ const TaskShift: React.FC = () => {
     const [masterTasks, setMasterTasks] = useState<MasterTask[]>([]);
     const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
     const [selectedMasterTasks, setSelectedMasterTasks] = useState<Set<string>>(new Set());
+    const dateFromRef = useRef<HTMLInputElement>(null);
+    const dateToRef = useRef<HTMLInputElement>(null);
 
     // UI state
     const [loading, setLoading] = useState(false);
@@ -407,12 +409,16 @@ const TaskShift: React.FC = () => {
                             {/* Filter Toggle */}
                             <button
                                 onClick={() => setShowFilters(!showFilters)}
-                                className={`p-2 rounded-lg border transition-all duration-200 ${showFilters
-                                    ? 'bg-blue-50  border-blue-200 text-blue-600'
+                                className={`p-2 rounded-lg border transition-all duration-200 relative ${showFilters
+                                    ? 'bg-blue-50 border-blue-200 text-blue-600'
                                     : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
                                     }`}
                             >
                                 <Filter className="w-5 h-5" />
+
+                                {!fromUser && (
+                                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                                )}
                             </button>
                         </div>
                     </div>
@@ -428,7 +434,7 @@ const TaskShift: React.FC = () => {
                         {/* From User */}
                         <div className="flex flex-col">
                             <label className="text-xs font-semibold text-[var(--color-text)] mb-1">
-                                From User
+                                From User <span className="text-red-500">*</span>
                             </label>
                             <select
                                 value={fromUser}
@@ -509,10 +515,16 @@ const TaskShift: React.FC = () => {
                                 Date From
                             </label>
                             <input
+                                ref={dateFromRef}
                                 type="date"
                                 value={dateFrom}
+                                onClick={() => dateFromRef.current?.showPicker()}
                                 onChange={(e) => setDateFrom(e.target.value)}
-                                className="h-9 rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 text-sm text-[var(--color-text)] focus:ring-2 focus:ring-blue-500"
+                                className="h-9 cursor-pointer rounded-lg
+               border border-[var(--color-border)]
+               bg-[var(--color-background)]
+               px-3 text-sm text-[var(--color-text)]
+               focus:ring-2 focus:ring-blue-500"
                             />
                         </div>
 
@@ -522,10 +534,16 @@ const TaskShift: React.FC = () => {
                                 Date To
                             </label>
                             <input
+                                ref={dateToRef}
                                 type="date"
                                 value={dateTo}
+                                onClick={() => dateToRef.current?.showPicker()}
                                 onChange={(e) => setDateTo(e.target.value)}
-                                className="h-9 rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 text-sm text-[var(--color-text)] focus:ring-2 focus:ring-blue-500"
+                                className="h-9 cursor-pointer rounded-lg
+               border border-[var(--color-border)]
+               bg-[var(--color-background)]
+               px-3 text-sm text-[var(--color-text)]
+               focus:ring-2 focus:ring-blue-500"
                             />
                         </div>
 
@@ -551,8 +569,19 @@ const TaskShift: React.FC = () => {
                         <div className="p-4 rounded-full bg-gray-100 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                             <UserCheck className="w-8 h-8 text-gray-400" />
                         </div>
-                        <h3 className="text-lg font-medium text-[var(--color-text)] mb-2">Select a User</h3>
-                        <p className="text-gray-[var(--color-textSecondary)]">Choose a user to view their tasks and start shifting them.</p>
+                        <h3 className="text-lg font-medium text-[var(--color-text)] mb-2">
+                            Select a User to Get Started
+                        </h3>
+                        <p className="text-[var(--color-textSecondary)] flex flex-wrap items-center justify-center gap-1 text-center">
+                            Click the
+                            <span className="inline-flex items-center gap-1 font-semibold text-blue-600">
+                                <Filter className="w-4 h-4" />
+                                Filter
+                            </span>
+                            button above right side, then choose a user from
+                            <span className="font-semibold">From User</span>
+                            to view and shift their tasks.
+                        </p>
                     </div>
                 ) : (
                     <>
@@ -658,7 +687,7 @@ const TaskShift: React.FC = () => {
                                                                         </span>
                                                                     </td>
                                                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--color-text)]">
-                                                                        {new Date(task.dueDate).toLocaleDateString()}
+                                                                        {new Date(task.dueDate).toLocaleDateString('en-GB')}
                                                                     </td>
                                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                                         <div className="flex items-center gap-2">
@@ -682,7 +711,7 @@ const TaskShift: React.FC = () => {
                                                     <p className="text-[var(--color-text)]">No recurring tasks found.</p>
                                                 </div>
                                             ) : (
-                                                <div className="max-h-[650px] overflow-y-auto overflow-x-auto "> 
+                                                <div className="max-h-[650px] overflow-y-auto overflow-x-auto ">
                                                     <table className="w-full">
                                                         <thead className="sticky top-0 z-10 bg-[var(--color-background)] shadow-sm">
                                                             <tr>
@@ -915,52 +944,64 @@ const TaskShift: React.FC = () => {
             </div>
 
             {/* Bulk Action Panel */}
-            <div className={`fixed bottom-0 left-0 right-0 z-50 transition-all duration-300 ease-in-out ${showBulkPanel ? 'translate-y-0' : 'translate-y-full'
-                }`}>
-                <div className="bg-[var(--color-surface)] border-t border-gray-200 shadow-2xl">
-                    <div className="px-4 sm:px-6 lg:px-8 py-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                            <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-2">
-                                    <CheckCircle2 className="w-5 h-5 text-blue-500" />
-                                    <span className="font-medium text-[var(--color-text)]">
-                                        {totalSelected} task{totalSelected !== 1 ? 's' : ''} selected
-                                    </span>
-                                </div>
+            <div
+                className={`fixed bottom-0 left-0 right-0 z-50 transition-all duration-300 ease-in-out ${showBulkPanel ? 'translate-y-0' : 'translate-y-full'
+                    }`}
+            >
+                <div className="bg-[var(--color-surface)] border-t border-gray-200 shadow-2xl px-4 py-4">
 
-                                <div className="flex items-center gap-2">
-                                    <label className="text-sm text-gray-[var(--color-text)]">Assign to:</label>
-                                    <select
-                                        value={toUser}
-                                        onChange={(e) => setToUser(e.target.value)}
-                                        className="px-3 py-1 border border-[var(--color-border)] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[var(--color-background)] text-[var(--color-text)] text-sm"
-                                    >
-                                        <option value="">Select user...</option>
-                                        {users.filter(u => u._id !== fromUser).map(user => (
-                                            <option key={user._id} value={user._id}>
-                                                {user.username}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
+                    {/* ================= MOBILE ONLY ================= */}
+                    <div className="sm:hidden space-y-3">
+
+                        {/* Assign To */}
+                        <div className="flex items-center gap-2">
+                            <label className="text-sm font-semibold text-red-500 whitespace-nowrap">
+                                Assign to:
+                            </label>
+
+                            <select
+                                value={toUser}
+                                onChange={(e) => setToUser(e.target.value)}
+                                className="flex-1 px-3 py-2 border border-[var(--color-border)]
+                     rounded-lg focus:ring-2 focus:ring-blue-500
+                     bg-[var(--color-background)]
+                     text-[var(--color-text)] text-sm"
+                            >
+                                <option value="">Select user</option>
+                                {users.filter(u => u._id !== fromUser).map(user => (
+                                    <option key={user._id} value={user._id}>
+                                        {user.username}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Bottom Row */}
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-sm">
+                                <CheckCircle2 className="w-4 h-4 text-blue-500" />
+                                <span className="font-medium text-[var(--color-text)]">
+                                    {totalSelected} task{totalSelected !== 1 ? 's' : ''} selected
+                                </span>
                             </div>
 
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
                                 <button
                                     onClick={() => {
                                         setSelectedTasks(new Set());
                                         setSelectedMasterTasks(new Set());
                                     }}
-                                    className="px-4 py-2 text-sm font-medium text-[var(--color-text)] hover:text-gray-800 transition-colors duration-200"
+                                    className="px-3 py-2 text-sm font-medium text-gray-500"
                                 >
                                     Cancel
                                 </button>
+
                                 <button
                                     onClick={handleShiftTasks}
                                     disabled={!toUser || loading}
-                                    className={`px-6 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${!toUser || loading
+                                    className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${!toUser || loading
                                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                        : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105'
+                                        : 'bg-blue-600 text-white'
                                         }`}
                                 >
                                     {loading ? (
@@ -968,13 +1009,78 @@ const TaskShift: React.FC = () => {
                                     ) : (
                                         <Zap className="w-4 h-4" />
                                     )}
-                                    Shift Tasks
+                                    Shift
                                 </button>
                             </div>
                         </div>
                     </div>
+
+                    {/* ================= DESKTOP ONLY (UNCHANGED) ================= */}
+                    <div className="hidden sm:flex items-center justify-between gap-4">
+
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                                <CheckCircle2 className="w-5 h-5 text-blue-500" />
+                                <span className="font-medium text-[var(--color-text)]">
+                                    {totalSelected} task{totalSelected !== 1 ? 's' : ''} selected
+                                </span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <label className="text-md font-semibold text-red-500">
+                                    Assign to:
+                                </label>
+
+                                <select
+                                    value={toUser}
+                                    onChange={(e) => setToUser(e.target.value)}
+                                    className="px-3 py-1 border border-[var(--color-border)]
+                       rounded-lg focus:ring-2 focus:ring-blue-500
+                       bg-[var(--color-background)]
+                       text-[var(--color-text)] text-md"
+                                >
+                                    <option value="">Select user...</option>
+                                    {users.filter(u => u._id !== fromUser).map(user => (
+                                        <option key={user._id} value={user._id}>
+                                            {user.username}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => {
+                                    setSelectedTasks(new Set());
+                                    setSelectedMasterTasks(new Set());
+                                }}
+                                className="px-4 py-2 text-sm font-medium text-[var(--color-text)] hover:text-gray-800"
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                onClick={handleShiftTasks}
+                                disabled={!toUser || loading}
+                                className={`px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-all ${!toUser || loading
+                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                    : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
+                                    }`}
+                            >
+                                {loading ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <Zap className="w-4 h-4" />
+                                )}
+                                Shift Tasks
+                            </button>
+                        </div>
+
+                    </div>
                 </div>
             </div>
+
         </div>
     );
 };

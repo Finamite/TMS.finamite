@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Calendar, User, AlertCircle, FileText, Flag } from 'lucide-react';
 import { Task } from "../types/Task";
 import { useTheme } from "../contexts/ThemeContext"; // ← ADD THIS
@@ -35,6 +35,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const dueDateRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (task) {
@@ -185,23 +186,43 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
 
             {/* Due Date */}
             <div>
-              <label className="block text-sm font-medium mb-2" style={{ color: "var(--color-text)" }}>
-                <Calendar className="w-4 h-4 inline mr-1" /> Due Date *
+              <label
+                className="block text-sm font-medium mb-2 flex items-center"
+                style={{ color: "var(--color-text)" }}
+              >
+                <Calendar className="w-4 h-4 mr-1" />
+                Due Date *
               </label>
-              <input
-                type="date"
-                name="dueDate"
-                value={formData.dueDate}
-                onChange={handleInputChange}
-                required
-                className="w-full px-3 py-2 rounded-md focus:ring-2"
+
+              {/* Clickable wrapper */}
+              <div
+                onClick={() => {
+                  if (!dueDateRef.current) return;
+                  if (dueDateRef.current.showPicker) {
+                    dueDateRef.current.showPicker();
+                  } else {
+                    dueDateRef.current.focus();
+                  }
+                }}
+                className="w-full px-3 py-2 rounded-md cursor-pointer"
                 style={{
                   backgroundColor: "var(--color-background)",
-                  border: `1px solid var(--color-border)`,
-                  color: "var(--color-text)"
+                  border: `1px solid var(--color-border)`
                 }}
-              />
+              >
+                <input
+                  ref={dueDateRef}
+                  type="date"
+                  name="dueDate"
+                  value={formData.dueDate}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full bg-transparent outline-none cursor-pointer"
+                  style={{ color: "var(--color-text)" }}
+                />
+              </div>
             </div>
+
 
             {/* Assigned To */}
             <div>

@@ -236,8 +236,15 @@ router.get('/', async (req, res) => {
       }
     }
 
-    if (assignedTo) query.assignedTo = assignedTo;
-    if (assignedBy) query.assignedBy = assignedBy;
+    if (assignedTo && assignedBy) {
+      query.$or = [
+        { assignedTo },
+        { assignedBy }
+      ];
+    } else {
+      if (assignedTo) query.assignedTo = assignedTo;
+      if (assignedBy) query.assignedBy = assignedBy;
+    }
     if (priority) query.priority = priority;
 
     if (startDate && endDate) {
@@ -374,11 +381,14 @@ router.get('/team-pending-fast', async (req, res) => {
       return res.json(teamPendingCache[companyId]);
     }
 
-    // ✅ Use fixed date references (no per-doc new Date())
-    const now = new Date();
-    const todayStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
 
-    // ✅ Ultra-optimized aggregation
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
+    const todayStr = startOfToday.toISOString().slice(0, 10); // YYYY-MM-DD
+
     const data = await Task.aggregate([
       {
         $match: {
@@ -401,25 +411,35 @@ router.get('/team-pending-fast', async (req, res) => {
           foreignField: '_id',
           as: 'user',
           pipeline: [
-            { $project: { username: 1 } } // ✅ minimal user payload
+            { $project: { username: 1 } }
           ]
         }
       },
       { $unwind: '$user' },
+
       {
         $addFields: {
           username: '$user.username',
+
           dueDateStr: {
             $dateToString: { format: '%Y-%m-%d', date: '$dueDate' }
           },
-          isOverdue: { $lt: ['$dueDate', now] }
+
+          // ✅ OVERDUE = before today ONLY
+          isOverdue: {
+            $lt: ['$dueDate', startOfToday]
+          },
+
+          // ✅ TODAY = between start & end of today
+          isToday: {
+            $and: [
+              { $gte: ['$dueDate', startOfToday] },
+              { $lte: ['$dueDate', endOfToday] }
+            ]
+          }
         }
       },
-      {
-        $addFields: {
-          isToday: { $eq: ['$dueDateStr', todayStr] }
-        }
-      },
+
       {
         $group: {
           _id: '$username',
@@ -459,12 +479,7 @@ router.get('/team-pending-fast', async (req, res) => {
               $cond: [
                 {
                   $and: [
-                    {
-                      $in: [
-                        '$taskType',
-                        ['weekly', 'monthly', 'quarterly', 'yearly']
-                      ]
-                    },
+                    { $in: ['$taskType', ['weekly', 'monthly', 'quarterly', 'yearly']] },
                     '$isToday'
                   ]
                 },
@@ -479,12 +494,7 @@ router.get('/team-pending-fast', async (req, res) => {
               $cond: [
                 {
                   $and: [
-                    {
-                      $in: [
-                        '$taskType',
-                        ['weekly', 'monthly', 'quarterly', 'yearly']
-                      ]
-                    },
+                    { $in: ['$taskType', ['weekly', 'monthly', 'quarterly', 'yearly']] },
                     '$isOverdue'
                   ]
                 },
@@ -495,6 +505,7 @@ router.get('/team-pending-fast', async (req, res) => {
           }
         }
       },
+
       { $sort: { _id: 1 } }
     ]).allowDiskUse(true);
 
@@ -508,6 +519,7 @@ router.get('/team-pending-fast', async (req, res) => {
     res.json([]);
   }
 });
+
 
 router.get("/master/:taskGroupId", async (req, res) => {
   try {
@@ -2220,6 +2232,10 @@ router.get('/bin/recurring-instances', async (req, res) => {
 
     let assignedById = null;
 
+    if (assignedBy) {
+      assignedById = assignedBy; // already an ObjectId
+    }
+
     if (req.query.assignedBy) {
       const user = await User.findOne({ username: req.query.assignedBy }).select('_id').lean();
       if (user) assignedById = user._id;
@@ -2256,26 +2272,31 @@ router.get('/bin/recurring-instances', async (req, res) => {
       }
     }
 
-    if (assignedTo) query.assignedTo = assignedTo;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (status === 'overdue') {
+      query.status = 'pending';   // only pending tasks
+      query.dueDate = { $lt: today }; // due date before today
+    }
+
+    if (assignedTo && assignedTo !== 'all') {
+      query.assignedTo = new mongoose.Types.ObjectId(assignedTo);
+    }
     if (assignedById) query.assignedBy = assignedById;
     if (priority) query.priority = priority;
 
     if (dateFrom && dateTo) {
-      query.$or.push(
-        {
-          deletedAt: {
-            $gte: new Date(dateFrom),
-            $lte: new Date(dateTo)
-          }
-        },
-        {
-          deletedAt: { $exists: false },
-          updatedAt: {
-            $gte: new Date(dateFrom),
-            $lte: new Date(dateTo)
-          }
-        }
-      );
+      const start = new Date(dateFrom);
+      start.setHours(0, 0, 0, 0);
+
+      const end = new Date(dateTo);
+      end.setHours(23, 59, 59, 999);
+
+      query.dueDate = {
+        $gte: start,
+        $lte: end
+      };
     }
 
     if (search) {

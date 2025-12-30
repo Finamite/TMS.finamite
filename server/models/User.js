@@ -66,6 +66,16 @@ accessLogs: {
   default: []
 },
 
+deactivatedAt: {
+  type: Date,
+  default: null
+},
+
+deactivatedBy: {
+  id: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  name: { type: String }
+},
+
   sessionInvalidated: {
     type: Boolean,
     default: false

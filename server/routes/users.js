@@ -248,63 +248,51 @@ router.delete('/:id', async (req, res) => {
 });
 
 // ✅ Toggle user active/inactive
-// PUT /api/users/:id/toggle-active
 router.put('/:id/toggle-active', async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
-
-    if (user.role === 'superadmin') {
-      return res.status(403).json({ message: 'Cannot deactivate superadmin' });
-    }
-
-    // If currently active → deactivate directly
-    if (user.isActive) {
-      user.isActive = false;
-      await user.save();
-      return res.json({
-        message: 'User deactivated successfully',
-        user
-      });
-    }
-
-    // If currently inactive → check company limits before activating
-    const company = await Company.findOne({ companyId: user.companyId });
-    if (!company) return res.status(404).json({ message: 'Company not found' });
-
-    // Count only active users
-    const activeCounts = await User.aggregate([
-      { $match: { companyId: user.companyId, isActive: true } },
-      { $group: { _id: '$role', count: { $sum: 1 } } }
-    ]);
-
-    const counts = { admin: 0, manager: 0, employee: 0 };
-    activeCounts.forEach(item => {
-      counts[item._id] = item.count;
-    });
-
-    // Check limits
-    if (
-      (user.role === 'admin' && counts.admin >= company.limits.adminLimit) ||
-      (user.role === 'manager' && counts.manager >= company.limits.managerLimit) ||
-      (user.role === 'employee' && counts.employee >= company.limits.userLimit)
-    ) {
-      return res.status(400).json({ message: `Cannot activate ${user.role}. Limit reached.` });
-    }
-
-    // Safe to activate
-    user.isActive = true;
-    await user.save();
-
-    res.json({
-      message: 'User activated successfully',
-      user
-    });
-
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+  const targetUser = await User.findById(req.params.id);
+  if (!targetUser) {
+    return res.status(404).json({ message: 'User not found' });
   }
+
+  if (targetUser.role === 'superadmin') {
+    return res.status(403).json({ message: 'Cannot deactivate superadmin' });
+  }
+
+  const actionUser = await User.findById(req.headers.userid);
+
+  // 🔴 DEACTIVATE
+  if (targetUser.isActive) {
+    targetUser.isActive = false;
+    targetUser.sessionInvalidated = true;
+
+    // ✅ UPDATE ONLY ON DEACTIVATION
+    targetUser.deactivatedAt = new Date();
+    targetUser.deactivatedBy = {
+      id: actionUser?._id,
+      name: actionUser?.username || 'System'
+    };
+
+    await targetUser.save();
+
+    return res.json({
+      message: 'User deactivated successfully',
+      user: targetUser
+    });
+  }
+
+  // 🟢 ACTIVATE
+  targetUser.isActive = true;
+  targetUser.sessionInvalidated = false;
+
+  // ✅ DO NOT TOUCH deactivatedAt / deactivatedBy
+  await targetUser.save();
+
+  res.json({
+    message: 'User activated successfully',
+    user: targetUser
+  });
 });
+
 
 router.delete('/:id/permanent', async (req, res) => {
   try {

@@ -703,34 +703,34 @@ const Chat: React.FC = () => {
     };
 
     const deleteSelectedMessages = async () => {
-    if (!isAdmin || selectedMessages.length === 0) return;
+        if (!isAdmin || selectedMessages.length === 0) return;
 
-    // OPEN CUSTOM CONFIRM MODAL
-    setConfirmText(`Are you sure you want to delete ${selectedMessages.length} selected messages?`);
+        // OPEN CUSTOM CONFIRM MODAL
+        setConfirmText(`Are you sure you want to delete ${selectedMessages.length} selected messages?`);
 
-    setConfirmAction(() => async () => {
-        try {
-            await Promise.all(
-                selectedMessages.map(messageId =>
-                    axios.delete(`${address}/api/chat/messages/${messageId}`, {
-                        data: { deletedBy: user?.id }
-                    })
-                )
-            );
+        setConfirmAction(() => async () => {
+            try {
+                await Promise.all(
+                    selectedMessages.map(messageId =>
+                        axios.delete(`${address}/api/chat/messages/${messageId}`, {
+                            data: { deletedBy: user?.id }
+                        })
+                    )
+                );
 
-            // Remove messages from state
-            setMessages(prev => prev.filter(msg => !selectedMessages.includes(msg._id)));
-            setSelectedMessages([]);
-            setIsSelectionMode(false);
+                // Remove messages from state
+                setMessages(prev => prev.filter(msg => !selectedMessages.includes(msg._id)));
+                setSelectedMessages([]);
+                setIsSelectionMode(false);
 
-        } catch (error) {
-            console.error("Error deleting messages:", error);
-            toast.error("Failed to delete messages.");
-        }
-    });
+            } catch (error) {
+                console.error("Error deleting messages:", error);
+                toast.error("Failed to delete messages.");
+            }
+        });
 
-    setShowConfirmModal(true); // SHOW THE POPUP
-};
+        setShowConfirmModal(true); // SHOW THE POPUP
+    };
 
 
     const deleteChat = async () => {
@@ -912,7 +912,7 @@ const Chat: React.FC = () => {
                             {message.taggedTask && (
                                 <div className={`mb-2 p-2 rounded-lg border-l-4 ${isOwn
                                     ? 'bg-white/20 border-white/50'
-                                    : 'bg-blue-50 border-blue-400'
+                                    : 'bg-[var(--color-chat)] border-blue-400'
                                     }`}>
                                     <div className="flex items-center mb-1">
                                         <Tag size={14} className="mr-1" />
@@ -922,7 +922,7 @@ const Chat: React.FC = () => {
                                     <div className="text-xs opacity-80">
                                         <span className="inline-flex items-center mr-2">
                                             <Clock size={10} className="mr-1" />
-                                            Due: {new Date(message.taggedTask.dueDate).toLocaleDateString()}
+                                            Due: {new Date(message.taggedTask.dueDate).toLocaleDateString('en-GB')}
                                         </span>
                                         <span className="bg-black/20 px-1 py-0.5 rounded text-xs">
                                             {message.taggedTask.taskType}
@@ -1025,7 +1025,13 @@ const Chat: React.FC = () => {
                                                             />
                                                         ) : (
                                                             <div
-                                                                className="w-[48px] h-[40px] bg-[var(--color-surface)] border border-[var(--color-border)] rounded flex items-center justify-center cursor-pointer"
+                                                                className={`w-[48px] h-[40px] rounded flex items-center justify-center cursor-pointer
+                                                                  ${isOwn
+                                                                        ? 'bg-white border border-white'
+                                                                        : 'bg-white border border-[var(--color-border)]'
+                                                                    }
+`}
+
                                                                 onClick={() => window.open(fileUrl, "_blank")}
                                                             >
                                                                 {getLucideIcon()}
@@ -1034,13 +1040,16 @@ const Chat: React.FC = () => {
 
                                                         {/* FILE NAME */}
                                                         <p
-                                                            className="text-[10px] mt-1 truncate w-full text-white/90"
+                                                            className={`text-[10px] mt-1 truncate w-full ${isOwn ? 'text-white/90' : 'text-[var(--color-text)]'
+                                                                }`}
                                                             title={file.originalName}
                                                         >
                                                             {file.originalName}
                                                         </p>
 
-                                                        <div className="flex items-center gap-2 text-white/80 text-[9px] mt-1">
+                                                        <div className={`flex items-center gap-2 text-[9px] mt-1 ${isOwn ? 'text-white/80' : 'text-[var(--color-text)]'
+                                                            }`}
+                                                        >
                                                             <span>{sizeKB}</span>
 
                                                             <button
@@ -1094,7 +1103,7 @@ const Chat: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="min-h-screen bg-[var(--color-background)] flex items-center justify-center">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
                     <p className="text-[var(--color-textSecondary)]">Loading chat...</p>
@@ -1568,11 +1577,11 @@ const Chat: React.FC = () => {
                                             </button>
                                         </div>
                                         <div className="bg-white p-2 rounded border border-green-200">
-                                            <div className="font-medium text-sm text-gray-800">{selectedTask.title}</div>
+                                            <div className="font-medium text-sm text-[var(--color-text)]">{selectedTask.title}</div>
                                             <div className="text-xs text-[var(--color-textSecondary)] mt-1 flex items-center space-x-3">
                                                 <span className="flex items-center">
                                                     <Calendar size={10} className="mr-1" />
-                                                    Due: {new Date(selectedTask.dueDate).toLocaleDateString()}
+                                                    Due: {new Date(selectedTask.dueDate).toLocaleDateString('en-GB')}
                                                 </span>
                                                 <span className={`px-2 py-0.5 rounded-full text-xs ${selectedTask.priority === 'high' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
                                                     }`}>
@@ -1610,7 +1619,7 @@ const Chat: React.FC = () => {
                                         {/* File Upload Button */}
                                         <button
                                             onClick={() => fileInputRef.current?.click()}
-                                            className="p-2 bg-gray-100 text-[var(--color-textSecondary)] hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                            className="p-2 bg-[var(--color-chat)] text-[var(--color-text)] hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                             title="Attach file (max 100KB)"
                                         >
                                             <Paperclip size={18} />
@@ -1619,7 +1628,7 @@ const Chat: React.FC = () => {
                                         {/* Tag Task Button */}
                                         <button
                                             onClick={() => setShowTaskModal(true)}
-                                            className="p-2 bg-gray-100 text-[var(--color-textSecondary)] hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                            className="p-2 bg-[var(--color-chat)] text-[var(--color-text)] hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                                             title="Tag a task"
                                         >
                                             <Tag size={18} />

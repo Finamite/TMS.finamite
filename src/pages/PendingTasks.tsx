@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { CheckSquare, Clock, RefreshCcw, Search, Users, Calendar, ArrowUpDown, ArrowUp, ArrowDown, Filter, Paperclip, FileText, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import axios from 'axios';
@@ -97,6 +97,7 @@ const PendingTasks: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<SortOrder>('none');
   const location = useLocation();
   const [filter, setFilter] = useState({
+    status: '',
     priority: '',
     assignedTo: '',
     assignedBy: '',
@@ -115,6 +116,9 @@ const PendingTasks: React.FC = () => {
   const [selectedImagePreview, setSelectedImagePreview] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<{ [key: string]: boolean }>({});
   const [revisionSettings, setRevisionSettings] = useState<any>(null);
+  const dateInputRef = useRef<HTMLInputElement>(null);
+  const dateFromRef = useRef<HTMLInputElement>(null);
+  const dateToRef = useRef<HTMLInputElement>(null);
 
   // Calculate pagination
   const totalPages = Math.ceil(tasks.length / itemsPerPage);
@@ -300,6 +304,25 @@ const PendingTasks: React.FC = () => {
       filteredTasks = filteredTasks.filter(task => task.priority === filter.priority);
     }
 
+    // ✅ Status filter (match MasterTasks logic)
+    if (filter.status) {
+      filteredTasks = filteredTasks.filter(task => {
+        if (filter.status === 'overdue') {
+          if (task.status !== 'pending' || !task.dueDate) return false;
+
+          const dueDate = new Date(task.dueDate);
+          dueDate.setHours(0, 0, 0, 0);
+
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          return dueDate < today; // ❌ today excluded
+        }
+
+        return task.status === filter.status;
+      });
+    }
+
     if (filter.search) {
       filteredTasks = filteredTasks.filter(task =>
         task.title.toLowerCase().includes(filter.search.toLowerCase()) ||
@@ -378,7 +401,7 @@ const PendingTasks: React.FC = () => {
   };
 
   const resetFilters = () => {
-    setFilter({ priority: '', assignedBy: '', assignedTo: '', search: '', dateFrom: '', dateTo: '' });
+    setFilter({ priority: '', assignedBy: '', assignedTo: '', search: '', dateFrom: '', dateTo: '', status: '' });
     setSortOrder('none');
     setCurrentPage(1);
   };
@@ -666,7 +689,7 @@ const PendingTasks: React.FC = () => {
                         ? "opacity-50 cursor-not-allowed text-gray-400"
                         : "text-[--color-warning]"
                         }`}
-                        title={isInProgress ? "Task is under approval" : "Revise task"}
+                      title={isInProgress ? "Task is under approval" : "Revise task"}
                     >
                       <RefreshCcw size={16} />
                     </button>
@@ -979,7 +1002,7 @@ const PendingTasks: React.FC = () => {
                             ? "opacity-50 cursor-not-allowed text-gray-400"
                             : "text-[--color-warning]"
                             }`}
-                            title={isInProgress ? "Task is under approval" : "Revise task"}
+                          title={isInProgress ? "Task is under approval" : "Revise task"}
                         >
                           <RefreshCcw size={16} />
                         </button>
@@ -1023,66 +1046,116 @@ const PendingTasks: React.FC = () => {
   return (
     <div className="min-h-full bg-[var(--color-background)] p-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
-        <div className="flex items-center">
-          <div>
-            <h1 className="text-lg font-bold text-[--color-text]">
-              Pending Tasks
-            </h1>
-            <p className="mt-0 text-xs text-[--color-textSecondary]">
-              {tasks.length} pending task(s) found
-              {sortOrder !== 'none' && (
-                <span className="ml-2 text-[--color-primary]">
-                  • Sorted by due date ({sortOrder === 'asc' ? 'earliest first' : 'latest first'})
-                </span>
-              )}
-            </p>
-          </div>
+      <div className="flex items-center justify-between w-full">
+        {/* LEFT: Title */}
+        <div>
+          <h1 className="text-lg font-bold text-[--color-text]">
+            Pending Tasks
+          </h1>
+          <p className="mt-0 mb-2 text-xs text-[--color-textSecondary]">
+            {tasks.length} pending task(s) found
+            {sortOrder !== 'none' && (
+              <span className="ml-2 text-[--color-primary]">
+                • Sorted by due date ({sortOrder === 'asc' ? 'earliest first' : 'latest first'})
+              </span>
+            )}
+          </p>
+        </div>
+
+        {/* RIGHT: Filter + Grid/Table */}
+        <div className="flex items-center gap-2">
+          {/* Filter */}
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="ml-2 p-2 rounded-full transition-colors hover:bg-[--color-background] bg-[--color-surface] text-[--color-textSecondary]"
-            aria-expanded={showFilters}
-            aria-controls="filters-panel"
+            className={`p-2 rounded-lg transition-colors
+        hover:bg-[--color-background]
+        bg-[--color-surface]
+        border border-[--color-border]
+        ${showFilters ? 'text-[--color-primary]' : 'text-[--color-textSecondary]'}`}
+            title="Filters"
           >
-            <Filter size={20} />
+            <Filter size={18} />
           </button>
+
+          {/* Grid / Table toggle */}
+          {!isMobile && (
+            <ViewToggle view={view} onViewChange={setView} />
+          )}
         </div>
-        {!isMobile && <ViewToggle view={view} onViewChange={setView} />}
       </div>
+
 
       {/* Enhanced Filters Section */}
       {showFilters && (
         <div
           id="filters-panel"
-          className="rounded-xl shadow-sm border border-[--color-border] p-3 mt-2 bg-[--color-surface]"
+          className="rounded-xl shadow-sm border border-[--color-border] p-3 mt-2 mb-2 bg-[--color-surface]"
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-4">
             {/* Date From */}
             <div>
               <label className="block text-sm font-medium mb-1 text-[--color-textSecondary]">
-                <Calendar size={14} className="inline mr-1" />
                 Date From
               </label>
-              <input
-                type="date"
-                value={filter.dateFrom}
-                onChange={(e) => setFilter({ ...filter, dateFrom: e.target.value })}
-                className="w-full text-sm px-2 py-1 border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] transition-colors bg-[--color-background] text-[--color-text]"
-              />
+              <div className="relative">
+                <input
+                  ref={dateFromRef}
+                  type="date"
+                  value={filter.dateFrom}
+                  onClick={() => dateFromRef.current?.showPicker()}
+                  onChange={(e) =>
+                    setFilter({ ...filter, dateFrom: e.target.value })
+                  }
+                  className="w-full cursor-pointer text-sm px-2 py-1
+               border border-[--color-border] rounded-lg
+               focus:ring-2 focus:ring-[--color-primary]
+               focus:border-[--color-primary]
+               transition-colors
+               bg-[--color-background] text-[--color-text]"
+                />
+                <Calendar
+                  size={14}
+                  onClick={() => dateFromRef.current?.showPicker()}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
+                  style={{
+                    color: "var(--color-text)",   // 🔥 THIS FIXES DARK MODE
+                    opacity: 0.9
+                  }}
+                />
+              </div>
             </div>
 
             {/* Date To */}
             <div>
               <label className="block text-sm font-medium mb-1 text-[--color-textSecondary]">
-                <Calendar size={14} className="inline mr-1" />
                 Date To
               </label>
-              <input
-                type="date"
-                value={filter.dateTo}
-                onChange={(e) => setFilter({ ...filter, dateTo: e.target.value })}
-                className="w-full text-sm px-2 py-1 border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] transition-colors bg-[--color-background] text-[--color-text]"
-              />
+              <div className="relative">
+                <input
+                  ref={dateToRef}
+                  type="date"
+                  value={filter.dateTo}
+                  onClick={() => dateToRef.current?.showPicker()}
+                  onChange={(e) =>
+                    setFilter({ ...filter, dateTo: e.target.value })
+                  }
+                  className="w-full cursor-pointer text-sm px-2 py-1
+               border border-[--color-border] rounded-lg
+               focus:ring-2 focus:ring-[--color-primary]
+               focus:border-[--color-primary]
+               transition-colors
+               bg-[--color-background] text-[--color-text]"
+                />
+                <Calendar
+                  size={14}
+                  onClick={() => dateFromRef.current?.showPicker()}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
+                  style={{
+                    color: "var(--color-text)",   // 🔥 THIS FIXES DARK MODE
+                    opacity: 0.9
+                  }}
+                />
+              </div>
             </div>
 
             {/* Priority */}
@@ -1100,6 +1173,26 @@ const PendingTasks: React.FC = () => {
                 <option value="high">High</option>
               </select>
             </div>
+
+            {/* Status */}
+            <div>
+              <label className="block text-sm font-medium mb-1 text-[--color-textSecondary]">
+                Status
+              </label>
+              <select
+                value={filter.status}
+                onChange={(e) => setFilter({ ...filter, status: e.target.value })}
+                className="w-full text-sm px-2 py-1 border border-[--color-border]
+               rounded-lg focus:ring-2 focus:ring-[--color-primary]
+               bg-[--color-background] text-[--color-text]"
+              >
+                <option value="">All</option>
+                <option value="pending">Pending</option>
+                <option value="in-progress">In Progress</option>
+                <option value="overdue">Overdue</option>
+              </select>
+            </div>
+
 
             {user?.permissions.canViewAllTeamTasks && (
               <div>
@@ -1289,26 +1382,48 @@ const PendingTasks: React.FC = () => {
                         <label className="block text-sm font-medium mb-2 text-[--color-textSecondary]">
                           New Due Date
                         </label>
-                        <input
-                          type="date"
-                          min={minDate}
-                          max={maxDate}
-                          value={revisionDate}
-                          onChange={(e) => {
-                            const picked = new Date(e.target.value);
-                            if (effectiveMaxDays !== Infinity && picked > allowedMaxDate) {
-                              alert(`You cannot choose a date beyond ${effectiveMaxDays} days from the base date`);
-                              return;
+
+                        {/* Clickable wrapper */}
+                        <div
+                          onClick={() => {
+                            if (!dateInputRef.current) return;
+                            if (dateInputRef.current.showPicker) {
+                              dateInputRef.current.showPicker();
+                            } else {
+                              dateInputRef.current.focus();
                             }
-                            setRevisionDate(e.target.value);
                           }}
-                          className="w-full px-3 py-2 text-[--color-text] bg-[--color-background] border border-[--color-border] rounded-lg"
-                        />
+                          className="w-full px-3 py-2 bg-[--color-background]
+               border border-[--color-border]
+               rounded-lg cursor-pointer"
+                        >
+                          <input
+                            ref={dateInputRef}
+                            type="date"
+                            min={minDate}
+                            max={maxDate}
+                            value={revisionDate}
+                            onChange={(e) => {
+                              const picked = new Date(e.target.value);
+                              if (effectiveMaxDays !== Infinity && picked > allowedMaxDate) {
+                                alert(`You cannot choose a date beyond ${effectiveMaxDays} days from the base date`);
+                                return;
+                              }
+                              setRevisionDate(e.target.value);
+                            }}
+                            className="w-full bg-transparent outline-none cursor-pointer text-[--color-text]"
+                          />
+                        </div>
+
                         <div className="text-xs text-[--color-textSecondary] mt-1">
-                          Allowed Range: {formatDate(baseDate)} → {effectiveMaxDays === Infinity ? 'No Limit' : formatDate(allowedMaxDate)} ({effectiveMaxDays === Infinity ? 'Unlimited' : `${effectiveMaxDays} days max for revision #${currentRevisionCount + 1}`})
+                          Allowed Range: {formatDate(baseDate)} →{' '}
+                          {effectiveMaxDays === Infinity ? 'No Limit' : formatDate(allowedMaxDate)} (
+                          {effectiveMaxDays === Infinity
+                            ? 'Unlimited'
+                            : `${effectiveMaxDays} days max for revision #${currentRevisionCount + 1}`}
+                          )
                         </div>
                       </div>
-
                       {/* Remarks */}
                       <div>
                         <label className="block text-sm font-medium mb-2 text-[--color-textSecondary]">

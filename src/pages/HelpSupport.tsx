@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Search, Mail, Phone, MessageCircle, HelpCircle, ChevronDown, ChevronRight, Settings, BarChart3, CheckSquare, Filter, CreditCard as Edit3, UserPlus, Bell, Trash2, RotateCcw, Shield, Clock, Target, FileText, Archive, Star } from 'lucide-react';
+import { Search, Mail, Phone, MessageCircle, HelpCircle, ChevronDown, ChevronRight, Settings, BarChart3, CheckSquare, Filter, CreditCard as Edit3, UserPlus, Bell, Trash2, RotateCcw, Shield, Clock, Target, FileText, Star } from 'lucide-react';
 
 interface FAQItem {
   id: string;
@@ -42,6 +42,19 @@ const HelpSupport: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [expandedFAQ, setExpandedFAQ] = useState<string | null>(null);
+  const [showMobileTopics, setShowMobileTopics] = useState(false);
+
+  const userName = user?.username || "User";
+  const companyName = user?.company?.companyName || "Company";
+
+  const emailSubject = encodeURIComponent(
+    `Support Request from ${userName} (${companyName})`
+  );
+
+  const supportNumberDisplay = "+91 99886 00362";   // UI only
+  const supportNumberDial = "+919988600362";
+
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
   const faqData: FAQItem[] = [
     // Admin/Manager FAQs
@@ -75,7 +88,7 @@ const HelpSupport: React.FC = () => {
     {
       id: '4',
       question: 'How do I use the team chat feature?',
-      answer: 'Navigate to the "Chat" section to communicate with team members. You can send direct messages to individual team members or create group conversations. The chat supports real-time messaging and helps coordinate team activities and task discussions.',
+      answer: 'Navigate to the "Chat" section to communicate with team members. You can send direct messages to individual team members. The chat supports real-time messaging and helps coordinate team activities and task discussions.',
       category: 'communication',
       roles: ['admin', 'manager'],
       icon: <MessageCircle size={20} />,
@@ -149,7 +162,7 @@ const HelpSupport: React.FC = () => {
     {
       id: '12',
       question: 'How do I use filters to find my tasks?',
-      answer: 'Use the filter options available on task pages to: 1) Filter by due date or date range, 2) Filter by task priority (high, medium, low), 3) Filter by task status, 4) Filter by task type, 5) Use the search bar to find tasks by title or description. Combine multiple filters for better results.',
+      answer: 'Use the filter options available on task pages to: 1) Filter by due date or date range, 2) Filter by task priority (high, normal), 3) Filter by task status, 4) Filter by task type, 5) Use the search bar to find tasks by title or description. Combine multiple filters for better results.',
       category: 'navigation',
       roles: ['employee', 'manager', 'admin'],
       icon: <Search size={20} />,
@@ -160,8 +173,8 @@ const HelpSupport: React.FC = () => {
     {
       id: '13',
       question: 'How do I change password?',
-      answer: 'Go to the Admin Panel and open the user list. Click on the "Change Password" icon for the user whose password you want to update. Enter the new password and submit. The password will be updated successfully.',
-      
+      answer: 'Open the Admin Panel, select the user whose password you want to change, click the “Change Password” icon, enter the new password, and submit. The password will be updated successfully.',
+
       category: 'account',
       roles: ['manager', 'admin'],
       icon: <Shield size={20} />,
@@ -170,7 +183,7 @@ const HelpSupport: React.FC = () => {
     {
       id: '14',
       question: 'What are the different task priorities and what do they mean?',
-      answer: 'Task priorities help organize work importance: 1) High Priority - Urgent tasks requiring immediate attention, 2) Medium Priority - Important tasks with moderate deadlines, 3) Low Priority - Tasks that can be completed when time permits. High priority tasks may have restrictions on revisions and affect performance scoring more significantly.',
+      answer: 'Task priorities help organize work importance: 1) High Priority - Urgent tasks requiring immediate attention, 2) Normal Priority - Tasks that can be completed when time permits. High priority tasks may have restrictions on revisions and affect performance scoring more significantly.',
       category: 'task-management',
       roles: ['employee', 'manager', 'admin'],
       icon: <Star size={20} />,
@@ -205,7 +218,6 @@ const HelpSupport: React.FC = () => {
     { id: 'communication', name: 'Communication', icon: <MessageCircle size={16} /> },
     { id: 'navigation', name: 'Navigation', icon: <Search size={16} /> },
     { id: 'account', name: 'Account', icon: <Shield size={16} /> },
-    { id: 'data-management', name: 'Data Management', icon: <Archive size={16} /> }
   ];
 
   const filteredFAQs = useMemo(() => {
@@ -233,9 +245,6 @@ const HelpSupport: React.FC = () => {
     return filtered;
   }, [searchTerm, selectedCategory, user?.role]);
 
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  const supportNumber = "+99886 00362";
-
   const getUserRoleDisplay = () => {
     if (user?.role === 'admin') return 'Administrator';
     if (user?.role === 'manager') return 'Manager';
@@ -261,7 +270,7 @@ const HelpSupport: React.FC = () => {
 
               {/* Welcome text directly under the title */}
               <p className="text-xs text-[var(--color-textSecondary)] max-w-xl mt-1">
-                Welcome, <span className="font-semibold text-blue-600">{user?.username}</span> ({getUserRoleDisplay()})!
+                Welcome, <span className="font-semibold text-[var(--color-primary)]">{user?.username}</span> ({getUserRoleDisplay()})!
                 Find answers to your questions and get the help you need.
               </p>
             </div>
@@ -272,7 +281,7 @@ const HelpSupport: React.FC = () => {
 
 
         {/* Main Layout: Left Sidebar + Right Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Left Sidebar - Contact Information */}
           <div className="lg:col-span-1 space-y-6">
             <ThemeCard className="p-6" variant="elevated">
@@ -302,7 +311,7 @@ const HelpSupport: React.FC = () => {
 
                   {/* Button ALWAYS BELOW TEXT */}
                   <a
-                    href="https://mail.google.com/mail/?view=cm&fs=1&to=info@finamite.in&su=Support%20Request"
+                    href={`https://mail.google.com/mail/?view=cm&fs=1&to=info@finamite.in&su=${emailSubject}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center space-x-2 
@@ -314,10 +323,12 @@ const HelpSupport: React.FC = () => {
                     <span>Send Email</span>
                   </a>
                 </div>
-
+                 
+                {(user?.role === 'admin' || user?.role === 'manager') && (
                 <div className="border-t border-gray-200 my-4"></div>
-
+                )}
                 {/* PHONE SUPPORT */}
+                {(user?.role === 'admin' || user?.role === 'manager') && (
                 <div className="flex flex-col space-y-4">
 
                   {/* Left Side */}
@@ -328,8 +339,11 @@ const HelpSupport: React.FC = () => {
 
                     <div>
                       <h3 className="text-lg font-bold text-[var(--color-text)]">Phone Support</h3>
-                      <a href="tel:99886 00362" className="text-green-600 font-semibold text-lg hover:underline">
-                        +91 99886 00362
+                      <a
+                        href={`tel:${supportNumberDial}`}
+                        className="text-green-600 font-semibold text-lg hover:underline"
+                      >
+                        {supportNumberDisplay}
                       </a>
                       <p className="text-sm text-[var(--color-textsecondary)] mt-1">
                         Mon–Sat, 10 AM – 6:30 PM IST
@@ -342,20 +356,22 @@ const HelpSupport: React.FC = () => {
                   <a
                     href={
                       isMobile
-                        ? `tel:${supportNumber}`
-                        : `https://wa.me/${supportNumber.replace("+", "")}`
+                        ? "tel:+919988600362"
+                        : "https://wa.me/919988600362"
                     }
-                    target="_blank"
+                    target={!isMobile ? "_blank" : undefined}
                     rel="noopener noreferrer"
                     className="flex items-center justify-center space-x-2 
-             w-full px-4 py-3 
-             bg-green-600 text-white rounded-xl 
-             hover:bg-green-700 transition-all duration-200 font-semibold shadow-sm"
+    w-full px-4 py-3 
+    bg-green-600 text-white rounded-xl 
+    hover:bg-green-700 transition-all duration-200 font-semibold shadow-sm"
                   >
                     <Phone size={18} />
-                    <span>Call Now</span>
+                    <span>{isMobile ? "Call Now" : "WhatsApp Support"}</span>
                   </a>
+
                 </div>
+                )}
 
               </div>
             </ThemeCard>
@@ -364,7 +380,7 @@ const HelpSupport: React.FC = () => {
 
 
           {/* Right Content - Search, Filter & FAQ */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-3">
             <ThemeCard className="p-6" variant="glass">
               <div className="space-y-6">
                 {/* Search Bar */}
@@ -380,14 +396,14 @@ const HelpSupport: React.FC = () => {
                 </div>
 
                 {/* Categories */}
-                <div className="flex flex-wrap gap-3">
+                <div className="hidden sm:flex flex-wrap gap-3">
                   {categories.map((category) => (
                     <button
                       key={category.id}
                       onClick={() => setSelectedCategory(category.id)}
                       className={`flex items-center space-x-2 px-4 py-2 rounded-xl transition-all duration-200 ${selectedCategory === category.id
-                        ? 'bg-[var(--color-primary)] text-white shadow-lg'
-                        : 'bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-chat)] border border-[var(--color-border)]'
+                          ? 'bg-[var(--color-primary)] text-white shadow-lg'
+                          : 'bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-chat)] border border-[var(--color-border)]'
                         }`}
                     >
                       <div className={selectedCategory === category.id ? 'text-white' : 'text-blue-600'}>
@@ -396,6 +412,48 @@ const HelpSupport: React.FC = () => {
                       <span className="font-medium">{category.name}</span>
                     </button>
                   ))}
+                </div>
+
+                {/* ---------- MOBILE (COLLAPSIBLE) ---------- */}
+                <div className="sm:hidden space-y-3">
+                  {/* Header */}
+                  <button
+                    onClick={() => setShowMobileTopics(prev => !prev)}
+                    className="w-full flex items-center justify-between px-4 py-3 
+               rounded-xl border border-[var(--color-border)] 
+               bg-[var(--color-surface)]"
+                  >
+                    <span className="font-semibold text-[var(--color-text)]">
+                      All Topics
+                    </span>
+
+                    {showMobileTopics ? (
+                      <ChevronDown size={18} />
+                    ) : (
+                      <ChevronRight size={18} />
+                    )}
+                  </button>
+
+                  {/* Expandable list */}
+                  {showMobileTopics && (
+                    <div className="flex flex-col gap-2">
+                      {categories.map((category) => (
+                        <button
+                          key={category.id}
+                          onClick={() => {
+                            setSelectedCategory(category.id);
+                            setShowMobileTopics(false); // auto close
+                          }}
+                          className={`flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${selectedCategory === category.id
+                              ? 'bg-[var(--color-primary)] text-white'
+                              : 'bg-[var(--color-surface)] text-[var(--color-text)] border-[var(--color-border)]'
+                            }`}
+                        >
+                          <span className="font-medium">{category.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Results Header */}
@@ -409,6 +467,7 @@ const HelpSupport: React.FC = () => {
                 </div>
 
                 {/* FAQ List */}
+                {/* FAQ List */}
                 <div className="space-y-4 max-h-[600px] overflow-y-auto">
                   {filteredFAQs.length > 0 ? (
                     filteredFAQs.map((faq) => (
@@ -417,16 +476,19 @@ const HelpSupport: React.FC = () => {
                           onClick={() => setExpandedFAQ(expandedFAQ === faq.id ? null : faq.id)}
                           className="w-full p-6 text-left flex items-center justify-between hover:bg-[var(--color-surfacehelp)] transition-colors duration-200"
                         >
-                          <div className="flex items-center space-x-4 flex-1">
+                          {/* ================= DESKTOP (UNCHANGED) ================= */}
+                          <div className="hidden sm:flex items-center space-x-4 flex-1">
                             <div className="p-2 rounded-xl bg-blue-50">
                               <div className="text-blue-600">
                                 {faq.icon}
                               </div>
                             </div>
+
                             <div className="flex-1">
                               <h3 className="text-lg font-semibold text-[var(--color-text)] mb-2">
                                 {faq.question}
                               </h3>
+
                               <div className="flex flex-wrap gap-2">
                                 {faq.tags.map((tag) => (
                                   <span
@@ -439,7 +501,8 @@ const HelpSupport: React.FC = () => {
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center space-x-2">
+
+                          <div className="hidden sm:flex items-center space-x-2">
                             {(user?.role === 'admin' || user?.role === 'manager') && faq.roles.includes('admin') && (
                               <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-600 font-bold">
                                 Admin
@@ -451,31 +514,47 @@ const HelpSupport: React.FC = () => {
                               <ChevronRight size={20} className="text-gray-400" />
                             )}
                           </div>
+
+                          {/* ================= MOBILE (QUESTION + ARROW ONLY) ================= */}
+                          <div className="flex sm:hidden items-center justify-between w-full">
+                            <h3 className="text-sm font-semibold text-[var(--color-text)]">
+                              {faq.question}
+                            </h3>
+
+                            {expandedFAQ === faq.id ? (
+                              <ChevronDown size={16} />
+                            ) : (
+                              <ChevronRight size={16} />
+                            )}
+                          </div>
                         </button>
 
+                        {/* ANSWER (same for both, padding responsive only) */}
                         {expandedFAQ === faq.id && (
-                          <div className="px-6 pb-6 border-t border-gray-200">
+                          <div className="px-4 sm:px-6 pb-4 sm:pb-6 border-t border-gray-200">
                             <div className="pt-4">
-                              <p className="text-[var(--color-text)] leading-relaxed whitespace-pre-line">
+                              <p className="text-sm sm:text-base text-[var(--color-text)] leading-relaxed whitespace-pre-line">
                                 {faq.answer}
                               </p>
                             </div>
                           </div>
                         )}
                       </ThemeCard>
+
                     ))
                   ) : (
                     <ThemeCard className="p-12 text-center" variant="glass">
                       <HelpCircle size={48} className="mx-auto mb-4 text-gray-400 opacity-50" />
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                      <h3 className="text-xl font-semibold text-[var(--color-text)] mb-2">
                         No help topics found
                       </h3>
-                      <p className="text-gray-600">
+                      <p className="text-[var(--color-text)]">
                         Try adjusting your search terms or selecting a different category.
                       </p>
                     </ThemeCard>
                   )}
                 </div>
+
               </div>
             </ThemeCard>
           </div>

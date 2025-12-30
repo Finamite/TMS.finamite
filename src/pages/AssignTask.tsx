@@ -39,6 +39,7 @@ interface TaskForm {
   yearlyDuration: number;
   attachments: File[]; // Individual attachments per task
   requiresApproval: boolean;
+  taskTypeLocked?: boolean;
 }
 
 const AssignTask: React.FC = () => {
@@ -403,25 +404,26 @@ const AssignTask: React.FC = () => {
       prev.map(task => {
         if (task.id !== taskId) return task;
 
-        // ✅ ONE-TIME TASK → apply admin approval rule
+        // 🔐 USER: lock task type after first selection
         if (
           field === "taskType" &&
-          value === "one-time" &&
-          adminApprovalSettings.enabled
+          user?.role === "employee" &&
+          task.taskType && // already selected once
+          task.taskTypeLocked
+        ) {
+          return task; // ❌ block change
+        }
+
+        // First-time selection → lock it
+        if (
+          field === "taskType" &&
+          user?.role === "employee" &&
+          !task.taskTypeLocked
         ) {
           return {
             ...task,
             taskType: value,
-            requiresApproval: adminApprovalSettings.defaultForOneTime
-          };
-        }
-
-        // ❌ NON ONE-TIME TASK → FORCE approval OFF
-        if (field === "taskType" && value !== "one-time") {
-          return {
-            ...task,
-            taskType: value,
-            requiresApproval: false
+            taskTypeLocked: true
           };
         }
 
@@ -775,11 +777,16 @@ const AssignTask: React.FC = () => {
                         }}
                       >
                         <option value="one-time">One Time</option>
-                        <option value="daily">Daily</option>
-                        <option value="weekly">Weekly</option>
-                        <option value="monthly">Monthly</option>
-                        <option value="quarterly">Quarterly</option>
-                        <option value="yearly">Yearly</option>
+
+                        {user?.role !== 'employee' && (
+                          <>
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="quarterly">Quarterly</option>
+                            <option value="yearly">Yearly</option>
+                          </>
+                        )}
                       </select>
                     </div>
 
@@ -1053,7 +1060,6 @@ const AssignTask: React.FC = () => {
                   {/* Date Configuration */}
                   <div className="space-y-4">
                     <h4 className="text-lg font-semibold flex items-center" style={{ color: 'var(--color-text)' }}>
-                      <Calendar className="mr-2" size={18} />
                       Date Configuration
                     </h4>
 
@@ -1061,33 +1067,13 @@ const AssignTask: React.FC = () => {
                       {task.taskType === 'one-time' ? (
                         <div className="space-y-2">
                           <label className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>Due Date *</label>
-                          <input
-                            type="date"
-                            value={task.dueDate}
-                            onClick={(e: React.MouseEvent<HTMLInputElement>) => (e.target as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
-                            onFocus={(e: React.FocusEvent<HTMLInputElement>) => (e.target as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
-                            onChange={(e) => updateTaskForm(task.id, 'dueDate', e.target.value)}
-                            required
-                            className="w-full px-3 py-2 rounded-xl border-2 transition-all duration-200 "
-                            style={{
-                              borderColor: 'var(--color-border)',
-                              backgroundColor: 'var(--color-surface)',
-                              color: 'var(--color-text)'
-                            }}
-                          />
-                        </div>
-                      ) : (
-                        <>
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
-                              {task.taskType === 'yearly' || task.taskType === 'quarterly' ? 'Task Date *' : 'Start Date *'}
-                            </label>
+                          <div className="relative">
                             <input
                               type="date"
-                              value={task.startDate}
+                              value={task.dueDate}
                               onClick={(e: React.MouseEvent<HTMLInputElement>) => (e.target as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
                               onFocus={(e: React.FocusEvent<HTMLInputElement>) => (e.target as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
-                              onChange={(e) => updateTaskForm(task.id, 'startDate', e.target.value)}
+                              onChange={(e) => updateTaskForm(task.id, 'dueDate', e.target.value)}
                               required
                               className="w-full px-3 py-2 rounded-xl border-2 transition-all duration-200 "
                               style={{
@@ -1096,6 +1082,46 @@ const AssignTask: React.FC = () => {
                                 color: 'var(--color-text)'
                               }}
                             />
+                            <Calendar
+                              size={16}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
+                              style={{
+                                color: "var(--color-text)",   // 🔥 THIS FIXES DARK MODE
+                                opacity: 0.9
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+                              {task.taskType === 'yearly' || task.taskType === 'quarterly' ? 'Task Date *' : 'Start Date *'}
+                            </label>
+                            <div className="relative">
+                              <input
+                                type="date"
+                                value={task.startDate}
+                                onClick={(e: React.MouseEvent<HTMLInputElement>) => (e.target as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
+                                onFocus={(e: React.FocusEvent<HTMLInputElement>) => (e.target as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
+                                onChange={(e) => updateTaskForm(task.id, 'startDate', e.target.value)}
+                                required
+                                className="w-full px-3 py-2 rounded-xl border-2 transition-all duration-200 "
+                                style={{
+                                  borderColor: 'var(--color-border)',
+                                  backgroundColor: 'var(--color-surface)',
+                                  color: 'var(--color-text)'
+                                }}
+                              />
+                              <Calendar
+                                size={16}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
+                                style={{
+                                  color: "var(--color-text)",   // 🔥 THIS FIXES DARK MODE
+                                  opacity: 0.9
+                                }}
+                              />
+                            </div>
                           </div>
 
                           {task.taskType !== 'yearly' && task.taskType !== 'quarterly' && (
@@ -1103,21 +1129,31 @@ const AssignTask: React.FC = () => {
                               <label className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
                                 End Date {!task.isForever && '*'}
                               </label>
-                              <input
-                                type="date"
-                                value={task.endDate}
-                                onClick={(e: React.MouseEvent<HTMLInputElement>) => (e.target as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
-                                onFocus={(e: React.FocusEvent<HTMLInputElement>) => (e.target as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
-                                onChange={(e) => updateTaskForm(task.id, 'endDate', e.target.value)}
-                                required={!task.isForever}
-                                disabled={task.isForever}
-                                className="w-full px-3 py-2 rounded-xl border-2 transition-all duration-200 disabled:opacity-50"
-                                style={{
-                                  borderColor: 'var(--color-border)',
-                                  backgroundColor: task.isForever ? 'var(--color-border)' : 'var(--color-surface)',
-                                  color: 'var(--color-text)'
-                                }}
-                              />
+                              <div className="relative">
+                                <input
+                                  type="date"
+                                  value={task.endDate}
+                                  onClick={(e: React.MouseEvent<HTMLInputElement>) => (e.target as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
+                                  onFocus={(e: React.FocusEvent<HTMLInputElement>) => (e.target as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
+                                  onChange={(e) => updateTaskForm(task.id, 'endDate', e.target.value)}
+                                  required={!task.isForever}
+                                  disabled={task.isForever}
+                                  className="w-full px-3 py-2 rounded-xl border-2 transition-all duration-200 disabled:opacity-50"
+                                  style={{
+                                    borderColor: 'var(--color-border)',
+                                    backgroundColor: task.isForever ? 'var(--color-border)' : 'var(--color-surface)',
+                                    color: 'var(--color-text)'
+                                  }}
+                                />
+                                <Calendar
+                                  size={16}
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
+                                  style={{
+                                    color: "var(--color-text)",   // 🔥 THIS FIXES DARK MODE
+                                    opacity: 0.9
+                                  }}
+                                />
+                              </div>
                             </div>
                           )}
                         </>

@@ -36,6 +36,7 @@ const themes = {
       surfacechat: '#f6f6fcff',
       settingcolor: '#efeff3ff',
       surfacehelp:'#f6f6fcff',
+      cardcolor: '#efeff3ff',
 
     }
   },
@@ -58,6 +59,7 @@ const themes = {
       surfacechat: '#2D3748',
       settingcolor: '#626e81ff',
       surfacehelp:'#2e4261ff',
+      cardcolor: '#2D3748',
     }
   },
 };

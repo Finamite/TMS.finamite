@@ -85,25 +85,32 @@ const TeamPendingTasksChart = ({ teamPendingData, user }: Props) => {
                 },
             ];
 
-            const MobileBarLabel = (props: any) => {
-    const { x, y, width, value } = props;
+    const MobileBarLabel = (props: any) => {
+        const { x, y, width, height, value } = props;
 
-    if (value === 0) return null; // don't show zero labels
+        if (value === 0) return null;
 
-    return (
-        <text
-            x={x + width / 2}
-            y={y + 15} // inside the bar, slightly down
-            fill="#ffffff"
-            fontSize="11"
-            fontWeight="bold"
-            textAnchor="middle"
-            dominantBaseline="middle"
-        >
-            {value}
-        </text>
-    );
-};
+        const isSmallBar = height < 28; // 🔥 threshold
+
+        return (
+            <text
+                x={x + width / 2}
+                y={isSmallBar ? y - 6 : y + height / 2}
+                fill={isSmallBar ? "var(--color-text)" : "#ffffff"}
+                fontSize="11"
+                fontWeight="700"
+                textAnchor="middle"
+                dominantBaseline="middle"
+                style={{
+                    textShadow: isSmallBar
+                        ? "none"
+                        : "0 1px 3px rgba(0,0,0,0.6)",
+                }}
+            >
+                {value}
+            </text>
+        );
+    };
 
     const slide = (direction: SlideDirection) => {
         if (isAnimating) return;
@@ -201,10 +208,20 @@ const TeamPendingTasksChart = ({ teamPendingData, user }: Props) => {
                                 />
 
                                 <Tooltip
+                                    cursor={{ fill: 'var(--color-border)', opacity: 0.15 }}
                                     contentStyle={{
-                                        background: "var(--color-surface)",
-                                        border: "1px solid var(--color-border)",
-                                        borderRadius: "12px",
+                                        backgroundColor: 'var(--color-surface)',
+                                        border: '1px solid var(--color-border)',
+                                        borderRadius: '12px',
+                                        color: 'var(--color-text)',     // ✅ FIX
+                                    }}
+                                    labelStyle={{
+                                        color: 'var(--color-text)',     // ✅ FIX
+                                        fontWeight: 700,
+                                    }}
+                                    itemStyle={{
+                                        color: 'var(--color-text)',     // ✅ FIX
+                                        fontWeight: 600,
                                     }}
                                 />
 
@@ -287,7 +304,7 @@ const TeamPendingTasksChart = ({ teamPendingData, user }: Props) => {
                         <BarChart
                             data={chartData}
                             barGap={6}
-                            margin={{ left: -30, right: 0 }}   // 🔥 pulls chart slightly left
+                            margin={{ left: 10, right: 10, bottom: 40 }}// 🔥 pulls chart slightly left
                         >
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.3} vertical={false} />
 
@@ -312,10 +329,20 @@ const TeamPendingTasksChart = ({ teamPendingData, user }: Props) => {
                             />
 
                             <Tooltip
+                                cursor={{ fill: 'var(--color-border)', opacity: 0.15 }}
                                 contentStyle={{
-                                    background: "var(--color-surface)",
-                                    border: "1px solid var(--color-border)",
-                                    borderRadius: "12px",
+                                    backgroundColor: 'var(--color-surface)',
+                                    border: '1px solid var(--color-border)',
+                                    borderRadius: '12px',
+                                    color: 'var(--color-text)',     // ✅ FIX
+                                }}
+                                labelStyle={{
+                                    color: 'var(--color-text)',     // ✅ FIX
+                                    fontWeight: 700,
+                                }}
+                                itemStyle={{
+                                    color: 'var(--color-text)',     // ✅ FIX
+                                    fontWeight: 600,
                                 }}
                             />
 
@@ -347,8 +374,8 @@ const TeamPendingTasksChart = ({ teamPendingData, user }: Props) => {
 
                             {(user?.role === "admin" || user?.role === "manager") && (
                                 <>
-                                    <Bar dataKey="pending" fill="url(#gradOneTimeToday)" radius={[8, 8, 0, 0]} label={<MobileBarLabel />}/>
-                                    <Bar dataKey="overdue" fill="url(#gradOneTimeOverdue)" radius={[8, 8, 0, 0]} label={<MobileBarLabel />}/>
+                                    <Bar dataKey="pending" fill="url(#gradOneTimeToday)" radius={[8, 8, 0, 0]} label={<MobileBarLabel />} />
+                                    <Bar dataKey="overdue" fill="url(#gradOneTimeOverdue)" radius={[8, 8, 0, 0]} label={<MobileBarLabel />} />
                                 </>
                             )}
 

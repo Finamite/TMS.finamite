@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import {
   Calendar, CheckCircle, ChevronDown, Award, Star, BarChart3, Trophy, CalendarRange,
   Clock, CalendarDays, RefreshCw, UserCheck, RotateCcw, Users,
-  XCircle
+  XCircle, Download, FileSpreadsheet, FileText
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
@@ -16,6 +16,7 @@ interface DashboardData {
     totalTasks: number;
     completedTasks: number;
     pendingTasks: number;
+    
     oneTimeTasks: number;
     oneTimePending: number;
     oneTimeCompleted: number;
@@ -84,13 +85,17 @@ const Performance: React.FC = () => {
   useTheme();
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [showMonthFilter, setShowMonthFilter] = useState(false);
   const [viewMode, setViewMode] = useState<'current' | 'all-time' | 'custom'>('current');
   const [dateFrom, setDateFrom] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [dateTo, setDateTo] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [showDateFilter, setShowDateFilter] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const monthListRef = React.useRef<HTMLDivElement>(null);
+  const fromDateRef = useRef<HTMLInputElement>(null);
+  const toDateRef = useRef<HTMLInputElement>(null);
 
   const ThemeCard = ({ children, className = "", variant = "default", hover = false }: {
     children: React.ReactNode;
@@ -111,6 +116,110 @@ const Performance: React.FC = () => {
         {children}
       </div>
     );
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      setExporting(true);
+      
+      const exportData = {
+        teamPerformance: dashboardData?.teamPerformance || [],
+        userPerformance: dashboardData?.userPerformance || null,
+        dateRange: {
+          viewMode,
+          selectedMonth: format(selectedMonth, 'yyyy-MM-dd'),
+          dateFrom,
+          dateTo
+        },
+        userInfo: {
+          username: user?.username,
+          role: user?.role,
+          companyId: user?.companyId
+        }
+      };
+
+      const response = await axios.post(`${address}/api/performance/export-excel`, exportData, {
+        responseType: 'blob',
+        headers: {
+          'userid': user?.id
+        }
+      });
+
+      // Create and download the file
+      const blob = new Blob([response.data], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      const fileName = `performance-report-${viewMode === 'current' ? format(selectedMonth, 'yyyy-MM') : 
+        viewMode === 'custom' ? `${dateFrom}-to-${dateTo}` : 'all-time'}.xlsx`;
+      link.download = fileName;
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      alert('Failed to export Excel file. Please try again.');
+    } finally {
+      setExporting(false);
+      setShowExportMenu(false);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    try {
+      setExporting(true);
+      
+      const exportData = {
+        teamPerformance: dashboardData?.teamPerformance || [],
+        userPerformance: dashboardData?.userPerformance || null,
+        dateRange: {
+          viewMode,
+          selectedMonth: format(selectedMonth, 'yyyy-MM-dd'),
+          dateFrom,
+          dateTo
+        },
+        userInfo: {
+          username: user?.username,
+          role: user?.role,
+          companyId: user?.companyId
+        }
+      };
+
+      const response = await axios.post(`${address}/api/performance/export-pdf`, exportData, {
+        responseType: 'blob',
+        headers: {
+          'userid': user?.id
+        }
+      });
+
+      // Create and download the file
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      const fileName = `performance-scorecard-${viewMode === 'current' ? format(selectedMonth, 'yyyy-MM') : 
+        viewMode === 'custom' ? `${dateFrom}-to-${dateTo}` : 'all-time'}.pdf`;
+      link.download = fileName;
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error('Error exporting to PDF:', error);
+      alert('Failed to export PDF file. Please try again.');
+    } finally {
+      setExporting(false);
+      setShowExportMenu(false);
+    }
   };
 
   useEffect(() => {
@@ -214,7 +323,6 @@ const Performance: React.FC = () => {
               <span className="text-xs font-semibold text-[var(--color-text)]">Done</span>
               <span className="text-sm font-bold" style={{ color: '#5b88dbff' }}>
                 {completed}
-                {member.totalTasks ? ` / ${member.totalTasks}` : ''}
               </span>
             </div>
             <div className="w-full h-2 bg-[var(--color-border)] rounded-full overflow-hidden">
@@ -236,7 +344,6 @@ const Performance: React.FC = () => {
               {member.totalTasks > 0 && (
                 <span className="text-sm font-bold" style={{ color: '#04b9ddff' }}>
                   {member.onTimeCompletedTasks || 0}
-                  {member.totalTasks > 0 && completed > 0 ? ` / ${completed}` : ''}
                 </span>
               )}
             </div>
@@ -279,14 +386,14 @@ const Performance: React.FC = () => {
               <div className="flex justify-center gap-2 lg:gap-4 text-xs items-center">
                 {/* Pending */}
                 <div className="flex items-center gap-1 text-[#04b9ddff] font-semibold"
-                title="Pending">
+                  title="Pending">
                   <Clock size={12} strokeWidth={2} />
                   <span>{item.pending}</span>
                 </div>
 
                 {/* Completed */}
                 <div className="flex items-center gap-1 text-[#5b88dbff] font-semibold "
-                title="Completed">
+                  title="Completed">
                   <CheckCircle size={12} strokeWidth={2} />
                   <span>{item.completed}</span>
                 </div>
@@ -294,16 +401,16 @@ const Performance: React.FC = () => {
                 {/* Revised count (ONLY for One-time tasks) */}
                 {item.label === "One-time" && (
                   <div className="flex items-center gap-1 text-orange-500 font-semibold "
-                  title="Revised">
+                    title="Revised">
                     <RotateCcw size={12} strokeWidth={2} />
                     <span>{item.revised || 0}</span>
                   </div>
                 )}
-                
+
                 {/* Rejected count (ONLY for One-time tasks) */}
                 {item.label === "One-time" && item.rejected !== undefined && (
                   <div className="flex items-center gap-1 text-red-500 font-semibold "
-                  title="Rejected">
+                    title="Rejected">
                     <XCircle size={12} strokeWidth={2} />
                     <span>{item.rejected}</span>
                   </div>
@@ -344,7 +451,7 @@ const Performance: React.FC = () => {
         userId: user?.id,
         isAdmin: (user?.role === 'admin' || user?.role === 'manager') ? 'true' : 'false',
       };
-      
+
       // Only add date parameters if both are provided
       if (startDate && endDate) {
         params.startDate = startDate;
@@ -461,9 +568,9 @@ const Performance: React.FC = () => {
             <p className="text-sm text-[var(--color-textSecondary)]">
               Welcome back, <span className="font-bold text-[var(--color-text)]">{user?.username}</span>!
               {(user?.role === 'admin' || user?.role === 'manager') ? ' Team performance overview' : ' Here\'s your performance overview'}
-              {viewMode === 'current' ? 
+              {viewMode === 'current' ?
                 ` for ${isSameMonth(selectedMonth, new Date()) && isSameYear(selectedMonth, new Date()) ? 'this month' : format(selectedMonth, 'MMMM yyyy')}` :
-                viewMode === 'custom' ? 
+                viewMode === 'custom' ?
                   ` from ${format(new Date(dateFrom), 'MMM dd')} to ${format(new Date(dateTo), 'MMM dd, yyyy')}` :
                   ' (all time)'
               }
@@ -472,6 +579,54 @@ const Performance: React.FC = () => {
         </div>
 
         <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
+          {/* Export Button */}
+          {(dashboardData?.teamPerformance?.length || dashboardData?.userPerformance) && (
+            <div className="relative">
+              <button
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                disabled={exporting}
+                className="flex items-center justify-center px-4 py-2.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {exporting ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                ) : (
+                  <Download size={18} className="mr-2" />
+                )}
+                {exporting ? 'Exporting...' : 'Export'}
+                {!exporting && <ChevronDown size={16} className="ml-1" />}
+              </button>
+              
+              {showExportMenu && !exporting && (
+                <div className="absolute right-0 top-full mt-2 w-48 z-50">
+                  <ThemeCard className="p-2" variant="elevated" hover={false}>
+                    <div className="space-y-1">
+                      <button
+                        onClick={handleExportExcel}
+                        className="w-full flex items-center px-3 py-2 rounded-xl text-left hover:bg-[var(--color-border)] transition-colors"
+                      >
+                        <FileSpreadsheet size={18} className="mr-3 text-green-600" />
+                        <div>
+                          <div className="font-semibold text-[var(--color-text)]">Excel Report</div>
+                          <div className="text-xs text-[var(--color-textSecondary)]">Detailed data sheets</div>
+                        </div>
+                      </button>
+                      <button
+                        onClick={handleExportPDF}
+                        className="w-full flex items-center px-3 py-2 rounded-xl text-left hover:bg-[var(--color-border)] transition-colors"
+                      >
+                        <FileText size={18} className="mr-3 text-red-600" />
+                        <div>
+                          <div className="font-semibold text-[var(--color-text)]">PDF Scorecard</div>
+                          <div className="text-xs text-[var(--color-textSecondary)]">Performance summary</div>
+                        </div>
+                      </button>
+                    </div>
+                  </ThemeCard>
+                </div>
+              )}
+            </div>
+          )}
+
           <ThemeCard className="p-1 w-full sm:w-auto" variant="bordered" hover={false}>
             <div className="flex items-center justify-center">
               <button
@@ -527,20 +682,36 @@ const Performance: React.FC = () => {
                       <div>
                         <label className="block text-sm font-semibold text-[var(--color-text)] mb-2">From Date</label>
                         <input
+                          ref={fromDateRef}
                           type="date"
                           value={dateFrom}
+                          onClick={() => fromDateRef.current?.showPicker()}
                           onChange={(e) => setDateFrom(e.target.value)}
-                          className="w-full px-3 py-2 bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+                          className="w-full cursor-pointer px-3 py-2
+               bg-[var(--color-background)]
+               border border-[var(--color-border)]
+               rounded-xl text-[var(--color-text)]
+               focus:outline-none
+               focus:ring-2 focus:ring-[var(--color-primary)]
+               focus:border-transparent"
                         />
                       </div>
                       <div>
                         <label className="block text-sm font-semibold text-[var(--color-text)] mb-2">To Date</label>
                         <input
+                          ref={toDateRef}
                           type="date"
                           value={dateTo}
-                          onChange={(e) => setDateTo(e.target.value)}
                           min={dateFrom}
-                          className="w-full px-3 py-2 bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+                          onClick={() => toDateRef.current?.showPicker()}
+                          onChange={(e) => setDateTo(e.target.value)}
+                          className="w-full cursor-pointer px-3 py-2
+               bg-[var(--color-background)]
+               border border-[var(--color-border)]
+               rounded-xl text-[var(--color-text)]
+               focus:outline-none
+               focus:ring-2 focus:ring-[var(--color-primary)]
+               focus:border-transparent"
                         />
                       </div>
                       <div className="flex space-x-2 pt-2">
@@ -549,12 +720,6 @@ const Performance: React.FC = () => {
                           className="flex-1 px-4 py-2 bg-[var(--color-border)] text-[var(--color-text)] rounded-xl hover:bg-[var(--color-border)]/80 transition-colors font-semibold"
                         >
                           Cancel
-                        </button>
-                        <button
-                          onClick={() => setShowDateFilter(false)}
-                          className="flex-1 px-4 py-2 bg-[var(--color-primary)] text-white rounded-xl hover:bg-[var(--color-primary)]/90 transition-colors font-semibold"
-                        >
-                          Apply
                         </button>
                       </div>
                     </div>

@@ -15,22 +15,6 @@
   animation: blinkWarning 2.0s infinite ease-in-out;
 }
 
-/* Calendar icon color for Chrome, Edge */
-input[type="date"]::-webkit-calendar-picker-indicator {
-  filter: invert(1) sepia(1) saturate(5000%) hue-rotate(0deg)
-          brightness(80%) drop-shadow(0 0 0 var(--color-text));
-  opacity: 0.8;
-}
-
-/* Match icon color to var(--color-text) */
-input[type="date"] {
-  color-scheme: light dark;
-}
-
-input[type="date"]::-webkit-calendar-picker-indicator {
-  background-color: transparent;
-  cursor: pointer;
-}
 
 @keyframes slide-out-left {
   0% { transform: translateX(0); opacity: 1; }
@@ -69,6 +53,25 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 .animate-spin-slow {
   animation: spinSlow 1.4s linear infinite;
+}
+
+/* Tell browser this input supports dark + light */
+input[type="date"] {
+  color-scheme: light dark;
+  background-color: var(--color-background);
+  color: var(--color-text);
+}
+
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  display: none;
+}
+
+
+/* Hover effect for better UX */
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
 }
 
 

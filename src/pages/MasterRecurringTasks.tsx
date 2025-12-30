@@ -214,7 +214,7 @@ const ReadMore = memo<{ text: string; maxLength: number }>(({ text, maxLength })
       {displayText}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="ml-1 text-[--color-primary] hover:text-[--color-primary-dark] font-medium"
+        className="ml-1 text-[--color-primary] hover:text-[--color-primary] font-medium"
       >
         {isExpanded ? 'See Less' : 'See More'}
       </button>
@@ -337,6 +337,8 @@ const MasterRecurringTasks: React.FC = () => {
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [showBulkReassignModal, setShowBulkReassignModal] = useState(false);
+  const dateFromRef = useRef<HTMLInputElement>(null);
+  const dateToRef = useRef<HTMLInputElement>(null);
   const [bulkIncludeFiles, setBulkIncludeFiles] = useState<Record<string, boolean>>({});
   const [deleteConfig, setDeleteConfig] = useState<{
     type: "single" | "master" | "permanent";
@@ -1183,8 +1185,8 @@ const MasterRecurringTasks: React.FC = () => {
 
         {/* Selection indicator for non-forever tasks */}
         {isSelectionMode && !masterTask.parentTaskInfo?.isForever && (
-          <div className="mb-4 p-2 bg-gray-100 rounded-lg">
-            <span className="text-xs text-gray-500">
+          <div className="mb-4 p-2 bg-[--color-cardcolor] rounded-lg">
+            <span className="text-xs text-red-500">
               Not available for reassign (not a forever task)
             </span>
           </div>
@@ -1230,7 +1232,7 @@ const MasterRecurringTasks: React.FC = () => {
             {masterTask.attachments && masterTask.attachments.length > 0 ? (
               <button
                 onClick={() => setShowAttachmentsModal({ attachments: masterTask.attachments, type: 'task' })}
-                className="font-medium text-[--color-primary] hover:text-[--color-primary-dark]"
+                className="font-medium text-[--color-primary] hover:text-[--color-primary]"
               >
                 Click Here ({masterTask.attachments.length})
               </button>
@@ -1331,7 +1333,7 @@ const MasterRecurringTasks: React.FC = () => {
             {task.attachments && task.attachments.length > 0 ? (
               <button
                 onClick={() => setShowAttachmentsModal({ attachments: task.attachments, type: 'task' })}
-                className="font-medium text-[--color-primary] hover:text-[--color-primary-dark]"
+                className="font-medium text-[--color-primary] hover:text-[--color-primary]"
               >
                 Click Here ({task.attachments.length})
               </button>
@@ -1356,7 +1358,7 @@ const MasterRecurringTasks: React.FC = () => {
                 {task.completionRemarks && (
                   <button
                     onClick={() => setShowRemarksModal(task)}
-                    className="ml-1 text-[--color-primary] hover:text-[--color-primary-dark]"
+                    className="ml-1 text-[--color-primary] hover:text-[--color-primary]"
                     title="View completion remarks"
                   >
                     <Info size={14} />
@@ -1380,7 +1382,7 @@ const MasterRecurringTasks: React.FC = () => {
               </span>
               <button
                 onClick={() => setShowAttachmentsModal({ attachments: task.completionAttachments!, type: 'completion' })}
-                className="font-medium text-[--color-success] hover:text-[--color-success-dark]"
+                className="font-medium text-[--color-success] hover:text-[--color-success]"
               >
                 Click Here ({task.completionAttachments.length})
               </button>
@@ -1514,6 +1516,11 @@ const MasterRecurringTasks: React.FC = () => {
                     <div className="text-sm font-medium text-[--color-text] mb-1">
                       <ReadMore text={masterTask.title} maxLength={80} />
                     </div>
+                    {isSelectionMode && !masterTask.parentTaskInfo?.isForever && (
+                      <div className="mt-1 text-xs text-red-500 font-medium">
+                        Not available for reassign (not a forever task)
+                      </div>
+                    )}
                     <ReadMore text={masterTask.description} maxLength={descriptionMaxLength} />
                     <div className="flex items-center mt-2 space-x-2">
                       {masterTask.parentTaskInfo?.isForever && (
@@ -1571,7 +1578,7 @@ const MasterRecurringTasks: React.FC = () => {
                   {masterTask.attachments && masterTask.attachments.length > 0 ? (
                     <button
                       onClick={() => setShowAttachmentsModal({ attachments: masterTask.attachments, type: 'task' })}
-                      className="font-medium text-[--color-primary] hover:text-[--color-primary-dark]"
+                      className="font-medium text-[--color-primary] hover:text-[--color-primary]"
                     >
                       Click Here ({masterTask.attachments.length})
                     </button>
@@ -1742,7 +1749,7 @@ const MasterRecurringTasks: React.FC = () => {
                   {task.attachments && task.attachments.length > 0 ? (
                     <button
                       onClick={() => setShowAttachmentsModal({ attachments: task.attachments, type: 'task' })}
-                      className="font-medium text-[--color-primary] hover:text-[--color-primary-dark]"
+                      className="font-medium text-[--color-primary] hover:text-[--color-primary]"
                     >
                       Click Here ({task.attachments.length})
                     </button>
@@ -1778,7 +1785,7 @@ const MasterRecurringTasks: React.FC = () => {
                     {task.completionRemarks && task.completedAt && (
                       <button
                         onClick={() => setShowRemarksModal(task)}
-                        className="ml-2 text-[--color-primary] hover:text-[--color-primary-dark]"
+                        className="ml-2 text-[--color-primary] hover:text-[--color-primary]"
                         title="View completion remarks"
                       >
                         <Info size={14} />
@@ -1790,7 +1797,7 @@ const MasterRecurringTasks: React.FC = () => {
                   {task.completionAttachments && task.completionAttachments.length > 0 ? (
                     <button
                       onClick={() => setShowAttachmentsModal({ attachments: task.completionAttachments!, type: 'completion' })}
-                      className="font-medium text-[--color-success] hover:text-[--color-success-dark]"
+                      className="font-medium text-[--color-success] hover:text-[--color-success]"
                     >
                       Click Here ({task.completionAttachments.length})
                     </button>
@@ -1861,15 +1868,29 @@ const MasterRecurringTasks: React.FC = () => {
               )}
             </h1>
 
-            <p className="text-xs text-[--color-textSecondary] flex items-center gap-1 whitespace-nowrap">
+            <p className="
+  text-xs text-[--color-textSecondary]
+  flex flex-wrap items-center gap-1
+  max-w-full
+  break-words
+  sm:flex-nowrap sm:whitespace-nowrap
+">
               {isEditMode
                 ? `${masterTasks.length} master task series`
                 : `${individualTasks.length} recurring task(s) found`}
-              {isAdmin ? ' (All team members)' : ' (Your tasks)'}
-              {totalCount > currentData.length &&
-                ` - Showing ${currentData.length} of ${totalCount}`}
+
+              <span className="shrink-0">
+                {isAdmin ? ' (All team members)' : ' (Your tasks)'}
+              </span>
+
+              {totalCount > currentData.length && (
+                <span className="shrink-0">
+                  {` - Showing ${currentData.length} of ${totalCount}`}
+                </span>
+              )}
+
               {(loading || editModeLoading) && (
-                <Loader className="h-3 w-3 animate-spin text-[--color-primary]" />
+                <Loader className="h-3 w-3 animate-spin text-[--color-primary] shrink-0" />
               )}
             </p>
           </div>
@@ -2022,36 +2043,66 @@ const MasterRecurringTasks: React.FC = () => {
       {/* Filters */}
       {showFilters && (
         <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] p-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-4">
             {!isEditMode && (
               <div>
                 <label className="block text-sm font-medium text-[--color-text] mb-1">
-                  <Calendar size={14} className="inline mr-1" />
                   Date From
                 </label>
+                 <div className="relative">
                 <input
+                  ref={dateFromRef}
                   type="date"
                   value={filter.dateFrom}
-                  onChange={(e) => setFilter({ ...filter, dateFrom: e.target.value })}
-                  className="w-full text-sm px-3 py-2 border border-[--color-border] rounded-lg 
-      bg-[--color-surface] text-[--color-text]"
+                  onClick={() => dateFromRef.current?.showPicker()}
+                  onChange={(e) =>
+                    setFilter({ ...filter, dateFrom: e.target.value })
+                  }
+                  className="w-full cursor-pointer text-sm px-3 py-2
+                 border border-[--color-border] rounded-lg
+                 bg-[--color-surface] text-[--color-text]"
                 />
+                <Calendar
+                    size={16}
+                    onClick={() => dateFromRef.current?.showPicker()}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
+                    style={{
+                      color: "var(--color-text)",   // 🔥 THIS FIXES DARK MODE
+                      opacity: 0.9
+                    }}
+                  />
+                </div>
               </div>
             )}
 
             {!isEditMode && (
               <div>
                 <label className="block text-sm font-medium text-[--color-text] mb-1">
-                  <Calendar size={14} className="inline mr-1" />
                   Date To
                 </label>
+                <div className="relative">
                 <input
+                  ref={dateToRef}
                   type="date"
                   value={filter.dateTo}
-                  onChange={(e) => setFilter({ ...filter, dateTo: e.target.value })}
-                  className="w-full text-sm px-3 py-2 border border-[--color-border] rounded-lg 
-      bg-[--color-surface] text-[--color-text]"
+                  onClick={() => dateToRef.current?.showPicker()}
+                  onChange={(e) =>
+                    setFilter({ ...filter, dateTo: e.target.value })
+                  }
+                  className="w-full cursor-pointer text-sm px-3 py-2
+                 border border-[--color-border] rounded-lg
+                 bg-[--color-surface] text-[--color-text]"
                 />
+                <Calendar
+                    size={16}
+                    onClick={() => dateFromRef.current?.showPicker()}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
+                    style={{
+                      color: "var(--color-text)",   // 🔥 THIS FIXES DARK MODE
+                      opacity: 0.9
+                    }}
+                  />
+                </div>
               </div>
             )}
 
@@ -2099,7 +2150,6 @@ const MasterRecurringTasks: React.FC = () => {
               </select>
             </div>
 
-            {isAdmin && (
               <div>
                 <label className="block text-sm font-medium text-[--color-text] mb-1">
                   Assigned By
@@ -2124,7 +2174,6 @@ const MasterRecurringTasks: React.FC = () => {
                   ))}
                 </select>
               </div>
-            )}
 
             {isAdmin && (
               <div>
@@ -2203,7 +2252,7 @@ const MasterRecurringTasks: React.FC = () => {
           {!isEditMode && Object.values(filter).some(value => value !== '') && (
             <button
               onClick={resetFilters}
-              className="mt-4 px-4 py-2 text-sm font-medium text-[--color-primary] hover:text-[--color-primary-dark] transition-colors"
+              className="mt-4 px-4 py-2 text-sm font-medium text-[--color-primary] hover:text-[--color-primary] transition-colors"
             >
               Clear all filters
             </button>
@@ -2492,10 +2541,10 @@ const MasterRecurringTasks: React.FC = () => {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-[--color-surface] rounded-2xl shadow-2xl w-full max-w-md transform transition-all">
             {/* Header */}
-            <div className="p-6 border-b border-gray-200 dark:border-gray-800">
+            <div className="p-6 border-b border-gray-200">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
-                  <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                  <AlertTriangle className="w-6 h-6 text-red-600 " />
                 </div>
                 <div>
                   <h2 className="text-xl font-semibold text-[--color-text]">
@@ -2519,7 +2568,7 @@ const MasterRecurringTasks: React.FC = () => {
             </div>
 
             {/* Footer - Buttons */}
-            <div className="p-6 border-t border-gray-200 dark:border-gray-800 space-y-4">
+            <div className="p-6 border-t border-gray-200 space-y-4">
 
               {/* Row: Move to Bin + Permanent Delete */}
               <div className="grid grid-cols-2 gap-3">
@@ -2689,8 +2738,8 @@ const MasterRecurringTasks: React.FC = () => {
               <button
                 onClick={() => setShowDeleteModal(false)}
                 disabled={isProcessingDelete}
-                className={`w-full px-4 py-3 rounded-xl text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 font-medium transition-all
-    ${isProcessingDelete ? "cursor-not-allowed opacity-50" : "hover:bg-gray-200 dark:hover:bg-gray-700"}`}
+                className={`w-full px-4 py-3 rounded-xl text-gray-700  bg-gray-100 font-medium transition-all
+    ${isProcessingDelete ? "cursor-not-allowed opacity-50" : "hover:bg-gray-200 "}`}
               >
                 Cancel
               </button>

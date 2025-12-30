@@ -6,8 +6,9 @@ import ViewToggle from '../components/ViewToggle';
 import StatusBadge from '../components/StatusBadge';
 import PriorityBadge from '../components/PriorityBadge';
 import TaskTypeBadge from '../components/TaskTypeBadge';
+import { useTheme } from '../contexts/ThemeContext';
 import { address } from '../../utils/ipAddress';
-import { toast } from 'react-toastify';
+import { ToastContainer, toast } from 'react-toastify';
 import { useNavigate } from "react-router-dom";
 
 interface Attachment {
@@ -256,6 +257,7 @@ const formatTimeRemaining = (autoDeleteAt: string) => {
 
 const RecycleBin: React.FC = () => {
     const { user } = useAuth();
+    const { isDark } = useTheme();
 
     // Cache instance
     const cacheRef = useRef(new CacheManager());
@@ -296,6 +298,8 @@ const RecycleBin: React.FC = () => {
     const [selectedImagePreview, setSelectedImagePreview] = useState<string | null>(null);
     const [showRemarksModal, setShowRemarksModal] = useState<Task | null>(null);
     const [showActionModal, setShowActionModal] = useState(false);
+    const dateFromRef = useRef<HTMLInputElement>(null);
+    const dateToRef = useRef<HTMLInputElement>(null);
     const [actionConfig, setActionConfig] = useState<{
         type: "restore" | "permanentDelete";
         target: "single" | "master";
@@ -353,7 +357,6 @@ const RecycleBin: React.FC = () => {
             dateTo: debouncedDateTo,
             companyId: user?.company?.companyId || '',
         };
-
         // Check cache first
         if (useCache) {
             const cachedData = cacheRef.current.get(cacheKey, params);
@@ -482,81 +485,99 @@ const RecycleBin: React.FC = () => {
         }
     }, [currentPage, itemsPerPage, filter, debouncedSearch, debouncedDateFrom, debouncedDateTo, user, isAdmin, binSettings.retentionDays]);
 
-    const fetchIndividualTasks = useCallback(async (page: number = currentPage, useCache: boolean = true) => {
-        const params = {
-            page,
-            limit: itemsPerPage,
-            taskType: filter.taskType,
-            status: filter.status,
-            priority: filter.priority,
-            assignedTo: isAdmin ? filter.assignedTo : user?.id,
-            assignedBy: filter.assignedBy,
-            search: debouncedSearch,
-            dateFrom: debouncedDateFrom,
-            dateTo: debouncedDateTo,
-            companyId: user?.company?.companyId || '',
-        };
+    const fetchIndividualTasks = useCallback(
+        async (page: number = currentPage, useCache: boolean = true) => {
 
-        const cacheKey = `bin-individual-tasks-${page}-${itemsPerPage}-${isAdmin}`;
+            const params = {
+                page,
+                limit: itemsPerPage,
+                taskType: filter.taskType,
+                status: filter.status,
+                priority: filter.priority,
+                assignedTo: isAdmin ? filter.assignedTo : user?.id,
+                assignedBy: filter.assignedBy,
+                search: debouncedSearch,
+                dateFrom: debouncedDateFrom,
+                dateTo: debouncedDateTo,
+                companyId: user?.company?.companyId || '',
+            };
 
-        if (useCache) {
-            const cachedData = cacheRef.current.get(cacheKey, params);
-            if (cachedData) {
-                setIndividualTasks(cachedData.tasks || []);
-                setTotalPages(cachedData.totalPages || 1);
-                setTotalCount(cachedData.total || 0);
-                setHasMore(cachedData.hasMore || false);
-                return;
-            }
-        }
+            const cacheKey = `bin-individual-tasks-${page}-${itemsPerPage}-${isAdmin}-${filter.status}-${filter.assignedTo}-${filter.assignedBy}-${debouncedDateFrom}-${debouncedDateTo}`;
 
-        try {
-            setLoading(page === 1);
-
-            const queryParams = new URLSearchParams();
-            Object.entries(params).forEach(([key, value]) => {
-                if (value !== undefined && value !== '') {
-                    queryParams.append(key, value.toString());
+            if (useCache) {
+                const cachedData = cacheRef.current.get(cacheKey, params);
+                if (cachedData) {
+                    setIndividualTasks(cachedData.tasks || []);
+                    setTotalPages(cachedData.totalPages || 1);
+                    setTotalCount(cachedData.total || 0);
+                    setHasMore(cachedData.hasMore || false);
+                    return;
                 }
-            });
-
-            const response = await axios.get(`${address}/api/tasks/bin/recurring-instances?${queryParams}`, {
-                timeout: 10000,
-            });
-
-            const data = response.data;
-            const processedTasks = (data.tasks || []).map((task: { deletedAt: string | number | Date; }) => ({
-                ...task,
-                autoDeleteAt: new Date(
-                    new Date(task.deletedAt).getTime() +
-                    binSettings.retentionDays * 24 * 60 * 60 * 1000
-                ).toISOString()
-            }));
-
-            setIndividualTasks(processedTasks);
-            setTotalPages(data.totalPages || 1);
-            setTotalCount(data.total || 0);
-            setHasMore(data.hasMore || false);
-
-            // Update cache with processed tasks
-            cacheRef.current.set(cacheKey, { ...data, tasks: processedTasks }, params);
-
-        } catch (error) {
-            console.error('Error fetching bin individual tasks:', error);
-            if (axios.isAxiosError(error) && error.code === 'ECONNABORTED') {
-                toast.error('Request timeout. Please try again with fewer filters.');
-            } else {
-                toast.error('Failed to load bin tasks');
             }
-            setIndividualTasks([]);
-            setTotalPages(1);
-            setTotalCount(0);
-            setHasMore(false);
-        } finally {
-            setLoading(false);
-            setInitialLoading(false);
-        }
-    }, [currentPage, itemsPerPage, filter, debouncedSearch, debouncedDateFrom, debouncedDateTo, user, isAdmin, binSettings.retentionDays]);
+
+            try {
+                setLoading(page === 1);
+
+                const queryParams = new URLSearchParams();
+                Object.entries(params).forEach(([key, value]) => {
+                    if (value !== undefined && value !== '') {
+                        queryParams.append(key, value.toString());
+                    }
+                });
+
+                const response = await axios.get(
+                    `${address}/api/tasks/bin/recurring-instances?${queryParams}`,
+                    { timeout: 10000 }
+                );
+
+                const data = response.data;
+
+                const processedTasks = (data.tasks || []).map((task: any) => ({
+                    ...task,
+                    autoDeleteAt: new Date(
+                        new Date(task.deletedAt).getTime() +
+                        binSettings.retentionDays * 24 * 60 * 60 * 1000
+                    ).toISOString()
+                }));
+
+                setIndividualTasks(processedTasks);
+                setTotalPages(data.totalPages || 1);
+                setTotalCount(data.total || 0);
+                setHasMore(data.hasMore || false);
+
+                cacheRef.current.set(
+                    cacheKey,
+                    { ...data, tasks: processedTasks },
+                    params
+                );
+
+            } catch (error) {
+                console.error('Error fetching bin individual tasks:', error);
+                toast.error('Failed to load bin tasks');
+                setIndividualTasks([]);
+                setTotalPages(1);
+                setTotalCount(0);
+                setHasMore(false);
+            } finally {
+                setLoading(false);
+                setInitialLoading(false);
+            }
+        },
+        [
+            currentPage,
+            itemsPerPage,
+            filter,
+            debouncedSearch,
+            debouncedDateFrom,
+            debouncedDateTo,
+            user,
+            isAdmin,
+            binSettings.retentionDays
+        ]
+    );
+
+
+
 
     // Fetch users with caching
     const fetchUsers = useCallback(async () => {
@@ -611,6 +632,16 @@ const RecycleBin: React.FC = () => {
         window.addEventListener("bin-settings-updated", refreshBin);
         return () => window.removeEventListener("bin-settings-updated", refreshBin);
     }, [fetchBinSettings]);
+
+    useEffect(() => {
+        if (isEditMode) {
+            setFilter(prev => ({
+                ...prev,
+                dateFrom: '',
+                dateTo: ''
+            }));
+        }
+    }, [isEditMode]);
 
     // Effect for filter changes
     useEffect(() => {
@@ -1022,7 +1053,7 @@ const RecycleBin: React.FC = () => {
                                 <td className="px-6 py-4">
                                     <div>
                                         <div className="text-sm font-medium text-[--color-text] mb-1">
-                                            {masterTask.title}
+                                            <ReadMore text={masterTask.title} maxLength={60} />
                                         </div>
                                         <ReadMore text={masterTask.description} maxLength={descriptionMaxLength} />
                                     </div>
@@ -1154,7 +1185,7 @@ const RecycleBin: React.FC = () => {
                                 <td className="px-6 py-4">
                                     <div>
                                         <div className="text-sm font-medium text-[--color-text] mb-1">
-                                            {task.title}
+                                            <ReadMore text={task.title} maxLength={70} />
                                         </div>
                                         <ReadMore text={task.description} maxLength={descriptionMaxLength} />
                                     </div>
@@ -1262,7 +1293,7 @@ const RecycleBin: React.FC = () => {
                         The recycle bin feature is currently disabled. Please enable it in the settings to view deleted tasks.
                     </p>
                     <button
-                         onClick={() => navigate('/settings-page')}
+                        onClick={() => navigate('/settings-page')}
                         className="px-6 py-3 bg-[--color-primary] text-white rounded-lg hover:opacity-90 transition-opacity"
                     >
                         Go to Settings
@@ -1326,32 +1357,73 @@ const RecycleBin: React.FC = () => {
             {/* Filters */}
             {showFilters && (
                 <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] p-4 mb-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-[--color-text] mb-1">
-                                <Calendar size={14} className="inline mr-1" />
-                                Date From
-                            </label>
-                            <input
-                                type="date"
-                                value={filter.dateFrom}
-                                onChange={(e) => setFilter({ ...filter, dateFrom: e.target.value })}
-                                className="w-full text-sm px-3 py-2 border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] bg-[--color-surface] text-[--color-text]"
-                            />
-                        </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-4">
+                        {!isEditMode && (
+                            <>
+                                <div>
+                                    <label className="block text-sm font-medium text-[--color-text] mb-1">
+                                        Date From
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            ref={dateFromRef}
+                                            type="date"
+                                            value={filter.dateFrom}
+                                            onClick={() => dateFromRef.current?.showPicker()}
+                                            onChange={(e) =>
+                                                setFilter({ ...filter, dateFrom: e.target.value })
+                                            }
+                                            className="w-full cursor-pointer text-sm px-3 py-2
+             border border-[--color-border] rounded-lg
+             focus:ring-2 focus:ring-[--color-primary]
+             focus:border-[--color-primary]
+             bg-[--color-surface] text-[--color-text]"
+                                        />
+                                        <Calendar
+                                            size={16}
+                                            onClick={() => dateFromRef.current?.showPicker()}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
+                                            style={{
+                                                color: "var(--color-text)",   // 🔥 THIS FIXES DARK MODE
+                                                opacity: 0.9
+                                            }}
+                                        />
+                                    </div>
+                                </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-[--color-text] mb-1">
-                                <Calendar size={14} className="inline mr-1" />
-                                Date To
-                            </label>
-                            <input
-                                type="date"
-                                value={filter.dateTo}
-                                onChange={(e) => setFilter({ ...filter, dateTo: e.target.value })}
-                                className="w-full text-sm px-3 py-2 border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] bg-[--color-surface] text-[--color-text]"
-                            />
-                        </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-[--color-text] mb-1">
+                                        <Calendar size={14} className="inline mr-1" />
+                                        Date To
+                                    </label>
+                                    <div className="relative">
+                                    <input
+                                        ref={dateToRef}
+                                        type="date"
+                                        value={filter.dateTo}
+                                        onClick={() => dateToRef.current?.showPicker()}
+                                        onChange={(e) =>
+                                            setFilter({ ...filter, dateTo: e.target.value })
+                                        }
+                                        className="w-full cursor-pointer text-sm px-3 py-2
+             border border-[--color-border] rounded-lg
+             focus:ring-2 focus:ring-[--color-primary]
+             focus:border-[--color-primary]
+             bg-[--color-surface] text-[--color-text]"
+                                    />
+                                    <Calendar
+                    size={16}
+                    onClick={() => dateFromRef.current?.showPicker()}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
+                    style={{
+                      color: "var(--color-text)",   // 🔥 THIS FIXES DARK MODE
+                      opacity: 0.9
+                    }}
+                  />
+                </div>
+                                </div>
+                            </>
+                        )}
 
                         <div>
                             <label className="block text-sm font-medium text-[--color-text] mb-1">Task Type</label>
@@ -1361,7 +1433,6 @@ const RecycleBin: React.FC = () => {
                                 className="w-full text-sm px-3 py-2 border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] bg-[--color-surface] text-[--color-text]"
                             >
                                 <option value="">All Types</option>
-                                <option value="one-time">One-time</option>
                                 <option value="daily">Daily</option>
                                 <option value="weekly">Weekly</option>
                                 <option value="monthly">Monthly</option>
@@ -1809,6 +1880,18 @@ const RecycleBin: React.FC = () => {
                     </div>
                 </div>
             )}
+            <ToastContainer
+                position="top-right"
+                autoClose={2000}
+                hideProgressBar={false}
+                newestOnTop={false}
+                closeOnClick
+                rtl={false}
+                pauseOnFocusLoss
+                draggable
+                pauseOnHover
+                theme={isDark ? "dark" : "light"}
+            />
         </div>
     );
 };

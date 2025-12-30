@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Archive, History, Filter, Search, Trash2, Users, Calendar, ChevronDown, ChevronUp, ArrowUpDown, Eye, Paperclip, FileText, Edit3, RotateCcw, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Info, Download, ExternalLink, Check } from 'lucide-react';
 import axios from 'axios';
@@ -143,6 +143,8 @@ const MasterTasks: React.FC = () => {
   const [expandedTitles, setExpandedTitles] = useState<Set<string>>(new Set());
   const [showRejectInfoModal, setShowRejectInfoModal] = useState<Task | null>(null);
   const [showApproveInfoModal, setShowApproveInfoModal] = useState<Task | null>(null);
+  const dateFromRef = useRef<HTMLInputElement>(null);
+  const dateToRef = useRef<HTMLInputElement>(null);
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredTasks.length / itemsPerPage);
@@ -233,6 +235,7 @@ const MasterTasks: React.FC = () => {
       }
       if (!user?.permissions.canViewAllTeamTasks && user?.id) {
         params.append('assignedTo', user.id);
+        params.append('assignedBy', user.id);
       }
       const response = await axios.get(`${address}/api/tasks?${params}`);
       let tasks = response.data.tasks.filter((task: Task) => task.taskType === 'one-time');
@@ -926,34 +929,70 @@ const MasterTasks: React.FC = () => {
 
       {/* Filters */}
       {showFilters && (
-        <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] p-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+        <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] p-4 mb-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
             {/* Date From */}
             <div>
               <label className="block text-sm font-medium text-[--color-text] mb-1">
-                <Calendar size={14} className="inline mr-1" />
                 Date From
               </label>
+              <div className="relative">
               <input
+                ref={dateFromRef}
                 type="date"
                 value={filter.dateFrom}
-                onChange={(e) => setFilter({ ...filter, dateFrom: e.target.value })}
-                className="w-full text-sm px-3 py-2 border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] bg-[--color-surface] text-[--color-text]"
+                onClick={() => dateFromRef.current?.showPicker()}
+                onChange={(e) =>
+                  setFilter({ ...filter, dateFrom: e.target.value })
+                }
+                className="w-full cursor-pointer text-sm px-3 py-2
+               border border-[--color-border] rounded-lg
+               focus:ring-2 focus:ring-[--color-primary]
+               focus:border-[--color-primary]
+               bg-[--color-surface] text-[--color-text]"
               />
+              <Calendar
+                    size={16}
+                    onClick={() => dateFromRef.current?.showPicker()}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
+                    style={{
+                      color: "var(--color-text)",   // 🔥 THIS FIXES DARK MODE
+                      opacity: 0.9
+                    }}
+                  />
+                </div>
             </div>
 
             {/* Date To */}
             <div>
               <label className="block text-sm font-medium text-[--color-text] mb-1">
-                <Calendar size={14} className="inline mr-1" />
                 Date To
               </label>
+              <div className="relative">
               <input
+                ref={dateToRef}
                 type="date"
                 value={filter.dateTo}
-                onChange={(e) => setFilter({ ...filter, dateTo: e.target.value })}
-                className="w-full text-sm px-3 py-2 border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] bg-[--color-surface] text-[--color-text]"
+                onClick={() => dateToRef.current?.showPicker()}
+                onChange={(e) =>
+                  setFilter({ ...filter, dateTo: e.target.value })
+                }
+                className="w-full cursor-pointer text-sm px-3 py-2
+               border border-[--color-border] rounded-lg
+               focus:ring-2 focus:ring-[--color-primary]
+               focus:border-[--color-primary]
+               bg-[--color-surface] text-[--color-text]"
               />
+              <Calendar
+                    size={16}
+                    onClick={() => dateFromRef.current?.showPicker()}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
+                    style={{
+                      color: "var(--color-text)",   // 🔥 THIS FIXES DARK MODE
+                      opacity: 0.9
+                    }}
+                  />
+                </div>
             </div>
 
             {/* Status */}
@@ -990,7 +1029,6 @@ const MasterTasks: React.FC = () => {
                 <option value="high">High</option>
               </select>
             </div>
-            {user?.permissions.canViewAllTeamTasks && (
               <div>
                 <label className="block text-sm font-medium text-[--color-text] mb-1">
                   Assigned By
@@ -1009,10 +1047,8 @@ const MasterTasks: React.FC = () => {
                   ))}
                 </select>
               </div>
-            )}
 
             {/* Team Member Filter (Admin only) */}
-            {user?.permissions.canViewAllTeamTasks && (
               <div>
                 <label className="block text-sm font-medium text-[--color-text] mb-1">
                   <Users size={14} className="inline mr-1" />
@@ -1031,7 +1067,6 @@ const MasterTasks: React.FC = () => {
                   ))}
                 </select>
               </div>
-            )}
 
             {/* Search */}
             <div className={`${user?.permissions.canViewAllTeamTasks ? 'md:col-span-2' : 'md:col-span-1'}`}>
@@ -1634,78 +1669,78 @@ const MasterTasks: React.FC = () => {
       )}
 
       {showApproveInfoModal && (
-  <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center
     bg-black/70 backdrop-blur-lg px-4">
 
-    <div className={`w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl border
+          <div className={`w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl border
       ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}
     `}>
 
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-5 border-b
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b
         ${isDark ? 'border-gray-700' : 'border-gray-200'}
       ">
-        <div className="flex items-center gap-4">
-          <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/40
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/40
             flex items-center justify-center">
-            <Check size={22} className="text-green-600 dark:text-green-400" />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold">Task Approved</h3>
-            <p className="text-xs text-gray-500">Approval details</p>
-          </div>
-        </div>
+                  <Check size={22} className="text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Task Approved</h3>
+                  <p className="text-xs text-gray-500">Approval details</p>
+                </div>
+              </div>
 
-        <button
-          onClick={() => setShowApproveInfoModal(null)}
-          className="h-9 w-9 rounded-full text- [var(--color-text)] hover:bg-[var(--color-chat)] "
-        >
-          ✕
-        </button>
-      </div>
+              <button
+                onClick={() => setShowApproveInfoModal(null)}
+                className="h-9 w-9 rounded-full text- [var(--color-text)] hover:bg-[var(--color-chat)] "
+              >
+                ✕
+              </button>
+            </div>
 
-      {/* Body */}
-      <div className="p-6 space-y-5">
+            {/* Body */}
+            <div className="p-6 space-y-5">
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-          {/* Approved Date */}
-          <div className={`rounded-xl p-4 border
+                {/* Approved Date */}
+                <div className={`rounded-xl p-4 border
             ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}
           `}>
-            <p className="text-xs text-gray-500">Approved On</p>
-            <p className="text-sm font-medium">
-              {new Date(showApproveInfoModal.approvedAt!).toLocaleString('en-GB')}
-            </p>
-            <p className="text-xs text-gray-400">
-              {timeAgo(showApproveInfoModal.approvedAt)}
-            </p>
-          </div>
+                  <p className="text-xs text-gray-500">Approved On</p>
+                  <p className="text-sm font-medium">
+                    {new Date(showApproveInfoModal.approvedAt!).toLocaleString('en-GB')}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {timeAgo(showApproveInfoModal.approvedAt)}
+                  </p>
+                </div>
 
-          {/* Approved By */}
-          <div className={`rounded-xl p-4 border flex items-center gap-3
+                {/* Approved By */}
+                <div className={`rounded-xl p-4 border flex items-center gap-3
             ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}
           `}>
-            <div className="h-10 w-10 rounded-full bg-gradient-to-br
+                  <div className="h-10 w-10 rounded-full bg-gradient-to-br
               from-green-500 to-green-700 text-white flex items-center justify-center font-semibold">
-              {showApproveInfoModal.approvedBy?.username?.[0]?.toUpperCase()}
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">Approved By</p>
-              <p className="text-sm font-medium">
-                {showApproveInfoModal.approvedBy?.username}
-              </p>
-            </div>
-          </div>
+                    {showApproveInfoModal.approvedBy?.username?.[0]?.toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Approved By</p>
+                    <p className="text-sm font-medium">
+                      {showApproveInfoModal.approvedBy?.username}
+                    </p>
+                  </div>
+                </div>
 
-        </div>
-      </div>
+              </div>
+            </div>
 
-      {/* Footer */}
-      <div className="px-6 py-4 border-t flex justify-end">
-        <button
-  onClick={() => setShowApproveInfoModal(null)}
-  className="
+            {/* Footer */}
+            <div className="px-6 py-4 border-t flex justify-end">
+              <button
+                onClick={() => setShowApproveInfoModal(null)}
+                className="
     relative flex items-center gap-2
     px-6 py-2.5 rounded-xl
     bg-green-600 text-white
@@ -1715,35 +1750,35 @@ const MasterTasks: React.FC = () => {
     hover:bg-green-700
     group
   "
->
-  {/* Sliding fill bar */}
-  <span
-    className="
+              >
+                {/* Sliding fill bar */}
+                <span
+                  className="
       absolute left-0 top-0 h-full w-full
       bg-green-800
       -translate-x-full
       group-hover:translate-x-0
       transition-transform duration-500 ease-in-out
     "
-  />
+                />
 
-  {/* Icon */}
-  <Check
-    size={16}
-    className="relative z-10 opacity-90"
-  />
+                {/* Icon */}
+                <Check
+                  size={16}
+                  className="relative z-10 opacity-90"
+                />
 
-  {/* Label */}
-  <span className="relative z-10 font-medium tracking-wide">
-    Close
-  </span>
-</button>
+                {/* Label */}
+                <span className="relative z-10 font-medium tracking-wide">
+                  Close
+                </span>
+              </button>
 
 
-      </div>
-    </div>
-  </div>
-)}
+            </div>
+          </div>
+        </div>
+      )}
 
 
     </div>
