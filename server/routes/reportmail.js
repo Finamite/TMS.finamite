@@ -587,7 +587,7 @@ function generateNewHtmlReport({
             <!-- Current Status -->
             <div class="section">
                 <h3 class="section-title">
-                    <div class="section-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white;">📊</div>
+                    <div class="section-icon" style="font-size:18px;line-height:1;vertical-align:middle;">📊</div>
                     Current Status
                 </h3>
                 <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:30px;">
@@ -651,7 +651,7 @@ function generateNewHtmlReport({
             ${data.staffPerformance && data.staffPerformance.length > 0 ? `
             <div class="section">
                 <h3 class="section-title">
-                    <div class="section-icon" style="background: linear-gradient(135deg, #10b981, #059669); color: white;">👥</div>
+                    <div class="section-icon" style="font-size:18px;line-height:1;vertical-align:middle;">👥</div>
                     Staff Performance Overview
                 </h3>
                 <table class="data-table">
@@ -694,7 +694,7 @@ function generateNewHtmlReport({
             ${data.highPriorityPending && data.highPriorityPending.length > 0 ? `
             <div class="section">
                 <h3 class="section-title">
-                    <div class="section-icon" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white;">🔥</div>
+                    <div class="section-icon" style="font-size:18px;line-height:1;vertical-align:middle;">🔥</div>
                     High Priority Tasks
                 </h3>
                 <table class="data-table">
@@ -726,7 +726,7 @@ function generateNewHtmlReport({
             <!-- Current Status -->
             <div class="section">
                 <h3 class="section-title">
-                    <div class="section-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white;">📊</div>
+                    <div class="section-icon" style="font-size:18px;line-height:1;vertical-align:middle;">📊</div>
                     Current Status
                 </h3>
                 <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:30px;">
@@ -765,7 +765,7 @@ function generateNewHtmlReport({
             <!-- Coming Up -->
             <div class="section">
                 <h3 class="section-title">
-                    <div class="section-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white;">📅</div>
+                    <div class="section-icon" style="font-size:18px;line-height:1;vertical-align:middle;">📅</div>
                     Coming Up (Next 7 Days)
                 </h3>
                <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:30px;">
@@ -829,7 +829,7 @@ function generateNewHtmlReport({
             ${data.highPriorityTasks && data.highPriorityTasks.length > 0 ? `
             <div class="section">
                 <h3 class="section-title">
-                    <div class="section-icon" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white;">⚡</div>
+                    <div class="section-icon" style="font-size:18px;line-height:1;vertical-align:middle;">⚡</div>
                     High Priority Tasks (This Week)
                 </h3>
                 <table class="data-table">
@@ -857,7 +857,7 @@ function generateNewHtmlReport({
             ${data.todayTasks && data.todayTasks.length > 0 ? `
             <div class="section">
                 <h3 class="section-title">
-                    <div class="section-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white;">🎯</div>
+                    <div class="section-icon" style="font-size:18px;line-height:1;vertical-align:middle;">🎯</div>
                     ${isEvening ? "Tasks Due Today" : "Due Today"}
                 </h3>
                 <table class="data-table">
