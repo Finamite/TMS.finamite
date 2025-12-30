@@ -33,6 +33,37 @@ async function buildEnhancedReportData(companyId, forUserId = null, isManagerVie
     // FOR ADMIN/MANAGER VIEW
     // ============================================
     if (isManagerView) {
+
+        const upcomingTeamTotal = await Task.countDocuments({
+            companyId,
+            isActive: true,
+            status: 'pending',
+            dueDate: { $gt: endOfDay, $lte: next7Days }
+        });
+
+        const upcomingTeamOneTime = await Task.countDocuments({
+            companyId,
+            isActive: true,
+            status: 'pending',
+            taskType: 'one-time',
+            dueDate: { $gt: endOfDay, $lte: next7Days }
+        });
+
+        const upcomingTeamDaily = await Task.countDocuments({
+            companyId,
+            isActive: true,
+            status: 'pending',
+            taskType: 'daily',
+            dueDate: { $gt: endOfDay, $lte: next7Days }
+        });
+
+        const upcomingTeamRecurring = await Task.countDocuments({
+            companyId,
+            isActive: true,
+            status: 'pending',
+            taskType: { $in: ['weekly', 'monthly', 'quarterly', 'yearly'] },
+            dueDate: { $gt: endOfDay, $lte: next7Days }
+        });
         // Get all active users in company
         const users = await User.find({
             companyId,
@@ -63,44 +94,12 @@ async function buildEnhancedReportData(companyId, forUserId = null, isManagerVie
                 status: 'in-progress'
             });
 
-            // Coming up (next 7 days)
+             // Coming up (next 7 days)
             const upcomingTasks = await Task.countDocuments({
                 ...userQuery,
                 status: 'pending',
                 dueDate: { $gt: endOfDay, $lte: next7Days }
             });
-
-            const upcomingTeamTotal = await Task.countDocuments({
-                companyId,
-                isActive: true,
-                status: 'pending',
-                dueDate: { $gt: endOfDay, $lte: next7Days }
-            });
-
-            const upcomingTeamOneTime = await Task.countDocuments({
-                companyId,
-                isActive: true,
-                status: 'pending',
-                taskType: 'one-time',
-                dueDate: { $gt: endOfDay, $lte: next7Days }
-            });
-
-            const upcomingTeamDaily = await Task.countDocuments({
-                companyId,
-                isActive: true,
-                status: 'pending',
-                taskType: 'daily',
-                dueDate: { $gt: endOfDay, $lte: next7Days }
-            });
-
-            const upcomingTeamRecurring = await Task.countDocuments({
-                companyId,
-                isActive: true,
-                status: 'pending',
-                taskType: { $in: ['weekly', 'monthly', 'quarterly', 'yearly'] },
-                dueDate: { $gt: endOfDay, $lte: next7Days }
-            });
-
 
             // High priority tasks
             const highPriorityTasks = await Task.countDocuments({
