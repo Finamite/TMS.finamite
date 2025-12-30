@@ -1547,9 +1547,9 @@ const MasterTasks: React.FC = () => {
         ${isDark ? 'border-gray-700' : 'border-gray-200'}
       ">
               <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/40 
+                <div className="h-12 w-12 rounded-full bg-red-100
             flex items-center justify-center">
-                  <Info size={22} className="text-red-600 dark:text-red-400" />
+                  <Info size={22} className="text-red-600" />
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-[var(--color-text)]">
@@ -1564,8 +1564,8 @@ const MasterTasks: React.FC = () => {
               <button
                 onClick={() => setShowRejectInfoModal(null)}
                 className="h-9 w-9 rounded-full flex items-center justify-center
-          text-gray-400 hover:text-gray-600 dark:hover:text-gray-300
-          hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+          text-gray-400 hover:text-gray-600
+          hover:bg-gray-100 transition"
               >
                 ✕
               </button>
