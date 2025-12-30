@@ -1297,7 +1297,6 @@ export async function startReportCron() {
     // Clear existing cron jobs
     activeCronJobs.forEach((job, key) => {
         job.destroy();
-        console.log(`🗑️ Cleared existing cron job: ${key}`);
     });
     activeCronJobs.clear();
 
@@ -1313,22 +1312,17 @@ export async function startReportCron() {
         const companyId = s.companyId;
         const data = s.data;
 
-        console.log(`📌 Setting up enhanced cron jobs with Excel for company: ${companyId}`);
-
         // Morning Report
         if (data.enableMorningReport && data.morningReportTime) {
             const cronTime = convertToCron(data.morningReportTime);
             if (cronTime) {
-                console.log(`⏰ Morning report cron (UTC): ${cronTime} for IST: ${data.morningReportTime}`);
 
                 const morningJob = cron.schedule(cronTime, async () => {
-                    console.log(`🌅 Sending enhanced morning reports with Excel for company: ${companyId}`);
                     try {
                         await Promise.all([
                             sendMorningAdminManagerReport(companyId),
                             sendMorningUserReports(companyId)
                         ]);
-                        console.log(`✅ Enhanced morning reports with Excel sent successfully for: ${companyId}`);
                     } catch (error) {
                         console.error(`❌ Error sending morning reports for ${companyId}:`, error);
                     }
@@ -1345,16 +1339,13 @@ export async function startReportCron() {
         if (data.enableEveningReport && data.eveningReportTime) {
             const cronTime = convertToCron(data.eveningReportTime);
             if (cronTime) {
-                console.log(`⏰ Evening report cron (UTC): ${cronTime} for IST: ${data.eveningReportTime}`);
 
                 const eveningJob = cron.schedule(cronTime, async () => {
-                    console.log(`🌆 Sending enhanced evening reports with Excel for company: ${companyId}`);
                     try {
                         await Promise.all([
                             sendEveningAdminManagerReport(companyId),
                             sendEveningUserReports(companyId)
                         ]);
-                        console.log(`✅ Enhanced evening reports with Excel sent successfully for: ${companyId}`);
                     } catch (error) {
                         console.error(`❌ Error sending evening reports for ${companyId}:`, error);
                     }
@@ -1371,7 +1362,6 @@ export async function startReportCron() {
 
 // Function to restart cron jobs (useful when settings change)
 export async function restartReportCron() {
-    console.log("🔄 Restarting enhanced report cron scheduler with Excel attachments...");
     await startReportCron();
 }
 

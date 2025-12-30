@@ -126,7 +126,6 @@ const AssignTask: React.FC = () => {
         const exists = users.some(u => u._id.toString() === assignedId.toString());
 
         if (exists) {
-          console.log("🎉 Assigned user synced after users loaded:", assignedId);
           updated[0].assignedTo = [assignedId]; // reapply to force dropdown update
         } else {
           console.warn("⚠ Assigned user NOT FOUND in users list:", assignedId);
@@ -196,8 +195,6 @@ const AssignTask: React.FC = () => {
 
       setUsers(sortedUsers);
 
-      console.log("Users loaded:", sortedUsers);
-
     } catch (error) {
       console.error("Error fetching users:", error);
       toast.error("Failed to fetch users.");
@@ -244,7 +241,6 @@ const AssignTask: React.FC = () => {
       const res = await axios.get(`${address}/api/tasks/master/${taskGroupId}`);
       const data = res.data;
 
-      console.log("📌 Prefill data for reassign:", data);
       loadedReassignDataRef.current = true;
 
       // ----------------------------
@@ -360,7 +356,6 @@ const AssignTask: React.FC = () => {
         return upd;
       });
 
-      console.log("🎉 Prefill DONE → WeekOff, WeeklyDays, Attachments, Voice all loaded");
 
     } catch (err) {
       console.error("❌ Failed to load reassign data:", err);

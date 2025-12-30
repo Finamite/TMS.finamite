@@ -361,12 +361,24 @@ const SettingsPage: React.FC = () => {
             const authUrl = res.data.url + `&state=${companyId}`;
 
             // 3️⃣ Open Popup Window
+            const width = 500;
+            const height = 600;
+
+            const left = window.screenX + (window.outerWidth - width) / 2;
+            const top = window.screenY + (window.outerHeight - height) / 2;
+
             const popup = window.open(
                 authUrl,
                 "_blank",
-                "width=500,height=600"
+                `
+    width=${width},
+    height=${height},
+    left=${left},
+    top=${top},
+    resizable=yes,
+    scrollbars=yes
+  `
             );
-
             if (!popup) {
                 alert("Popup blocked! Please enable popups.");
                 return;

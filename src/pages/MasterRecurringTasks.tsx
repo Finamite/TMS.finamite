@@ -371,7 +371,6 @@ const MasterRecurringTasks: React.FC = () => {
     if (useCache && cacheRef.current.hasEditModeCache(companyId)) {
       const cachedData = cacheRef.current.get(cacheKey, { companyId });
       if (cachedData) {
-        console.log('⚡ INSTANT: Using cached edit mode data');
         setFullMasterTasks(cachedData);
         setTotalCount(cachedData.length);
         setTotalPages(Math.ceil(cachedData.length / itemsPerPage));
@@ -383,7 +382,6 @@ const MasterRecurringTasks: React.FC = () => {
 
     try {
       setEditModeLoading(true);
-      console.log('🚀 ULTRA-FAST: Fetching light edit mode data...');
 
       // ⚡ Use the ultra-fast light endpoint
       const response = await axios.get(
@@ -405,10 +403,8 @@ const MasterRecurringTasks: React.FC = () => {
         lightData = [];
       }
 
-      console.log(`⚡ LIGHTNING: Got ${lightData.length} master tasks from API`);
 
       if (lightData.length === 0) {
-        console.log('⚠️ No master tasks returned from API - checking if user has any tasks...');
 
         // Try to fetch regular master tasks as fallback
         try {
@@ -418,7 +414,6 @@ const MasterRecurringTasks: React.FC = () => {
           );
 
           const fallbackData = fallbackResponse.data?.masterTasks || [];
-          console.log(`🔄 Fallback: Got ${fallbackData.length} master tasks from regular endpoint`);
 
           if (fallbackData.length > 0) {
             // Use fallback data
@@ -452,7 +447,6 @@ const MasterRecurringTasks: React.FC = () => {
             // Cache the fallback data
             cacheRef.current.set(cacheKey, fallbackData, { companyId });
 
-            console.log('✅ Using fallback data successfully');
             setEditModeLoading(false);
             return;
           }
@@ -533,7 +527,6 @@ const MasterRecurringTasks: React.FC = () => {
       // ⚡ CACHE: Store for instant future access
       cacheRef.current.set(cacheKey, Array.isArray(lightData) ? lightData : [], { companyId });
 
-      console.log('✅ ULTRA-FAST: Edit mode data loaded instantly');
 
     } catch (error) {
       console.error('❌ Error in ultra-fast fetch:', error);
@@ -660,7 +653,6 @@ const MasterRecurringTasks: React.FC = () => {
   // ⚡ LIGHTNING FAST: Ultra-optimized edit mode toggle
   const handleEditModeToggle = useCallback(async () => {
     const newEditMode = !isEditMode;
-    console.log(`🚀 LIGHTNING TOGGLE: Switching to ${newEditMode ? 'edit' : 'view'} mode`);
 
     setIsEditMode(newEditMode);
     setIsSelectionMode(false);
@@ -759,7 +751,6 @@ const MasterRecurringTasks: React.FC = () => {
 
   // ✅ FIXED: Updated handleDeleteMasterTask to store taskGroupId instead of full task data
   const handleDeleteMasterTask = useCallback((masterTask: MasterTask) => {
-    console.log('🗑️ Setting up delete for master task:', masterTask.taskGroupId);
     setDeleteConfig({
       type: "master",
       taskGroupId: masterTask.taskGroupId, // Store the taskGroupId, not the full task object
@@ -1082,7 +1073,6 @@ const MasterRecurringTasks: React.FC = () => {
   // ✅ FIXED: Function to get actual task IDs for a master task group
   const getTaskIdsForMasterTask = useCallback(async (taskGroupId: string): Promise<string[]> => {
     try {
-      console.log(`🔍 Fetching task IDs for master task group: ${taskGroupId}`);
 
       const companyId = user?.company?.companyId;
       if (!companyId) {
@@ -1106,7 +1096,6 @@ const MasterRecurringTasks: React.FC = () => {
       }
 
       const taskIds = targetMasterTask.tasks.map((task: Task) => task._id);
-      console.log(`✅ Found ${taskIds.length} task IDs for deletion:`, taskIds);
 
       return taskIds;
     } catch (error) {
@@ -2596,7 +2585,6 @@ const MasterRecurringTasks: React.FC = () => {
                       if (deleteConfig?.type === "single" && deleteConfig.taskId) {
                         taskIds = [deleteConfig.taskId];
                       } else if (deleteConfig?.type === "master" && deleteConfig.taskGroupId) {
-                        console.log('🔍 Getting task IDs for master task deletion...');
                         taskIds = await getTaskIdsForMasterTask(deleteConfig.taskGroupId);
                       }
 
@@ -2604,8 +2592,6 @@ const MasterRecurringTasks: React.FC = () => {
                         toast.error("No tasks found to delete.");
                         return;
                       }
-
-                      console.log(`🗑️ Moving ${taskIds.length} tasks to bin:`, taskIds);
 
                       // Delete each task individually
                       await Promise.all(
@@ -2674,7 +2660,6 @@ const MasterRecurringTasks: React.FC = () => {
                       if (deleteConfig?.type === "single" && deleteConfig.taskId) {
                         taskIds = [deleteConfig.taskId];
                       } else if (deleteConfig?.type === "master" && deleteConfig.taskGroupId) {
-                        console.log('🔍 Getting task IDs for permanent master task deletion...');
                         taskIds = await getTaskIdsForMasterTask(deleteConfig.taskGroupId);
                       }
 
@@ -2682,8 +2667,6 @@ const MasterRecurringTasks: React.FC = () => {
                         toast.error("No tasks found to delete.");
                         return;
                       }
-
-                      console.log(`🗑️ Permanently deleting ${taskIds.length} tasks:`, taskIds);
 
                       // Delete each task permanently
                       await Promise.all(
