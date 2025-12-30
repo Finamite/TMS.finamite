@@ -70,6 +70,38 @@ async function buildEnhancedReportData(companyId, forUserId = null, isManagerVie
                 dueDate: { $gt: endOfDay, $lte: next7Days }
             });
 
+            const upcomingTeamTotal = await Task.countDocuments({
+                companyId,
+                isActive: true,
+                status: 'pending',
+                dueDate: { $gt: endOfDay, $lte: next7Days }
+            });
+
+            const upcomingTeamOneTime = await Task.countDocuments({
+                companyId,
+                isActive: true,
+                status: 'pending',
+                taskType: 'one-time',
+                dueDate: { $gt: endOfDay, $lte: next7Days }
+            });
+
+            const upcomingTeamDaily = await Task.countDocuments({
+                companyId,
+                isActive: true,
+                status: 'pending',
+                taskType: 'daily',
+                dueDate: { $gt: endOfDay, $lte: next7Days }
+            });
+
+            const upcomingTeamRecurring = await Task.countDocuments({
+                companyId,
+                isActive: true,
+                status: 'pending',
+                taskType: { $in: ['weekly', 'monthly', 'quarterly', 'yearly'] },
+                dueDate: { $gt: endOfDay, $lte: next7Days }
+            });
+
+
             // High priority tasks
             const highPriorityTasks = await Task.countDocuments({
                 ...userQuery,
@@ -189,16 +221,36 @@ async function buildEnhancedReportData(companyId, forUserId = null, isManagerVie
 
         const completionRate = weeklyTotal > 0 ? Math.round((weeklyCompleted / weeklyTotal) * 100) : 0;
 
+        const userTaskDetails = {};
+
+        for (const user of users) {
+            const tasks = await Task.find({
+                companyId,
+                isActive: true,
+                assignedTo: user._id
+            })
+                .populate('assignedBy', 'username')
+                .sort({ dueDate: 1 })
+                .lean();
+
+            userTaskDetails[user.username] = tasks;
+        }
+
         return {
             totalPending,
             totalOverdue,
             completedToday,
             completionRate,
+            upcomingTeamTotal,
+            upcomingTeamOneTime,
+            upcomingTeamDaily,
+            upcomingTeamRecurring,
             staffPerformance,
             highPriorityPending,
             overdueByUser,
             weeklyCompleted,
-            weeklyTotal
+            weeklyTotal,
+            userTaskDetails
         };
     }
 
@@ -647,6 +699,62 @@ function generateNewHtmlReport({
 
             </div>
 
+            <!-- Coming Up (Next 7 Days) - TEAM -->
+<div class="section">
+  <h3 class="section-title">
+    <span style="
+      display:inline-block;
+      padding:4px 10px;
+      background:#ede9fe;
+      color:#6d28d9;
+      font-size:12px;
+      font-weight:700;
+      border-radius:999px;
+    ">
+      NEXT 7 DAYS
+    </span>
+    Team Upcoming Tasks
+  </h3>
+
+  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:30px;">
+    <tr>
+      <td width="33.33%" align="center" style="padding:10px;">
+        <div style="border:2px solid #e2e8f0;border-radius:16px;padding:20px;">
+          <div style="font-size:34px;font-weight:800;color:#8b5cf6;">
+            ${data.upcomingTeamOneTime || 0}
+          </div>
+          <div style="font-size:13px;color:#64748b;font-weight:600;">
+            ONE TIME
+          </div>
+        </div>
+      </td>
+
+      <td width="33.33%" align="center" style="padding:10px;">
+        <div style="border:2px solid #e2e8f0;border-radius:16px;padding:20px;">
+          <div style="font-size:34px;font-weight:800;color:#8b5cf6;">
+            ${data.upcomingTeamDaily || 0}
+          </div>
+          <div style="font-size:13px;color:#64748b;font-weight:600;">
+            DAILY
+          </div>
+        </div>
+      </td>
+
+      <td width="33.33%" align="center" style="padding:10px;">
+        <div style="border:2px solid #e2e8f0;border-radius:16px;padding:20px;">
+          <div style="font-size:34px;font-weight:800;color:#8b5cf6;">
+            ${data.upcomingTeamRecurring || 0}
+          </div>
+          <div style="font-size:13px;color:#64748b;font-weight:600;">
+            RECURRING
+          </div>
+        </div>
+      </td>
+    </tr>
+  </table>
+</div>
+
+
             <!-- Staff Performance -->
             ${data.staffPerformance && data.staffPerformance.length > 0 ? `
             <div class="section">
@@ -694,7 +802,7 @@ function generateNewHtmlReport({
             ${data.highPriorityPending && data.highPriorityPending.length > 0 ? `
             <div class="section">
                 <h3 class="section-title">
-                    <div class="section-icon" style="font-size:18px;line-height:1;vertical-align:middle;">🔥</div>
+                    <div class="section-icon" style="font-size:18px;line-height:1;vertical-align:middle;">⚠️</div>
                     High Priority Tasks
                 </h3>
                 <table class="data-table">
@@ -857,7 +965,7 @@ function generateNewHtmlReport({
             ${data.todayTasks && data.todayTasks.length > 0 ? `
             <div class="section">
                 <h3 class="section-title">
-                    <div class="section-icon" style="font-size:18px;line-height:1;vertical-align:middle;">🎯</div>
+                    <div class="section-icon" style="font-size:18px;line-height:1;vertical-align:middle;">📌</div>
                     ${isEvening ? "Tasks Due Today" : "Due Today"}
                 </h3>
                 <table class="data-table">

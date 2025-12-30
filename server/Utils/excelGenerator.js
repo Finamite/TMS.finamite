@@ -145,6 +145,53 @@ export async function generateAdminExcelReport(data, companyName, reportType) {
       overdueSheet.getCell(`D${row}`).value = user.overdueCount > 3 ? 'Urgent Follow-up' : 'Follow-up Needed';
     });
   }
+  // ===============================
+  // 5. USER-WISE TASK DETAIL SHEETS
+  // ===============================
+  if (data.userTaskDetails) {
+  Object.entries(data.userTaskDetails).forEach(([username, tasks]) => {
+    if (!tasks || tasks.length === 0) return;
+
+    const sheetName = `Tasks - ${username}`.slice(0, 31); // Excel limit
+    const userSheet = workbook.addWorksheet(sheetName);
+
+    // Title
+    userSheet.mergeCells('A1:G1');
+    userSheet.getCell('A1').value = `Tasks Assigned to ${username}`;
+    userSheet.getCell('A1').style = headerStyle;
+
+    const headers = [
+      'Task Title',
+      'Task Type',
+      'Due Date',
+      'Priority',
+      'Status',
+      'Assigned By',
+      'Description'
+    ];
+
+    headers.forEach((h, i) => {
+      const cell = userSheet.getCell(2, i + 1);
+      cell.value = h;
+      cell.style = headerStyle;
+    });
+
+    tasks.forEach((task, index) => {
+      const row = 3 + index;
+      userSheet.getCell(`A${row}`).value = task.title;
+      userSheet.getCell(`B${row}`).value = task.taskType;
+      userSheet.getCell(`C${row}`).value = task.dueDate
+        ? new Date(task.dueDate).toLocaleDateString('en-IN')
+        : '';
+      userSheet.getCell(`D${row}`).value = task.priority;
+      userSheet.getCell(`E${row}`).value = task.status;
+      userSheet.getCell(`F${row}`).value = task.assignedBy?.username || '';
+      userSheet.getCell(`G${row}`).value = task.description || '';
+    });
+
+    userSheet.columns.forEach(col => (col.width = 18));
+  });
+}
 
   // Auto-fit columns
   workbook.worksheets.forEach(worksheet => {

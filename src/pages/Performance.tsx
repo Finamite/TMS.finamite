@@ -105,7 +105,7 @@ const Performance: React.FC = () => {
   }) => {
     const baseClasses = "relative overflow-hidden transition-all duration-300 ease-out";
     const variants = {
-      default: `rounded-2xl bg-[var(--color-surface)] `,
+      default: `rounded-2xl bg-[var(--color-background)] `,
       glass: `rounded-2xl bg-[var(--color-surface)]/80 backdrop-blur-xl border border-[var(--color-border)] shadow-lg`,
       elevated: `rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xl`,
       bordered: `rounded-2xl bg-[var(--color-primary)]/10 border-2 border-[var(--color-primary)]/20`
