@@ -138,10 +138,10 @@ async function buildEnhancedReportData(companyId, forUserId = null, isManagerVie
             status: 'pending',
             priority: { $in: ['high', 'urgent'] }
         })
-        .populate('assignedTo', 'username')
-        .limit(20)
-        .sort({ dueDate: 1 })
-        .lean();
+            .populate('assignedTo', 'username')
+            .limit(20)
+            .sort({ dueDate: 1 })
+            .lean();
 
         // Overdue analysis by user
         const overdueByUser = await Task.aggregate([
@@ -259,9 +259,9 @@ async function buildEnhancedReportData(companyId, forUserId = null, isManagerVie
             priority: { $in: ['high', 'urgent'] },
             dueDate: { $lte: next7Days }
         })
-        .sort({ dueDate: 1 })
-        .limit(10)
-        .lean();
+            .sort({ dueDate: 1 })
+            .limit(10)
+            .lean();
 
         // Today's tasks
         const todayTasks = await Task.find({
@@ -269,9 +269,9 @@ async function buildEnhancedReportData(companyId, forUserId = null, isManagerVie
             status: 'pending',
             dueDate: { $gte: startOfDay, $lte: endOfDay }
         })
-        .sort({ priority: 1, dueDate: 1 })
-        .limit(10)
-        .lean();
+            .sort({ priority: 1, dueDate: 1 })
+            .limit(10)
+            .lean();
 
         // Upcoming tasks
         const upcomingTasks = await Task.find({
@@ -279,9 +279,9 @@ async function buildEnhancedReportData(companyId, forUserId = null, isManagerVie
             status: 'pending',
             dueDate: { $gt: endOfDay, $lte: next7Days }
         })
-        .sort({ dueDate: 1 })
-        .limit(15)
-        .lean();
+            .sort({ dueDate: 1 })
+            .limit(15)
+            .lean();
 
         // All tasks for Excel export
         const allTasks = await Task.find({
@@ -289,8 +289,8 @@ async function buildEnhancedReportData(companyId, forUserId = null, isManagerVie
             status: { $in: ['pending', 'in-progress'] },
             dueDate: { $lte: next7Days }
         })
-        .sort({ dueDate: 1 })
-        .lean();
+            .sort({ dueDate: 1 })
+            .lean();
 
         return {
             // Current Status
@@ -415,11 +415,16 @@ function generateNewHtmlReport({
             font-size: 16px;
         }
         .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
+    display: grid;
+    grid-template-columns: repeat(4, 1fr); /* 4 cards in one row */
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.metrics-grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+}
+
         .metric-card {
             background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
             border-radius: 16px;
@@ -634,11 +639,10 @@ function generateNewHtmlReport({
                                 <td>${staff.upcomingTasks}</td>
                                 <td style="color: ${staff.highPriorityTasks > 0 ? '#dc2626' : '#6b7280'};">${staff.highPriorityTasks}</td>
                                 <td>
-                                    <span style="color: ${
-                                        staff.performance === 'Excellent' ? '#059669' :
-                                        staff.performance === 'Good' ? '#10b981' :
-                                        staff.performance === 'Average' ? '#f59e0b' : '#dc2626'
-                                    }; font-weight: 600;">
+                                    <span style="color: ${staff.performance === 'Excellent' ? '#059669' :
+            staff.performance === 'Good' ? '#10b981' :
+                staff.performance === 'Average' ? '#f59e0b' : '#dc2626'
+        }; font-weight: 600;">
                                         ${staff.performance}
                                     </span>
                                 </td>
@@ -714,7 +718,7 @@ function generateNewHtmlReport({
                     <div class="section-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white;">📅</div>
                     Coming Up (Next 7 Days)
                 </h3>
-                <div class="metrics-grid">
+                <div class="metrics-grid metrics-grid-3">
                     <div class="metric-card upcoming">
                         <div class="metric-number">${data.upcomingOneTime || 0}</div>
                         <div class="metric-label">One Time Tasks</div>
@@ -855,7 +859,7 @@ async function sendMorningAdminManagerReport(companyId) {
         await sendSystemEmail(
             companyId,
             admin.email,
-            `📊 Morning Task Report ${new Date().toLocaleDateString("en-IN")} - Team Overview & Priorities`,
+            `Morning Task Report ${new Date().toLocaleDateString("en-IN")} - Team Overview & Priorities`,
             "Please view this email in HTML format for the best experience. Detailed Excel report is attached.",
             html,
             [excelAttachment]
@@ -901,7 +905,7 @@ async function sendEveningAdminManagerReport(companyId) {
         await sendSystemEmail(
             companyId,
             admin.email,
-            `🌆 Evening Task Summary ${new Date().toLocaleDateString("en-IN")} - Team Performance & Tomorrow's Focus`,
+            `Evening Task Summary ${new Date().toLocaleDateString("en-IN")} - Team Performance & Tomorrow's Focus`,
             "Please view this email in HTML format for the best experience. Detailed Excel report is attached.",
             html,
             [excelAttachment]
@@ -948,7 +952,7 @@ async function sendMorningUserReports(companyId) {
         await sendSystemEmail(
             companyId,
             user.email,
-            `🌅 Morning Report ${new Date().toLocaleDateString("en-IN")} - Your Personal Task Briefing`,
+            `Morning Report ${new Date().toLocaleDateString("en-IN")} - Your Personal Task Briefing`,
             "Please view this email in HTML format for the best experience. Your detailed task report is attached as Excel.",
             html,
             [excelAttachment]
@@ -995,7 +999,7 @@ async function sendEveningUserReports(companyId) {
         await sendSystemEmail(
             companyId,
             user.email,
-            `🌆 Evening Summary ${new Date().toLocaleDateString("en-IN")} - Your Day's Accomplishments & Tomorrow's Plan`,
+            `Evening Summary ${new Date().toLocaleDateString("en-IN")} - Your Day's Accomplishments & Tomorrow's Plan`,
             "Please view this email in HTML format for the best experience. Your detailed task summary is attached as Excel.",
             html,
             [excelAttachment]
