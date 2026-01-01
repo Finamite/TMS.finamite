@@ -228,7 +228,6 @@ const AssignTask: React.FC = () => {
     }
 
     setTaskForms([...taskForms, newTask]);
-    toast.success('New task added!', { theme: isDark ? 'dark' : 'light' });
   };
 
   const formatDate = (dateString: string) => {
@@ -1420,8 +1419,7 @@ const AssignTask: React.FC = () => {
                 className="w-full sm:w-auto flex items-center justify-center px-6 py-3 rounded-xl font-medium transition-all duration-200 hover:scale-105 shadow-lg hover:shadow-xl"
                 style={{ backgroundColor: 'var(--color-success)', color: 'white' }}
               >
-                <Plus size={20} className="mr-2" />
-                Add New Task
+                <Plus size={20} strokeWidth={3.5}/>
               </button>
 
               {/* Create All Tasks */}
