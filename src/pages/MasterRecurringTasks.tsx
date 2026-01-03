@@ -1070,7 +1070,6 @@ const MasterRecurringTasks: React.FC = () => {
     }
   }, []);
 
-
   // ✅ FIXED: Function to get actual task IDs for a master task group
   const getTaskIdsForMasterTask = useCallback(async (taskGroupId: string): Promise<string[]> => {
     try {
@@ -2039,20 +2038,20 @@ const MasterRecurringTasks: React.FC = () => {
                 <label className="block text-sm font-medium text-[--color-text] mb-1">
                   Date From
                 </label>
-                <div className="relative">
-                  <input
-                    ref={dateFromRef}
-                    type="date"
-                    value={filter.dateFrom}
-                    onClick={() => dateFromRef.current?.showPicker()}
-                    onChange={(e) =>
-                      setFilter({ ...filter, dateFrom: e.target.value })
-                    }
-                    className="w-full cursor-pointer text-sm px-3 py-2
+                 <div className="relative">
+                <input
+                  ref={dateFromRef}
+                  type="date"
+                  value={filter.dateFrom}
+                  onClick={() => dateFromRef.current?.showPicker()}
+                  onChange={(e) =>
+                    setFilter({ ...filter, dateFrom: e.target.value })
+                  }
+                  className="w-full cursor-pointer text-sm px-3 py-2
                  border border-[--color-border] rounded-lg
                  bg-[--color-surface] text-[--color-text]"
-                  />
-                  <Calendar
+                />
+                <Calendar
                     size={16}
                     onClick={() => dateFromRef.current?.showPicker()}
                     className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
@@ -2071,19 +2070,19 @@ const MasterRecurringTasks: React.FC = () => {
                   Date To
                 </label>
                 <div className="relative">
-                  <input
-                    ref={dateToRef}
-                    type="date"
-                    value={filter.dateTo}
-                    onClick={() => dateToRef.current?.showPicker()}
-                    onChange={(e) =>
-                      setFilter({ ...filter, dateTo: e.target.value })
-                    }
-                    className="w-full cursor-pointer text-sm px-3 py-2
+                <input
+                  ref={dateToRef}
+                  type="date"
+                  value={filter.dateTo}
+                  onClick={() => dateToRef.current?.showPicker()}
+                  onChange={(e) =>
+                    setFilter({ ...filter, dateTo: e.target.value })
+                  }
+                  className="w-full cursor-pointer text-sm px-3 py-2
                  border border-[--color-border] rounded-lg
                  bg-[--color-surface] text-[--color-text]"
-                  />
-                  <Calendar
+                />
+                <Calendar
                     size={16}
                     onClick={() => dateFromRef.current?.showPicker()}
                     className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
@@ -2140,30 +2139,30 @@ const MasterRecurringTasks: React.FC = () => {
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-[--color-text] mb-1">
-                Assigned By
-              </label>
+              <div>
+                <label className="block text-sm font-medium text-[--color-text] mb-1">
+                  Assigned By
+                </label>
 
-              <select
-                value={filter.assignedBy}
-                onChange={(e) => setFilter({ ...filter, assignedBy: e.target.value })}
-                className="w-full text-sm px-3 py-2 border border-[--color-border] rounded-lg 
+                <select
+                  value={filter.assignedBy}
+                  onChange={(e) => setFilter({ ...filter, assignedBy: e.target.value })}
+                  className="w-full text-sm px-3 py-2 border border-[--color-border] rounded-lg 
                  bg-[--color-surface] text-[--color-text]
                  focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary]"
-              >
-                <option value="">All Assigners</option>
+                >
+                  <option value="">All Assigners</option>
 
-                {[...new Set(
-                  [
-                    ...masterTasks.map(t => t.assignedBy?.username),
-                    ...individualTasks.map(t => t.assignedBy?.username)
-                  ].filter(Boolean)
-                )].map(name => (
-                  <option key={name} value={name}>{name}</option>
-                ))}
-              </select>
-            </div>
+                  {[...new Set(
+                    [
+                      ...masterTasks.map(t => t.assignedBy?.username),
+                      ...individualTasks.map(t => t.assignedBy?.username)
+                    ].filter(Boolean)
+                  )].map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+              </div>
 
             {isAdmin && (
               <div>
@@ -2595,13 +2594,19 @@ const MasterRecurringTasks: React.FC = () => {
                       }
 
                       // Delete each task individually
-                      await axios.delete(`${address}/api/tasks/bulk/master`, {
-                        params: {
-                          taskGroupId: deleteConfig.taskGroupId,
-                          companyId: user.company.companyId,
-                          permanent: false
-                        }
-                      });
+                      await Promise.all(
+                        taskIds.map(taskId =>
+                          axios.delete(
+                            `${address}/api/tasks/${taskId}?moveToRecycleBin=true&companyId=${user?.company?.companyId || ''}`,
+                            {
+                              data: {
+                                deletedAt: new Date().toISOString()
+                              }
+                            }
+                          )
+                        )
+                      );
+
                       // Clear cache and refresh data
                       cacheRef.current.clear();
                       if (isEditMode) {
@@ -2664,13 +2669,13 @@ const MasterRecurringTasks: React.FC = () => {
                       }
 
                       // Delete each task permanently
-                      await axios.delete(`${address}/api/tasks/bulk/master`, {
-                        params: {
-                          taskGroupId: deleteConfig.taskGroupId,
-                          companyId: user.company.companyId,
-                          permanent: true
-                        }
-                      });
+                      await Promise.all(
+                        taskIds.map(taskId =>
+                          axios.delete(
+                            `${address}/api/tasks/${taskId}?moveToRecycleBin=false&companyId=${user.company?.companyId}`
+                          )
+                        )
+                      );
 
                       // Clear cache and refresh data
                       cacheRef.current.clear();
