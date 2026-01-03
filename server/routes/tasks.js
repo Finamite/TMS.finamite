@@ -2909,4 +2909,69 @@ router.delete('/bin/empty', async (req, res) => {
   }
 });
 
+// ⚡ ULTRA-FAST BULK DELETE (MASTER TASK)
+router.delete('/bulk/master', async (req, res) => {
+  try {
+    const { taskGroupId, companyId, permanent } = req.query;
+
+    if (!taskGroupId || !companyId) {
+      return res.status(400).json({
+        message: 'taskGroupId and companyId are required'
+      });
+    }
+
+    // 🔥 PERMANENT DELETE
+    if (permanent === 'true') {
+      await Task.deleteMany({ taskGroupId, companyId });
+      await MasterTask.deleteOne({ taskGroupId, companyId });
+
+      return res.json({
+        success: true,
+        mode: 'permanent'
+      });
+    }
+
+    // ♻️ MOVE TO RECYCLE BIN
+    const now = new Date();
+    const autoDeleteAt = new Date(
+      now.getTime() + 30 * 24 * 60 * 60 * 1000
+    );
+
+    await Task.updateMany(
+      { taskGroupId, companyId },
+      {
+        $set: {
+          isActive: false,
+          deletedAt: now,
+          autoDeleteAt
+        }
+      }
+    );
+
+    await MasterTask.updateOne(
+      { taskGroupId, companyId },
+      {
+        $set: {
+          isActive: false,
+          isDeleted: true,
+          deletedAt: now,
+          autoDeleteAt
+        }
+      }
+    );
+
+    return res.json({
+      success: true,
+      mode: 'bin'
+    });
+
+  } catch (err) {
+    console.error('❌ Bulk delete failed:', err);
+    return res.status(500).json({
+      message: 'Bulk delete failed'
+    });
+  }
+});
+
+
 export default router;
