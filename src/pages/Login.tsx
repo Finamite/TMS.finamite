@@ -90,7 +90,7 @@ const Login: React.FC = () => {
               placeholder="you@company.com"
               className="
                 w-full pl-10 pr-4 py-3 rounded-xl
-                border border-gray-300 bg-white
+                border border-gray-300 bg-white text-gray-800
                 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20
                 outline-none transition
               "
@@ -113,7 +113,7 @@ const Login: React.FC = () => {
               placeholder="••••••••"
               className="
                 w-full pl-10 pr-10 py-3 rounded-xl
-                border border-gray-300 bg-white
+                border border-gray-300 bg-white text-gray-800
                 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20
                 outline-none transition
               "
