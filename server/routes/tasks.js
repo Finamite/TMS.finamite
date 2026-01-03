@@ -1864,6 +1864,37 @@ router.put('/reschedule/:taskGroupId', async (req, res) => {
   }
 });
 
+router.put("/:taskId/bin", async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { companyId } = req.body;
+
+    if (!companyId) {
+      return res.status(400).json({ message: "companyId is required" });
+    }
+
+    const task = await Task.findOneAndUpdate(
+      { _id: taskId, companyId },
+      {
+        $set: {
+          isActive: false,
+          movedToBinAt: new Date()
+        }
+      },
+      { new: true }
+    );
+
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    res.json({ success: true, task });
+  } catch (err) {
+    console.error("❌ Error moving task to bin:", err);
+    res.status(500).json({ message: "Failed to move task to bin" });
+  }
+});
+
 // ✅ DELETE one-time task (soft delete)
 router.delete('/onetime/:onetimeid', async (req, res) => {
   try {
@@ -2970,6 +3001,31 @@ router.delete('/bulk/master', async (req, res) => {
     return res.status(500).json({
       message: 'Bulk delete failed'
     });
+  }
+});
+
+router.delete("/:taskId", async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { companyId } = req.body;
+
+    if (!companyId) {
+      return res.status(400).json({ message: "companyId is required" });
+    }
+
+    const task = await Task.findOneAndDelete({
+      _id: taskId,
+      companyId
+    });
+
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Error deleting task permanently:", err);
+    res.status(500).json({ message: "Failed to delete task" });
   }
 });
 

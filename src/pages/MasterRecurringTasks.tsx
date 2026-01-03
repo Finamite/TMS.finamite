@@ -2595,13 +2595,22 @@ const MasterRecurringTasks: React.FC = () => {
                       }
 
                       // Delete each task individually
-                      await axios.delete(`${address}/api/tasks/bulk/master`, {
-                        params: {
-                          taskGroupId: deleteConfig.taskGroupId,
-                          companyId: user.company.companyId,
-                          permanent: false
-                        }
-                      });
+                      if (deleteConfig.type === "single" && deleteConfig.taskId) {
+                        // ✅ NORMAL TASK
+                        await axios.put(
+                          `${address}/api/tasks/${deleteConfig.taskId}/bin`,
+                          { companyId: user.company.companyId }
+                        );
+                      } else if (deleteConfig.type === "master" && deleteConfig.taskGroupId) {
+                        // ✅ MASTER TASK
+                        await axios.delete(`${address}/api/tasks/bulk/master`, {
+                          params: {
+                            taskGroupId: deleteConfig.taskGroupId,
+                            companyId: user.company.companyId,
+                            permanent: false
+                          }
+                        });
+                      }
                       // Clear cache and refresh data
                       cacheRef.current.clear();
                       if (isEditMode) {
@@ -2664,13 +2673,21 @@ const MasterRecurringTasks: React.FC = () => {
                       }
 
                       // Delete each task permanently
-                      await axios.delete(`${address}/api/tasks/bulk/master`, {
-                        params: {
-                          taskGroupId: deleteConfig.taskGroupId,
-                          companyId: user.company.companyId,
-                          permanent: true
-                        }
-                      });
+                      if (deleteConfig.type === "single" && deleteConfig.taskId) {
+                        // ✅ NORMAL TASK
+                        await axios.delete(
+                          `${address}/api/tasks/${deleteConfig.taskId}?companyId=${user.company.companyId}`
+                        );
+                      } else if (deleteConfig.type === "master" && deleteConfig.taskGroupId) {
+                        // ✅ MASTER TASK
+                        await axios.delete(`${address}/api/tasks/bulk/master`, {
+                          params: {
+                            taskGroupId: deleteConfig.taskGroupId,
+                            companyId: user.company.companyId,
+                            permanent: true
+                          }
+                        });
+                      }
 
                       // Clear cache and refresh data
                       cacheRef.current.clear();
