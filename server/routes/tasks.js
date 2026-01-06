@@ -555,22 +555,28 @@ router.get('/master-recurring', async (req, res) => {
       dateTo,
       companyId
     } = req.query;
+
+
     // ✅ Build super-optimized aggregation pipeline
     const pipeline = [];
     let assignedById = null;
+
     // ✅ Pre-resolve assignedBy username to ObjectId for faster matching
     if (req.query.assignedBy) {
       const user = await User.findOne({ username: req.query.assignedBy }).select('_id').lean();
       if (user) assignedById = user._id;
     }
+
     // ✅ Ultra-optimized match stage with compound indexing support
     const matchStage = {
       isActive: true,
       taskType: { $in: ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'] }
     };
+
     if (companyId) {
       matchStage.companyId = companyId;
     }
+
     if (taskType) {
       if (taskType.includes(',')) {
         matchStage.taskType = { $in: taskType.split(',') };
@@ -578,6 +584,7 @@ router.get('/master-recurring', async (req, res) => {
         matchStage.taskType = taskType;
       }
     }
+
     if (status) {
       if (status.includes(',')) {
         matchStage.status = { $in: status.split(',') };
@@ -585,22 +592,27 @@ router.get('/master-recurring', async (req, res) => {
         matchStage.status = status;
       }
     }
+
     if (assignedTo) matchStage.assignedTo = assignedTo;
     if (assignedById) matchStage.assignedBy = assignedById;
     if (priority) matchStage.priority = priority;
+
     if (dateFrom && dateTo) {
       matchStage.dueDate = {
         $gte: new Date(dateFrom),
         $lte: new Date(dateTo)
       };
     }
+
     if (search) {
       matchStage.$or = [
         { title: { $regex: search, $options: 'i' } },
         { description: { $regex: search, $options: 'i' } }
       ];
     }
+
     pipeline.push({ $match: matchStage });
+
     // ✅ Optimized lookups with minimal field projection
     pipeline.push(
       {
@@ -622,10 +634,12 @@ router.get('/master-recurring', async (req, res) => {
         }
       }
     );
+
     pipeline.push(
       { $unwind: '$assignedByUser' },
       { $unwind: '$assignedToUser' }
     );
+
     // ✅ Optimized grouping with better field handling
     pipeline.push({
       $group: {
@@ -673,6 +687,7 @@ router.get('/master-recurring', async (req, res) => {
         lastDueDate: { $max: '$dueDate' }
       }
     });
+
     // ✅ Add computed fields efficiently
     pipeline.push({
       $addFields: {
@@ -683,25 +698,30 @@ router.get('/master-recurring', async (req, res) => {
         }
       }
     });
-    // ✅ OPTIMIZATION: Create count pipeline BEFORE sort (avoids unnecessary sort in count)
-    const basePipelineForCount = [...pipeline];
-    const countPipeline = [...basePipelineForCount, { $count: 'total' }];
-    const totalResult = await Task.aggregate(countPipeline).allowDiskUse(true);
-    const total = totalResult[0]?.total || 0;
+
     // ✅ Sort by due date for better user experience
     pipeline.push({ $sort: { firstDueDate: 1 } });
-    // ✅ Fast count calculation (already done above)
+
+    // ✅ Fast count calculation
+    const countPipeline = [...pipeline, { $count: 'total' }];
+    const totalResult = await Task.aggregate(countPipeline).allowDiskUse(true);
+    const total = totalResult[0]?.total || 0;
+
     // ✅ Add efficient pagination
     pipeline.push(
       { $skip: (page - 1) * limit },
       { $limit: parseInt(limit) }
     );
+
     // ✅ Execute ultra-fast aggregation
     const masterTasks = await Task.aggregate(pipeline).allowDiskUse(true);
+
     // ✅ Sort tasks within each group efficiently
     masterTasks.forEach(masterTask => {
       masterTask.tasks.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
     });
+
+
     res.json({
       masterTasks,
       totalPages: Math.ceil(total / limit),
@@ -709,9 +729,35 @@ router.get('/master-recurring', async (req, res) => {
       total,
       hasMore: page * limit < total
     });
+
   } catch (error) {
     console.error('❌ Error fetching master recurring tasks:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.get('/task-ids-by-group/:taskGroupId', async (req, res) => {
+  try {
+    const { taskGroupId } = req.params;
+    const { companyId } = req.query;
+
+    if (!companyId) {
+      return res.status(400).json({ message: "companyId required" });
+    }
+
+    const tasks = await Task.find(
+      {
+        taskGroupId,
+        companyId,
+        isActive: true
+      },
+      { _id: 1 }   // ✅ only IDs
+    ).lean();
+
+    res.json(tasks.map(t => t._id));
+  } catch (err) {
+    console.error("❌ task-ids-by-group error:", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 

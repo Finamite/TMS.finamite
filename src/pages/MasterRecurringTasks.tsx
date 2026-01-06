@@ -1072,38 +1072,20 @@ const MasterRecurringTasks: React.FC = () => {
 
 
   // ✅ FIXED: Function to get actual task IDs for a master task group
-  const getTaskIdsForMasterTask = useCallback(async (taskGroupId: string): Promise<string[]> => {
-    try {
-
+  const getTaskIdsForMasterTask = useCallback(
+    async (taskGroupId: string): Promise<string[]> => {
       const companyId = user?.company?.companyId;
-      if (!companyId) {
-        throw new Error("Company ID is missing");
-      }
+      if (!companyId) throw new Error("Company ID missing");
 
-      // Fetch the full master task details with all task instances
       const response = await axios.get(
-        `${address}/api/tasks/master-recurring?companyId=${companyId}&limit=1000`
+        `${address}/api/tasks/task-ids-by-group/${taskGroupId}`,
+        { params: { companyId } }
       );
 
-      const masterTasks = response.data?.masterTasks || [];
-      const targetMasterTask = masterTasks.find((mt: MasterTask) => mt.taskGroupId === taskGroupId);
-
-      if (!targetMasterTask) {
-        throw new Error(`Master task with taskGroupId ${taskGroupId} not found`);
-      }
-
-      if (!targetMasterTask.tasks || targetMasterTask.tasks.length === 0) {
-        throw new Error(`No task instances found for master task ${taskGroupId}`);
-      }
-
-      const taskIds = targetMasterTask.tasks.map((task: Task) => task._id);
-
-      return taskIds;
-    } catch (error) {
-      console.error('❌ Error getting task IDs for master task:', error);
-      throw error;
-    }
-  }, [user?.company?.companyId]);
+      return response.data;
+    },
+    [user]
+  );
 
   // Memoized components for better performance
   const MasterTaskCard = memo<{ masterTask: MasterTask }>(({ masterTask }) => (
