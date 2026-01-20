@@ -14,6 +14,30 @@ const masterTaskSchema = new mongoose.Schema({
   startDate: Date,
   endDate: Date,
 
+  // 🔐 Recurrence control & audit
+  originalEndDate: {
+    type: Date
+  },
+
+  endedEarly: {
+    type: Boolean,
+    default: false
+  },
+
+  endedEarlyAt: {
+    type: Date
+  },
+
+  endedEarlyBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User"
+  },
+
+  endedEarlyReason: {
+    type: String,
+    trim: true
+  },
+
   includeSunday: Boolean,
   isForever: Boolean,
   weeklyDays: [Number],
@@ -23,7 +47,7 @@ const masterTaskSchema = new mongoose.Schema({
 
   attachments: Array,
   createdAt: { type: Date, default: Date.now },
-  
+
   // Add fields for recycle bin functionality
   isActive: { type: Boolean, default: true },
   isDeleted: { type: Boolean, default: false },

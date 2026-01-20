@@ -139,6 +139,7 @@ mongoose.connect(process.env.MONGO_URI)
             email: 'superadmin@system.com',
             password: 'finamite@TMS#12',
             role: 'superadmin',
+            phone: '9878542564',
             permissions: {
               canViewTasks: true,
               canViewAllTeamTasks: true,

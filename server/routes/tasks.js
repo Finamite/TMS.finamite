@@ -4,6 +4,7 @@ import User from '../models/User.js';
 import Settings from '../models/Settings.js';
 import { sendSystemEmail } from '../Utils/sendEmail.js';
 import MasterTask from "../models/MasterTask.js";
+import TaskActivity from "../models/TaskActivity.js";
 import mongoose from "mongoose";
 
 const router = express.Router();
@@ -794,7 +795,12 @@ router.get("/master-recurring-light", async (req, res) => {
         weekOffDays: 1,
         monthlyDay: 1,
         yearlyDuration: 1,
-        attachments: 1
+        attachments: 1,
+        endedEarly: 1,
+        originalEndDate: 1,
+        endedEarlyAt: 1,
+        endedEarlyBy: 1,
+        endedEarlyReason: 1,
       }
     ).lean();
 
@@ -1776,29 +1782,146 @@ https://tms.finamite.in
 });
 
 // ✅ ULTRA-FAST: Reschedule master task endpoint
-router.put('/reschedule/:taskGroupId', async (req, res) => {
+router.put("/reschedule/:taskGroupId", async (req, res) => {
   try {
     const { taskGroupId } = req.params;
     const updates = req.body;
 
+    const {
+      companyId,
+      endRecurrenceEarly = false,
+      endedEarlyReason
+    } = updates;
 
-    // 1. Find existing tasks for the group (lean and minimal fields)
-    const existingTasks = await Task.find({ taskGroupId, isActive: true })
-      .select('assignedBy assignedTo attachments parentTaskInfo companyId')
-      .lean();
+    // ✅ Fetch userId & role from body (like your other routes)
+    const userId = updates.userId || updates.performedBy || null;
+    const userRole = (updates.userRole || updates.performedRole || "user").toLowerCase();
 
-    if (existingTasks.length === 0) {
+    // ✅ Role guard ONLY for endRecurrenceEarly
+    if (endRecurrenceEarly && !["admin", "manager"].includes(userRole)) {
+      return res.status(403).json({
+        message: "Only admin or manager can end recurring tasks early"
+      });
+    }
+
+    // 0️⃣ Fetch master task first (company scoped if provided)
+    const masterTask = await MasterTask.findOne({
+      taskGroupId,
+      ...(companyId ? { companyId } : {})
+    });
+
+    if (!masterTask) {
       return res.status(404).json({ message: "Master Task not found" });
     }
 
-    const template = existingTasks[0];
+    // ✅ Lock original end date once (first time only)
+    if (!masterTask.originalEndDate && masterTask.endDate) {
+      masterTask.originalEndDate = masterTask.endDate;
+      await masterTask.save(); // ✅ IMPORTANT
+    }
 
-    // 2. Delete old tasks (ultra-fast)
-    await Task.deleteMany({ taskGroupId });
+    /**
+     * =====================================================
+     * 🟢 MODE B — END RECURRENCE EARLY (SAFE PATH)
+     * =====================================================
+     */
+    if (endRecurrenceEarly) {
+      if (!updates.endDate) {
+        return res.status(400).json({
+          message: "End date is required to end recurrence early"
+        });
+      }
 
-    // 3. Update master task entry
+      // ✅ require userId + reason for analytics tracking
+      if (!userId) {
+        return res.status(400).json({
+          message: "userId is required for ending recurring tasks early"
+        });
+      }
+
+      if (!endedEarlyReason || !endedEarlyReason.trim()) {
+        return res.status(400).json({
+          message: "endedEarlyReason is required"
+        });
+      }
+
+      const newEndDate = new Date(updates.endDate);
+
+      if (isNaN(newEndDate.getTime())) {
+        return res.status(400).json({
+          message: "Invalid endDate format"
+        });
+      }
+
+      // ✅ extra-safe validation (never allow > original)
+      const lockEnd = masterTask.originalEndDate || masterTask.endDate;
+      if (lockEnd && newEndDate > lockEnd) {
+        return res.status(400).json({
+          message: "New end date cannot be later than original end date"
+        });
+      }
+
+      // ✅ MUST be captured BEFORE modifying endDate
+      const previousEndDate =
+        masterTask.endDate || masterTask.originalEndDate;
+
+      // ✅ Update master task ONCE
+      masterTask.endDate = newEndDate;
+      masterTask.endedEarly = true;
+      masterTask.endedEarlyAt = new Date();
+      masterTask.endedEarlyBy = userId;
+      masterTask.endedEarlyReason = endedEarlyReason.trim();
+
+      await masterTask.save();
+
+      // ✅ Activity log with correct chain
+      await TaskActivity.create({
+        taskGroupId,
+        actionType: "RECURRING_END_DATE_UPDATED",
+        oldEndDate: previousEndDate,   // 30 → 28 → 24 → 22
+        newEndDate,
+        performedBy: userId,
+        performedRole: userRole,
+        reason: endedEarlyReason.trim(),
+        companyId: masterTask.companyId
+      });
+
+
+
+      // 🔒 Deactivate ONLY future tasks
+      const result = await Task.updateMany(
+        {
+          taskGroupId,
+          ...(companyId ? { companyId } : {}),
+          dueDate: { $gt: newEndDate },
+          isActive: true
+        },
+        {
+          $set: {
+            isActive: false,
+            endedByRecurrence: true
+          }
+        }
+      );
+
+      return res.json({
+        message: "Recurring task ended early successfully",
+        deactivatedTasks: result.modifiedCount
+      });
+    }
+
+    /**
+     * =====================================================
+     * 🔵 MODE A — SAFE EDIT (DO NOT RESET OLD TASKS)
+     * =====================================================
+     */
+
+    // ✅ 1) Update MasterTask info (NO deletion)
     await MasterTask.findOneAndUpdate(
-      { taskGroupId },
+      {
+        taskGroupId,
+        ...(companyId ? { companyId } : {})
+      },
       {
         title: updates.title,
         description: updates.description,
@@ -1814,80 +1937,148 @@ router.put('/reschedule/:taskGroupId', async (req, res) => {
         monthlyDay: updates.monthlyDay,
         yearlyDuration: updates.yearlyDuration
       },
-      { upsert: true }
+      { new: true }
     );
 
-    // 4. Generate new dates ultra-fast
+    // ✅ 2) Update ALL existing tasks fields WITHOUT changing status
+    await Task.updateMany(
+      {
+        taskGroupId,
+        ...(companyId ? { companyId } : {})
+      },
+      {
+        $set: {
+          title: updates.title,
+          description: updates.description,
+          priority: updates.priority,
+          assignedTo: updates.assignedTo
+        }
+      }
+    );
+
+    // ✅ 3) Generate new schedule dates
     let taskDates = [];
     const startDate = new Date(updates.startDate);
+
     const endDate = updates.isForever
       ? new Date(startDate.getFullYear() + 1, startDate.getMonth(), startDate.getDate())
       : new Date(updates.endDate);
 
     switch (updates.taskType) {
-      case 'daily':
+      case "daily":
         taskDates = getDailyTaskDates(startDate, endDate, updates.includeSunday, updates.weekOffDays);
         break;
-      case 'weekly':
+
+      case "weekly":
         taskDates = getWeeklyTaskDates(startDate, endDate, updates.weeklyDays, updates.weekOffDays);
         break;
-      case 'monthly':
+
+      case "monthly":
         taskDates = getMonthlyTaskDates(startDate, endDate, updates.monthlyDay, updates.includeSunday, updates.weekOffDays);
         break;
-      case 'quarterly':
+
+      case "quarterly":
         taskDates = getQuarterlyTaskDates(startDate, updates.includeSunday, updates.weekOffDays);
         break;
-      case 'yearly':
+
+      case "yearly":
         taskDates = getYearlyTaskDates(startDate, updates.yearlyDuration, updates.includeSunday, updates.weekOffDays);
         break;
     }
 
-    // 5. Ultra-fast bulk operations
-    const bulkOps = taskDates.map((date, i) => ({
-      insertOne: {
-        document: {
-          title: updates.title,
-          description: updates.description,
-          taskType: updates.taskType,
-          priority: updates.priority,
-          assignedBy: template.assignedBy,
-          assignedTo: updates.assignedTo,
-          companyId: template.companyId,
-          attachments: template.attachments,
-          dueDate: date,
-          isActive: true,
-          status: "pending",
+    // ✅ Normalize to YYYY-MM-DD
+    const normalize = (d) => new Date(d).toISOString().slice(0, 10);
+
+    // ✅ Only affect FUTURE tasks (so old history stays safe)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const newDateSet = new Set(taskDates.map(normalize));
+
+    // ✅ Get only active future tasks in DB
+    const existingFutureActiveTasks = await Task.find({
+      taskGroupId,
+      ...(companyId ? { companyId } : {}),
+      isActive: true,
+      dueDate: { $gte: today }
+    })
+      .select("dueDate")
+      .lean();
+
+    const existingFutureSet = new Set(existingFutureActiveTasks.map((t) => normalize(t.dueDate)));
+
+    // ✅ 4) Deactivate future tasks that are not part of new schedule
+    const futureTasksToDeactivate = existingFutureActiveTasks
+      .filter((t) => !newDateSet.has(normalize(t.dueDate)))
+      .map((t) => normalize(t.dueDate));
+
+    if (futureTasksToDeactivate.length > 0) {
+      await Task.updateMany(
+        {
           taskGroupId,
-          sequenceNumber: i + 1,
-          parentTaskInfo: {
-            originalStartDate: updates.startDate,
-            originalEndDate: updates.endDate,
-            isForever: updates.isForever,
-            includeSunday: updates.includeSunday,
-            weeklyDays: updates.weeklyDays,
-            weekOffDays: updates.weekOffDays || [],
-            monthlyDay: updates.monthlyDay,
-            yearlyDuration: updates.yearlyDuration
+          ...(companyId ? { companyId } : {}),
+          isActive: true,
+          dueDate: { $gte: today }
+        },
+        {
+          $set: {
+            isActive: false,
+            endedByRecurrence: true
           }
         }
-      }
-    }));
+      );
+    }
 
-    if (bulkOps.length > 0) {
+    // ✅ 5) Insert missing future tasks
+    const datesToInsert = taskDates.filter((d) => !existingFutureSet.has(normalize(d)));
+
+    if (datesToInsert.length > 0) {
+      const bulkOps = datesToInsert.map((date) => ({
+        insertOne: {
+          document: {
+            title: updates.title,
+            description: updates.description,
+            taskType: updates.taskType,
+            priority: updates.priority,
+            assignedBy: masterTask.assignedBy,
+            assignedTo: updates.assignedTo,
+            companyId: masterTask.companyId,
+            attachments: masterTask.attachments || [],
+            dueDate: date,
+            isActive: true,
+            status: "pending",
+            taskGroupId,
+            parentTaskInfo: {
+              originalStartDate: updates.startDate,
+              originalEndDate: updates.endDate,
+              isForever: updates.isForever,
+              includeSunday: updates.includeSunday,
+              weeklyDays: updates.weeklyDays,
+              weekOffDays: updates.weekOffDays || [],
+              monthlyDay: updates.monthlyDay,
+              yearlyDuration: updates.yearlyDuration
+            }
+          }
+        }
+      }));
+
       await Task.bulkWrite(bulkOps, { ordered: false });
     }
 
-
-    res.json({
-      message: "Master Task Rescheduled Successfully",
-      instances: bulkOps.length
+    return res.json({
+      message: "Master Task updated successfully ✅ (old tasks not affected)",
+      insertedFutureTasks: datesToInsert.length
     });
-
   } catch (error) {
     console.error("❌ Ultra-fast reschedule error:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message
+    });
   }
 });
+
+
 
 router.put("/:taskId/bin", async (req, res) => {
   try {
@@ -2485,7 +2676,6 @@ router.get("/pending-approval-count", async (req, res) => {
   }
 });
 
-
 // Restore single task
 router.post('/bin/restore/:id', async (req, res) => {
   try {
@@ -2578,8 +2768,6 @@ router.post('/bin/restore-master/:taskGroupId', async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
-
-
 
 
 // Permanently delete single task
@@ -2940,6 +3128,27 @@ router.post('/bin/cleanup', async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
+
+// ✅ Fetch all activities for a task group (Audit log)
+router.get("/task-activities/:taskGroupId", async (req, res) => {
+  try {
+    const { taskGroupId } = req.params;
+
+    const activities = await TaskActivity.find({ taskGroupId })
+      .populate("performedBy", "username email")
+      .sort({ createdAt: -1 });
+
+    return res.json({ activities });
+  } catch (error) {
+    console.error("❌ task-activities fetch error:", error);
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message
+    });
+  }
+});
+
+
 
 // Empty entire recycle bin for a company
 router.delete('/bin/empty', async (req, res) => {

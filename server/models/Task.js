@@ -43,12 +43,16 @@ const taskSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  endedByRecurrence: {
+    type: Boolean,
+    default: false
+  },
   // ADD THIS FIELD
   companyId: {
     type: String,
     required: true
   },
-  
+
   dueDate: {
     type: Date,
     required: true
@@ -67,14 +71,14 @@ const taskSchema = new mongoose.Schema({
     default: 'normal'
   },
   requiresApproval: {
-  type: Boolean,
-  default: false
-},
+    type: Boolean,
+    default: false
+  },
 
   weekOffDays: {
-  type: [Number], // 0=Sunday, 1=Monday, ...
-  default: []
-},
+    type: [Number], // 0=Sunday, 1=Monday, ...
+    default: []
+  },
   status: {
     type: String,
     enum: ['pending', 'in-progress', 'completed', 'overdue', 'rejected'],
@@ -109,30 +113,30 @@ const taskSchema = new mongoose.Schema({
   },
 
   rejectionRemarks: {
-  type: String,
-  trim: true
-},
-rejectedAt: {
-  type: Date
-},
-rejectedBy: {
-  type: mongoose.Schema.Types.ObjectId,
-  ref: 'User'
-},
+    type: String,
+    trim: true
+  },
+  rejectedAt: {
+    type: Date
+  },
+  rejectedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
 
-approvedAt: Date,
-approvedBy: {
-  type: mongoose.Schema.Types.ObjectId,
-  ref: 'User'
-},
+  approvedAt: Date,
+  approvedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
 
   isActive: {
     type: Boolean,
     default: true
   },
-  
+
   deletedAt: Date,
-autoDeleteAt: Date,
+  autoDeleteAt: Date,
 
   // Group related tasks together
   taskGroupId: String,
@@ -165,6 +169,12 @@ taskSchema.index({ assignedTo: 1, companyId: 1 });
 
 // Optional but helpful
 taskSchema.index({ companyId: 1, dueDate: 1 });
+
+taskSchema.index({
+  taskGroupId: 1,
+  dueDate: 1,
+  isActive: 1
+});
 
 const Task = mongoose.model('Task', taskSchema);
 export default Task;

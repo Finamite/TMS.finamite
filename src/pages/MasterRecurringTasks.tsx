@@ -104,6 +104,7 @@ interface MasterTask {
     start: string;
     end: string;
   };
+  endedEarly: boolean;
 }
 
 interface EditFormData {
@@ -120,6 +121,9 @@ interface EditFormData {
   monthlyDay?: number;
   yearlyDuration: number;
   weekOffDays: number[];
+  allowEndDateEdit: boolean;
+  originalEndDate: string;
+  endedEarlyReason?: string;
 }
 
 
@@ -279,6 +283,7 @@ const MasterRecurringTasks: React.FC = () => {
   const cacheRef = useRef(new CacheManager());
 
   // State management
+  const [openReasonId, setOpenReasonId] = useState<string | null>(null);
   const [masterTasks, setMasterTasks] = useState<MasterTask[]>([]);
   const [individualTasks, setIndividualTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -289,6 +294,7 @@ const MasterRecurringTasks: React.FC = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingMasterTask, setEditingMasterTask] = useState<MasterTask | null>(null);
+  const [endRecurrenceEarly, setEndRecurrenceEarly] = useState(false);
   const [editFormData, setEditFormData] = useState<EditFormData>({
     title: '',
     description: '',
@@ -302,9 +308,12 @@ const MasterRecurringTasks: React.FC = () => {
     weeklyDays: [],
     monthlyDay: undefined,
     yearlyDuration: 1,
-    weekOffDays: []
+    weekOffDays: [],
+    allowEndDateEdit: false,
+    originalEndDate: '',
+    endedEarlyReason: "",
   });
-
+  const [selectedActivityTaskTitle, setSelectedActivityTaskTitle] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -323,6 +332,12 @@ const MasterRecurringTasks: React.FC = () => {
     dateFrom: '',
     dateTo: ''
   });
+
+  const [showActivityModal, setShowActivityModal] = useState(false);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [taskActivities, setTaskActivities] = useState<any[]>([]);
+  const [selectedActivityGroupId, setSelectedActivityGroupId] = useState<string>("");
+
 
   const [showFilters, setShowFilters] = useState(false);
   const [showAttachmentsModal, setShowAttachmentsModal] = useState<{ attachments: Attachment[], type: 'task' | 'completion' } | null>(null);
@@ -671,6 +686,21 @@ const MasterRecurringTasks: React.FC = () => {
     }
   }, [isEditMode, fetchMasterTasksUltraFast, fetchIndividualTasks]);
 
+  const fetchTaskActivities = async (taskGroupId: string) => {
+    try {
+      setActivityLoading(true);
+      setTaskActivities([]);
+
+      const res = await axios.get(`${address}/api/tasks/task-activities/${taskGroupId}`);
+      setTaskActivities(res.data.activities || []);
+    } catch (error) {
+      console.error("❌ Activity fetch error:", error);
+    } finally {
+      setActivityLoading(false);
+    }
+  };
+
+
   // Fetch users with caching
   const fetchUsers = useCallback(async () => {
     if (!isAdmin) return;
@@ -761,6 +791,8 @@ const MasterRecurringTasks: React.FC = () => {
 
   const handleEditMasterTask = useCallback((masterTask: MasterTask) => {
     setEditingMasterTask(masterTask);
+    const resolvedEndDate =
+      masterTask.parentTaskInfo?.originalEndDate || masterTask.dateRange.end;
     const formData: EditFormData = {
       title: masterTask.title,
       description: masterTask.description,
@@ -769,6 +801,8 @@ const MasterRecurringTasks: React.FC = () => {
       taskType: masterTask.taskType,
       startDate: masterTask.parentTaskInfo?.originalStartDate || masterTask.dateRange.start,
       endDate: masterTask.parentTaskInfo?.originalEndDate || masterTask.dateRange.end,
+      originalEndDate: resolvedEndDate,   // ✅ ADD
+      allowEndDateEdit: false,
       isForever: masterTask.parentTaskInfo?.isForever || false,
       includeSunday: masterTask.parentTaskInfo?.includeSunday ?? true,
       weeklyDays: masterTask.parentTaskInfo?.weeklyDays || [],
@@ -777,6 +811,7 @@ const MasterRecurringTasks: React.FC = () => {
       weekOffDays: masterTask.parentTaskInfo?.weekOffDays || masterTask.weekOffDays || []
     };
     setEditFormData(formData);
+    setEndRecurrenceEarly(false);
     setShowEditModal(true);
   }, []);
 
@@ -959,8 +994,27 @@ const MasterRecurringTasks: React.FC = () => {
         weeklyDays: editFormData.weeklyDays,
         monthlyDay: editFormData.monthlyDay,
         yearlyDuration: editFormData.yearlyDuration,
-        weekOffDays: editFormData.weekOffDays
+        weekOffDays: editFormData.weekOffDays,
+        endRecurrenceEarly: endRecurrenceEarly,
+        endedEarlyReason: editFormData.endedEarlyReason,
+        userId: user?._id || user?.id,
+        userRole: user?.role
       };
+
+      if (endRecurrenceEarly) {
+        if (!editFormData.endedEarlyReason?.trim()) {
+          toast.error("Reason is required to end recurring task early");
+          setIsSaving(false);
+          return;
+        }
+
+        if (new Date(editFormData.endDate) > new Date(editFormData.originalEndDate)) {
+          toast.error(`New end date cannot be greater than ${editFormData.originalEndDate}`);
+          setIsSaving(false);
+          return;
+        }
+      }
+
 
       await axios.put(`${address}/api/tasks/reschedule/${editingMasterTask.taskGroupId}`, payload);
 
@@ -988,7 +1042,9 @@ const MasterRecurringTasks: React.FC = () => {
         weeklyDays: [],
         monthlyDay: undefined,
         yearlyDuration: 1,
-        weekOffDays: []
+        weekOffDays: [],
+        allowEndDateEdit: false,
+        originalEndDate: '',
       });
     } catch (err) {
       console.error('Error rescheduling master task:', err);
@@ -1014,7 +1070,9 @@ const MasterRecurringTasks: React.FC = () => {
       weeklyDays: [],
       monthlyDay: undefined,
       yearlyDuration: 1,
-      weekOffDays: []
+      weekOffDays: [],
+      allowEndDateEdit: false,
+      originalEndDate: '',
     });
   }, []);
 
@@ -1121,19 +1179,41 @@ const MasterRecurringTasks: React.FC = () => {
         )}
 
         <div className="flex items-start justify-between mb-4">
-          <div className="text-lg font-semibold text-[--color-text] mb-2">
+          <div className="text-lg font-semibold text-gray-900 mb-2">
             <ReadMore text={masterTask.title} maxLength={60} />
           </div>
+
+          {masterTask.endedEarly && (
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-orange-50 border border-orange-200 px-1.5 py-[1px] text-[10px] font-semibold text-orange-700 leading-none">
+              <span className="text-[11px] leading-none">⏱️</span>
+              Ended Early
+            </span>
+          )}
+
+
           {hasMasterTaskActions && (
             <div className="flex items-center space-x-2 ml-2">
               {canEditRecurringTaskSchedules && (
-                <button
+
+                <><button
+                  type="button"
+                  onClick={() => {
+                    setSelectedActivityGroupId(masterTask.taskGroupId);
+                    setSelectedActivityTaskTitle(masterTask.title);
+                    setShowActivityModal(true);
+                    fetchTaskActivities(masterTask.taskGroupId);
+                  }}
+                  className="h-7 w-7 inline-flex items-center justify-center rounded-xl border border-[--color-border] bg-[--color-surface] text-[--color-text] hover:bg-[--color-primary]/10 hover:text-[--color-primary] transition"
+                  title="View activity logs"
+                >
+                  <Info size={16} />
+                </button><button
                   onClick={() => handleEditMasterTask(masterTask)}
                   className="p-2 text-[--color-primary] hover:bg-blue-500 hover:text-white rounded-lg transition-colors"
                   title="Edit master task"
                 >
-                  <Edit size={16} />
-                </button>
+                    <Edit size={16} />
+                  </button></>
               )}
               {canDeleteTasks && (
                 <button
@@ -1488,6 +1568,13 @@ const MasterRecurringTasks: React.FC = () => {
                     <div className="text-sm font-medium text-[--color-text] mb-1">
                       <ReadMore text={masterTask.title} maxLength={80} />
                     </div>
+                    {masterTask.endedEarly && (
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-orange-50 border border-orange-200 px-1.5 py-[1px] text-[10px] font-semibold text-orange-700 leading-none">
+                        <span className="text-[11px] leading-none">⏱️</span>
+                        Ended Early
+                      </span>
+                    )}
+
                     {isSelectionMode && !masterTask.parentTaskInfo?.isForever && (
                       <div className="mt-1 text-xs text-red-500 font-medium">
                         Not available for reassign (not a forever task)
@@ -1602,6 +1689,21 @@ const MasterRecurringTasks: React.FC = () => {
                       >
                         <RotateCcw size={18} />
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedActivityGroupId(masterTask.taskGroupId);
+                          setSelectedActivityTaskTitle(masterTask.title);
+                          setShowActivityModal(true);
+                          fetchTaskActivities(masterTask.taskGroupId);
+                        }}
+                        className="h-9 w-9 inline-flex items-center justify-center rounded-xl border border-[--color-border] bg-[--color-surface] text-[--color-text] hover:bg-[--color-primary]/10 hover:text-[--color-primary] transition"
+                        title="View activity logs"
+                      >
+                        <Info size={16} />
+                      </button>
+
+
                     </div>
                   </td>
                 )}
@@ -2344,8 +2446,10 @@ const MasterRecurringTasks: React.FC = () => {
       <EditMasterTaskModal
         showEditModal={showEditModal}
         editingMasterTask={editingMasterTask}
-        editFormData={editFormData}
-        setEditFormData={setEditFormData}
+        editFormData={editFormData as any}
+        setEditFormData={setEditFormData as any}
+        endRecurrenceEarly={endRecurrenceEarly}
+        setEndRecurrenceEarly={setEndRecurrenceEarly}
         users={users}
         isAdmin={isAdmin}
         isSaving={isSaving}
@@ -3014,6 +3118,209 @@ const MasterRecurringTasks: React.FC = () => {
           </div>
         </div>
       )}
+
+      {showActivityModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-[--color-surface] w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden border border-[--color-border]">
+
+            {/* Header */}
+            <div className="p-5 border-b border-[--color-border] flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-[--color-text]">
+                  Task Activity Logs
+                </h2>
+
+                <p className="text-sm mt-2">
+                  <span className="text-sm text-[--color-muted]">Task:</span>{" "}
+                  <span className="font-extrabold text-[--color-text]">
+                    {selectedActivityTaskTitle || "—"}
+                  </span>
+                </p>
+              </div>
+
+              <button
+                onClick={() => {
+                  setShowActivityModal(false);
+                  setTaskActivities([]);
+                  setSelectedActivityGroupId("");
+                  setSelectedActivityTaskTitle("");
+                  setOpenReasonId(null);
+                }}
+                className="h-9 w-9 rounded-full border border-[--color-border] flex items-center justify-center hover:bg-[--color-background] transition text-[--color-text]"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 max-h-[60vh] overflow-y-auto">
+              {activityLoading ? (
+                <div className="text-sm text-[--color-muted] animate-pulse">
+                  Loading activity...
+                </div>
+              ) : taskActivities.length === 0 ? (
+                <div className="text-sm text-[--color-muted]">No activity found.</div>
+              ) : (
+                (() => {
+                  const formatISTDate = (dateStr: string) =>
+                    dateStr
+                      ? new Intl.DateTimeFormat("en-GB", {
+                        timeZone: "Asia/Kolkata",
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "2-digit",
+                      }).format(new Date(dateStr))
+                      : "—";
+
+                  const formatISTDateTime = (dateStr: string) =>
+                    dateStr
+                      ? new Intl.DateTimeFormat("en-GB", {
+                        timeZone: "Asia/Kolkata",
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: true,
+                      }).format(new Date(dateStr))
+                      : "—";
+
+                  const sorted = [...taskActivities].sort(
+                    (a, b) =>
+                      new Date(b.createdAt || 0).getTime() -
+                      new Date(a.createdAt || 0).getTime()
+                  );
+
+                  return (
+                    <div className="space-y-4">
+
+                      {/* All Activity Logs */}
+                      <div className="rounded-2xl border border-[--color-border] bg-[--color-surface] p-4">
+                        <p className="text-sm font-semibold text-[--color-text] mb-3">
+                          All Activity Logs
+                        </p>
+
+                        <div className="space-y-3">
+                          {sorted.map((a) => (
+                            <div
+                              key={a._id}
+                              className="border border-[--color-border] rounded-2xl p-4 bg-[--color-background]"
+                            >
+                              {/* Header row (responsive) */}
+                              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-4">
+                                <div>
+                                  <span className="text-xs px-2 py-1 rounded-full bg-[--color-primary]/15 text-[--color-primary] font-semibold">
+                                    {a.actionType || "Update"}
+                                  </span>
+
+                                  <p className="text-sm text-[--color-text] mt-2">
+                                    <span className="font-semibold">Updated By:</span>{" "}
+                                    {a.performedBy?.username || "Unknown"}
+                                    <span className="text-[--color-muted]">
+                                      {" "}
+                                      ({a.performedRole || "N/A"})
+                                    </span>
+                                  </p>
+                                </div>
+
+                                {/* Timestamp */}
+                                <div className="text-left sm:text-right shrink-0">
+                                  <p className="text-[11px] text-[--color-muted] break-words">
+                                    {formatISTDateTime(a.createdAt)}
+                                  </p>
+                                  <p className="text-[11px] text-[--color-muted]/70">
+                                    IST
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* End Date (clickable) */}
+                              {a.oldEndDate && a.newEndDate && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setOpenReasonId(
+                                      openReasonId === a._id ? null : a._id
+                                    )
+                                  }
+                                  className="mt-4 w-full flex items-center justify-between gap-2 rounded-xl border border-[--color-border] bg-[--color-surface] px-4 py-2 hover:bg-[--color-background] transition"
+                                >
+                                  <div className="text-left text-sm">
+                                    <span className="font-semibold text-[--color-text]">
+                                      End Date:
+                                    </span>{" "}
+                                    {formatISTDate(a.oldEndDate)}{" "}
+                                    <span className="text-[--color-muted]">→</span>{" "}
+                                    <span className="font-semibold text-[--color-error]">
+                                      {formatISTDate(a.newEndDate)}
+                                    </span>
+                                  </div>
+
+                                  {/* Bounce Arrow */}
+                                  <span
+                                    className={`transition-transform duration-200 ${openReasonId === a._id
+                                        ? "rotate-180"
+                                        : "animate-pulse-arrow"
+                                      }`}
+                                  >
+                                    ↓
+                                  </span>
+                                </button>
+                              )}
+
+                              {/* Dropdown */}
+                              {openReasonId === a._id && (
+                                <div className="mt-2 rounded-xl border border-[--color-border] bg-[--color-surface] animate-dropdown">
+                                  <div className="p-4 space-y-2">
+                                    {a.reason && (
+                                      <div>
+                                        <p className="text-xs font-semibold text-[--color-muted] mb-1">
+                                          Reason
+                                        </p>
+                                        <p className="text-sm text-[--color-text] break-words">
+                                          {a.reason}
+                                        </p>
+                                      </div>
+                                    )}
+
+                                    <div className="pt-2 border-t border-[--color-border] text-xs text-[--color-muted]">
+                                      Updated by {a.performedBy?.username || "Unknown"} ·{" "}
+                                      {formatISTDateTime(a.createdAt)} IST
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-5 border-t border-[--color-border] flex justify-end">
+              <button
+                onClick={() => {
+                  setShowActivityModal(false);
+                  setTaskActivities([]);
+                  setSelectedActivityGroupId("");
+                  setSelectedActivityTaskTitle("");
+                  setOpenReasonId(null);
+                }}
+                className="px-5 py-2 rounded-xl bg-[--color-primary] text-white font-semibold hover:opacity-90 transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+
 
     </div>
   );
