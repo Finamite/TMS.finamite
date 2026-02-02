@@ -2228,7 +2228,7 @@ router.put("/:taskId/bin", async (req, res) => {
     }
 
     // ✅ Track database usage after changes
-    await trackDatabaseUsage(companyId);
+    setImmediate(() => trackDatabaseUsage(companyId));
 
     res.json({ success: true, task });
   } catch (err) {
@@ -2339,7 +2339,7 @@ router.delete('/:id', async (req, res) => {
       }
 
       // ✅ Track database usage after deletion
-      await trackDatabaseUsage(companyId);
+      setImmediate(() => trackDatabaseUsage(companyId));
 
       res.json({ message: 'Task moved to recycle bin successfully' });
     } else {
@@ -2356,7 +2356,7 @@ router.delete('/:id', async (req, res) => {
       }
 
       // ✅ Track database usage after deletion
-      await trackDatabaseUsage(companyId);
+      setImmediate(() => trackDatabaseUsage(companyId));
 
       res.json({ message: 'Task permanently deleted successfully' });
     }
@@ -2851,7 +2851,7 @@ router.post('/bin/restore/:id', async (req, res) => {
     }
 
     // ✅ Track database usage after restoration
-    await trackDatabaseUsage(companyId);
+    setImmediate(() => trackDatabaseUsage(companyId));
 
     res.json({ message: 'Task restored successfully' });
   } catch (error) {
@@ -2898,7 +2898,7 @@ router.post('/bin/restore-master/:taskGroupId', async (req, res) => {
     }
 
     // ✅ Track database usage after restoration
-    await trackDatabaseUsage(companyId);
+    setImmediate(() => trackDatabaseUsage(companyId));
 
     res.json({
       message: 'Master task series restored successfully',
@@ -2932,7 +2932,7 @@ router.delete('/bin/permanent/:id', async (req, res) => {
 
     // ✅ Track database usage after permanent deletion
     if (companyId) {
-      await trackDatabaseUsage(companyId);
+      setImmediate(() => trackDatabaseUsage(companyId));
     }
 
     return res.json({ message: 'Deleted successfully', result });
@@ -3050,7 +3050,7 @@ router.post("/reassign/:taskGroupId", async (req, res) => {
     }
 
     // ✅ Track database usage after reassignment
-    await trackDatabaseUsage(companyId);
+    setImmediate(() => trackDatabaseUsage(companyId));
 
     return res.json({
       message: "Reassigned successfully",
@@ -3336,7 +3336,7 @@ router.delete('/bin/empty', async (req, res) => {
     });
 
     // ✅ Track database usage after cleanup
-    await trackDatabaseUsage(companyId);
+    setImmediate(() => trackDatabaseUsage(companyId));
 
     res.json({
       message: 'Recycle bin emptied successfully',
@@ -3365,7 +3365,7 @@ router.delete('/bulk/master', async (req, res) => {
       await MasterTask.deleteOne({ taskGroupId, companyId });
 
       // ✅ Track database usage after deletion
-      await trackDatabaseUsage(companyId);
+      setImmediate(() => trackDatabaseUsage(companyId));
 
       return res.json({
         success: true,
@@ -3403,7 +3403,7 @@ router.delete('/bulk/master', async (req, res) => {
     );
 
     // ✅ Track database usage after deletion
-    await trackDatabaseUsage(companyId);
+    setImmediate(() => trackDatabaseUsage(companyId));
 
     return res.json({
       success: true,
@@ -3437,7 +3437,7 @@ router.delete("/:taskId", async (req, res) => {
     }
 
     // ✅ Track database usage after deletion
-    await trackDatabaseUsage(companyId);
+    setImmediate(() => trackDatabaseUsage(companyId));
 
     res.json({ success: true });
   } catch (err) {

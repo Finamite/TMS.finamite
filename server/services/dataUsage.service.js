@@ -40,32 +40,28 @@ export const updateFileUsage = async (companyId, fileInfo, uploadedBy) => {
   );
 };
 
-export const updateDatabaseUsage = async () => {
-  const companies = await Company.find({ isActive: true }).select('companyId');
+export const updateDatabaseUsage = async (companyId) => {
+  if (!companyId) return;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  for (const company of companies) {
-    const companyId = company.companyId;
+  const taskStats = await getCollectionStats(Task, companyId);
+  const userStats = await getCollectionStats(User, companyId);
 
-    const taskStats = await getCollectionStats(Task, companyId);
-    const userStats = await getCollectionStats(User, companyId);
+  const totalDocuments = taskStats.count + userStats.count;
+  const totalSize = taskStats.size + userStats.size;
 
-    const totalDocuments = taskStats.count + userStats.count;
-    const totalSize = taskStats.size + userStats.size;
-
-    await DataUsage.findOneAndUpdate(
-      { companyId, date: today },
-      {
-        $set: {
-          'databaseUsage.collections.tasks': taskStats,
-          'databaseUsage.collections.users': userStats,
-          'databaseUsage.totalDocuments': totalDocuments,
-          'databaseUsage.totalSize': totalSize
-        }
-      },
-      { upsert: true }
-    );
-  }
+  await DataUsage.findOneAndUpdate(
+    { companyId, date: today },
+    {
+      $set: {
+        'databaseUsage.collections.tasks': taskStats,
+        'databaseUsage.collections.users': userStats,
+        'databaseUsage.totalDocuments': totalDocuments,
+        'databaseUsage.totalSize': totalSize
+      }
+    },
+    { upsert: true }
+  );
 };
