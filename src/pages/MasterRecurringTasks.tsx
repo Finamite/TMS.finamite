@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { RotateCcw, Calendar, Filter, Search, Trash2, Users, Paperclip, FileText, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CreditCard as Edit, Info, Download, ExternalLink, Settings, Loader, AlertTriangle, XCircle, Edit3, RefreshCw, X } from 'lucide-react';
+import { RotateCcw, Calendar, Filter, Search, Trash2, Users, Paperclip, FileText, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CreditCard as Edit, Info, Download, ExternalLink, Settings, Loader, AlertTriangle, XCircle, CreditCard as Edit3, RefreshCw, X } from 'lucide-react';
 import axios from 'axios';
 import ViewToggle from '../components/ViewToggle';
 import StatusBadge from '../components/StatusBadge';
@@ -71,6 +71,13 @@ interface LightMasterTask {
   dateRange: { start: string | Date; end: string | Date };
 }
 
+interface Attachment {
+  filename: string;
+  originalName: string;
+  size: number;
+  uploadedAt: string;
+}
+
 interface MasterTask {
   taskGroupId: string;
   title: string;
@@ -124,6 +131,7 @@ interface EditFormData {
   allowEndDateEdit: boolean;
   originalEndDate: string;
   endedEarlyReason?: string;
+  attachments?: any[];
 }
 
 
@@ -808,7 +816,8 @@ const MasterRecurringTasks: React.FC = () => {
       weeklyDays: masterTask.parentTaskInfo?.weeklyDays || [],
       monthlyDay: masterTask.parentTaskInfo?.monthlyDay,
       yearlyDuration: masterTask.parentTaskInfo?.yearlyDuration || 1,
-      weekOffDays: masterTask.parentTaskInfo?.weekOffDays || masterTask.weekOffDays || []
+      weekOffDays: masterTask.parentTaskInfo?.weekOffDays || masterTask.weekOffDays || [],
+      attachments: masterTask.attachments || []
     };
     setEditFormData(formData);
     setEndRecurrenceEarly(false);
@@ -997,6 +1006,7 @@ const MasterRecurringTasks: React.FC = () => {
         weekOffDays: editFormData.weekOffDays,
         endRecurrenceEarly: endRecurrenceEarly,
         endedEarlyReason: editFormData.endedEarlyReason,
+        attachments: editFormData.attachments || [],
         userId: user?._id || user?.id,
         userRole: user?.role
       };
@@ -1045,6 +1055,7 @@ const MasterRecurringTasks: React.FC = () => {
         weekOffDays: [],
         allowEndDateEdit: false,
         originalEndDate: '',
+        attachments: []
       });
     } catch (err) {
       console.error('Error rescheduling master task:', err);
@@ -1073,6 +1084,7 @@ const MasterRecurringTasks: React.FC = () => {
       weekOffDays: [],
       allowEndDateEdit: false,
       originalEndDate: '',
+      attachments: []
     });
   }, []);
 

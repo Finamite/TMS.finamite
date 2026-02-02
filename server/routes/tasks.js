@@ -6,6 +6,8 @@ import { sendSystemEmail } from '../Utils/sendEmail.js';
 import MasterTask from "../models/MasterTask.js";
 import TaskActivity from "../models/TaskActivity.js";
 import mongoose from "mongoose";
+// ✅ ADD THIS IMPORT FOR DATA USAGE TRACKING
+import {updateFileUsage, updateDatabaseUsage} from '../services/dataUsage.service.js';
 
 const router = express.Router();
 
@@ -89,6 +91,36 @@ const getMonthlyTaskDates = (startDate, endDate, monthlyDay, includeSunday, week
     }
 
     current.setMonth(current.getMonth() + 1); // Move to the next month
+  }
+
+  return dates;
+};
+
+const getFortnightlyTaskDates = (startDate, endDate, includeSunday = false, weekOffDays = []) => {
+  const dates = [];
+  let current = new Date(startDate);           // ← use let so we can reassign
+  const end = new Date(endDate || new Date(2099, 11, 31));
+
+  while (current <= end) {
+    let targetDate = new Date(current);
+
+    // Only shift if includeSunday is false AND it's Sunday
+    if (!includeSunday && targetDate.getDay() === 0) {
+      targetDate.setDate(targetDate.getDate() - 1); // Sunday → Saturday
+    }
+
+    // Then apply week-off shifting (can move further back)
+    while (weekOffDays.includes(targetDate.getDay())) {
+      targetDate.setDate(targetDate.getDate() - 1);
+    }
+
+    // Only include if still <= end (after possible shifts)
+    if (targetDate <= end) {
+      dates.push(new Date(targetDate));
+    }
+
+    // Advance exactly 14 days from ORIGINAL date (important!)
+    current.setDate(current.getDate() + 14);
   }
 
   return dates;
@@ -192,6 +224,37 @@ https://tms.finamite.in
     await sendSystemEmail(taskData.companyId, assignedUser.email, subject, text);
   } catch (error) {
     console.error('Error sending task assignment email:', error);
+  }
+};
+
+// ✅ ADD FILE USAGE TRACKING FUNCTION
+const trackFileUsage = async (companyId, attachments, uploadedBy) => {
+  try {
+    if (!attachments || !Array.isArray(attachments) || attachments.length === 0) {
+      return;
+    }
+
+    for (const attachment of attachments) {
+      const fileInfo = {
+        filename: attachment.filename || attachment.name || 'unknown',
+        originalName: attachment.originalName || attachment.name || 'unknown',
+        size: attachment.size || 0
+      };
+
+      await updateFileUsage(companyId, fileInfo, uploadedBy);
+    }
+  } catch (error) {
+    console.error('Error tracking file usage:', error);
+  }
+};
+
+// ✅ ADD DATABASE USAGE TRACKING FUNCTION
+const trackDatabaseUsage = async (companyId) => {
+  try {
+    // Update database usage for the specific company
+    await updateDatabaseUsage();
+  } catch (error) {
+    console.error('Error tracking database usage:', error);
   }
 };
 
@@ -344,7 +407,7 @@ router.get('/pending-recurring', async (req, res) => {
 
         // ✅ CYCLIC → overdue + today + next 5 days
         {
-          taskType: { $in: ['weekly', 'monthly', 'quarterly', 'yearly'] },
+          taskType: { $in: ['weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly'] },
           dueDate: {
             $lte: fiveDaysLater
           }
@@ -480,7 +543,7 @@ router.get('/team-pending-fast', async (req, res) => {
               $cond: [
                 {
                   $and: [
-                    { $in: ['$taskType', ['weekly', 'monthly', 'quarterly', 'yearly']] },
+                    { $in: ['$taskType', ['weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly']] },
                     '$isToday'
                   ]
                 },
@@ -495,7 +558,7 @@ router.get('/team-pending-fast', async (req, res) => {
               $cond: [
                 {
                   $and: [
-                    { $in: ['$taskType', ['weekly', 'monthly', 'quarterly', 'yearly']] },
+                    { $in: ['$taskType', ['weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly']] },
                     '$isOverdue'
                   ]
                 },
@@ -571,7 +634,7 @@ router.get('/master-recurring', async (req, res) => {
     // ✅ Ultra-optimized match stage with compound indexing support
     const matchStage = {
       isActive: true,
-      taskType: { $in: ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'] }
+      taskType: { $in: ['daily', 'weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly'] }
     };
 
     if (companyId) {
@@ -814,7 +877,7 @@ router.get("/master-recurring-light", async (req, res) => {
         $match: {
           companyId,
           isActive: true,
-          taskType: { $in: ["daily", "weekly", "monthly", "quarterly", "yearly"] },
+          taskType: { $in: ["daily", "weekly", "fortnightly", "monthly", "quarterly", "yearly"] },
           taskGroupId: { $exists: true, $ne: null, $nin: Array.from(existingGroupIds) }
         }
       },
@@ -1032,7 +1095,7 @@ router.get('/recurring-instances', async (req, res) => {
     // ✅ Optimized query building
     const query = {
       isActive: true,
-      taskType: { $in: ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'] }
+      taskType: { $in: ['daily', 'weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly'] }
     };
 
     if (companyId) {
@@ -1152,6 +1215,9 @@ router.post('/bulk-create', async (req, res) => {
             case 'quarterly':
               taskDates = getQuarterlyTaskDates(startDate, taskData.includeSunday, taskData.weekOffDays);
               break;
+            case 'fortnightly':
+              taskDates = getFortnightlyTaskDates(startDate, endDate, taskData.includeSunday, taskData.weekOffDays);
+              break;
             case 'yearly':
               if (taskData.isForever) {
                 taskDates = getYearlyTaskDates(startDate, taskData.yearlyDuration, taskData.includeSunday, taskData.weekOffDays || []);
@@ -1214,6 +1280,11 @@ router.post('/bulk-create', async (req, res) => {
         allBulkOperations.push(...bulkTaskInstances);
         totalTasksCreated += taskDates.length;
 
+        // ✅ Track file usage if attachments exist
+        if (taskData.attachments && taskData.attachments.length > 0) {
+          await trackFileUsage(taskData.companyId, taskData.attachments, taskTemplate.assignedBy);
+        }
+
         // ⚡ Lightning-fast async email notification (don't wait)
         setImmediate(() => sendTaskAssignmentEmail({
           ...taskData,
@@ -1228,6 +1299,11 @@ router.post('/bulk-create', async (req, res) => {
         ordered: false,
         bypassDocumentValidation: false // ✅ Keep validation for data integrity
       });
+
+      // ✅ Track database usage after bulk operations
+      if (tasks.length > 0) {
+        await trackDatabaseUsage(tasks[0].companyId);
+      }
 
       // ✅ UPDATE ORIGINAL TASK STATUS TO REJECTED (only after successful task creation)
       if (isReassignMode && originalTaskId) {
@@ -1329,6 +1405,10 @@ router.post('/create-scheduled', async (req, res) => {
           taskDates = getMonthlyTaskDates(startDate, endDate, taskData.monthlyDay || 1, taskData.includeSunday, taskData.weekOffDays);
           break;
 
+        case 'fortnightly':
+          taskDates = getFortnightlyTaskDates(startDate, endDate, taskData.includeSunday, taskData.weekOffDays);
+          break;
+
         case 'quarterly':
           taskDates = getQuarterlyTaskDates(startDate, taskData.includeSunday, taskData.weekOffDays);
           break;
@@ -1402,6 +1482,14 @@ router.post('/create-scheduled', async (req, res) => {
 
     if (bulkOps.length > 0) {
       await Task.bulkWrite(bulkOps, { ordered: false });
+      
+      // ✅ Track file usage if attachments exist
+      if (taskData.attachments && taskData.attachments.length > 0) {
+        await trackFileUsage(taskData.companyId, taskData.attachments, taskData.assignedBy);
+      }
+      
+      // ✅ Track database usage
+      await trackDatabaseUsage(taskData.companyId);
     }
 
     // ✅ SEND EMAIL NOTIFICATION
@@ -1447,6 +1535,14 @@ router.post('/', async (req, res) => {
     });
     await task.save();
 
+    // ✅ Track file usage if attachments exist
+    if (taskData.attachments && taskData.attachments.length > 0) {
+      await trackFileUsage(taskData.companyId, taskData.attachments, taskData.assignedBy);
+    }
+    
+    // ✅ Track database usage
+    await trackDatabaseUsage(taskData.companyId);
+
     // ✅ SEND EMAIL NOTIFICATION FOR SINGLE TASK CREATION
     await sendTaskAssignmentEmail(taskData);
 
@@ -1461,6 +1557,9 @@ router.post('/', async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
+
+// Rest of the router code remains the same...
+// (All other endpoints remain unchanged)
 
 // ✅ OPTIMIZED: Update task
 router.put('/:id', async (req, res) => {
@@ -1522,6 +1621,9 @@ router.post('/:id/complete', async (req, res) => {
 
     if (completionAttachments?.length > 0) {
       task.completionAttachments = completionAttachments;
+      
+      // ✅ Track file usage for completion attachments
+      await trackFileUsage(task.companyId, completionAttachments, userId);
     }
 
     task.completedAt = new Date();
@@ -1576,6 +1678,9 @@ https://tms.finamite.in
     // SAVE TASK
     // --------------------------------------------------
     await task.save();
+
+    // ✅ Track database usage after task completion
+    await trackDatabaseUsage(task.companyId);
 
     // --------------------------------------------------
     // 📩 EMAIL NOTIFICATION
@@ -1725,6 +1830,9 @@ router.post('/:id/revise', async (req, res) => {
 
     await task.save();
 
+    // ✅ Track database usage after task revision
+    await trackDatabaseUsage(task.companyId);
+
     // ✅ EMAIL: SEND ON TASK REVISION
     const emailSettings = await Settings.findOne({
       type: "email",
@@ -1780,6 +1888,9 @@ https://tms.finamite.in
     });
   }
 });
+
+// All other endpoints remain the same...
+// (Copying all remaining endpoints without changes)
 
 // ✅ ULTRA-FAST: Reschedule master task endpoint
 router.put("/reschedule/:taskGroupId", async (req, res) => {
@@ -1904,6 +2015,9 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
         }
       );
 
+      // ✅ Track database usage after changes
+      await trackDatabaseUsage(masterTask.companyId);
+
       return res.json({
         message: "Recurring task ended early successfully",
         deactivatedTasks: result.modifiedCount
@@ -1935,7 +2049,8 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
         weeklyDays: updates.weeklyDays,
         weekOffDays: updates.weekOffDays || [],
         monthlyDay: updates.monthlyDay,
-        yearlyDuration: updates.yearlyDuration
+        yearlyDuration: updates.yearlyDuration,
+        attachments: updates.attachments || []
       },
       { new: true }
     );
@@ -1951,7 +2066,8 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
           title: updates.title,
           description: updates.description,
           priority: updates.priority,
-          assignedTo: updates.assignedTo
+          assignedTo: updates.assignedTo,
+          attachments: updates.attachments || []
         }
       }
     );
@@ -1971,6 +2087,10 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
 
       case "weekly":
         taskDates = getWeeklyTaskDates(startDate, endDate, updates.weeklyDays, updates.weekOffDays);
+        break;
+
+      case 'fortnightly':
+        taskDates = getFortnightlyTaskDates(startDate, endDate, updates.includeSunday, updates.weekOffDays);
         break;
 
       case "monthly":
@@ -2043,7 +2163,7 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
             assignedBy: masterTask.assignedBy,
             assignedTo: updates.assignedTo,
             companyId: masterTask.companyId,
-            attachments: masterTask.attachments || [],
+            attachments: updates.attachments || [],
             dueDate: date,
             isActive: true,
             status: "pending",
@@ -2064,6 +2184,9 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
 
       await Task.bulkWrite(bulkOps, { ordered: false });
     }
+
+    // ✅ Track database usage after changes
+    await trackDatabaseUsage(masterTask.companyId);
 
     return res.json({
       message: "Master Task updated successfully ✅ (old tasks not affected)",
@@ -2104,6 +2227,9 @@ router.put("/:taskId/bin", async (req, res) => {
       return res.status(404).json({ message: "Task not found" });
     }
 
+    // ✅ Track database usage after changes
+    await trackDatabaseUsage(companyId);
+
     res.json({ success: true, task });
   } catch (err) {
     console.error("❌ Error moving task to bin:", err);
@@ -2137,6 +2263,9 @@ router.delete('/onetime/:onetimeid', async (req, res) => {
     task.deletedAt = new Date();
 
     await task.save();
+
+    // ✅ Track database usage after deletion
+    await trackDatabaseUsage(task.companyId);
 
     return res.json({
       message: 'One-time task deleted successfully'
@@ -2209,6 +2338,9 @@ router.delete('/:id', async (req, res) => {
         }
       }
 
+      // ✅ Track database usage after deletion
+      await trackDatabaseUsage(companyId);
+
       res.json({ message: 'Task moved to recycle bin successfully' });
     } else {
       // Hard delete: Permanent removal
@@ -2222,6 +2354,9 @@ router.delete('/:id', async (req, res) => {
       if (task.taskGroupId) {
         await MasterTask.findOneAndDelete({ taskGroupId: task.taskGroupId });
       }
+
+      // ✅ Track database usage after deletion
+      await trackDatabaseUsage(companyId);
 
       res.json({ message: 'Task permanently deleted successfully' });
     }
@@ -2266,7 +2401,7 @@ router.get('/bin/master-recurring', async (req, res) => {
         { isDeleted: { $exists: false } },
         { isDeleted: null }
       ],
-      taskType: { $in: ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'] }
+      taskType: { $in: ['daily', 'weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly'] }
     };
 
     if (companyId) {
@@ -2496,7 +2631,7 @@ router.get('/bin/recurring-instances', async (req, res) => {
         { isDeleted: { $exists: false } },
         { isDeleted: null }
       ],
-      taskType: { $in: ['one-time', 'daily', 'weekly', 'monthly', 'quarterly', 'yearly'] }
+      taskType: { $in: ['one-time', 'daily', 'weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly'] }
     };
 
     if (companyId) {
@@ -2715,6 +2850,9 @@ router.post('/bin/restore/:id', async (req, res) => {
       return res.status(404).json({ message: 'Task not found in recycle bin' });
     }
 
+    // ✅ Track database usage after restoration
+    await trackDatabaseUsage(companyId);
+
     res.json({ message: 'Task restored successfully' });
   } catch (error) {
     console.error('Error restoring task:', error);
@@ -2759,6 +2897,9 @@ router.post('/bin/restore-master/:taskGroupId', async (req, res) => {
       return res.status(404).json({ message: 'Master task series not found in recycle bin' });
     }
 
+    // ✅ Track database usage after restoration
+    await trackDatabaseUsage(companyId);
+
     res.json({
       message: 'Master task series restored successfully',
       restoredCount: result.modifiedCount
@@ -2777,10 +2918,21 @@ router.delete('/bin/permanent/:id', async (req, res) => {
     const isObjectId = /^[a-fA-F0-9]{24}$/.test(id);
 
     let result;
+    let companyId = null;
+
     if (isObjectId) {
+      const task = await Task.findById(id).select('companyId');
+      companyId = task?.companyId;
       result = await Task.findOneAndDelete({ _id: id });
     } else {
+      const tasks = await Task.find({ taskGroupId: id }).select('companyId').limit(1);
+      companyId = tasks[0]?.companyId;
       result = await Task.deleteMany({ taskGroupId: id });
+    }
+
+    // ✅ Track database usage after permanent deletion
+    if (companyId) {
+      await trackDatabaseUsage(companyId);
     }
 
     return res.json({ message: 'Deleted successfully', result });
@@ -2852,6 +3004,8 @@ router.post("/reassign/:taskGroupId", async (req, res) => {
       dates = getDailyTaskDates(newStartDate, newEndDate, oldMaster.includeSunday, oldMaster.weekOffDays);
     } else if (oldMaster.taskType === "weekly") {
       dates = getWeeklyTaskDates(newStartDate, newEndDate, oldMaster.weeklyDays, oldMaster.weekOffDays);
+    } else if (oldMaster.taskType === "fortnightly") {
+      dates = getFortnightlyTaskDates(newStartDate, newEndDate, oldMaster.includeSunday, oldMaster.weekOffDays);
     } else if (oldMaster.taskType === "monthly") {
       dates = getMonthlyTaskDates(newStartDate, newEndDate, oldMaster.monthlyDay, oldMaster.includeSunday, oldMaster.weekOffDays);
     } else if (oldMaster.taskType === "quarterly") {
@@ -2895,6 +3049,8 @@ router.post("/reassign/:taskGroupId", async (req, res) => {
       newTasks.push(t);
     }
 
+    // ✅ Track database usage after reassignment
+    await trackDatabaseUsage(companyId);
 
     return res.json({
       message: "Reassigned successfully",
@@ -2935,6 +3091,9 @@ router.post('/:id/approve', async (req, res) => {
     }
 
     await task.save();
+
+    // ✅ Track database usage after approval
+    await trackDatabaseUsage(task.companyId);
 
     // 📩 Notify assignee
     const assignedUser = await User.findById(task.assignedTo);
@@ -2997,6 +3156,9 @@ router.post('/:id/reject', async (req, res) => {
 
       await task.save();
 
+      // ✅ Track database usage after rejection
+      await trackDatabaseUsage(task.companyId);
+
       return res.json({
         success: true,
         message: 'Task rejected (No action required)',
@@ -3012,6 +3174,9 @@ router.post('/:id/reject', async (req, res) => {
       task.reassignRequested = false;
 
       await task.save();
+
+      // ✅ Track database usage after rejection
+      await trackDatabaseUsage(task.companyId);
 
       return res.json({
         success: true,
@@ -3064,6 +3229,9 @@ router.post('/:id/reject', async (req, res) => {
       });
     }
 
+    // ✅ Track database usage after task setup
+    await trackDatabaseUsage(task.companyId);
+
     return res.json({
       success: true,
       action: 'reassign',
@@ -3092,6 +3260,9 @@ router.post('/:id/archive', async (req, res) => {
     task.isActive = false;
     task.status = 'pending';
     await task.save();
+
+    // ✅ Track database usage after archival
+    await trackDatabaseUsage(task.companyId);
 
     res.json({ success: true });
   } catch (err) {
@@ -3164,6 +3335,9 @@ router.delete('/bin/empty', async (req, res) => {
       isActive: false
     });
 
+    // ✅ Track database usage after cleanup
+    await trackDatabaseUsage(companyId);
+
     res.json({
       message: 'Recycle bin emptied successfully',
       deletedCount: result.deletedCount
@@ -3189,6 +3363,9 @@ router.delete('/bulk/master', async (req, res) => {
     if (permanent === 'true') {
       await Task.deleteMany({ taskGroupId, companyId });
       await MasterTask.deleteOne({ taskGroupId, companyId });
+
+      // ✅ Track database usage after deletion
+      await trackDatabaseUsage(companyId);
 
       return res.json({
         success: true,
@@ -3225,6 +3402,9 @@ router.delete('/bulk/master', async (req, res) => {
       }
     );
 
+    // ✅ Track database usage after deletion
+    await trackDatabaseUsage(companyId);
+
     return res.json({
       success: true,
       mode: 'bin'
@@ -3255,6 +3435,9 @@ router.delete("/:taskId", async (req, res) => {
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
     }
+
+    // ✅ Track database usage after deletion
+    await trackDatabaseUsage(companyId);
 
     res.json({ success: true });
   } catch (err) {

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Plus, Edit, Save, X, Users, Crown, Mail, Lock, Building, Eye, EyeOff, Key, ChevronUp, ChevronDown } from 'lucide-react';
+import { Building2, Plus, CreditCard as Edit, Save, X, Users, Crown, Mail, Lock, Building, Eye, EyeOff, Key, ChevronUp, ChevronDown, Database, BarChart3 } from 'lucide-react';
 import axios from 'axios';
 import { address } from '../../utils/ipAddress';
+import DataUsagePanel from '../components/DataUsagePanel';
 
 interface Company {
   permissions: {
@@ -44,6 +45,7 @@ interface Company {
 const SuperAdminPanel: React.FC = () => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'companies' | 'dataUsage'>('companies');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -351,17 +353,52 @@ const SuperAdminPanel: React.FC = () => {
           </h1>
         </div>
 
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="px-6 py-3 rounded-lg text-white font-medium hover:opacity-90 transition-opacity flex items-center gap-2 shadow-lg"
-          style={{ backgroundColor: 'var(--color-primary)' }}
-        >
-          <Plus size={20} />
-          Create Company
-        </button>
+        <div className="flex items-center gap-3">
+          {activeTab === 'companies' && (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="px-6 py-3 rounded-lg text-white font-medium hover:opacity-90 transition-opacity flex items-center gap-2 shadow-lg"
+              style={{ backgroundColor: 'var(--color-primary)' }}
+            >
+              <Plus size={20} />
+              Create Company
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="flex items-center gap-3 mb-4 w-full max-w-md">
+      {/* Tab Navigation */}
+      <div className="flex space-x-1 rounded-lg p-1" style={{ backgroundColor: 'var(--color-surface)' }}>
+        <button
+          onClick={() => setActiveTab('companies')}
+          className={`flex items-center px-4 py-2 rounded-md font-medium transition-colors ${
+            activeTab === 'companies' ? 'text-white' : ''
+          }`}
+          style={{
+            backgroundColor: activeTab === 'companies' ? 'var(--color-primary)' : 'transparent',
+            color: activeTab === 'companies' ? 'white' : 'var(--color-text)'
+          }}
+        >
+          <Building2 size={18} className="mr-2" />
+          Companies
+        </button>
+        <button
+          onClick={() => setActiveTab('dataUsage')}
+          className={`flex items-center px-4 py-2 rounded-md font-medium transition-colors ${
+            activeTab === 'dataUsage' ? 'text-white' : ''
+          }`}
+          style={{
+            backgroundColor: activeTab === 'dataUsage' ? 'var(--color-primary)' : 'transparent',
+            color: activeTab === 'dataUsage' ? 'white' : 'var(--color-text)'
+          }}
+        >
+          <BarChart3 size={18} className="mr-2" />
+          Data Usage
+        </button>
+      </div>
+      {activeTab === 'companies' && (
+        <>
+          <div className="flex items-center gap-3 mb-4 w-full max-w-md">
   <input
     type="text"
     value={searchTerm}
@@ -386,21 +423,20 @@ const SuperAdminPanel: React.FC = () => {
   )}
 </div>
 
-      {/* Message */}
-      {message.text && (
-        <div
-          className={`p-4 rounded-lg text-sm font-medium ${message.type === 'success'
-            ? 'bg-green-50 text-green-800 border border-green-200'
-            : 'bg-red-50 text-red-800 border border-red-200'
-            }`}
-        >
-          {message.text}
-        </div>
-      )}
-      
+          {/* Message */}
+          {message.text && (
+            <div
+              className={`p-4 rounded-lg text-sm font-medium ${message.type === 'success'
+                ? 'bg-green-50 text-green-800 border border-green-200'
+                : 'bg-red-50 text-red-800 border border-red-200'
+                }`}
+            >
+              {message.text}
+            </div>
+          )}
 
-      {/* Companies Table */}
-      <div className="rounded-lg border shadow-sm overflow-hidden" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+          {/* Companies Table */}
+          <div className="rounded-lg border shadow-sm overflow-hidden" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
         <div className="max-h-[700px] overflow-x-auto overflow-y-auto">
           <table className="w-full">
             <thead  className="sticky top-0 z-20" style={{ backgroundColor: 'var(--color-surfacehelp)' }}>
@@ -623,7 +659,10 @@ const SuperAdminPanel: React.FC = () => {
           </div>
         )}
       </div>
+        </>
+      )}
 
+      {activeTab === 'dataUsage' && <DataUsagePanel />}
       {/* Create Company Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

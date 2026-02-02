@@ -222,7 +222,7 @@ const PendingRecurringTasks: React.FC = () => {
     fiveDaysFromNow.setDate(fiveDaysFromNow.getDate() + 5);
 
     return filteredTasks.filter(task => {
-      if (!['weekly', 'monthly', 'quarterly', 'yearly'].includes(task.taskType)) {
+      if (!['weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly'].includes(task.taskType)) {
         return false;
       }
 

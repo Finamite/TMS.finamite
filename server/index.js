@@ -22,6 +22,7 @@ import chat from './routes/chat.js';
 import reportMailRoutes from "./routes/reportmail.js";
 import taskshiftRoutes from "./routes/taskshift.js";
 import { startReportCron } from "./routes/reportmail.js";
+import dataUsageRoutes, { updateFileUsage, updateDatabaseUsage } from "./routes/dataUsage.js";
 
 
 dotenv.config();
@@ -68,6 +69,11 @@ app.post('/api/upload', upload.array('files', 10), (req, res) => {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ message: 'No files uploaded' });
     }
+    
+    // Get company ID from request (you might need to adjust this based on your auth middleware)
+    const companyId = req.body.companyId || req.headers['x-company-id'];
+    const uploadedBy = req.body.uploadedBy || req.headers['x-user-id'];
+    
     const fileInfo = req.files.map(file => ({
       filename: file.filename,
       originalName: file.originalname,
@@ -75,6 +81,20 @@ app.post('/api/upload', upload.array('files', 10), (req, res) => {
       size: file.size,
       uploadedAt: new Date()
     }));
+    
+    // Update file usage tracking for each uploaded file
+    if (companyId) {
+      req.files.forEach(file => {
+        updateFileUsage(companyId, {
+          filename: file.filename,
+          originalName: file.originalname,
+          size: file.size
+        }, uploadedBy).catch(err => {
+          console.error('Error updating file usage:', err);
+        });
+      });
+    }
+    
     res.json({ message: 'Files uploaded successfully', files: fileInfo });
   } catch (error) {
     console.error('Upload error:', error);
@@ -98,6 +118,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/chat', chat);
 app.use('/api/reports', reportMailRoutes);
 app.use('/api/taskshift', taskshiftRoutes);
+app.use('/api/data-usage', dataUsageRoutes);
 
 // Serve frontend in production
 if (process.env.NODE_ENV === 'production') {
@@ -126,6 +147,15 @@ mongoose.connect(process.env.MONGO_URI)
         }
       } catch (err) {
         console.error("❌ Auto-delete cron error:", err);
+      }
+    });
+
+    // Schedule database usage tracking (runs daily at midnight)
+    cron.schedule("0 0 * * *", async () => {
+      try {
+        await updateDatabaseUsage();
+      } catch (err) {
+        console.error("❌ Database usage tracking error:", err);
       }
     });
 

@@ -1,6 +1,8 @@
-import React, { Dispatch, SetStateAction, memo } from "react";
-import { CreditCard as Edit, Save, X } from "lucide-react";
+import React, { Dispatch, SetStateAction, memo, useEffect } from "react";
+import { CreditCard as Edit, Save, X, Upload, Trash2, Download, FileText, Paperclip } from "lucide-react";
 import { toast } from "react-toastify";
+import axios from "axios";
+import { address } from "../../utils/ipAddress";
 
 interface User {
   _id: string;
@@ -36,8 +38,17 @@ interface MasterTask {
     start: string;
     end: string;
   };
+attachments: Attachment[];           // ← important
+  endedEarly?: boolean;
 }
 
+interface Attachment {
+  filename: string;
+  originalName: string;
+  size: number;
+  uploadedAt: string;
+  // path?: string;           // if you need it later
+}
 interface EditFormData {
   title: string;
   description: string;
@@ -55,6 +66,7 @@ interface EditFormData {
 
   // ✅ NEW: store reason for early end
   endedEarlyReason?: string;
+  attachments?: any[];
 }
 
 interface EditMasterTaskModalProps {
@@ -94,11 +106,33 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
     const [showReasonModal, setShowReasonModal] = React.useState(false);
     const [endedEarlyReason, setEndedEarlyReason] = React.useState("");
     const [pendingEndDate, setPendingEndDate] = React.useState<string>("");
+    
+    // ✅ NEW: Attachment states
+    const [attachments, setAttachments] = React.useState<any[]>([]);
+    const [isUploading, setIsUploading] = React.useState(false);
+    const [uploadProgress, setUploadProgress] = React.useState(0);
 
     // ✅ original end date from master task
     const originalEndDate =
       editingMasterTask?.dateRange?.end ||
       editingMasterTask?.parentTaskInfo?.originalEndDate;
+
+    // ✅ Initialize attachments when modal opens
+       useEffect(() => {
+      if (editingMasterTask?.attachments) {
+        setAttachments([...editingMasterTask.attachments]);
+      } else {
+        setAttachments([]);
+      }
+    }, [editingMasterTask]);
+
+    // ✅ Update form data when attachments change
+      useEffect(() => {
+      setEditFormData(prev => ({
+        ...prev,
+        attachments: attachments
+      }));
+    }, [attachments, setEditFormData]);
 
     if (!showEditModal || !editingMasterTask) return null;
 
@@ -124,6 +158,154 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
         month: "2-digit",
         year: "numeric",
       });
+    };
+
+    // ✅ File upload handler
+   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const files = event.target.files;
+  if (!files) return;
+
+  setIsUploading(true);
+  setUploadProgress(0);
+
+  try {
+    const formData = new FormData();
+
+    // ── THIS IS WRONG ──
+    // Array.from(files).forEach(file => formData.append('file', file));
+
+    // ── FIX: use 'files' (plural) ──
+    Array.from(files).forEach(file => {
+      formData.append('files', file);
+    });
+
+    const response = await axios.post(`${address}/api/upload`, formData, {
+      // Remove this line — axios sets correct multipart boundary automatically
+      // headers: { 'Content-Type': 'multipart/form-data' },
+      
+      onUploadProgress: (progressEvent) => {
+        const total = progressEvent.total ?? 1;
+        const percent = Math.round((progressEvent.loaded * 100) / total);
+        setUploadProgress(percent);
+      },
+    });
+
+    // Your backend returns { files: [...] }
+    if (response.data.files && response.data.files.length > 0) {
+      const newAttachments = response.data.files.map((f: any) => ({
+        filename: f.filename,
+        originalName: f.originalName,
+        size: f.size,
+        uploadedAt: new Date().toISOString(),
+        // path: f.path,          // optional
+      }));
+
+      setAttachments(prev => [...prev, ...newAttachments]);
+      toast.success(`Uploaded ${newAttachments.length} file(s)`);
+    }
+  } catch (err) {
+    console.error('Upload error:', err);
+    toast.error('Failed to upload files');
+  } finally {
+    setIsUploading(false);
+    setUploadProgress(0);
+    event.target.value = '';
+  }
+};
+    // ✅ Delete attachment handler
+    const handleDeleteAttachment = (index: number) => {
+      setAttachments(prev => prev.filter((_, i) => i !== index));
+      toast.success('Attachment removed');
+    };
+
+    // ✅ Replace attachment handler
+    const handleReplaceAttachment = async (index: number, event: React.ChangeEvent<HTMLInputElement>) => {
+  const files = event.target.files;
+  if (!files || files.length === 0) return;
+  const file = files[0];
+
+  setIsUploading(true);
+  setUploadProgress(0);
+
+  try {
+    const formData = new FormData();
+    
+    // ── CHANGED from 'file' to 'files' ──
+    formData.append('files', file);
+
+    const response = await axios.post(`${address}/api/upload`, formData, {
+      // Remove forced header
+      // headers: { 'Content-Type': 'multipart/form-data' },
+      
+      onUploadProgress: (progressEvent) => {
+        const total = progressEvent.total ?? 1;
+        const percent = Math.round((progressEvent.loaded * 100) / total);
+        setUploadProgress(percent);
+      },
+    });
+
+    if (response.data.files?.length > 0) {
+      const uploaded = response.data.files[0];
+
+      const newAttachment = {
+        filename: uploaded.filename,
+        originalName: uploaded.originalName,
+        size: uploaded.size,
+        uploadedAt: new Date().toISOString(),
+      };
+
+      setAttachments(prev => 
+        prev.map((att, i) => i === index ? newAttachment : att)
+      );
+
+      toast.success('Attachment replaced');
+    }
+  } catch (err) {
+    console.error('Replace error:', err);
+    toast.error('Failed to replace attachment');
+  } finally {
+    setIsUploading(false);
+    setUploadProgress(0);
+    event.target.value = '';
+  }
+};
+
+    // ✅ Download attachment handler
+    const handleDownloadAttachment = async (attachment: any) => {
+      try {
+        const response = await fetch(`${address}/uploads/${attachment.filename}`);
+        if (!response.ok) throw new Error('Failed to download file');
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const tempAnchor = document.createElement('a');
+        tempAnchor.href = url;
+        tempAnchor.download = attachment.originalName;
+        tempAnchor.style.display = 'none';
+
+        document.body.appendChild(tempAnchor);
+        tempAnchor.click();
+        document.body.removeChild(tempAnchor);
+        window.URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error('Download error:', error);
+        toast.error('Failed to download file');
+      }
+    };
+
+    // ✅ Format file size helper
+    const formatFileSize = (bytes: number) => {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
+    // ✅ Check if file is image
+    const isImage = (filename: string) => {
+      const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg'];
+      return imageExtensions.some(ext => filename.toLowerCase().endsWith(ext));
     };
 
 
@@ -417,6 +599,140 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
                     );
                   })}
                 </div>
+              </div>
+
+              {/* Attachments Section */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-[--color-text] mb-3">
+                  <Paperclip size={16} className="inline mr-2" />
+                  Task Attachments
+                </label>
+                
+                {/* Upload Area */}
+                <div className="border-2 border-dashed border-[--color-border] rounded-lg p-4 mb-4 hover:border-[--color-primary] transition-colors">
+                  <div className="text-center">
+                    <Upload size={32} className="mx-auto text-[--color-textSecondary] mb-2" />
+                    <p className="text-sm text-[--color-textSecondary] mb-2">
+                      Drop files here or click to upload
+                    </p>
+                    <input
+                      type="file"
+                      multiple
+                      onChange={handleFileUpload}
+                      disabled={isUploading}
+                      className="hidden"
+                      id="file-upload"
+                      accept="*/*"
+                    />
+                    <label
+                      htmlFor="file-upload"
+                      className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg cursor-pointer transition-colors ${
+                        isUploading
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          : 'bg-[--color-primary] text-white hover:bg-[--color-primary]'
+                      }`}
+                    >
+                      <Upload size={16} className="mr-2" />
+                      {isUploading ? 'Uploading...' : 'Choose Files'}
+                    </label>
+                  </div>
+                  
+                  {/* Upload Progress */}
+                  {isUploading && (
+                    <div className="mt-3">
+                      <div className="bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-[--color-primary] h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${uploadProgress}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-xs text-[--color-textSecondary] mt-1 text-center">
+                        {uploadProgress}% uploaded
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Attachments List */}
+                {attachments.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-medium text-[--color-text]">
+                      Current Attachments ({attachments.length})
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-48 overflow-y-auto">
+                      {attachments.map((attachment, index) => (
+                        <div
+                          key={index}
+                          className="border border-[--color-border] rounded-lg p-3 bg-[--color-surface] hover:shadow-sm transition-shadow"
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center space-x-2 flex-1 min-w-0">
+                              {isImage(attachment.filename) ? (
+                                <img
+                                  src={`${address}/uploads/${attachment.filename}`}
+                                  alt={attachment.originalName}
+                                  className="w-8 h-8 object-cover rounded border"
+                                />
+                              ) : (
+                                <FileText size={20} className="text-[--color-primary] flex-shrink-0" />
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-medium text-[--color-text] truncate" title={attachment.originalName}>
+                                  {attachment.originalName}
+                                </p>
+                                <p className="text-xs text-[--color-textSecondary]">
+                                  {formatFileSize(attachment.size)}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Action Buttons */}
+                          <div className="flex items-center space-x-1">
+                            <button
+                              onClick={() => handleDownloadAttachment(attachment)}
+                              className="flex-1 px-2 py-1 text-xs font-medium bg-[--color-primary] text-white rounded hover:bg-[--color-primary] transition-colors flex items-center justify-center"
+                              title="Download"
+                            >
+                              <Download size={12} className="mr-1" />
+                              Download
+                            </button>
+                            
+                            <input
+                              type="file"
+                              onChange={(e) => handleReplaceAttachment(index, e)}
+                              className="hidden"
+                              id={`replace-${index}`}
+                              accept="*/*"
+                            />
+                            <label
+                              htmlFor={`replace-${index}`}
+                              className="flex-1 px-2 py-1 text-xs font-medium bg-[--color-success] text-white rounded hover:bg-[--color-warning] transition-colors cursor-pointer flex items-center justify-center"
+                              title="Replace"
+                            >
+                              <Upload size={12} className="mr-1" />
+                              Replace
+                            </label>
+                            
+                            <button
+                              onClick={() => handleDeleteAttachment(index)}
+                              className="px-2 py-1 text-xs font-medium bg-[--color-error] text-white rounded hover:bg-[--color-error] transition-colors flex items-center justify-center"
+                              title="Delete"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {attachments.length === 0 && (
+                  <div className="text-center py-4 text-sm text-[--color-textSecondary] bg-[--color-surface] rounded-lg border border-[--color-border]">
+                    No attachments added yet
+                  </div>
+                )}
               </div>
             </div>
           </div>

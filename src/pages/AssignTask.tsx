@@ -362,6 +362,7 @@ const AssignTask: React.FC = () => {
     }
   };
 
+
   // Remove task form
   const removeTaskForm = (taskId: string) => {
     if (taskForms.length === 1) {
@@ -776,6 +777,7 @@ const AssignTask: React.FC = () => {
                           <>
                             <option value="daily">Daily</option>
                             <option value="weekly">Weekly</option>
+                            <option value="fortnightly">Fortnightly (every 14 days)</option>
                             <option value="monthly">Monthly</option>
                             <option value="quarterly">Quarterly</option>
                             <option value="yearly">Yearly</option>
@@ -1185,7 +1187,7 @@ const AssignTask: React.FC = () => {
                           </label>
                         )}
 
-                        {(task.taskType === 'daily' || task.taskType === 'monthly' || task.taskType === 'quarterly' || task.taskType === 'yearly') && (
+                        {(task.taskType === 'daily' || task.taskType === 'monthly' || task.taskType === 'fortnightly' || task.taskType === 'quarterly' || task.taskType === 'yearly') && (
                           <label className="flex items-center cursor-pointer">
                             <input
                               type="checkbox"
@@ -1315,6 +1317,13 @@ const AssignTask: React.FC = () => {
                         </select>
                       </div>
                     )}
+                    {task.taskType === 'fortnightly' && (
+                      <div className="text-sm text-amber-600 mt-2">
+                        {!task.includeSunday
+                          ? "Tasks will be created every 14 days from start date, Sundays will be moved to Saturday (or earlier if week-off)"
+                          : "Tasks can fall on Sunday"}
+                      </div>
+                    )}
                   </div>
 
                   {/* Voice Recording and Attachments for Each Task */}
@@ -1419,7 +1428,7 @@ const AssignTask: React.FC = () => {
                 className="w-full sm:w-auto flex items-center justify-center px-6 py-3 rounded-xl font-medium transition-all duration-200 hover:scale-105 shadow-lg hover:shadow-xl"
                 style={{ backgroundColor: 'var(--color-success)', color: 'white' }}
               >
-                <Plus size={20} strokeWidth={3.5}/>
+                <Plus size={20} strokeWidth={3.5} />
               </button>
 
               {/* Create All Tasks */}
