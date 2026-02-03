@@ -81,11 +81,12 @@ const DataUsagePanel: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [selectedCompany, setSelectedCompany] = useState<string>('');
     const [dateRange, setDateRange] = useState({
-        startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        endDate: new Date().toISOString().split('T')[0]
+        startDate: '',
+        endDate: ''
     });
     const [groupBy, setGroupBy] = useState<'day' | 'week' | 'month'>('day');
     const [viewMode, setViewMode] = useState<'overview' | 'detailed'>('overview');
+    const [activePreset, setActivePreset] = useState<'all' | 'last7' | 'last15' | 'last30' | 'custom'>('all');
 
     useEffect(() => {
         fetchCompanies();
@@ -110,10 +111,13 @@ const DataUsagePanel: React.FC = () => {
         try {
             setLoading(true);
             const params = new URLSearchParams({
-                startDate: dateRange.startDate,
-                endDate: dateRange.endDate,
                 groupBy
             });
+
+            if (dateRange.startDate && dateRange.endDate) {
+                params.append('startDate', dateRange.startDate);
+                params.append('endDate', dateRange.endDate);
+            }
 
             if (selectedCompany) {
                 params.append('companyId', selectedCompany);
@@ -131,39 +135,18 @@ const DataUsagePanel: React.FC = () => {
     const fetchDetailedUsage = async (companyId: string) => {
         try {
             setLoading(true);
-            const params = new URLSearchParams({
-                startDate: dateRange.startDate,
-                endDate: dateRange.endDate
-            });
+            const params = new URLSearchParams();
+
+            if (dateRange.startDate && dateRange.endDate) {
+                params.append('startDate', dateRange.startDate);
+                params.append('endDate', dateRange.endDate);
+            }
 
             const response = await axios.get(`${address}/api/data-usage/detailed/${companyId}?${params}`);
             setDetailedUsage(response.data);
             setViewMode('detailed');
         } catch (error) {
             console.error('Error fetching detailed usage:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const initializeSampleData = async () => {
-        if (!selectedCompany) {
-            alert('Please select a company first');
-            return;
-        }
-
-        try {
-            setLoading(true);
-            await axios.post(`${address}/api/data-usage/init-sample-data`, {
-                companyId: selectedCompany
-            });
-
-            // Refresh data after creating samples
-            await fetchUsageData();
-            alert('Sample data created successfully!');
-        } catch (error) {
-            console.error('Error creating sample data:', error);
-            alert('Failed to create sample data');
         } finally {
             setLoading(false);
         }
@@ -179,6 +162,29 @@ const DataUsagePanel: React.FC = () => {
 
     const formatDate = (dateString: string): string => {
         return new Date(dateString).toLocaleDateString();
+    };
+
+    const formatInputDate = (date: Date): string => {
+        const dd = String(date.getDate()).padStart(2, '0');
+        const mm = String(date.getMonth() + 1).padStart(2, '0');
+        const yyyy = date.getFullYear();
+        return `${yyyy}-${mm}-${dd}`;
+    };
+
+    const setPresetRange = (days: number | null) => {
+        if (days === null) {
+            setDateRange({ startDate: '', endDate: '' });
+            setActivePreset('all');
+            return;
+        }
+
+        const today = new Date();
+        const start = new Date();
+        start.setDate(today.getDate() - (days - 1));
+        setDateRange({
+            startDate: formatInputDate(start),
+            endDate: formatInputDate(today)
+        });
     };
 
     const formatDDMMYYYY = (date: Date): string => {
@@ -264,7 +270,7 @@ const DataUsagePanel: React.FC = () => {
             </div>
 
             {/* Filters */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 p-4 rounded-lg border bg-white">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 rounded-lg border bg-white">
                 <div>
                     <label className="block text-sm font-medium mb-2 text-gray-700">
                         Start Date
@@ -272,7 +278,10 @@ const DataUsagePanel: React.FC = () => {
                     <input
                         type="date"
                         value={dateRange.startDate}
-                        onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                        onChange={(e) => {
+                            setActivePreset('custom');
+                            setDateRange(prev => ({ ...prev, startDate: e.target.value }));
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                 </div>
@@ -284,7 +293,10 @@ const DataUsagePanel: React.FC = () => {
                     <input
                         type="date"
                         value={dateRange.endDate}
-                        onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                        onChange={(e) => {
+                            setActivePreset('custom');
+                            setDateRange(prev => ({ ...prev, endDate: e.target.value }));
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                 </div>
@@ -321,19 +333,57 @@ const DataUsagePanel: React.FC = () => {
                         ))}
                     </select>
                 </div>
+            </div>
 
-                <div>
-                    <label className="block text-sm font-medium mb-2 text-gray-700">
-                        Actions
-                    </label>
-                    <button
-                        onClick={initializeSampleData}
-                        disabled={!selectedCompany || loading}
-                        className="w-full px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                        Init Sample Data
-                    </button>
-                </div>
+            <div className="flex flex-wrap gap-2">
+                <button
+                    onClick={() => {
+                        setPresetRange(null);
+                        setActivePreset('all');
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${activePreset === 'all'
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                        }`}
+                >
+                    All
+                </button>
+                <button
+                    onClick={() => {
+                        setPresetRange(7);
+                        setActivePreset('last7');
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${activePreset === 'last7'
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                        }`}
+                >
+                    Last Week
+                </button>
+                <button
+                    onClick={() => {
+                        setPresetRange(15);
+                        setActivePreset('last15');
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${activePreset === 'last15'
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                        }`}
+                >
+                    Last 15 Days
+                </button>
+                <button
+                    onClick={() => {
+                        setPresetRange(30);
+                        setActivePreset('last30');
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${activePreset === 'last30'
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                        }`}
+                >
+                    Last Month
+                </button>
             </div>
 
             {loading ? (
@@ -380,7 +430,7 @@ const DataUsagePanel: React.FC = () => {
                                         Database Size
                                     </p>
                                     <p className="text-2xl font-bold text-gray-900">
-                                        {formatBytes(usageData.reduce((sum, item) => sum + item.totalDatabaseSize, 0))}
+                                        {formatBytes(usageData.reduce((max, item) => Math.max(max, item.totalDatabaseSize), 0))}
                                     </p>
                                 </div>
                                 <Database size={24} className="text-green-600" />
@@ -394,7 +444,7 @@ const DataUsagePanel: React.FC = () => {
                                         Total Documents
                                     </p>
                                     <p className="text-2xl font-bold text-gray-900">
-                                        {usageData.reduce((sum, item) => sum + item.totalDocuments, 0).toLocaleString()}
+                                        {usageData.reduce((max, item) => Math.max(max, item.totalDocuments), 0).toLocaleString()}
                                     </p>
                                 </div>
                                 <TrendingUp size={24} className="text-orange-600" />
@@ -412,14 +462,6 @@ const DataUsagePanel: React.FC = () => {
                             <p className="text-sm text-gray-600 mb-4">
                                 No data usage records were found for the selected filters.
                             </p>
-                            {selectedCompany && (
-                                <button
-                                    onClick={initializeSampleData}
-                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                                >
-                                    Create Sample Data
-                                </button>
-                            )}
                         </div>
                     )}
 
@@ -441,9 +483,6 @@ const DataUsagePanel: React.FC = () => {
                                             </th>
                                             <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
                                                 Database Size
-                                            </th>
-                                            <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                                                Actions
                                             </th>
                                         </tr>
                                     </thead>
@@ -478,14 +517,6 @@ const DataUsagePanel: React.FC = () => {
                                                     <div className="text-xs text-gray-600">
                                                         {item.totalDocuments} documents
                                                     </div>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <button
-                                                        onClick={() => fetchDetailedUsage(item._id.companyId)}
-                                                        className="px-3 py-1 rounded text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors"
-                                                    >
-                                                        View Details
-                                                    </button>
                                                 </td>
                                             </tr>
                                         ))}

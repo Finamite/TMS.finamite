@@ -7,6 +7,18 @@ import mongoose from 'mongoose';
 
 const router = express.Router();
 
+const startOfDay = (date) => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+const endOfDay = (date) => {
+  const d = new Date(date);
+  d.setHours(23, 59, 59, 999);
+  return d;
+};
+
 // Get data usage for all companies or specific company
 router.get('/', async (req, res) => {
   try {
@@ -20,8 +32,8 @@ router.get('/', async (req, res) => {
 
     if (startDate || endDate) {
       matchQuery.date = {};
-      if (startDate) matchQuery.date.$gte = new Date(startDate);
-      if (endDate) matchQuery.date.$lte = new Date(endDate);
+      if (startDate) matchQuery.date.$gte = startOfDay(startDate);
+      if (endDate) matchQuery.date.$lte = endOfDay(endDate);
     }
 
     let groupByFormat;
@@ -56,8 +68,8 @@ router.get('/', async (req, res) => {
           },
           totalFileStorage: { $sum: '$fileStorage.totalSize' },
           totalFileCount: { $sum: '$fileStorage.fileCount' },
-          totalDatabaseSize: { $sum: '$databaseUsage.totalSize' },
-          totalDocuments: { $sum: '$databaseUsage.totalDocuments' },
+          totalDatabaseSize: { $max: '$databaseUsage.totalSize' },
+          totalDocuments: { $max: '$databaseUsage.totalDocuments' },
           records: { $push: '$$ROOT' }
         }
       },
@@ -112,8 +124,8 @@ router.get('/detailed/:companyId', async (req, res) => {
     let dateQuery = {};
     if (startDate || endDate) {
       dateQuery.date = {};
-      if (startDate) dateQuery.date.$gte = new Date(startDate);
-      if (endDate) dateQuery.date.$lte = new Date(endDate);
+      if (startDate) dateQuery.date.$gte = startOfDay(startDate);
+      if (endDate) dateQuery.date.$lte = endOfDay(endDate);
     }
 
     const usage = await DataUsage.find({
@@ -123,14 +135,18 @@ router.get('/detailed/:companyId', async (req, res) => {
 
     const company = await Company.findOne({ companyId }).select('companyName');
 
+    const latest = usage[0];
+    const totalFileStorage = usage.reduce((sum, day) => sum + day.fileStorage.totalSize, 0);
+    const totalFileCount = usage.reduce((sum, day) => sum + day.fileStorage.fileCount, 0);
+
     res.json({
       company,
       usage,
       summary: {
-        totalFileStorage: usage.reduce((sum, day) => sum + day.fileStorage.totalSize, 0),
-        totalFileCount: usage.reduce((sum, day) => sum + day.fileStorage.fileCount, 0),
-        totalDatabaseSize: usage.reduce((sum, day) => sum + day.databaseUsage.totalSize, 0),
-        totalDocuments: usage.reduce((sum, day) => sum + day.databaseUsage.totalDocuments, 0),
+        totalFileStorage,
+        totalFileCount,
+        totalDatabaseSize: latest ? latest.databaseUsage.totalSize : 0,
+        totalDocuments: latest ? latest.databaseUsage.totalDocuments : 0,
         dateRange: {
           start: usage.length > 0 ? usage[usage.length - 1].date : null,
           end: usage.length > 0 ? usage[0].date : null

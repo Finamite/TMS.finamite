@@ -251,8 +251,11 @@ const trackFileUsage = async (companyId, attachments, uploadedBy) => {
 // ✅ ADD DATABASE USAGE TRACKING FUNCTION
 const trackDatabaseUsage = async (companyId) => {
   try {
+    if (!companyId) {
+      return;
+    }
     // Update database usage for the specific company
-    await updateDatabaseUsage();
+    await updateDatabaseUsage(companyId);
   } catch (error) {
     console.error('Error tracking database usage:', error);
   }
