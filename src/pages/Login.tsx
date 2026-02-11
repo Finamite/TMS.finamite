@@ -152,6 +152,23 @@ const Login: React.FC = () => {
       </form>
     </div>
 
+    <div className="text-center mt-4 text-sm text-gray-500">
+  By continuing, you agree to our{" "}
+  <a
+    href="/terms-and-conditions"
+    className="text-blue-600 hover:underline"
+  >
+    Terms & Conditions
+  </a>{" "}
+  and{" "}
+  <a
+    href="/privacy-policy"
+    className="text-blue-600 hover:underline"
+  >
+    Privacy Policy
+  </a>.
+</div>
+
     {/* FOOTER */}
     <div className="mt-6 text-center text-xs text-gray-500 space-y-2">
       <p>© Finamite Solutions. All rights reserved.</p>

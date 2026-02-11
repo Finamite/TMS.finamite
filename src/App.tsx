@@ -19,6 +19,8 @@ import RecycleBin from './pages/RecycleBin';
 import HelpSupport from './pages/HelpSupport';
 import TaskShift from './pages/TaskShift';
 import ForApproval from './pages/ForApproval';
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsAndConditions from "./pages/TermsAndConditions";
 import { ToastContainer } from 'react-toastify';
 
 function App() {
@@ -30,6 +32,8 @@ function App() {
             <Routes>
 
               <Route path="/login" element={<Login />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
 
               <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
 
