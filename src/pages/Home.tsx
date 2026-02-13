@@ -63,7 +63,7 @@ const Home = () => {
 
                             <div className="flex flex-col leading-tight">
                                 <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                                    Task Management System
+                                    TMS - Task Management System
                                 </h1>
                                 <p className="text-sm text-slate-500 mt-1">
                                     Powered by Finamite Solutions LLP
@@ -146,10 +146,10 @@ const Home = () => {
                         <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
                             Everything you need to manage tasks effectively
                         </h2>
-                        <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-                            From task assignment to performance tracking, TMS provides comprehensive tools
-                            to streamline your workflow and boost productivity.
-                        </p>
+                        <p className="text-lg text-gray-700 leading-relaxed">
+  TMS is a web-based task management platform that enables organizations to assign tasks, track revisions, monitor performance, and send automated task-related email notifications.
+</p>
+
                     </div>
 
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -237,7 +237,7 @@ const Home = () => {
 
                                 <div className="flex flex-col">
                                     <h3 className="text-2xl font-bold">
-                                        TMS (Task Management System)
+                                        TMS - Task Management System
                                     </h3>
                                     <p className="text-sm text-slate-500">
                                         Powered by Finamite Solutions LLP
