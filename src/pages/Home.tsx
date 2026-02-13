@@ -1,4 +1,3 @@
-import React from "react";
 import { Link } from "react-router-dom";
 import {
     CheckCircle,
@@ -8,11 +7,7 @@ import {
     Shield,
     Clock,
     Zap,
-    ArrowRight,
-    Star,
-    TrendingUp,
     LogIn,
-    UserPlus
 } from "lucide-react";
 
 const Home = () => {
@@ -62,12 +57,12 @@ const Home = () => {
             {/* Header */}
             <header className="bg-white shadow-sm sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between items-center py-6">
+                    <div className="flex justify-between items-center py-4">
                         <div className="flex items-center space-x-3">
 
 
                             <div className="flex flex-col leading-tight">
-                                <h1 className="text-3xl font-bold text-indigo-600 bg-clip-text text-transparent">
+                                <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                                     Task Management System
                                 </h1>
                                 <p className="text-sm text-slate-500 mt-1">
@@ -148,10 +143,10 @@ const Home = () => {
             <section className="py-24 bg-white">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="text-center mb-20">
-                        <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6 mt-10">
+                        <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
                             Everything you need to manage tasks effectively
                         </h2>
-                        <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed mb-8">
+                        <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
                             From task assignment to performance tracking, TMS provides comprehensive tools
                             to streamline your workflow and boost productivity.
                         </p>
@@ -179,7 +174,7 @@ const Home = () => {
             </section>
 
             {/* Benefits Section */}
-            <section className="py-24 bg-gradient-to-br from-gray-50 to-indigo-50 mt-10">
+            <section className="py-24 bg-gradient-to-br from-gray-50 to-indigo-50">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="grid lg:grid-cols-2 gap-16 items-center">
                         <div>
@@ -230,7 +225,7 @@ const Home = () => {
             </section>
 
             {/* Footer */}
-            <footer className="bg-gray-900 text-white py-16 mt-10">
+            <footer className="bg-gray-900 text-white py-16">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="grid md:grid-cols-2 gap-12">
                         <div className="space-y-6">
