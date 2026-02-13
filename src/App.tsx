@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Layout from './components/Layout';
@@ -20,6 +20,7 @@ import HelpSupport from './pages/HelpSupport';
 import TaskShift from './pages/TaskShift';
 import ForApproval from './pages/ForApproval';
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import Home from "./pages/Home";
 import TermsAndConditions from "./pages/TermsAndConditions";
 import { ToastContainer } from 'react-toastify';
 
@@ -31,13 +32,12 @@ function App() {
           <div className="min-h-screen" style={{ backgroundColor: 'var(--color-background)', color: 'var(--color-text)' }}>
             <Routes>
 
+              <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
 
-              <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-
-                <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
 
                 {/* Permission-protected routes */}
                 <Route
