@@ -2109,8 +2109,12 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
         break;
     }
 
-    // ✅ Normalize to YYYY-MM-DD
-    const normalize = (d) => new Date(d).toISOString().slice(0, 10);
+    // ✅ Normalize date key to local midnight timestamp
+    const normalize = (d) => {
+      const dt = new Date(d);
+      dt.setHours(0, 0, 0, 0);
+      return dt.getTime();
+    };
 
     // ✅ Only affect FUTURE tasks (so old history stays safe)
     const today = new Date();
@@ -2118,30 +2122,27 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
 
     const newDateSet = new Set(taskDates.map(normalize));
 
-    // ✅ Get only active future tasks in DB
+    // ✅ Get active tasks from today onward
     const existingFutureActiveTasks = await Task.find({
       taskGroupId,
       ...(companyId ? { companyId } : {}),
       isActive: true,
       dueDate: { $gte: today }
     })
-      .select("dueDate")
+      .select("_id dueDate status")
       .lean();
 
     const existingFutureSet = new Set(existingFutureActiveTasks.map((t) => normalize(t.dueDate)));
 
-    // ✅ 4) Deactivate future tasks that are not part of new schedule
-    const futureTasksToDeactivate = existingFutureActiveTasks
-      .filter((t) => !newDateSet.has(normalize(t.dueDate)))
-      .map((t) => normalize(t.dueDate));
+    // ✅ 4) Deactivate only non-completed today/future tasks removed from new schedule
+    const taskIdsToDeactivate = existingFutureActiveTasks
+      .filter((t) => t.status !== "completed" && !newDateSet.has(normalize(t.dueDate)))
+      .map((t) => t._id);
 
-    if (futureTasksToDeactivate.length > 0) {
+    if (taskIdsToDeactivate.length > 0) {
       await Task.updateMany(
         {
-          taskGroupId,
-          ...(companyId ? { companyId } : {}),
-          isActive: true,
-          dueDate: { $gte: today }
+          _id: { $in: taskIdsToDeactivate }
         },
         {
           $set: {
@@ -2153,7 +2154,10 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
     }
 
     // ✅ 5) Insert missing future tasks
-    const datesToInsert = taskDates.filter((d) => !existingFutureSet.has(normalize(d)));
+    const datesToInsert = taskDates.filter((d) => {
+      const key = normalize(d);
+      return key >= today.getTime() && !existingFutureSet.has(key);
+    });
 
     if (datesToInsert.length > 0) {
       const bulkOps = datesToInsert.map((date) => ({
