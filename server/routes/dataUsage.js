@@ -4,8 +4,11 @@ import Company from '../models/Company.js';
 import User from '../models/User.js';
 import Task from '../models/Task.js';
 import mongoose from 'mongoose';
+import * as jsPDFModule from 'jspdf';
+import { applyPlugin } from 'jspdf-autotable';
 
 const router = express.Router();
+applyPlugin(jsPDFModule.jsPDF);
 
 const startOfDay = (date) => {
   const d = new Date(date);
@@ -19,77 +22,142 @@ const endOfDay = (date) => {
   return d;
 };
 
+const buildMatchQuery = ({ companyId, startDate, endDate }) => {
+  const matchQuery = {};
+
+  if (companyId && companyId !== '') {
+    matchQuery.companyId = companyId;
+  }
+
+  if (startDate || endDate) {
+    matchQuery.date = {};
+    if (startDate) matchQuery.date.$gte = startOfDay(startDate);
+    if (endDate) matchQuery.date.$lte = endOfDay(endDate);
+  }
+
+  return matchQuery;
+};
+
+const getGroupByFormat = (groupBy) => {
+  switch (groupBy) {
+    case 'month':
+      return {
+        year: { $year: '$date' },
+        month: { $month: '$date' }
+      };
+    case 'week':
+      return {
+        year: { $year: '$date' },
+        week: { $week: '$date' }
+      };
+    default:
+      return {
+        year: { $year: '$date' },
+        month: { $month: '$date' },
+        day: { $dayOfMonth: '$date' }
+      };
+  }
+};
+
+const buildUsagePipeline = ({ companyId, startDate, endDate, groupBy = 'day' }) => {
+  const matchQuery = buildMatchQuery({ companyId, startDate, endDate });
+  const groupByFormat = getGroupByFormat(groupBy);
+
+  return [
+    { $match: matchQuery },
+    {
+      $group: {
+        _id: {
+          companyId: '$companyId',
+          ...groupByFormat
+        },
+        totalFileStorage: { $sum: '$fileStorage.totalSize' },
+        totalFileCount: { $sum: '$fileStorage.fileCount' },
+        totalDatabaseSize: { $max: '$databaseUsage.totalSize' },
+        totalDocuments: { $max: '$databaseUsage.totalDocuments' },
+        records: { $push: '$$ROOT' }
+      }
+    },
+    {
+      $lookup: {
+        from: 'companies',
+        localField: '_id.companyId',
+        foreignField: 'companyId',
+        as: 'company'
+      }
+    },
+    {
+      $sort: {
+        '_id.year': -1,
+        '_id.month': -1,
+        '_id.day': -1,
+        '_id.week': -1
+      }
+    }
+  ];
+};
+
+const buildDetailedUsageResponse = async ({ companyId, startDate, endDate }) => {
+  const matchQuery = buildMatchQuery({ companyId, startDate, endDate });
+  const usage = await DataUsage.find(matchQuery).sort({ companyId: 1, date: -1 }).lean();
+
+  const companyIds = [...new Set(usage.map((item) => item.companyId))];
+  const companies = await Company.find({ companyId: { $in: companyIds } })
+    .select('companyId companyName')
+    .lean();
+
+  const companyMap = new Map(companies.map((c) => [c.companyId, c.companyName]));
+  const grouped = usage.reduce((acc, item) => {
+    if (!acc[item.companyId]) acc[item.companyId] = [];
+    acc[item.companyId].push(item);
+    return acc;
+  }, {});
+
+  const companyDetails = Object.keys(grouped).map((id) => {
+    const entries = grouped[id];
+    const totalFileStorage = entries.reduce((sum, day) => sum + (day.fileStorage?.totalSize || 0), 0);
+    const totalFileCount = entries.reduce((sum, day) => sum + (day.fileStorage?.fileCount || 0), 0);
+    const totalDatabaseSize = entries.reduce((max, day) => Math.max(max, day.databaseUsage?.totalSize || 0), 0);
+    const totalDocuments = entries.reduce((max, day) => Math.max(max, day.databaseUsage?.totalDocuments || 0), 0);
+
+    return {
+      company: {
+        companyId: id,
+        companyName: companyMap.get(id) || id
+      },
+      usage: entries,
+      summary: {
+        totalFileStorage,
+        totalFileCount,
+        totalDatabaseSize,
+        totalDocuments,
+        dateRange: {
+          start: entries.length > 0 ? entries[entries.length - 1].date : null,
+          end: entries.length > 0 ? entries[0].date : null
+        }
+      }
+    };
+  });
+
+  const summary = {
+    totalFileStorage: companyDetails.reduce((sum, item) => sum + item.summary.totalFileStorage, 0),
+    totalFileCount: companyDetails.reduce((sum, item) => sum + item.summary.totalFileCount, 0),
+    totalDatabaseSize: companyDetails.reduce((sum, item) => sum + item.summary.totalDatabaseSize, 0),
+    totalDocuments: companyDetails.reduce((sum, item) => sum + item.summary.totalDocuments, 0),
+    companyCount: companyDetails.length
+  };
+
+  return {
+    companies: companyDetails,
+    summary
+  };
+};
+
 // Get data usage for all companies or specific company
 router.get('/', async (req, res) => {
   try {
     const { companyId, startDate, endDate, groupBy = 'day' } = req.query;
-
-    let matchQuery = {};
-    
-    if (companyId && companyId !== '') {
-      matchQuery.companyId = companyId;
-    }
-
-    if (startDate || endDate) {
-      matchQuery.date = {};
-      if (startDate) matchQuery.date.$gte = startOfDay(startDate);
-      if (endDate) matchQuery.date.$lte = endOfDay(endDate);
-    }
-
-    let groupByFormat;
-    switch (groupBy) {
-      case 'month':
-        groupByFormat = {
-          year: { $year: '$date' },
-          month: { $month: '$date' }
-        };
-        break;
-      case 'week':
-        groupByFormat = {
-          year: { $year: '$date' },
-          week: { $week: '$date' }
-        };
-        break;
-      default: // day
-        groupByFormat = {
-          year: { $year: '$date' },
-          month: { $month: '$date' },
-          day: { $dayOfMonth: '$date' }
-        };
-    }
-
-    const pipeline = [
-      { $match: matchQuery },
-      {
-        $group: {
-          _id: {
-            companyId: '$companyId',
-            ...groupByFormat
-          },
-          totalFileStorage: { $sum: '$fileStorage.totalSize' },
-          totalFileCount: { $sum: '$fileStorage.fileCount' },
-          totalDatabaseSize: { $max: '$databaseUsage.totalSize' },
-          totalDocuments: { $max: '$databaseUsage.totalDocuments' },
-          records: { $push: '$$ROOT' }
-        }
-      },
-      {
-        $lookup: {
-          from: 'companies',
-          localField: '_id.companyId',
-          foreignField: 'companyId',
-          as: 'company'
-        }
-      },
-      {
-        $sort: {
-          '_id.year': -1,
-          '_id.month': -1,
-          '_id.day': -1,
-          '_id.week': -1
-        }
-      }
-    ];
+    const pipeline = buildUsagePipeline({ companyId, startDate, endDate, groupBy });
 
     const usage = await DataUsage.aggregate(pipeline);
 
@@ -115,47 +183,95 @@ router.get('/companies', async (req, res) => {
   }
 });
 
-// Get detailed usage for a specific company and date range
+// Get detailed usage for all companies or a specific company and date range
+router.get('/detailed', async (req, res) => {
+  try {
+    const { companyId, startDate, endDate } = req.query;
+
+    const response = await buildDetailedUsageResponse({
+      companyId,
+      startDate,
+      endDate
+    });
+
+    res.json(response);
+  } catch (error) {
+    console.error('Error fetching detailed usage:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Backward-compatible route
 router.get('/detailed/:companyId', async (req, res) => {
   try {
     const { companyId } = req.params;
     const { startDate, endDate } = req.query;
 
-    let dateQuery = {};
-    if (startDate || endDate) {
-      dateQuery.date = {};
-      if (startDate) dateQuery.date.$gte = startOfDay(startDate);
-      if (endDate) dateQuery.date.$lte = endOfDay(endDate);
-    }
-
-    const usage = await DataUsage.find({
+    const response = await buildDetailedUsageResponse({
       companyId,
-      ...dateQuery
-    }).sort({ date: -1 });
-
-    const company = await Company.findOne({ companyId }).select('companyName');
-
-    const latest = usage[0];
-    const totalFileStorage = usage.reduce((sum, day) => sum + day.fileStorage.totalSize, 0);
-    const totalFileCount = usage.reduce((sum, day) => sum + day.fileStorage.fileCount, 0);
-
-    res.json({
-      company,
-      usage,
-      summary: {
-        totalFileStorage,
-        totalFileCount,
-        totalDatabaseSize: latest ? latest.databaseUsage.totalSize : 0,
-        totalDocuments: latest ? latest.databaseUsage.totalDocuments : 0,
-        dateRange: {
-          start: usage.length > 0 ? usage[usage.length - 1].date : null,
-          end: usage.length > 0 ? usage[0].date : null
-        }
-      }
+      startDate,
+      endDate
     });
+
+    res.json(response);
   } catch (error) {
     console.error('Error fetching detailed usage:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.post('/export-pdf', async (req, res) => {
+  try {
+    const { companyId, startDate, endDate, groupBy = 'day' } = req.body;
+    const usage = await DataUsage.aggregate(
+      buildUsagePipeline({ companyId, startDate, endDate, groupBy })
+    );
+
+    const doc = new jsPDFModule.jsPDF();
+    const title = 'Data Usage Report';
+    const generatedAt = new Date().toLocaleString();
+    const periodLabel = `${startDate || 'Start'} to ${endDate || 'Current'}`;
+
+    doc.setFontSize(16);
+    doc.text(title, 14, 16);
+    doc.setFontSize(10);
+    doc.text(`Generated: ${generatedAt}`, 14, 24);
+    doc.text(`Period: ${periodLabel}`, 14, 30);
+    doc.text(`Group By: ${groupBy}`, 14, 36);
+
+    const rows = usage.map((item) => {
+      const period =
+        groupBy === 'month'
+          ? `${item._id.month}/${item._id.year}`
+          : groupBy === 'week'
+            ? `W${item._id.week}/${item._id.year}`
+            : `${item._id.day}/${item._id.month}/${item._id.year}`;
+
+      return [
+        item.company?.[0]?.companyName || item._id.companyId,
+        period,
+        item.totalFileCount?.toLocaleString() || '0',
+        item.totalFileStorage?.toLocaleString() || '0',
+        item.totalDocuments?.toLocaleString() || '0',
+        item.totalDatabaseSize?.toLocaleString() || '0'
+      ];
+    });
+
+    doc.autoTable({
+      startY: 42,
+      head: [['Company', 'Period', 'File Count', 'File Storage (Bytes)', 'Tasks', 'DB Size (Bytes)']],
+      body: rows,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [37, 99, 235] }
+    });
+
+    const pdfBuffer = doc.output('arraybuffer');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=data-usage-report.pdf');
+    res.send(Buffer.from(pdfBuffer));
+  } catch (error) {
+    console.error('Error exporting data usage PDF:', error);
+    res.status(500).json({ message: 'Error generating PDF file', error: error.message });
   }
 });
 
