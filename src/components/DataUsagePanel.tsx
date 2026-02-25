@@ -290,7 +290,10 @@ const DataUsagePanel: React.FC = () => {
       });
     }
     if (groupBy === 'week') return `Week ${item.week}, ${item.year}`;
-    return new Date(item.year, item.month - 1, item.day ?? 1).toLocaleDateString();
+    const dd = String(item.day ?? 1).padStart(2, '0');
+    const mm = String(item.month).padStart(2, '0');
+    const yyyy = String(item.year);
+    return `${dd}/${mm}/${yyyy}`;
   };
 
   const sumCompanyWiseMax = (field: 'totalDatabaseSize' | 'totalDocuments') => {
@@ -304,6 +307,57 @@ const DataUsagePanel: React.FC = () => {
     }
     return Object.values(maxByCompany).reduce((sum, val) => sum + val, 0);
   };
+
+  const getDayTimestamp = (item: DataUsageStats): number => {
+    const year = item._id.year;
+    const month = item._id.month ?? 1;
+    const day = item._id.day ?? 1;
+    return new Date(year, month - 1, day).getTime();
+  };
+
+  const dailyTasksAddedByKey = useMemo(() => {
+    if (groupBy !== 'day' || usageData.length === 0) return new Map<string, number>();
+
+    const byCompany: Record<string, DataUsageStats[]> = {};
+    for (const item of usageData) {
+      const companyId = item._id.companyId;
+      if (!byCompany[companyId]) byCompany[companyId] = [];
+      byCompany[companyId].push(item);
+    }
+
+    const result = new Map<string, number>();
+    for (const [companyId, records] of Object.entries(byCompany)) {
+      const sorted = [...records].sort((a, b) => getDayTimestamp(a) - getDayTimestamp(b));
+      let previousTotal = 0;
+
+      for (const current of sorted) {
+        const currentTotal = current.totalDocuments || 0;
+        const added = Math.max(currentTotal - previousTotal, 0);
+        const key = `${companyId}-${current._id.year}-${current._id.month}-${current._id.day ?? 1}`;
+        result.set(key, added);
+        previousTotal = currentTotal;
+      }
+    }
+
+    return result;
+  }, [groupBy, usageData]);
+
+  const tasksAddedToday = useMemo(() => {
+    if (groupBy !== 'day') return 0;
+
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth() + 1;
+    const day = today.getDate();
+
+    return usageData.reduce((sum, item) => {
+      if (item._id.year === year && item._id.month === month && item._id.day === day) {
+        const key = `${item._id.companyId}-${item._id.year}-${item._id.month}-${item._id.day ?? 1}`;
+        return sum + (dailyTasksAddedByKey.get(key) || 0);
+      }
+      return sum;
+    }, 0);
+  }, [groupBy, usageData, dailyTasksAddedByKey]);
 
   const flattenedDetailedRows = useMemo(() => {
     if (!detailedUsage) return [];
@@ -604,9 +658,11 @@ const DataUsagePanel: React.FC = () => {
             <div className="p-6 rounded-lg border bg-white">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Tasks</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    {groupBy === 'day' ? 'Tasks Added Today' : 'Total Tasks'}
+                  </p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {sumCompanyWiseMax('totalDocuments').toLocaleString()}
+                    {(groupBy === 'day' ? tasksAddedToday : sumCompanyWiseMax('totalDocuments')).toLocaleString()}
                   </p>
                 </div>
                 <TrendingUp size={24} className="text-orange-600" />
@@ -650,7 +706,11 @@ const DataUsagePanel: React.FC = () => {
                         </td>
                         <td className="px-6 py-4">
                           <div className="text-sm text-gray-900">{formatBytes(item.totalDatabaseSize)}</div>
-                          <div className="text-xs text-gray-600">{item.totalDocuments} tasks</div>
+                          <div className="text-xs text-gray-600">
+                            {groupBy === 'day'
+                              ? `${dailyTasksAddedByKey.get(`${item._id.companyId}-${item._id.year}-${item._id.month}-${item._id.day ?? 1}`) || 0} tasks added`
+                              : `${item.totalDocuments} tasks`}
+                          </div>
                         </td>
                       </tr>
                     ))}
