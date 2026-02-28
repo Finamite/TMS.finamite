@@ -31,7 +31,7 @@ const getDailyTaskDates = (startDate, endDate, includeSunday, weekOffDays = []) 
 };
 
 let teamPendingCache = {};
-let lastCacheTime = 0;
+let teamPendingCacheTime = {};
 const CACHE_TTL = 30 * 1000;
 
 // Helper function to get all dates for weekly tasks within a range based on selected days
@@ -443,7 +443,7 @@ router.get('/team-pending-fast', async (req, res) => {
     // ✅ Serve from cache if valid
     if (
       teamPendingCache[companyId] &&
-      nowTs - lastCacheTime < CACHE_TTL
+      nowTs - (teamPendingCacheTime[companyId] || 0) < CACHE_TTL
     ) {
       return res.json(teamPendingCache[companyId]);
     }
@@ -578,7 +578,7 @@ router.get('/team-pending-fast', async (req, res) => {
 
     // ✅ Save to cache
     teamPendingCache[companyId] = data;
-    lastCacheTime = nowTs;
+    teamPendingCacheTime[companyId] = nowTs;
 
     res.json(data);
   } catch (err) {
