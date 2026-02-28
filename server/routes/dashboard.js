@@ -603,8 +603,137 @@ router.get('/counts', async (req, res) => {
       return res.json(payload);
     }
 
-    // Use Promise.all for parallel execution - including quarterly
-    const [
+    const aggregateCountsForRange = async (rangeQuery) => {
+      const result = await Task.aggregate([
+        { $match: { ...baseQuery, ...rangeQuery } },
+        {
+          $addFields: {
+            effectiveDue: { $ifNull: ['$nextDueDate', '$dueDate'] }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalTasks: { $sum: 1 },
+            pendingTasks: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
+            completedTasks: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
+            overdueTasks: {
+              $sum: {
+                $cond: [
+                  {
+                    $and: [
+                      { $ne: ['$status', 'completed'] },
+                      { $ne: ['$taskType', 'daily'] },
+                      { $lt: ['$effectiveDue', now] }
+                    ]
+                  },
+                  1,
+                  0
+                ]
+              }
+            },
+            oneTimeTasks: { $sum: { $cond: [{ $eq: ['$taskType', 'one-time'] }, 1, 0] } },
+            oneTimePending: {
+              $sum: {
+                $cond: [{ $and: [{ $eq: ['$taskType', 'one-time'] }, { $eq: ['$status', 'pending'] }] }, 1, 0]
+              }
+            },
+            oneTimeCompleted: {
+              $sum: {
+                $cond: [{ $and: [{ $eq: ['$taskType', 'one-time'] }, { $eq: ['$status', 'completed'] }] }, 1, 0]
+              }
+            },
+            dailyTasks: { $sum: { $cond: [{ $eq: ['$taskType', 'daily'] }, 1, 0] } },
+            dailyPending: {
+              $sum: {
+                $cond: [{ $and: [{ $eq: ['$taskType', 'daily'] }, { $eq: ['$status', 'pending'] }] }, 1, 0]
+              }
+            },
+            dailyCompleted: {
+              $sum: {
+                $cond: [{ $and: [{ $eq: ['$taskType', 'daily'] }, { $eq: ['$status', 'completed'] }] }, 1, 0]
+              }
+            },
+            weeklyTasks: { $sum: { $cond: [{ $eq: ['$taskType', 'weekly'] }, 1, 0] } },
+            weeklyPending: {
+              $sum: {
+                $cond: [{ $and: [{ $eq: ['$taskType', 'weekly'] }, { $eq: ['$status', 'pending'] }] }, 1, 0]
+              }
+            },
+            weeklyCompleted: {
+              $sum: {
+                $cond: [{ $and: [{ $eq: ['$taskType', 'weekly'] }, { $eq: ['$status', 'completed'] }] }, 1, 0]
+              }
+            },
+            monthlyTasks: { $sum: { $cond: [{ $eq: ['$taskType', 'monthly'] }, 1, 0] } },
+            monthlyPending: {
+              $sum: {
+                $cond: [{ $and: [{ $eq: ['$taskType', 'monthly'] }, { $eq: ['$status', 'pending'] }] }, 1, 0]
+              }
+            },
+            monthlyCompleted: {
+              $sum: {
+                $cond: [{ $and: [{ $eq: ['$taskType', 'monthly'] }, { $eq: ['$status', 'completed'] }] }, 1, 0]
+              }
+            },
+            quarterlyTasks: { $sum: { $cond: [{ $eq: ['$taskType', 'quarterly'] }, 1, 0] } },
+            quarterlyPending: {
+              $sum: {
+                $cond: [{ $and: [{ $eq: ['$taskType', 'quarterly'] }, { $eq: ['$status', 'pending'] }] }, 1, 0]
+              }
+            },
+            quarterlyCompleted: {
+              $sum: {
+                $cond: [{ $and: [{ $eq: ['$taskType', 'quarterly'] }, { $eq: ['$status', 'completed'] }] }, 1, 0]
+              }
+            },
+            yearlyTasks: { $sum: { $cond: [{ $eq: ['$taskType', 'yearly'] }, 1, 0] } },
+            yearlyPending: {
+              $sum: {
+                $cond: [{ $and: [{ $eq: ['$taskType', 'yearly'] }, { $eq: ['$status', 'pending'] }] }, 1, 0]
+              }
+            },
+            yearlyCompleted: {
+              $sum: {
+                $cond: [{ $and: [{ $eq: ['$taskType', 'yearly'] }, { $eq: ['$status', 'completed'] }] }, 1, 0]
+              }
+            }
+          }
+        }
+      ]);
+
+      return result[0] || {
+        totalTasks: 0,
+        pendingTasks: 0,
+        completedTasks: 0,
+        overdueTasks: 0,
+        oneTimeTasks: 0,
+        oneTimePending: 0,
+        oneTimeCompleted: 0,
+        dailyTasks: 0,
+        dailyPending: 0,
+        dailyCompleted: 0,
+        weeklyTasks: 0,
+        weeklyPending: 0,
+        weeklyCompleted: 0,
+        monthlyTasks: 0,
+        monthlyPending: 0,
+        monthlyCompleted: 0,
+        quarterlyTasks: 0,
+        quarterlyPending: 0,
+        quarterlyCompleted: 0,
+        yearlyTasks: 0,
+        yearlyPending: 0,
+        yearlyCompleted: 0
+      };
+    };
+
+    const [currentCounts, previousCounts] = await Promise.all([
+      aggregateCountsForRange(dateRangeQuery),
+      aggregateCountsForRange(previousDateRangeQuery)
+    ]);
+
+    const {
       totalTasks,
       pendingTasks,
       completedTasks,
@@ -627,61 +756,12 @@ router.get('/counts', async (req, res) => {
       yearlyTasks,
       yearlyPending,
       yearlyCompleted
-    ] = await Promise.all([
-      Task.countDocuments({ ...baseQuery, ...dateRangeQuery }),
-      Task.countDocuments({ ...baseQuery, ...dateRangeQuery, status: 'pending' }),
-      Task.countDocuments({ ...baseQuery, ...dateRangeQuery, status: 'completed' }),
-      Task.countDocuments({
-        ...baseQuery,
-        ...dateRangeQuery,
-        status: { $ne: 'completed' },
-        taskType: { $ne: 'daily' },
-        $or: [
-          { dueDate: { $lt: new Date() } },
-          { nextDueDate: { $lt: new Date() } }
-        ]
-      }),
-      Task.countDocuments({ ...baseQuery, ...dateRangeQuery, taskType: 'one-time' }),
-      Task.countDocuments({ ...baseQuery, ...dateRangeQuery, taskType: 'one-time', status: 'pending' }),
-      Task.countDocuments({ ...baseQuery, ...dateRangeQuery, taskType: 'one-time', status: 'completed' }),
-      Task.countDocuments({ ...baseQuery, ...dateRangeQuery, taskType: 'daily' }),
-      Task.countDocuments({ ...baseQuery, ...dateRangeQuery, taskType: 'daily', status: 'pending' }),
-      Task.countDocuments({ ...baseQuery, ...dateRangeQuery, taskType: 'daily', status: 'completed' }),
-      Task.countDocuments({ ...baseQuery, ...dateRangeQuery, taskType: 'weekly' }),
-      Task.countDocuments({ ...baseQuery, ...dateRangeQuery, taskType: 'weekly', status: 'pending' }),
-      Task.countDocuments({ ...baseQuery, ...dateRangeQuery, taskType: 'weekly', status: 'completed' }),
-      Task.countDocuments({ ...baseQuery, ...dateRangeQuery, taskType: 'monthly' }),
-      Task.countDocuments({ ...baseQuery, ...dateRangeQuery, taskType: 'monthly', status: 'pending' }),
-      Task.countDocuments({ ...baseQuery, ...dateRangeQuery, taskType: 'monthly', status: 'completed' }),
-      Task.countDocuments({ ...baseQuery, ...dateRangeQuery, taskType: 'quarterly' }),
-      Task.countDocuments({ ...baseQuery, ...dateRangeQuery, taskType: 'quarterly', status: 'pending' }),
-      Task.countDocuments({ ...baseQuery, ...dateRangeQuery, taskType: 'quarterly', status: 'completed' }),
-      Task.countDocuments({ ...baseQuery, ...dateRangeQuery, taskType: 'yearly' }),
-      Task.countDocuments({ ...baseQuery, ...dateRangeQuery, taskType: 'yearly', status: 'pending' }),
-      Task.countDocuments({ ...baseQuery, ...dateRangeQuery, taskType: 'yearly', status: 'completed' })
-    ]);
+    } = currentCounts;
 
-    // Get previous period data for trend calculation
-    const [
-      prevTotalTasks,
-      prevPendingTasks,
-      prevCompletedTasks,
-      prevOverdueTasks
-    ] = await Promise.all([
-      Task.countDocuments({ ...baseQuery, ...previousDateRangeQuery }),
-      Task.countDocuments({ ...baseQuery, ...previousDateRangeQuery, status: 'pending' }),
-      Task.countDocuments({ ...baseQuery, ...previousDateRangeQuery, status: 'completed' }),
-      Task.countDocuments({
-        ...baseQuery,
-        ...previousDateRangeQuery,
-        status: { $ne: 'completed' },
-        taskType: { $ne: 'daily' },
-        $or: [
-          { dueDate: { $lt: new Date() } },
-          { nextDueDate: { $lt: new Date() } }
-        ]
-      })
-    ]);
+    const prevTotalTasks = previousCounts.totalTasks;
+    const prevPendingTasks = previousCounts.pendingTasks;
+    const prevCompletedTasks = previousCounts.completedTasks;
+    const prevOverdueTasks = previousCounts.overdueTasks;
 
     // Calculate trends
     const calculateTrend = (current, previous) => {

@@ -433,28 +433,17 @@ router.get('/pending-recurring', async (req, res) => {
 router.get('/team-pending-fast', async (req, res) => {
   try {
     const { companyId } = req.query;
-
-    if (!companyId) {
-      return res.status(400).json([]);
-    }
+    if (!companyId) return res.status(400).json([]);
 
     const nowTs = Date.now();
-
-    // ✅ Serve from cache if valid
-    if (
-      teamPendingCache[companyId] &&
-      nowTs - (teamPendingCacheTime[companyId] || 0) < CACHE_TTL
-    ) {
+    if (teamPendingCache[companyId] && nowTs - (teamPendingCacheTime[companyId] || 0) < CACHE_TTL) {
       return res.json(teamPendingCache[companyId]);
     }
 
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
-
     const endOfToday = new Date();
     endOfToday.setHours(23, 59, 59, 999);
-
-    const todayStr = startOfToday.toISOString().slice(0, 10); // YYYY-MM-DD
 
     const data = await Task.aggregate([
       {
@@ -465,39 +454,8 @@ router.get('/team-pending-fast', async (req, res) => {
         }
       },
       {
-        $project: {
-          assignedTo: 1,
-          taskType: 1,
-          dueDate: 1
-        }
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'assignedTo',
-          foreignField: '_id',
-          as: 'user',
-          pipeline: [
-            { $project: { username: 1 } }
-          ]
-        }
-      },
-      { $unwind: '$user' },
-
-      {
         $addFields: {
-          username: '$user.username',
-
-          dueDateStr: {
-            $dateToString: { format: '%Y-%m-%d', date: '$dueDate' }
-          },
-
-          // ✅ OVERDUE = before today ONLY
-          isOverdue: {
-            $lt: ['$dueDate', startOfToday]
-          },
-
-          // ✅ TODAY = between start & end of today
+          isOverdue: { $lt: ['$dueDate', startOfToday] },
           isToday: {
             $and: [
               { $gte: ['$dueDate', startOfToday] },
@@ -506,65 +464,37 @@ router.get('/team-pending-fast', async (req, res) => {
           }
         }
       },
-
       {
         $group: {
-          _id: '$username',
-
+          _id: '$assignedTo',
           oneTimeToday: {
             $sum: {
-              $cond: [
-                { $and: [{ $eq: ['$taskType', 'one-time'] }, '$isToday'] },
-                1,
-                0
-              ]
+              $cond: [{ $and: [{ $eq: ['$taskType', 'one-time'] }, '$isToday'] }, 1, 0]
             }
           },
-
           oneTimeOverdue: {
             $sum: {
-              $cond: [
-                { $and: [{ $eq: ['$taskType', 'one-time'] }, '$isOverdue'] },
-                1,
-                0
-              ]
+              $cond: [{ $and: [{ $eq: ['$taskType', 'one-time'] }, '$isOverdue'] }, 1, 0]
             }
           },
-
           dailyToday: {
             $sum: {
-              $cond: [
-                { $and: [{ $eq: ['$taskType', 'daily'] }, '$isToday'] },
-                1,
-                0
-              ]
+              $cond: [{ $and: [{ $eq: ['$taskType', 'daily'] }, '$isToday'] }, 1, 0]
             }
           },
-
           recurringToday: {
             $sum: {
               $cond: [
-                {
-                  $and: [
-                    { $in: ['$taskType', ['weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly']] },
-                    '$isToday'
-                  ]
-                },
+                { $and: [{ $in: ['$taskType', ['weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly']] }, '$isToday'] },
                 1,
                 0
               ]
             }
           },
-
           recurringOverdue: {
             $sum: {
               $cond: [
-                {
-                  $and: [
-                    { $in: ['$taskType', ['weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly']] },
-                    '$isOverdue'
-                  ]
-                },
+                { $and: [{ $in: ['$taskType', ['weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly']] }, '$isOverdue'] },
                 1,
                 0
               ]
@@ -572,22 +502,38 @@ router.get('/team-pending-fast', async (req, res) => {
           }
         }
       },
-
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'user',
+          pipeline: [{ $project: { username: 1 } }]
+        }
+      },
+      { $addFields: { username: { $arrayElemAt: ['$user.username', 0] } } },
+      { $match: { username: { $ne: null } } },
+      {
+        $project: {
+          _id: '$username',
+          oneTimeToday: 1,
+          oneTimeOverdue: 1,
+          dailyToday: 1,
+          recurringToday: 1,
+          recurringOverdue: 1
+        }
+      },
       { $sort: { _id: 1 } }
     ]).allowDiskUse(true);
 
-    // ✅ Save to cache
     teamPendingCache[companyId] = data;
     teamPendingCacheTime[companyId] = nowTs;
-
     res.json(data);
   } catch (err) {
-    console.error('❌ Error in team-pending-fast:', err);
+    console.error('Error in team-pending-fast:', err);
     res.json([]);
   }
 });
-
-
 router.get("/master/:taskGroupId", async (req, res) => {
   try {
     const { taskGroupId } = req.params;
@@ -3455,3 +3401,4 @@ router.delete("/:taskId", async (req, res) => {
 
 
 export default router;
+
