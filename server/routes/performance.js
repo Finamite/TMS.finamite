@@ -94,205 +94,244 @@ const fetchUserTasksForPeriod = async (userId, companyId, startDate, endDate) =>
 const buildUserPerformanceData = async (userId, companyId, dateQuery = {}, revisionConfig = null) => {
   const baseQuery = {
     isActive: true,
-    companyId: companyId,
+    companyId,
     assignedTo: userId
   };
+  const hasDateRange = !!(dateQuery?.startDate && dateQuery?.endDate);
+  const start = hasDateRange ? new Date(dateQuery.startDate) : null;
+  const end = hasDateRange ? new Date(dateQuery.endDate) : null;
 
-  // Build separate queries for different task states based on date filtering
-  let totalTasksQuery = { ...baseQuery };
-  let completedTasksQuery = { ...baseQuery };
-  let pendingTasksQuery = { ...baseQuery };
+  const dueInRangeExpr = hasDateRange
+    ? { $and: [{ $ne: ['$dueDate', null] }, { $gte: ['$dueDate', start] }, { $lte: ['$dueDate', end] }] }
+    : null;
+  const nextDueInRangeExpr = hasDateRange
+    ? { $and: [{ $ne: ['$nextDueDate', null] }, { $gte: ['$nextDueDate', start] }, { $lte: ['$nextDueDate', end] }] }
+    : null;
+  const completedInRangeExpr = hasDateRange
+    ? { $and: [{ $ne: ['$completedAt', null] }, { $gte: ['$completedAt', start] }, { $lte: ['$completedAt', end] }] }
+    : null;
+  const rejectedInRangeExpr = hasDateRange
+    ? { $and: [{ $ne: ['$rejectedAt', null] }, { $gte: ['$rejectedAt', start] }, { $lte: ['$rejectedAt', end] }] }
+    : null;
 
-  // Apply date filtering based on whether we have date constraints
-  if (dateQuery && Object.keys(dateQuery).length > 0) {
-    const { startDate, endDate } = dateQuery;
+  const isTotalExpr = hasDateRange
+    ? { $or: [dueInRangeExpr, nextDueInRangeExpr, completedInRangeExpr, rejectedInRangeExpr] }
+    : true;
+  const isCompletedExpr = hasDateRange
+    ? {
+      $and: [
+        { $in: ['$status', ['completed', 'rejected']] },
+        { $or: [completedInRangeExpr, rejectedInRangeExpr] }
+      ]
+    }
+    : {
+      $and: [
+        { $in: ['$status', ['completed', 'rejected']] },
+        { $or: [{ $ne: ['$completedAt', null] }, { $ne: ['$rejectedAt', null] }] }
+      ]
+    };
+  const isPendingExpr = hasDateRange
+    ? {
+      $and: [
+        { $eq: ['$status', 'pending'] },
+        { $or: [dueInRangeExpr, nextDueInRangeExpr] }
+      ]
+    }
+    : { $eq: ['$status', 'pending'] };
 
-    if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-
-      // For total tasks: include tasks that were due, completed, or rejected in the date range
-      totalTasksQuery = {
-        ...baseQuery,
+  const statsPipeline = [
+    { $match: baseQuery },
+    ...(hasDateRange ? [{
+      $match: {
         $or: [
           { dueDate: { $gte: start, $lte: end } },
           { nextDueDate: { $gte: start, $lte: end } },
           { completedAt: { $gte: start, $lte: end } },
           { rejectedAt: { $gte: start, $lte: end } }
         ]
-      };
+      }
+    }] : []),
+    {
+      $addFields: {
+        effectiveDue: { $ifNull: ['$nextDueDate', '$dueDate'] },
+        isTotalTask: isTotalExpr,
+        isCompletedTask: isCompletedExpr,
+        isPendingTask: isPendingExpr
+      }
+    },
+    {
+      $group: {
+        _id: null,
+        totalTasks: { $sum: { $cond: ['$isTotalTask', 1, 0] } },
+        completedTasks: { $sum: { $cond: ['$isCompletedTask', 1, 0] } },
+        pendingTasks: { $sum: { $cond: ['$isPendingTask', 1, 0] } },
 
-      // For completed tasks: only those completed or rejected within the date range
-      completedTasksQuery = {
-        ...baseQuery,
-        status: { $in: ['completed', 'rejected'] },
-        $or: [
-          { completedAt: { $gte: start, $lte: end } },
-          { rejectedAt: { $gte: start, $lte: end } }
-        ]
-      };
+        oneTimeTasks: { $sum: { $cond: [{ $and: ['$isTotalTask', { $eq: ['$taskType', 'one-time'] }] }, 1, 0] } },
+        oneTimePending: { $sum: { $cond: [{ $and: ['$isPendingTask', { $eq: ['$taskType', 'one-time'] }] }, 1, 0] } },
+        oneTimeCompleted: { $sum: { $cond: [{ $and: ['$isCompletedTask', { $eq: ['$taskType', 'one-time'] }] }, 1, 0] } },
 
-      // For pending tasks: those with due dates in range and still pending
-      pendingTasksQuery = {
-        ...baseQuery,
-        status: 'pending',
-        $or: [
-          { dueDate: { $gte: start, $lte: end } },
-          { nextDueDate: { $gte: start, $lte: end } }
-        ]
-      };
+        dailyTasks: { $sum: { $cond: [{ $and: ['$isTotalTask', { $eq: ['$taskType', 'daily'] }] }, 1, 0] } },
+        dailyPending: { $sum: { $cond: [{ $and: ['$isPendingTask', { $eq: ['$taskType', 'daily'] }] }, 1, 0] } },
+        dailyCompleted: { $sum: { $cond: [{ $and: ['$isCompletedTask', { $eq: ['$taskType', 'daily'] }] }, 1, 0] } },
+
+        weeklyTasks: { $sum: { $cond: [{ $and: ['$isTotalTask', { $eq: ['$taskType', 'weekly'] }] }, 1, 0] } },
+        weeklyPending: { $sum: { $cond: [{ $and: ['$isPendingTask', { $eq: ['$taskType', 'weekly'] }] }, 1, 0] } },
+        weeklyCompleted: { $sum: { $cond: [{ $and: ['$isCompletedTask', { $eq: ['$taskType', 'weekly'] }] }, 1, 0] } },
+
+        monthlyTasks: { $sum: { $cond: [{ $and: ['$isTotalTask', { $eq: ['$taskType', 'monthly'] }] }, 1, 0] } },
+        monthlyPending: { $sum: { $cond: [{ $and: ['$isPendingTask', { $eq: ['$taskType', 'monthly'] }] }, 1, 0] } },
+        monthlyCompleted: { $sum: { $cond: [{ $and: ['$isCompletedTask', { $eq: ['$taskType', 'monthly'] }] }, 1, 0] } },
+
+        quarterlyTasks: { $sum: { $cond: [{ $and: ['$isTotalTask', { $eq: ['$taskType', 'quarterly'] }] }, 1, 0] } },
+        quarterlyPending: { $sum: { $cond: [{ $and: ['$isPendingTask', { $eq: ['$taskType', 'quarterly'] }] }, 1, 0] } },
+        quarterlyCompleted: { $sum: { $cond: [{ $and: ['$isCompletedTask', { $eq: ['$taskType', 'quarterly'] }] }, 1, 0] } },
+
+        yearlyTasks: { $sum: { $cond: [{ $and: ['$isTotalTask', { $eq: ['$taskType', 'yearly'] }] }, 1, 0] } },
+        yearlyPending: { $sum: { $cond: [{ $and: ['$isPendingTask', { $eq: ['$taskType', 'yearly'] }] }, 1, 0] } },
+        yearlyCompleted: { $sum: { $cond: [{ $and: ['$isCompletedTask', { $eq: ['$taskType', 'yearly'] }] }, 1, 0] } },
+
+        revisedOneTimeTasks: {
+          $sum: {
+            $cond: [
+              {
+                $and: [
+                  '$isCompletedTask',
+                  { $eq: ['$status', 'completed'] },
+                  { $eq: ['$taskType', 'one-time'] },
+                  { $gt: ['$revisionCount', 0] }
+                ]
+              },
+              1,
+              0
+            ]
+          }
+        },
+        rejectedTasks: {
+          $sum: { $cond: [{ $and: ['$isCompletedTask', { $eq: ['$status', 'rejected'] }] }, 1, 0] }
+        },
+        rejectedOneTimeTasks: {
+          $sum: {
+            $cond: [
+              { $and: ['$isCompletedTask', { $eq: ['$status', 'rejected'] }, { $eq: ['$taskType', 'one-time'] }] },
+              1,
+              0
+            ]
+          }
+        },
+        onTimeCompletedTasksCount: {
+          $sum: {
+            $cond: [
+              {
+                $and: [
+                  '$isCompletedTask',
+                  { $eq: ['$status', 'completed'] },
+                  { $eq: ['$taskType', 'one-time'] },
+                  { $ne: ['$completedAt', null] },
+                  { $ne: ['$dueDate', null] },
+                  { $lte: ['$completedAt', { $add: ['$dueDate', 86400000] }] }
+                ]
+              },
+              1,
+              0
+            ]
+          }
+        },
+        onTimeCompletedRecurringTasks: {
+          $sum: {
+            $cond: [
+              {
+                $and: [
+                  '$isCompletedTask',
+                  { $eq: ['$status', 'completed'] },
+                  { $in: ['$taskType', ['daily', 'weekly', 'monthly', 'quarterly', 'yearly']] },
+                  { $ne: ['$completedAt', null] },
+                  { $ne: ['$effectiveDue', null] },
+                  { $lte: ['$completedAt', { $add: ['$effectiveDue', 86400000] }] }
+                ]
+              },
+              1,
+              0
+            ]
+          }
+        },
+        onTimeRejectedOneTime: {
+          $sum: {
+            $cond: [
+              {
+                $and: [
+                  '$isCompletedTask',
+                  { $eq: ['$status', 'rejected'] },
+                  { $eq: ['$taskType', 'one-time'] },
+                  { $ne: ['$rejectedAt', null] },
+                  { $ne: ['$dueDate', null] },
+                  { $lte: ['$rejectedAt', { $add: ['$dueDate', 86400000] }] }
+                ]
+              },
+              1,
+              0
+            ]
+          }
+        },
+        onTimeRejectedRecurring: {
+          $sum: {
+            $cond: [
+              {
+                $and: [
+                  '$isCompletedTask',
+                  { $eq: ['$status', 'rejected'] },
+                  { $in: ['$taskType', ['daily', 'weekly', 'monthly', 'quarterly', 'yearly']] },
+                  { $ne: ['$rejectedAt', null] },
+                  { $ne: ['$effectiveDue', null] },
+                  { $lte: ['$rejectedAt', { $add: ['$effectiveDue', 86400000] }] }
+                ]
+              },
+              1,
+              0
+            ]
+          }
+        }
+      }
     }
-  } else {
-    // No date filtering - use original queries
-    completedTasksQuery = {
-      ...baseQuery,
-      status: { $in: ['completed', 'rejected'] },
-      $or: [{ completedAt: { $ne: null } }, { rejectedAt: { $ne: null } }]
-    };
-    pendingTasksQuery = { ...baseQuery, status: 'pending' };
-  }
+  ];
 
-  // Helper function to create task type specific queries
-  const createTaskTypeQueries = (taskType) => {
-    let baseTaskQuery = { ...totalTasksQuery, taskType };
-    let completedTaskQuery = { ...completedTasksQuery, taskType };
-    let pendingTaskQuery = { ...pendingTasksQuery, taskType };
-
-    return { baseTaskQuery, completedTaskQuery, pendingTaskQuery };
+  const statsResult = await Task.aggregate(statsPipeline);
+  const stats = statsResult[0] || {
+    totalTasks: 0,
+    completedTasks: 0,
+    pendingTasks: 0,
+    oneTimeTasks: 0,
+    oneTimePending: 0,
+    oneTimeCompleted: 0,
+    dailyTasks: 0,
+    dailyPending: 0,
+    dailyCompleted: 0,
+    weeklyTasks: 0,
+    weeklyPending: 0,
+    weeklyCompleted: 0,
+    monthlyTasks: 0,
+    monthlyPending: 0,
+    monthlyCompleted: 0,
+    quarterlyTasks: 0,
+    quarterlyPending: 0,
+    quarterlyCompleted: 0,
+    yearlyTasks: 0,
+    yearlyPending: 0,
+    yearlyCompleted: 0,
+    revisedOneTimeTasks: 0,
+    rejectedTasks: 0,
+    rejectedOneTimeTasks: 0,
+    onTimeCompletedTasksCount: 0,
+    onTimeCompletedRecurringTasks: 0,
+    onTimeRejectedOneTime: 0,
+    onTimeRejectedRecurring: 0
   };
 
-  // Use Promise.all to run queries in parallel for better performance
-  const [
-    totalTasks,
-    completedTasks,
-    pendingTasks,
+  const recurringTasks = stats.dailyTasks + stats.weeklyTasks + stats.monthlyTasks + stats.quarterlyTasks + stats.yearlyTasks;
+  const recurringPending = stats.dailyPending + stats.weeklyPending + stats.monthlyPending + stats.quarterlyPending + stats.yearlyPending;
+  const recurringCompleted = stats.dailyCompleted + stats.weeklyCompleted + stats.monthlyCompleted + stats.quarterlyCompleted + stats.yearlyCompleted;
 
-    // One-time tasks
-    oneTimeQueries,
-    // Daily tasks  
-    dailyQueries,
-    // Weekly tasks
-    weeklyQueries,
-    // Monthly tasks
-    monthlyQueries,
-    // Quarterly tasks
-    quarterlyQueries,
-    // Yearly tasks
-    yearlyQueries,
-
-    // Special queries for revisions and rejections (only for completed tasks in date range)
-    revisedOneTimeTasks,
-    rejectedOneTimeTasks,
-    rejectedTasks,
-
-    // On-time calculations (only for tasks completed/rejected in date range)
-    onTimeCompletedTasksCount,
-    onTimeCompletedRecurringTasks,
-    onTimeRejectedOneTime,
-    onTimeRejectedRecurring
-
-  ] = await Promise.all([
-    Task.countDocuments(totalTasksQuery),
-    Task.countDocuments(completedTasksQuery),
-    Task.countDocuments(pendingTasksQuery),
-
-    // Task type counts
-    Promise.all([
-      Task.countDocuments({ ...totalTasksQuery, taskType: 'one-time' }),
-      Task.countDocuments({ ...pendingTasksQuery, taskType: 'one-time' }),
-      Task.countDocuments({ ...completedTasksQuery, taskType: 'one-time' })
-    ]).then(([total, pending, completed]) => ({ total, pending, completed })),
-
-    Promise.all([
-      Task.countDocuments({ ...totalTasksQuery, taskType: 'daily' }),
-      Task.countDocuments({ ...pendingTasksQuery, taskType: 'daily' }),
-      Task.countDocuments({ ...completedTasksQuery, taskType: 'daily' })
-    ]).then(([total, pending, completed]) => ({ total, pending, completed })),
-
-    Promise.all([
-      Task.countDocuments({ ...totalTasksQuery, taskType: 'weekly' }),
-      Task.countDocuments({ ...pendingTasksQuery, taskType: 'weekly' }),
-      Task.countDocuments({ ...completedTasksQuery, taskType: 'weekly' })
-    ]).then(([total, pending, completed]) => ({ total, pending, completed })),
-
-    Promise.all([
-      Task.countDocuments({ ...totalTasksQuery, taskType: 'monthly' }),
-      Task.countDocuments({ ...pendingTasksQuery, taskType: 'monthly' }),
-      Task.countDocuments({ ...completedTasksQuery, taskType: 'monthly' })
-    ]).then(([total, pending, completed]) => ({ total, pending, completed })),
-
-    Promise.all([
-      Task.countDocuments({ ...totalTasksQuery, taskType: 'quarterly' }),
-      Task.countDocuments({ ...pendingTasksQuery, taskType: 'quarterly' }),
-      Task.countDocuments({ ...completedTasksQuery, taskType: 'quarterly' })
-    ]).then(([total, pending, completed]) => ({ total, pending, completed })),
-
-    Promise.all([
-      Task.countDocuments({ ...totalTasksQuery, taskType: 'yearly' }),
-      Task.countDocuments({ ...pendingTasksQuery, taskType: 'yearly' }),
-      Task.countDocuments({ ...completedTasksQuery, taskType: 'yearly' })
-    ]).then(([total, pending, completed]) => ({ total, pending, completed })),
-
-    // Revisions (only count completed one-time tasks with revisions in date range)
-    Task.countDocuments({
-      ...completedTasksQuery,
-      taskType: 'one-time',
-      status: 'completed',
-      revisionCount: { $gt: 0 }
-    }),
-
-    // Rejected one-time tasks (only in date range)
-    Task.countDocuments({
-      ...completedTasksQuery,
-      taskType: 'one-time',
-      status: 'rejected'
-    }),
-
-    // Total rejected tasks (only in date range)
-    Task.countDocuments({
-      ...completedTasksQuery,
-      status: 'rejected'
-    }),
-
-    // On-time completed one-time tasks (only in date range)
-    Task.countDocuments({
-      ...completedTasksQuery,
-      status: 'completed',
-      taskType: 'one-time',
-      $expr: { $lte: ['$completedAt', { $add: ['$dueDate', 86400000] }] }
-    }),
-
-    // On-time completed recurring tasks (only in date range)
-    Task.countDocuments({
-      ...completedTasksQuery,
-      status: 'completed',
-      taskType: { $in: ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'] },
-      $expr: { $lte: ['$completedAt', { $ifNull: ['$nextDueDate', { $add: ['$dueDate', 86400000] }] }] }
-    }),
-
-    // On-time rejected one-time tasks (only in date range)
-    Task.countDocuments({
-      ...completedTasksQuery,
-      status: 'rejected',
-      taskType: 'one-time',
-      $expr: { $lte: ['$rejectedAt', { $add: ['$dueDate', 86400000] }] }
-    }),
-
-    // On-time rejected recurring tasks (only in date range)
-    Task.countDocuments({
-      ...completedTasksQuery,
-      status: 'rejected',
-      taskType: { $in: ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'] },
-      $expr: { $lte: ['$rejectedAt', { $ifNull: ['$nextDueDate', { $add: ['$dueDate', 86400000] }] }] }
-    })
-  ]);
-
-  const recurringTasks = dailyQueries.total + weeklyQueries.total + monthlyQueries.total + quarterlyQueries.total + yearlyQueries.total;
-  const recurringPending = dailyQueries.pending + weeklyQueries.pending + monthlyQueries.pending + quarterlyQueries.pending + yearlyQueries.pending;
-  const recurringCompleted = dailyQueries.completed + weeklyQueries.completed + monthlyQueries.completed + quarterlyQueries.completed + yearlyQueries.completed;
-
-  const onTimeRejectedTotal = onTimeRejectedOneTime + onTimeRejectedRecurring;
-  const effectiveCompleted = completedTasks - (rejectedTasks * 0.5);  // Partial for rates only
+  const onTimeRejectedTotal = stats.onTimeRejectedOneTime + stats.onTimeRejectedRecurring;
+  const effectiveCompleted = stats.completedTasks - (stats.rejectedTasks * 0.5);  // Partial for rates only
 
   // --- NEW: compute on-time scoring using revision scoringRules if enabled ---
   const defaultMapping = { 0: 100, 1: 70, 2: 40, 3: 0 };
@@ -321,6 +360,24 @@ const buildUserPerformanceData = async (userId, companyId, dateQuery = {}, revis
         case: { $eq: ['$revisionCount', parseInt(key, 10)] },
         then: mapping[key]
       }));
+
+      let completedTasksQuery = { ...baseQuery };
+      if (hasDateRange) {
+        completedTasksQuery = {
+          ...baseQuery,
+          status: { $in: ['completed', 'rejected'] },
+          $or: [
+            { completedAt: { $gte: start, $lte: end } },
+            { rejectedAt: { $gte: start, $lte: end } }
+          ]
+        };
+      } else {
+        completedTasksQuery = {
+          ...baseQuery,
+          status: { $in: ['completed', 'rejected'] },
+          $or: [{ completedAt: { $ne: null } }, { rejectedAt: { $ne: null } }]
+        };
+      }
 
       const scorePipeline = [
         {
@@ -396,48 +453,48 @@ const buildUserPerformanceData = async (userId, companyId, dateQuery = {}, revis
   }
 
   // Now compute rates:
-  const completionRate = totalTasks > 0 ? (effectiveCompleted / totalTasks) * 100 : 0;
+  const completionRate = stats.totalTasks > 0 ? (effectiveCompleted / stats.totalTasks) * 100 : 0;
 
   let onTimeRate = 0;
   if (enableRevisions) {
-    onTimeRate = totalTasks > 0 ? (onTimeScoreSum / totalTasks) : 0;
+    onTimeRate = stats.totalTasks > 0 ? (onTimeScoreSum / stats.totalTasks) : 0;
   } else {
-    const effectiveOnTimeCompleted = onTimeCompletedTasksCount + onTimeCompletedRecurringTasks;
+    const effectiveOnTimeCompleted = stats.onTimeCompletedTasksCount + stats.onTimeCompletedRecurringTasks;
     const effectiveOnTimeRejected = onTimeRejectedTotal * 0.5;
     const effectiveOnTime = effectiveOnTimeCompleted + effectiveOnTimeRejected;
-    onTimeRate = totalTasks > 0 ? (effectiveOnTime / totalTasks) * 100 : 0;
+    onTimeRate = stats.totalTasks > 0 ? (effectiveOnTime / stats.totalTasks) * 100 : 0;
   }
 
   return {
-    totalTasks,
-    completedTasks,
-    pendingTasks,
-    oneTimeTasks: oneTimeQueries.total,
-    oneTimePending: oneTimeQueries.pending,
-    oneTimeCompleted: oneTimeQueries.completed,
-    revisedOneTimeTasks,
-    dailyTasks: dailyQueries.total,
-    dailyPending: dailyQueries.pending,
-    dailyCompleted: dailyQueries.completed,
-    weeklyTasks: weeklyQueries.total,
-    weeklyPending: weeklyQueries.pending,
-    weeklyCompleted: weeklyQueries.completed,
-    monthlyTasks: monthlyQueries.total,
-    monthlyPending: monthlyQueries.pending,
-    monthlyCompleted: monthlyQueries.completed,
-    quarterlyTasks: quarterlyQueries.total,
-    quarterlyPending: quarterlyQueries.pending,
-    quarterlyCompleted: quarterlyQueries.completed,
-    yearlyTasks: yearlyQueries.total,
-    yearlyPending: yearlyQueries.pending,
-    yearlyCompleted: yearlyQueries.completed,
+    totalTasks: stats.totalTasks,
+    completedTasks: stats.completedTasks,
+    pendingTasks: stats.pendingTasks,
+    oneTimeTasks: stats.oneTimeTasks,
+    oneTimePending: stats.oneTimePending,
+    oneTimeCompleted: stats.oneTimeCompleted,
+    revisedOneTimeTasks: stats.revisedOneTimeTasks,
+    dailyTasks: stats.dailyTasks,
+    dailyPending: stats.dailyPending,
+    dailyCompleted: stats.dailyCompleted,
+    weeklyTasks: stats.weeklyTasks,
+    weeklyPending: stats.weeklyPending,
+    weeklyCompleted: stats.weeklyCompleted,
+    monthlyTasks: stats.monthlyTasks,
+    monthlyPending: stats.monthlyPending,
+    monthlyCompleted: stats.monthlyCompleted,
+    quarterlyTasks: stats.quarterlyTasks,
+    quarterlyPending: stats.quarterlyPending,
+    quarterlyCompleted: stats.quarterlyCompleted,
+    yearlyTasks: stats.yearlyTasks,
+    yearlyPending: stats.yearlyPending,
+    yearlyCompleted: stats.yearlyCompleted,
     recurringTasks,
     recurringPending,
     recurringCompleted,
-    rejectedTasks,
-    rejectedOneTimeTasks,
-    onTimeCompletedTasks: (onTimeCompletedTasksCount + onTimeCompletedRecurringTasks) + (onTimeRejectedOneTime + onTimeRejectedRecurring),
-    onTimeRecurringCompleted: onTimeCompletedRecurringTasks + onTimeRejectedRecurring,
+    rejectedTasks: stats.rejectedTasks,
+    rejectedOneTimeTasks: stats.rejectedOneTimeTasks,
+    onTimeCompletedTasks: (stats.onTimeCompletedTasksCount + stats.onTimeCompletedRecurringTasks) + (stats.onTimeRejectedOneTime + stats.onTimeRejectedRecurring),
+    onTimeRecurringCompleted: stats.onTimeCompletedRecurringTasks + stats.onTimeRejectedRecurring,
     completionRate: Math.round(completionRate * 10) / 10,
     onTimeRate: Math.round(onTimeRate * 10) / 10
   };
