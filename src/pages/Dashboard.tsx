@@ -175,6 +175,7 @@ const Dashboard: React.FC = () => {
   const [adminApprovalEnabled, setAdminApprovalEnabled] = useState(false);
   const analyticsCacheRef = React.useRef<Map<string, { data: any; ts: number }>>(new Map());
   const countsCacheRef = React.useRef<Map<string, { data: any; ts: number }>>(new Map());
+  const teamPendingCacheRef = React.useRef<Map<string, { data: TeamPendingData; ts: number }>>(new Map());
 
 
   const handleCardClick = (card: string) => {
@@ -469,6 +470,11 @@ const Dashboard: React.FC = () => {
   const fetchTeamPendingTasks = useCallback(async () => {
     try {
       if (!user?.companyId) return {};
+      const cacheKey = `${user.companyId}`;
+      const cached = teamPendingCacheRef.current.get(cacheKey);
+      if (cached && Date.now() - cached.ts < DASHBOARD_API_CACHE_TTL_MS) {
+        return cached.data;
+      }
 
       const res = await axios.get(`${address}/api/tasks/team-pending-fast`, {
         params: { companyId: user.companyId }
@@ -485,6 +491,10 @@ const Dashboard: React.FC = () => {
         };
       });
 
+      teamPendingCacheRef.current.set(cacheKey, {
+        data: grouped,
+        ts: Date.now()
+      });
       return grouped;
     } catch {
       return {};
@@ -543,41 +553,55 @@ const Dashboard: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
     const loadData = async () => {
       setLoading(true);
       try {
+        let analyticsPromise;
+        let countsPromise;
+
         if (viewMode === 'current') {
           // For current month view, use date filters
           const monthStart = startOfMonth(selectedMonth);
           const monthEnd = endOfMonth(selectedMonth);
-          const [analyticsData, countsData] = await Promise.all([
-            fetchDashboardAnalytics(monthStart.toISOString(), monthEnd.toISOString()),
-            fetchTaskCounts(monthStart.toISOString(), monthEnd.toISOString())
-          ]);
-          setDashboardData(analyticsData);
-          setTaskCounts(countsData);
+          analyticsPromise = fetchDashboardAnalytics(monthStart.toISOString(), monthEnd.toISOString());
+          countsPromise = fetchTaskCounts(monthStart.toISOString(), monthEnd.toISOString());
         } else {
           // For all-time view, fetch without date filters
-          const [analyticsData, countsData] = await Promise.all([
-            fetchDashboardAnalytics(),
-            fetchTaskCounts()
-          ]);
-          setDashboardData(analyticsData);
-          setTaskCounts(countsData);
+          analyticsPromise = fetchDashboardAnalytics();
+          countsPromise = fetchTaskCounts();
         }
 
+        const [analyticsData, countsData, teamPending] = await Promise.all([
+          analyticsPromise,
+          countsPromise,
+          fetchTeamPendingTasks()
+        ]);
+
+        if (!cancelled) {
+          setDashboardData(analyticsData);
+          setTaskCounts(countsData);
+          setTeamPendingData(teamPending);
+        }
 
       } catch (error) {
         console.error('Error in loadData:', error);
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
     if (user?.id) {
       loadData();
     }
-  }, [user, selectedMonth, viewMode, fetchDashboardAnalytics, fetchTaskCounts]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, selectedMonth, viewMode, fetchDashboardAnalytics, fetchTaskCounts, fetchTeamPendingTasks]);
 
   useEffect(() => {
     if (showMonthFilter && monthListRef.current) {
@@ -620,32 +644,6 @@ const Dashboard: React.FC = () => {
       .catch(() => setPendingApprovalCount(0));
 
   }, [user, adminApprovalEnabled]);
-
-  useEffect(() => {
-    if (!user?.id) return;
-
-    let isMounted = true;
-
-    const idleLoad = async () => {
-      const data = await fetchTeamPendingTasks();
-      if (isMounted) setTeamPendingData(data);
-    };
-
-    if ('requestIdleCallback' in window) {
-      const id = requestIdleCallback(idleLoad);
-      return () => {
-        isMounted = false;
-        cancelIdleCallback?.(id);
-      };
-    } else {
-      const timeout = setTimeout(idleLoad, 300);
-      return () => {
-        isMounted = false;
-        clearTimeout(timeout);
-      };
-    };
-  }, [user?.id, fetchTeamPendingTasks]);
-
 
   // Load member trend data when selected team member changes
   useEffect(() => {
