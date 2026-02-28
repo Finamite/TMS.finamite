@@ -5,6 +5,8 @@ import User from '../models/User.js';
 
 
 const AVG_DOC_SIZE = 937; // 1 KB per document (safe estimate)
+const DB_USAGE_COOLDOWN_MS = 15 * 60 * 1000;
+const lastDbUsageUpdateByCompany = new Map();
 
 const getCollectionStats = async (Model, companyId) => {
   const count = await Model.countDocuments({ companyId });
@@ -40,8 +42,15 @@ export const updateFileUsage = async (companyId, fileInfo, uploadedBy) => {
   );
 };
 
-export const updateDatabaseUsage = async (companyId) => {
+export const updateDatabaseUsage = async (companyId, options = {}) => {
   if (!companyId) return;
+  const force = options.force === true;
+  const nowTs = Date.now();
+  const lastRunTs = lastDbUsageUpdateByCompany.get(companyId) || 0;
+
+  if (!force && nowTs - lastRunTs < DB_USAGE_COOLDOWN_MS) {
+    return;
+  }
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -64,4 +73,6 @@ export const updateDatabaseUsage = async (companyId) => {
     },
     { upsert: true }
   );
+
+  lastDbUsageUpdateByCompany.set(companyId, nowTs);
 };

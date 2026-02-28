@@ -98,6 +98,8 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
+  const CHAT_POLL_MS = 30000;
+  const COUNTS_POLL_MS = 30000;
   const { user } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [approvalPendingCount, setApprovalPendingCount] = useState(0);
@@ -106,11 +108,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
   const [pendingRecurringCount, setPendingRecurringCount] = useState(0);
 
-  // Fetch unread messages every 2 seconds
+  // Fetch unread messages on interval (visibility-aware)
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id || !user?.company?.companyId) return;
 
-    const interval = setInterval(() => {
+    const fetchUnreadChats = () => {
+      if (document.visibilityState !== "visible") return;
       axios
         .get(`${address}/api/chat/user/${user.id}?companyId=${user.company?.companyId}`)
         .then((res) => {
@@ -119,10 +122,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           setUnreadChatsCount(unread);
         })
         .catch(() => { });
-    }, 2000);
+    };
 
-    return () => clearInterval(interval);
-  }, [user]);
+    fetchUnreadChats();
+    const interval = window.setInterval(fetchUnreadChats, CHAT_POLL_MS);
+    document.addEventListener("visibilitychange", fetchUnreadChats);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", fetchUnreadChats);
+    };
+  }, [user?.id, user?.company?.companyId]);
 
   useEffect(() => {
     // If mobile width, always expand sidebar
@@ -135,27 +145,34 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     const companyId = user?.company?.companyId;
     if (!companyId) return;
 
-    const interval = setInterval(() => {
+    const fetchApprovalCount = () => {
+      if (document.visibilityState !== "visible") return;
       axios
-        .get(`${address}/api/tasks`, {
+        .get(`${address}/api/tasks/pending-approval-count`, {
           params: {
-            status: "in-progress",
-            requiresApproval: true,
             companyId,
-            limit: 1
+            userId: user?.id,
+            role: user?.role
           }
         })
         .then((res) => {
-          const total = res.data?.total ?? res.data?.tasks?.length ?? 0;
+          const total = res.data?.count ?? 0;
           setApprovalPendingCount(total);
         })
         .catch(() => {
           setApprovalPendingCount(0);
         });
-    }, 3000);
+    };
 
-    return () => clearInterval(interval);
-  }, [user?.company?.companyId]);
+    fetchApprovalCount();
+    const interval = window.setInterval(fetchApprovalCount, COUNTS_POLL_MS);
+    document.addEventListener("visibilitychange", fetchApprovalCount);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", fetchApprovalCount);
+    };
+  }, [user?.company?.companyId, user?.id, user?.role]);
 
   useEffect(() => {
     const companyId = user?.company?.companyId;
@@ -166,10 +183,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         const params: {
           companyId: string;
           taskType: string;
+          status: string;
+          limit: number;
           userId?: string;
         } = {
           companyId,
           taskType: "one-time",
+          status: "pending,in-progress,overdue",
+          limit: 1
         };
 
         // same rule as PendingTasks page
@@ -177,17 +198,21 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           params.userId = user.id;
         }
 
-        const res = await axios.get(`${address}/api/tasks/pending`, { params });
-        setPendingTaskCount(res.data.length);
+        if (document.visibilityState !== "visible") return;
+        const res = await axios.get(`${address}/api/tasks`, { params });
+        setPendingTaskCount(res.data?.total ?? 0);
       } catch {
         setPendingTaskCount(0);
       }
     };
 
     fetchPendingCount();
-
-    const interval = setInterval(fetchPendingCount, 10000);
-    return () => clearInterval(interval);
+    const interval = window.setInterval(fetchPendingCount, COUNTS_POLL_MS);
+    document.addEventListener("visibilitychange", fetchPendingCount);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", fetchPendingCount);
+    };
 
   }, [user]);
 
@@ -197,6 +222,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
     const fetchPendingRecurringCount = async () => {
       try {
+        if (document.visibilityState !== "visible") return;
         const params: {
           companyId: string;
           userId?: string;
@@ -229,7 +255,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
           // ✅ OTHER RECURRING → overdue or today
           else if (
-            ["weekly", "monthly", "quarterly", "yearly"].includes(task.taskType)
+            ["weekly", "fortnightly", "monthly", "quarterly", "yearly"].includes(task.taskType)
           ) {
             if (due.getTime() <= today.getTime()) {
               count++;
@@ -244,8 +270,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     };
 
     fetchPendingRecurringCount();
-    const interval = setInterval(fetchPendingRecurringCount, 10000);
-    return () => clearInterval(interval);
+    const interval = window.setInterval(fetchPendingRecurringCount, COUNTS_POLL_MS);
+    document.addEventListener("visibilitychange", fetchPendingRecurringCount);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", fetchPendingRecurringCount);
+    };
 
   }, [user]);
 

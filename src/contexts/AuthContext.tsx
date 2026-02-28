@@ -94,6 +94,7 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const SESSION_CHECK_MS = 120000;
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -124,10 +125,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  useEffect(() => {
+useEffect(() => {
   if (!user) return;
 
-  const interval = setInterval(async () => {
+  const checkSession = async () => {
+    if (document.visibilityState !== "visible") return;
     try {
       await axios.get(`${address}/api/auth/me/${user.id}`);
     } catch (err: any) {
@@ -136,9 +138,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         window.location.href = "/login";
       }
     }
-  }, 5000); // every 5 seconds
+  };
 
-  return () => clearInterval(interval);
+  checkSession();
+  const interval = window.setInterval(checkSession, SESSION_CHECK_MS);
+  document.addEventListener("visibilitychange", checkSession);
+
+  return () => {
+    clearInterval(interval);
+    document.removeEventListener("visibilitychange", checkSession);
+  };
 }, [user]);
 
 useEffect(() => {

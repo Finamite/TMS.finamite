@@ -169,6 +169,10 @@ taskSchema.index({ assignedTo: 1, companyId: 1 });
 
 // Optional but helpful
 taskSchema.index({ companyId: 1, dueDate: 1 });
+taskSchema.index({ companyId: 1, isActive: 1, requiresApproval: 1, status: 1 });
+taskSchema.index({ companyId: 1, isActive: 1, assignedTo: 1, status: 1, dueDate: 1 });
+taskSchema.index({ companyId: 1, isActive: 1, taskType: 1, status: 1, dueDate: 1 });
+taskSchema.index({ companyId: 1, isActive: 1, status: 1, completedAt: 1 });
 
 taskSchema.index({
   taskGroupId: 1,

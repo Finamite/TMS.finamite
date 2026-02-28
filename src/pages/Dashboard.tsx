@@ -452,7 +452,7 @@ const Dashboard: React.FC = () => {
     } catch (error) {
       return null;
     }
-  }, []);
+  }, [user?.id, user?.role]);
 
   const fetchTeamPendingTasks = useCallback(async () => {
     try {
@@ -477,7 +477,7 @@ const Dashboard: React.FC = () => {
     } catch {
       return {};
     }
-  }, []);
+  }, [user?.companyId]);
 
 
   const memoTeamPendingData = useMemo(() => teamPendingData, [teamPendingData]);
@@ -499,7 +499,7 @@ const Dashboard: React.FC = () => {
       console.error('Error fetching task counts:', error);
       return null;
     }
-  }, []);
+  }, [user?.id, user?.role]);
 
   // New function to fetch individual member trend data
   const fetchMemberTrendData = useCallback(async (memberUsername: string, startDate?: string, endDate?: string) => {
@@ -554,7 +554,7 @@ const Dashboard: React.FC = () => {
     if (user?.id) {
       loadData();
     }
-  }, [user, selectedMonth, viewMode]);
+  }, [user, selectedMonth, viewMode, fetchDashboardAnalytics, fetchTaskCounts]);
 
   useEffect(() => {
     if (showMonthFilter && monthListRef.current) {
@@ -621,7 +621,7 @@ const Dashboard: React.FC = () => {
         clearTimeout(timeout);
       };
     };
-  }, [user?.id]);
+  }, [user?.id, fetchTeamPendingTasks]);
 
 
   // Load member trend data when selected team member changes

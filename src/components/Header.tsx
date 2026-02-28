@@ -16,6 +16,8 @@ interface CompanyData {
 }
 
 const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
+  const NOTIFICATION_POLL_MS = 30000;
+  const APPROVAL_POLL_MS = 30000;
   const { user, logout } = useAuth();
   const { setTheme, isDark } = useTheme();
   const [company, setCompany] = useState<CompanyData | null>(null);
@@ -68,8 +70,13 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   /* ---------------- FETCH NOTIFICATIONS ------------------ */
   const fetchNotif = async () => {
     try {
-      const paramsBase: any = {};
-      if (user?.company?.companyId) paramsBase.companyId = user.company.companyId;
+      if (!user?.company?.companyId) {
+        setTasksToday([]);
+        setTasksOverdue([]);
+        return;
+      }
+
+      const paramsBase: any = { companyId: user.company.companyId };
       if (!canViewAll && user?.id) paramsBase.userId = user.id;
 
       const [oneRes, recRes] = await Promise.all([
@@ -146,10 +153,29 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   }
 
   useEffect(() => {
-    fetchNotif();
-    const i = setInterval(fetchNotif, 2000); // silent refresh
-    return () => clearInterval(i);
-  }, []);
+    if (!user?.company?.companyId) {
+      setInitialLoading(false);
+      setTasksToday([]);
+      setTasksOverdue([]);
+      return;
+    }
+
+    const run = () => {
+      if (document.visibilityState === 'visible') {
+        fetchNotif();
+      }
+    };
+
+    run();
+    const i = window.setInterval(run, NOTIFICATION_POLL_MS);
+    const onVisibility = () => run();
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      clearInterval(i);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [user?.company?.companyId, user?.id, canViewAll]);
 
   /* ---------------- SELECTED LIST ------------------ */
   const filteredToday =
@@ -212,12 +238,31 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
     if (!showApprovalAlert) return;
 
     fetchApprovalCount();
-    const i = setInterval(fetchApprovalCount, 3000);
-    return () => clearInterval(i);
+    const run = () => {
+      if (document.visibilityState === 'visible') {
+        fetchApprovalCount();
+      }
+    };
+    const i = window.setInterval(run, APPROVAL_POLL_MS);
+    const onVisibility = () => run();
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      clearInterval(i);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [showApprovalAlert, user?.company?.companyId]);
 
   /* ---------------- FETCH COMPANY ------------------ */
   useEffect(() => {
+    if (user?.company) {
+      setCompany({
+        companyId: user.company.companyId,
+        companyName: user.company.companyName
+      });
+      return;
+    }
+
     const load = async () => {
       if (!user?.companyId) return;
       try {
