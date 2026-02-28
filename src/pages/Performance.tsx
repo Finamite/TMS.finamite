@@ -81,6 +81,7 @@ interface DashboardData {
 }
 
 const Performance: React.FC = () => {
+  const ANALYTICS_CACHE_TTL_MS = 60 * 1000;
   const { user } = useAuth();
   useTheme();
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
@@ -94,6 +95,7 @@ const Performance: React.FC = () => {
   const [showDateFilter, setShowDateFilter] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const monthListRef = React.useRef<HTMLDivElement>(null);
+  const analyticsCacheRef = useRef<Map<string, { data: any; ts: number }>>(new Map());
   const fromDateRef = useRef<HTMLInputElement>(null);
   const toDateRef = useRef<HTMLInputElement>(null);
 
@@ -451,6 +453,11 @@ const Performance: React.FC = () => {
         userId: user?.id,
         isAdmin: (user?.role === 'admin' || user?.role === 'manager') ? 'true' : 'false',
       };
+      const cacheKey = `${params.userId || 'na'}:${params.isAdmin}:${startDate || 'all'}:${endDate || 'all'}`;
+      const cached = analyticsCacheRef.current.get(cacheKey);
+      if (cached && Date.now() - cached.ts < ANALYTICS_CACHE_TTL_MS) {
+        return cached.data;
+      }
 
       // Only add date parameters if both are provided
       if (startDate && endDate) {
@@ -459,6 +466,10 @@ const Performance: React.FC = () => {
       }
 
       const response = await axios.get(`${address}/api/performance/analytics`, { params });
+      analyticsCacheRef.current.set(cacheKey, {
+        data: response.data,
+        ts: Date.now()
+      });
       return response.data;
     } catch (error) {
       console.error('Error fetching performance analytics:', error);

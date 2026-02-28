@@ -10,6 +10,40 @@ import { applyPlugin } from 'jspdf-autotable';
 applyPlugin(jsPDFModule.jsPDF);
 
 const router = express.Router();
+const PERFORMANCE_CACHE_TTL_MS = 60 * 1000;
+const performanceRouteCache = new Map();
+
+const getPerformanceCache = (key) => {
+  const cached = performanceRouteCache.get(key);
+  if (!cached) return null;
+  if (cached.expiresAt <= Date.now()) {
+    performanceRouteCache.delete(key);
+    return null;
+  }
+  return cached.data;
+};
+
+const setPerformanceCache = (key, data, ttlMs = PERFORMANCE_CACHE_TTL_MS) => {
+  performanceRouteCache.set(key, {
+    data,
+    expiresAt: Date.now() + ttlMs
+  });
+};
+
+const mapWithConcurrency = async (items, limit, mapper) => {
+  const results = new Array(items.length);
+  let index = 0;
+
+  const workers = Array.from({ length: Math.min(limit, items.length || 1) }, async () => {
+    while (index < items.length) {
+      const currentIndex = index++;
+      results[currentIndex] = await mapper(items[currentIndex], currentIndex);
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
+};
 
 // Helper function to calculate performance metrics
 const calculatePerformanceMetrics = (member) => {
@@ -57,7 +91,7 @@ const fetchUserTasksForPeriod = async (userId, companyId, startDate, endDate) =>
 
 
 // Helper function to build user performance data
-const buildUserPerformanceData = async (userId, companyId, dateQuery = {}) => {
+const buildUserPerformanceData = async (userId, companyId, dateQuery = {}, revisionConfig = null) => {
   const baseQuery = {
     isActive: true,
     companyId: companyId,
@@ -261,19 +295,23 @@ const buildUserPerformanceData = async (userId, companyId, dateQuery = {}) => {
   const effectiveCompleted = completedTasks - (rejectedTasks * 0.5);  // Partial for rates only
 
   // --- NEW: compute on-time scoring using revision scoringRules if enabled ---
-  const revisionSettings = await Settings.findOne({ type: 'revision', companyId });
-  let enableRevisions = revisionSettings?.data?.enableRevisions ?? false;
-
   const defaultMapping = { 0: 100, 1: 70, 2: 40, 3: 0 };
+  let enableRevisions = false;
   let mapping = defaultMapping;
 
-  const rules = revisionSettings?.data?.scoringRules || [];
-  const enabledRule = rules.find(r => r.enabled === true);
-
-  if (enabledRule && enabledRule.mapping) {
-    mapping = enabledRule.mapping;
+  if (revisionConfig) {
+    enableRevisions = revisionConfig.enableRevisions === true;
+    mapping = revisionConfig.mapping || defaultMapping;
   } else {
-    enableRevisions = false;
+    const revisionSettings = await Settings.findOne({ type: 'revision', companyId }).lean();
+    enableRevisions = revisionSettings?.data?.enableRevisions ?? false;
+    const rules = revisionSettings?.data?.scoringRules || [];
+    const enabledRule = rules.find(r => r.enabled === true);
+    if (enabledRule && enabledRule.mapping) {
+      mapping = enabledRule.mapping;
+    } else {
+      enableRevisions = false;
+    }
   }
 
   let onTimeScoreSum = 0;
@@ -409,10 +447,15 @@ const buildUserPerformanceData = async (userId, companyId, dateQuery = {}) => {
 router.get('/analytics', async (req, res) => {
   try {
     const { userId, isAdmin, startDate, endDate } = req.query;
+    const cacheKey = `analytics:${userId || 'na'}:${isAdmin || 'false'}:${startDate || 'all'}:${endDate || 'all'}`;
+    const cachedResponse = getPerformanceCache(cacheKey);
+    if (cachedResponse) {
+      return res.json(cachedResponse);
+    }
 
     const userObjectId = userId ? new mongoose.Types.ObjectId(userId) : null;
 
-    const currentUser = await User.findById(userObjectId).select('companyId username');
+    const currentUser = await User.findById(userObjectId).select('companyId username').lean();
     if (!currentUser) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -425,6 +468,14 @@ router.get('/analytics', async (req, res) => {
       dateQuery = { startDate, endDate };
     }
 
+    const revisionSettings = await Settings.findOne({ type: 'revision', companyId }).lean();
+    const rules = revisionSettings?.data?.scoringRules || [];
+    const enabledRule = rules.find(r => r.enabled === true);
+    const revisionConfig = {
+      enableRevisions: revisionSettings?.data?.enableRevisions === true && !!enabledRule?.mapping,
+      mapping: enabledRule?.mapping || { 0: 100, 1: 70, 2: 40, 3: 0 }
+    };
+
     let teamPerformance = [];
     let userPerformance = null;
 
@@ -436,15 +487,13 @@ router.get('/analytics', async (req, res) => {
       }).select('_id username').lean();
 
       // Build team performance data in parallel
-      const teamPromises = users.map(async (user) => {
-        const performanceData = await buildUserPerformanceData(user._id, companyId, dateQuery);
+      teamPerformance = await mapWithConcurrency(users, 5, async (user) => {
+        const performanceData = await buildUserPerformanceData(user._id, companyId, dateQuery, revisionConfig);
         return {
           username: user.username,
           ...performanceData
         };
       });
-
-      teamPerformance = await Promise.all(teamPromises);
 
       // Calculate performance metrics for all team members
       teamPerformance = teamPerformance.map(calculatePerformanceMetrics);
@@ -454,7 +503,7 @@ router.get('/analytics', async (req, res) => {
     } else {
       // Non-admin: Get individual user performance
       if (userObjectId) {
-        const performanceData = await buildUserPerformanceData(userObjectId, companyId, dateQuery);
+        const performanceData = await buildUserPerformanceData(userObjectId, companyId, dateQuery, revisionConfig);
         userPerformance = {
           username: currentUser.username,
           ...performanceData
@@ -463,10 +512,13 @@ router.get('/analytics', async (req, res) => {
       }
     }
 
-    res.json({
+    const payload = {
       teamPerformance,
       userPerformance
-    });
+    };
+
+    setPerformanceCache(cacheKey, payload);
+    res.json(payload);
   } catch (error) {
     console.error('Performance analytics error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -477,6 +529,11 @@ router.get('/analytics', async (req, res) => {
 router.get('/member-trend', async (req, res) => {
   try {
     const { memberUsername, isAdmin, userId } = req.query;
+    const cacheKey = `member-trend:${memberUsername || 'na'}:${userId || 'na'}:${isAdmin || 'false'}`;
+    const cachedResponse = getPerformanceCache(cacheKey);
+    if (cachedResponse) {
+      return res.json(cachedResponse);
+    }
 
     if (isAdmin !== 'true') {
       return res.status(403).json({ message: 'Access denied' });
@@ -600,6 +657,7 @@ router.get('/member-trend', async (req, res) => {
       });
     }
 
+    setPerformanceCache(cacheKey, trendMonths);
     res.json(trendMonths);
   } catch (error) {
     console.error('Member trend data error:', error);

@@ -154,6 +154,7 @@ interface TeamPendingData {
 // window.scrollTo({ top: scrollPosition, behavior: 'instant' });
 
 const Dashboard: React.FC = () => {
+  const DASHBOARD_API_CACHE_TTL_MS = 60 * 1000;
   const { user } = useAuth();
   useTheme();
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
@@ -172,6 +173,8 @@ const Dashboard: React.FC = () => {
   const [openSelector, setOpenSelector] = useState<string | null>(null);
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
   const [adminApprovalEnabled, setAdminApprovalEnabled] = useState(false);
+  const analyticsCacheRef = React.useRef<Map<string, { data: any; ts: number }>>(new Map());
+  const countsCacheRef = React.useRef<Map<string, { data: any; ts: number }>>(new Map());
 
 
   const handleCardClick = (card: string) => {
@@ -442,12 +445,21 @@ const Dashboard: React.FC = () => {
         userId: user?.id,
         isAdmin: (user?.role === "admin" || user?.role === "manager") ? "true" : "false"
       };
+      const cacheKey = `${params.userId || 'na'}:${params.isAdmin}:${startDate || 'all'}:${endDate || 'all'}`;
+      const cached = analyticsCacheRef.current.get(cacheKey);
+      if (cached && Date.now() - cached.ts < DASHBOARD_API_CACHE_TTL_MS) {
+        return cached.data;
+      }
       if (startDate && endDate) {
         params.startDate = startDate;
         params.endDate = endDate;
       }
 
       const response = await axios.get(`${address}/api/dashboard/analytics`, { params });
+      analyticsCacheRef.current.set(cacheKey, {
+        data: response.data,
+        ts: Date.now()
+      });
       return response.data;
     } catch (error) {
       return null;
@@ -488,12 +500,21 @@ const Dashboard: React.FC = () => {
         userId: user?.id,
         isAdmin: (user?.role === 'admin' || user?.role === 'manager') ? 'true' : 'false'
       };
+      const cacheKey = `${params.userId || 'na'}:${params.isAdmin}:${startDate || 'all'}:${endDate || 'all'}`;
+      const cached = countsCacheRef.current.get(cacheKey);
+      if (cached && Date.now() - cached.ts < DASHBOARD_API_CACHE_TTL_MS) {
+        return cached.data;
+      }
       if (startDate && endDate) {
         params.startDate = startDate;
         params.endDate = endDate;
       }
 
       const response = await axios.get(`${address}/api/dashboard/counts`, { params });
+      countsCacheRef.current.set(cacheKey, {
+        data: response.data,
+        ts: Date.now()
+      });
       return response.data;
     } catch (error) {
       console.error('Error fetching task counts:', error);
@@ -513,7 +534,7 @@ const Dashboard: React.FC = () => {
         params.endDate = endDate;
       }
 
-      const response = await axios.get(`${address}/api/dashboard/member-trend`, { params });
+      const response = await axios.get(`${address}/api/performance/member-trend`, { params });
       return response.data;
     } catch (error) {
       console.error('Error fetching member trend data:', error);
@@ -525,23 +546,25 @@ const Dashboard: React.FC = () => {
     const loadData = async () => {
       setLoading(true);
       try {
-        let analyticsData = null;
-        let countsData = null;
-
         if (viewMode === 'current') {
           // For current month view, use date filters
           const monthStart = startOfMonth(selectedMonth);
           const monthEnd = endOfMonth(selectedMonth);
-          analyticsData = await fetchDashboardAnalytics(monthStart.toISOString(), monthEnd.toISOString());
-          countsData = await fetchTaskCounts(monthStart.toISOString(), monthEnd.toISOString());
+          const [analyticsData, countsData] = await Promise.all([
+            fetchDashboardAnalytics(monthStart.toISOString(), monthEnd.toISOString()),
+            fetchTaskCounts(monthStart.toISOString(), monthEnd.toISOString())
+          ]);
+          setDashboardData(analyticsData);
+          setTaskCounts(countsData);
         } else {
           // For all-time view, fetch without date filters
-          analyticsData = await fetchDashboardAnalytics();
-          countsData = await fetchTaskCounts();
+          const [analyticsData, countsData] = await Promise.all([
+            fetchDashboardAnalytics(),
+            fetchTaskCounts()
+          ]);
+          setDashboardData(analyticsData);
+          setTaskCounts(countsData);
         }
-
-        setDashboardData(analyticsData);
-        setTaskCounts(countsData);
 
 
       } catch (error) {

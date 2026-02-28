@@ -4,11 +4,35 @@ import User from '../models/User.js';
 import mongoose from 'mongoose';
 
 const router = express.Router();
+const DASHBOARD_CACHE_TTL_MS = 60 * 1000;
+const dashboardRouteCache = new Map();
+
+const getDashboardCache = (key) => {
+  const cached = dashboardRouteCache.get(key);
+  if (!cached) return null;
+  if (cached.expiresAt <= Date.now()) {
+    dashboardRouteCache.delete(key);
+    return null;
+  }
+  return cached.data;
+};
+
+const setDashboardCache = (key, data, ttlMs = DASHBOARD_CACHE_TTL_MS) => {
+  dashboardRouteCache.set(key, {
+    data,
+    expiresAt: Date.now() + ttlMs
+  });
+};
 
 // Optimized dashboard analytics (removed performance data)
 router.get('/analytics', async (req, res) => {
   try {
     const { userId, isAdmin, startDate, endDate } = req.query;
+    const cacheKey = `analytics:${userId || 'na'}:${isAdmin || 'false'}:${startDate || 'all'}:${endDate || 'all'}`;
+    const cachedResponse = getDashboardCache(cacheKey);
+    if (cachedResponse) {
+      return res.json(cachedResponse);
+    }
 
     const userObjectId = userId ? new mongoose.Types.ObjectId(userId) : null;
 
@@ -314,7 +338,7 @@ router.get('/analytics', async (req, res) => {
       recurringOnTimeRate: Math.round(recurringOnTimeRateOverall * 10) / 10
     };
 
-    res.json({
+    const payload = {
       statusStats,
       typeStats,
       priorityStats,
@@ -322,7 +346,10 @@ router.get('/analytics', async (req, res) => {
       plannedTrend,
       recentActivity,
       performanceMetrics
-    });
+    };
+
+    setDashboardCache(cacheKey, payload);
+    res.json(payload);
   } catch (error) {
     console.error('Dashboard analytics error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -333,6 +360,11 @@ router.get('/analytics', async (req, res) => {
 router.get('/counts', async (req, res) => {
   try {
     const { userId, isAdmin, startDate, endDate } = req.query;
+    const cacheKey = `counts:${userId || 'na'}:${isAdmin || 'false'}:${startDate || 'all'}:${endDate || 'all'}`;
+    const cachedResponse = getDashboardCache(cacheKey);
+    if (cachedResponse) {
+      return res.json(cachedResponse);
+    }
 
     const userObjectId = userId ? new mongoose.Types.ObjectId(userId) : null;
 
@@ -532,7 +564,7 @@ router.get('/counts', async (req, res) => {
       const recurringCompleted = dailyCompleted + weeklyCompleted + monthlyCompleted + quarterlyCompleted + yearlyCompleted;
       const overduePercentage = totalTasks > 0 ? (overdueTasks / totalTasks) * 100 : 0;
 
-      return res.json({
+      const payload = {
         totalTasks,
         pendingTasks,
         completedTasks,
@@ -565,7 +597,10 @@ router.get('/counts', async (req, res) => {
           completedTasks: calculateTrend(thisYearCompletedTasks, prevYearCompletedTasks),
           overdueTasks: calculateTrend(thisYearOverdueTasks, prevYearOverdueTasks)
         }
-      });
+      };
+
+      setDashboardCache(cacheKey, payload);
+      return res.json(payload);
     }
 
     // Use Promise.all for parallel execution - including quarterly
@@ -664,7 +699,7 @@ router.get('/counts', async (req, res) => {
     const recurringCompleted = dailyCompleted + weeklyCompleted + monthlyCompleted + quarterlyCompleted + yearlyCompleted;
     const overduePercentage = totalTasks > 0 ? (overdueTasks / totalTasks) * 100 : 0;
 
-    res.json({
+    const payload = {
       totalTasks,
       pendingTasks,
       completedTasks,
@@ -697,7 +732,10 @@ router.get('/counts', async (req, res) => {
         completedTasks: calculateTrend(completedTasks, prevCompletedTasks),
         overdueTasks: calculateTrend(overdueTasks, prevOverdueTasks)
       }
-    });
+    };
+
+    setDashboardCache(cacheKey, payload);
+    res.json(payload);
   } catch (error) {
     console.error('Dashboard counts error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
