@@ -1065,7 +1065,7 @@ router.post('/export-pdf', async (req, res) => {
       doc.text('Task Type Distribution', 20, yPosition);
       yPosition += 10;
 
-      const taskTypeData = sortedTeam.slice(0, 10).map(member => {
+      const taskTypeData = sortedTeam.slice(0, 200).map(member => {
         return [
           member.username,
           (member.oneTimeTasks || 0).toString(),
