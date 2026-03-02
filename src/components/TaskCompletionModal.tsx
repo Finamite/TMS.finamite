@@ -205,7 +205,7 @@ const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
                       Click to select files or drag and drop
                     </p>
                     <p className="text-sm text-[var(--color-textSecondary)] mb-2">
-                      Supported formats: PDF, images (JPG, PNG), documents (DOCX, XLSX), voice recordings.
+                      Supported formats: PDF, images (JPG, JPEG, PNG), documents (DOCX, XLSX), voice recordings.
                     </p>
                     <p className="text-xs text-[var(--color-textSecondary)] mb-4">
                       Maximum file size: 10MB per file
@@ -213,6 +213,7 @@ const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
                     <input
                       type="file"
                       multiple
+                      accept=".jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,.pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,audio/*"
                       onChange={handleFileChange}
                       className="hidden"
                       id="file-upload"

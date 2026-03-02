@@ -1351,6 +1351,7 @@ const AssignTask: React.FC = () => {
                       <input
                         type="file"
                         multiple
+                        accept=".jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,.pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,audio/*"
                         onChange={(e) => handleFileChange(task.id, e)}
                         className="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-all duration-200"
                       />

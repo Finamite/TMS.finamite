@@ -622,7 +622,7 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
                       disabled={isUploading}
                       className="hidden"
                       id="file-upload"
-                      accept="*/*"
+                      accept=".jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,.pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,audio/*"
                     />
                     <label
                       htmlFor="file-upload"
@@ -703,7 +703,7 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
                               onChange={(e) => handleReplaceAttachment(index, e)}
                               className="hidden"
                               id={`replace-${index}`}
-                              accept="*/*"
+                              accept=".jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,.pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,audio/*"
                             />
                             <label
                               htmlFor={`replace-${index}`}

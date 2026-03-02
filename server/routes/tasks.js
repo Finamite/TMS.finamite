@@ -33,6 +33,11 @@ const getDailyTaskDates = (startDate, endDate, includeSunday, weekOffDays = []) 
 let teamPendingCache = {};
 let teamPendingCacheTime = {};
 const CACHE_TTL = 30 * 1000;
+let pendingRecurringCache = {};
+let pendingRecurringCacheTime = {};
+const PENDING_RECURRING_CACHE_TTL = 20 * 1000;
+const PENDING_RECURRING_SELECT =
+  'title description taskType assignedBy assignedTo dueDate priority status lastCompletedDate createdAt attachments';
 
 // Helper function to get all dates for weekly tasks within a range based on selected days
 const getWeeklyTaskDates = (startDate, endDate, selectedDays, weekOffDays = []) => {
@@ -462,11 +467,33 @@ router.get('/pending-recurring', async (req, res) => {
       const safePage = Math.max(parseInt(page, 10) || 1, 1);
       const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 200);
       const skip = (safePage - 1) * safeLimit;
+      const normalizedSearch = String(search || '').trim().toLowerCase();
+      const cacheKey = JSON.stringify({
+        companyId: companyId || '',
+        userId: userId || '',
+        section,
+        page: safePage,
+        limit: safeLimit,
+        taskType: taskType || '',
+        priority: priority || '',
+        assignedBy: assignedBy || '',
+        assignedTo: assignedTo || '',
+        search: normalizedSearch
+      });
+      const nowTs = Date.now();
+
+      if (
+        pendingRecurringCache[cacheKey] &&
+        nowTs - (pendingRecurringCacheTime[cacheKey] || 0) < PENDING_RECURRING_CACHE_TTL
+      ) {
+        return res.json(pendingRecurringCache[cacheKey]);
+      }
 
       const activeQuery = section === 'cyclic' ? cyclicQuery : dailyQuery;
 
       const [tasks, total, dailyCount, cyclicCount] = await Promise.all([
         Task.find(activeQuery)
+          .select(PENDING_RECURRING_SELECT)
           .populate('assignedBy', 'username email')
           .populate('assignedTo', 'username email')
           .sort({ dueDate: 1, createdAt: -1 })
@@ -478,7 +505,7 @@ router.get('/pending-recurring', async (req, res) => {
         Task.countDocuments(cyclicQuery)
       ]);
 
-      return res.json({
+      const payload = {
         tasks,
         total,
         totalPages: Math.ceil(total / safeLimit),
@@ -487,7 +514,12 @@ router.get('/pending-recurring', async (req, res) => {
           daily: dailyCount,
           cyclic: cyclicCount
         }
-      });
+      };
+
+      pendingRecurringCache[cacheKey] = payload;
+      pendingRecurringCacheTime[cacheKey] = nowTs;
+
+      return res.json(payload);
     }
 
     // Legacy response (array) kept for existing consumers.
@@ -507,6 +539,7 @@ router.get('/pending-recurring', async (req, res) => {
         }
       ]
     })
+      .select(PENDING_RECURRING_SELECT)
       .populate('assignedBy', 'username email')
       .populate('assignedTo', 'username email')
       .sort({ dueDate: 1 })
@@ -537,6 +570,7 @@ router.get('/by-id/:id', async (req, res) => {
     }
 
     const task = await Task.findOne(query)
+      .select(PENDING_RECURRING_SELECT)
       .populate('assignedBy', 'username email')
       .populate('assignedTo', 'username email')
       .lean();

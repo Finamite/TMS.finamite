@@ -1,5 +1,5 @@
 // PendingRecurringTasks.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { RefreshCw, Clock, CheckSquare, Filter, Search, ChevronDown, ChevronUp, AlertCircle, CalendarDays, Paperclip, FileText, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import axios from 'axios';
@@ -127,6 +127,7 @@ const PendingRecurringTasks: React.FC = () => {
   const [showFullDescription, setShowFullDescription] = useState<{ [key: string]: boolean }>({});
   const [showFullTitle, setShowFullTitle] = useState<{ [key: string]: boolean }>({});
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const cacheRef = useRef<Map<string, PendingRecurringTasksResponse>>(new Map());
   const location = useLocation();
 
   const toggleTitleVisibility = (taskId: string) => {
@@ -192,6 +193,73 @@ const PendingRecurringTasks: React.FC = () => {
     }, 300);
     return () => window.clearTimeout(timer);
   }, [filter.search]);
+
+  const buildRequestParams = useCallback((sectionValue: 'daily' | 'cyclic', pageValue: number) => {
+    const params: any = {
+      companyId: user?.company?.companyId,
+      paginated: true,
+      page: pageValue,
+      limit: itemsPerPage,
+      section: sectionValue
+    };
+
+    if (!isAdmin && user?.id) {
+      params.userId = user.id;
+    }
+
+    if (filter.taskType) params.taskType = filter.taskType;
+    if (filter.priority) params.priority = filter.priority;
+    if (filter.assignedBy) params.assignedBy = filter.assignedBy;
+    if (filter.assignedTo) params.assignedTo = filter.assignedTo;
+    if (debouncedSearch) params.search = debouncedSearch;
+
+    return params;
+  }, [
+    user?.company?.companyId,
+    user?.id,
+    isAdmin,
+    itemsPerPage,
+    filter.taskType,
+    filter.priority,
+    filter.assignedBy,
+    filter.assignedTo,
+    debouncedSearch
+  ]);
+
+  const buildCacheKey = useCallback((sectionValue: 'daily' | 'cyclic', pageValue: number) => {
+    return JSON.stringify(buildRequestParams(sectionValue, pageValue));
+  }, [buildRequestParams]);
+
+  const applyPayload = useCallback((payload: PendingRecurringTasksResponse, pageValue: number) => {
+    setAllTasks(payload.tasks || []);
+    setTotalTasks(payload.total || 0);
+    setSectionCounts(payload.counts || { daily: 0, cyclic: 0 });
+
+    const safeTotalPages = Math.max(1, payload.totalPages || 1);
+    if (pageValue > safeTotalPages) {
+      setCurrentPage(safeTotalPages);
+    }
+  }, []);
+
+  const prefetchSection = useCallback(async (sectionValue: 'daily' | 'cyclic') => {
+    if (!user?.company?.companyId) return;
+
+    const prefetchPage = 1;
+    const prefetchKey = buildCacheKey(sectionValue, prefetchPage);
+    if (cacheRef.current.has(prefetchKey)) return;
+
+    try {
+      const prefetchParams = buildRequestParams(sectionValue, prefetchPage);
+      const response = await axios.get<PendingRecurringTasksResponse>(
+        `${address}/api/tasks/pending-recurring`,
+        { params: prefetchParams }
+      );
+      cacheRef.current.set(prefetchKey, response.data);
+    } catch (error) {
+      // Prefetch is best-effort only.
+    }
+  }, [user?.company?.companyId, buildCacheKey, buildRequestParams]);
+
   const fetchTaskById = useCallback(async (taskId: string) => {
     try {
       if (!user?.company?.companyId) return;
@@ -217,34 +285,26 @@ const PendingRecurringTasks: React.FC = () => {
         setLoading(false);
         return;
       }
-      setLoading(true);
-      const params: any = {
-        companyId: user.company.companyId,
-        paginated: true,
-        page: currentPage,
-        limit: itemsPerPage,
-        section: activeSection
-      };
-      if (!isAdmin && user?.id) {
-        params.userId = user.id;
+
+      const cacheKey = buildCacheKey(activeSection, currentPage);
+      const cachedPayload = cacheRef.current.get(cacheKey);
+
+      if (cachedPayload) {
+        applyPayload(cachedPayload, currentPage);
+        setLoading(false);
+        void prefetchSection(activeSection === 'daily' ? 'cyclic' : 'daily');
+        return;
       }
-      if (filter.taskType) params.taskType = filter.taskType;
-      if (filter.priority) params.priority = filter.priority;
-      if (filter.assignedBy) params.assignedBy = filter.assignedBy;
-      if (filter.assignedTo) params.assignedTo = filter.assignedTo;
-      if (debouncedSearch) params.search = debouncedSearch;
+
+      setLoading(true);
+      const params = buildRequestParams(activeSection, currentPage);
       const response = await axios.get<PendingRecurringTasksResponse>(
         `${address}/api/tasks/pending-recurring`,
         { params }
       );
-      const payload = response.data;
-      setAllTasks(payload.tasks || []);
-      setTotalTasks(payload.total || 0);
-      setSectionCounts(payload.counts || { daily: 0, cyclic: 0 });
-      const safeTotalPages = Math.max(1, payload.totalPages || 1);
-      if (currentPage > safeTotalPages) {
-        setCurrentPage(safeTotalPages);
-      }
+      cacheRef.current.set(cacheKey, response.data);
+      applyPayload(response.data, currentPage);
+      void prefetchSection(activeSection === 'daily' ? 'cyclic' : 'daily');
     } catch (error) {
       setAllTasks([]);
       setTotalTasks(0);
@@ -256,15 +316,12 @@ const PendingRecurringTasks: React.FC = () => {
   }, [
     user?.company?.companyId,
     user?.id,
-    isAdmin,
     currentPage,
-    itemsPerPage,
     activeSection,
-    filter.taskType,
-    filter.priority,
-    filter.assignedBy,
-    filter.assignedTo,
-    debouncedSearch
+    buildCacheKey,
+    buildRequestParams,
+    applyPayload,
+    prefetchSection
   ]);
   const fetchUsers = useCallback(async () => {
     try {
@@ -302,6 +359,7 @@ const PendingRecurringTasks: React.FC = () => {
   const handleTaskCompletion = () => {
     if (!showCompleteModal) return;
     const completedTaskId = showCompleteModal;
+    cacheRef.current.clear();
     setAllTasks(prev => prev.filter(task => task._id !== completedTaskId));
     setHighlightedTask(prev => (prev?._id === completedTaskId ? null : prev));
     setTotalTasks(prev => Math.max(0, prev - 1));
@@ -318,10 +376,12 @@ const PendingRecurringTasks: React.FC = () => {
     return null;
   };
   const setFilterValue = (key: 'taskType' | 'priority' | 'assignedBy' | 'assignedTo' | 'search', value: string) => {
+    cacheRef.current.clear();
     setFilter(prev => ({ ...prev, [key]: value }));
     setCurrentPage(1);
   };
   const resetFilters = () => {
+    cacheRef.current.clear();
     setFilter({ taskType: '', priority: '', assignedBy: '', assignedTo: '', search: '' });
     setCurrentPage(1);
   };
@@ -329,6 +389,7 @@ const PendingRecurringTasks: React.FC = () => {
     setCurrentPage(Math.max(1, Math.min(page, totalPages)));
   };
   const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    cacheRef.current.clear();
     setItemsPerPage(newItemsPerPage);
     setCurrentPage(1);
   };
