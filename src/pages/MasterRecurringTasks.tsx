@@ -270,10 +270,10 @@ const getInitialViewPreference = (): 'table' | 'card' => {
   return isMobileDevice() ? 'card' : 'table';
 };
 
-const isImage = (filename: string) => {
+const isImage = (filename?: string, originalName?: string) => {
   const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg'];
-  const lowercasedFilename = filename.toLowerCase();
-  return imageExtensions.some(ext => lowercasedFilename.endsWith(ext));
+  const targetName = (filename || originalName || '').toLowerCase().split('?')[0];
+  return imageExtensions.some(ext => targetName.endsWith(ext));
 };
 
 const formatFileSize = (bytes: number) => {
@@ -2513,7 +2513,7 @@ const MasterRecurringTasks: React.FC = () => {
                     <div key={index} className="border border-[--color-border] rounded-lg p-4 bg-[--color-background] hover:shadow-md transition-shadow">
                       <div className="flex flex-col h-full">
                         <div className="flex-1 mb-3">
-                          {isImage(attachment.filename) ? (
+                          {isImage(attachment.filename, attachment.originalName) ? (
                             <div className="relative group">
                               <img
                                 src={`${address}/uploads/${attachment.filename}`}
@@ -2547,7 +2547,7 @@ const MasterRecurringTasks: React.FC = () => {
                         </div>
 
                         <div className="flex gap-2 mt-3">
-                          {isImage(attachment.filename) ? (
+                          {isImage(attachment.filename, attachment.originalName) ? (
                             <>
                               <button
                                 onClick={() => window.open(`${address}/uploads/${attachment.filename}`, '_blank')}

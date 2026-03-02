@@ -167,10 +167,10 @@ const PendingRecurringTasks: React.FC = () => {
   };
 
   // Helper to determine if a filename is an image based on its extension
-  const isImage = (filename: string) => {
+  const isImage = (filename?: string, originalName?: string) => {
     const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg'];
-    const lowercasedFilename = filename.toLowerCase();
-    return imageExtensions.some(ext => lowercasedFilename.endsWith(ext));
+    const targetName = (filename || originalName || '').toLowerCase().split('?')[0];
+    return imageExtensions.some(ext => targetName.endsWith(ext));
   };
 
   // Function to toggle full description visibility for a task
@@ -1008,7 +1008,7 @@ const PendingRecurringTasks: React.FC = () => {
                     {showAttachmentsModal.map((attachment, index) => (
                       <div key={index} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] hover:border-[var(--color-primary)]/30 transition-colors">
                         <div className="flex items-center mb-3 sm:mb-0 sm:mr-4 flex-1 min-w-0">
-                          {isImage(attachment.filename) ? (
+                          {isImage(attachment.filename, attachment.originalName) ? (
                             <>
                               {/* Small preview image in the list */}
                               <img
@@ -1043,7 +1043,7 @@ const PendingRecurringTasks: React.FC = () => {
                           )}
                         </div>
                         <div className="flex gap-2 shrink-0">
-                          {isImage(attachment.filename) && (
+                          {isImage(attachment.filename, attachment.originalName) && (
                             <button
                               onClick={() => setSelectedImagePreview(`${address}/uploads/${attachment.filename}`)}
                               className="px-3 py-2 text-sm font-medium text-[var(--color-accent)] hover:text-[var(--color-accent)]/80 hover:bg-[var(--color-accent)]/10 rounded-lg transition-colors flex items-center gap-1"

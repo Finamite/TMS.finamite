@@ -454,10 +454,10 @@ const PendingTasks: React.FC = () => {
     return text.substring(0, maxLength) + '...';
   };
 
-  const isImage = (filename: string) => {
+  const isImage = (filename?: string, originalName?: string) => {
     const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg'];
-    const lowercasedFilename = filename.toLowerCase();
-    return imageExtensions.some(ext => lowercasedFilename.endsWith(ext));
+    const targetName = (filename || originalName || '').toLowerCase().split('?')[0];
+    return imageExtensions.some(ext => targetName.endsWith(ext));
   };
 
   const handleDownload = async (attachment: Attachment) => {
@@ -1483,7 +1483,7 @@ const PendingTasks: React.FC = () => {
                     return (
                       <li key={index} className={`flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 rounded-lg ${theme === 'light' ? 'bg-gray-50' : 'bg-[--color-background]'} text-[--color-text]`}>
                         <div className="flex items-center mb-2 sm:mb-0 sm:mr-4">
-                          {isImage(attachment.filename) ? (
+                          {isImage(attachment.filename, attachment.originalName) ? (
                             <>
                               <img
                                 src={`${address}/uploads/${attachment.filename}`}
@@ -1500,7 +1500,7 @@ const PendingTasks: React.FC = () => {
                             </>
                           )}
                         </div>
-                        {isImage(attachment.filename) ? (
+                        {isImage(attachment.filename, attachment.originalName) ? (
                           <div className="flex items-center shrink-0 mt-2 sm:mt-0 space-x-2">
                             <button
                               onClick={() => window.open(`${address}/uploads/${attachment.filename}`, '_blank')}
