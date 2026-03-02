@@ -1,5 +1,5 @@
 // PendingRecurringTasks.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { RefreshCw, Clock, CheckSquare, Filter, Search, ChevronDown, ChevronUp, AlertCircle, CalendarDays, Paperclip, FileText, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import axios from 'axios';
@@ -40,6 +40,17 @@ interface User {
   _id?: string;
   username: string;
   email: string;
+}
+
+interface PendingRecurringTasksResponse {
+  tasks: Task[];
+  total: number;
+  totalPages: number;
+  currentPage: number;
+  counts: {
+    daily: number;
+    cyclic: number;
+  };
 }
 
 // Function to handle file download
@@ -93,7 +104,9 @@ const PendingRecurringTasks: React.FC = () => {
   const { settings: taskSettings, loading: settingsLoading } = useTaskSettings();
 
   const [allTasks, setAllTasks] = useState<Task[]>([]);
-  const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
+  const [highlightedTask, setHighlightedTask] = useState<Task | null>(null);
+  const [totalTasks, setTotalTasks] = useState(0);
+  const [sectionCounts, setSectionCounts] = useState({ daily: 0, cyclic: 0 });
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'card' | 'table'>(getInitialViewPreference);
@@ -113,6 +126,7 @@ const PendingRecurringTasks: React.FC = () => {
   const [selectedImagePreview, setSelectedImagePreview] = useState<string | null>(null);
   const [showFullDescription, setShowFullDescription] = useState<{ [key: string]: boolean }>({});
   const [showFullTitle, setShowFullTitle] = useState<{ [key: string]: boolean }>({});
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const location = useLocation();
 
   const toggleTitleVisibility = (taskId: string) => {
@@ -165,186 +179,158 @@ const PendingRecurringTasks: React.FC = () => {
       [taskId]: !prevState[taskId]
     }));
   };
-
-  // Filter tasks based on all criteria
-  const filterTasks = (tasks: Task[]) => {
-    return tasks.filter((task: Task) => {
-      // Search filter
-      if (filter.search) {
-        const searchLower = filter.search.toLowerCase();
-        const matchesSearch =
-          task.title.toLowerCase().includes(searchLower) ||
-          task.description.toLowerCase().includes(searchLower) ||
-          task.assignedTo.username.toLowerCase().includes(searchLower) ||
-          task.assignedBy.username.toLowerCase().includes(searchLower);
-
-        if (!matchesSearch) return false;
-      }
-
-      // Task type filter
-      if (filter.taskType && task.taskType !== filter.taskType) {
-        return false;
-      }
-
-      // Priority filter
-      if (filter.priority && task.priority !== filter.priority) {
-        return false;
-      }
-
-      if (filter.assignedBy && task.assignedBy.username !== filter.assignedBy) {
-  return false;
-}
-      // Assigned to filter
-      if (filter.assignedTo && task.assignedTo._id !== filter.assignedTo) {
-        return false;
-      }
-
-      return true;
-    });
-  };
-
-  const getDailyTasks = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normalize today's date to start of day
-    return filteredTasks.filter(task => {
-      const dueDate = new Date(task.dueDate);
-      dueDate.setHours(0, 0, 0, 0); // Normalize task due date to start of day
-
-      return task.taskType === 'daily' && dueDate.getTime() === today.getTime();
-    });
-  };
-
-  const getCyclicTasks = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const fiveDaysFromNow = new Date(today);
-    fiveDaysFromNow.setDate(fiveDaysFromNow.getDate() + 5);
-
-    return filteredTasks.filter(task => {
-      if (!['weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly'].includes(task.taskType)) {
-        return false;
-      }
-
-      const dueDate = new Date(task.dueDate);
-      dueDate.setHours(0, 0, 0, 0);
-
-      // ✅ Show only overdue or due within the next 5 days
-      return isOverdue(task.dueDate) || (dueDate >= today && dueDate <= fiveDaysFromNow);
-    });
-  };
-
-  const getCurrentTasks = () => {
-    return activeSection === 'daily' ? getDailyTasks() : getCyclicTasks();
-  };
-
-  // Calculate pagination
-  const totalPages = Math.ceil(getCurrentTasks().length / itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(totalTasks / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentTasks = getCurrentTasks().slice(startIndex, endIndex);
-
-  useEffect(() => {
-    fetchTasks();
-    if (isAdmin) {
-      fetchUsers();
-    }
-  }, [user, isAdmin]);
-
-  useEffect(() => {
-    if (location.state?.highlightTaskId && location.state?.openCompleteModal) {
-      const taskId = location.state.highlightTaskId;
-      setShowCompleteModal(taskId);
-
-      window.history.replaceState({}, document.title);
-    }
-  }, [allTasks]);
-
-  useEffect(() => {
-    if (!loading && location.state?.highlightTaskId && location.state?.openCompleteModal) {
-      setShowCompleteModal(location.state.highlightTaskId);
-      window.history.replaceState({}, document.title);
-    }
-  }, [loading]);
-
-  // Apply filters whenever filter state or allTasks changes
-  useEffect(() => {
-    const filtered = filterTasks(allTasks);
-    setFilteredTasks(filtered);
-    setCurrentPage(1); // Reset to first page when filters change
-  }, [allTasks, filter]);
-
+  const endIndex = startIndex + allTasks.length;
+  const currentTasks = allTasks;
   useEffect(() => {
     localStorage.setItem('taskViewPreference', view);
   }, [view]);
-
-  const fetchTasks = async () => {
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(filter.search.trim());
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [filter.search]);
+  const fetchTaskById = useCallback(async (taskId: string) => {
     try {
-      setLoading(true);
-      const params = new URLSearchParams();
-
-      // Add companyId to params if it exists on the user object
-      if (user?.company?.companyId) {
-        params.append('companyId', user.company.companyId);
-      }
-
-      // ✅ Use specific userId field that matches backend expectations
+      if (!user?.company?.companyId) return;
+      const params: any = {
+        companyId: user.company.companyId
+      };
       if (!isAdmin && user?.id) {
-        params.append('userId', user.id);
+        params.userId = user.id;
       }
-
-      // ✅ Use the optimized pending-recurring endpoint for faster queries
-      const response = await axios.get(`${address}/api/tasks/pending-recurring?${params}`);
-
-      // ✅ Data is already filtered on the backend, no need to filter again
-      setAllTasks(response.data);
+      const response = await axios.get<Task>(`${address}/api/tasks/by-id/${taskId}`, { params });
+      setHighlightedTask(response.data);
     } catch (error) {
+      setHighlightedTask(null);
+      console.error('Error fetching highlighted task:', error);
+    }
+  }, [isAdmin, user?.company?.companyId, user?.id]);
+  const fetchTasks = useCallback(async () => {
+    try {
+      if (!user?.company?.companyId) {
+        setAllTasks([]);
+        setTotalTasks(0);
+        setSectionCounts({ daily: 0, cyclic: 0 });
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      const params: any = {
+        companyId: user.company.companyId,
+        paginated: true,
+        page: currentPage,
+        limit: itemsPerPage,
+        section: activeSection
+      };
+      if (!isAdmin && user?.id) {
+        params.userId = user.id;
+      }
+      if (filter.taskType) params.taskType = filter.taskType;
+      if (filter.priority) params.priority = filter.priority;
+      if (filter.assignedBy) params.assignedBy = filter.assignedBy;
+      if (filter.assignedTo) params.assignedTo = filter.assignedTo;
+      if (debouncedSearch) params.search = debouncedSearch;
+      const response = await axios.get<PendingRecurringTasksResponse>(
+        `${address}/api/tasks/pending-recurring`,
+        { params }
+      );
+      const payload = response.data;
+      setAllTasks(payload.tasks || []);
+      setTotalTasks(payload.total || 0);
+      setSectionCounts(payload.counts || { daily: 0, cyclic: 0 });
+      const safeTotalPages = Math.max(1, payload.totalPages || 1);
+      if (currentPage > safeTotalPages) {
+        setCurrentPage(safeTotalPages);
+      }
+    } catch (error) {
+      setAllTasks([]);
+      setTotalTasks(0);
+      setSectionCounts({ daily: 0, cyclic: 0 });
       console.error("Error fetching tasks:", error);
     } finally {
       setLoading(false);
     }
-  };
-
-  const fetchUsers = async () => {
+  }, [
+    user?.company?.companyId,
+    user?.id,
+    isAdmin,
+    currentPage,
+    itemsPerPage,
+    activeSection,
+    filter.taskType,
+    filter.priority,
+    filter.assignedBy,
+    filter.assignedTo,
+    debouncedSearch
+  ]);
+  const fetchUsers = useCallback(async () => {
     try {
-      const params: any = {};
-      if (user?.company?.companyId) {
-        params.companyId = user.company.companyId;
-      }
+      if (!user?.company?.companyId) return;
+      const params: any = {
+        companyId: user.company.companyId
+      };
       if (user?.role) {
-        params.role = user.role; // helps exclude superadmins automatically
+        params.role = user.role;
       }
-
       const response = await axios.get(`${address}/api/users`, { params });
       const sortedUsers = response.data.sort((a: User, b: User) =>
         a.username.localeCompare(b.username)
       );
-
       setUsers(sortedUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
     }
-  };
-
+  }, [user?.company?.companyId, user?.role]);
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+  useEffect(() => {
+    const taskId = location.state?.highlightTaskId;
+    const shouldOpen = location.state?.openCompleteModal;
+    if (taskId && shouldOpen) {
+      setShowCompleteModal(taskId);
+      fetchTaskById(taskId);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state?.highlightTaskId, location.state?.openCompleteModal, fetchTaskById]);
   const handleTaskCompletion = () => {
-    setAllTasks(prev => prev.filter(task => task._id !== showCompleteModal));
+    if (!showCompleteModal) return;
+    const completedTaskId = showCompleteModal;
+    setAllTasks(prev => prev.filter(task => task._id !== completedTaskId));
+    setHighlightedTask(prev => (prev?._id === completedTaskId ? null : prev));
+    setTotalTasks(prev => Math.max(0, prev - 1));
+    setSectionCounts(prev => ({
+      ...prev,
+      [activeSection]: Math.max(0, prev[activeSection] - 1)
+    }));
     setShowCompleteModal(null);
   };
   const getTaskToComplete = () => {
-    return allTasks.find(task => task._id === showCompleteModal);
+    const fromPage = allTasks.find(task => task._id === showCompleteModal);
+    if (fromPage) return fromPage;
+    if (highlightedTask?._id === showCompleteModal) return highlightedTask;
+    return null;
   };
-
+  const setFilterValue = (key: 'taskType' | 'priority' | 'assignedBy' | 'assignedTo' | 'search', value: string) => {
+    setFilter(prev => ({ ...prev, [key]: value }));
+    setCurrentPage(1);
+  };
   const resetFilters = () => {
-    setFilter({ taskType: '', priority: '',assignedBy:'', assignedTo: '', search: '' });
+    setFilter({ taskType: '', priority: '', assignedBy: '', assignedTo: '', search: '' });
+    setCurrentPage(1);
   };
-
   const handlePageChange = (page: number) => {
     setCurrentPage(Math.max(1, Math.min(page, totalPages)));
   };
-
   const handleItemsPerPageChange = (newItemsPerPage: number) => {
     setItemsPerPage(newItemsPerPage);
-    setCurrentPage(1); // Reset to first page
+    setCurrentPage(1);
   };
 
   const renderCardView = () => (
@@ -623,8 +609,8 @@ const PendingRecurringTasks: React.FC = () => {
     );
   }
 
-  const dailyTasksCount = getDailyTasks().length;
-  const cyclicTasksCount = getCyclicTasks().length;
+  const dailyTasksCount = sectionCounts.daily;
+  const cyclicTasksCount = sectionCounts.cyclic;
   const completingTask = getTaskToComplete();
 
   return (
@@ -635,7 +621,7 @@ const PendingRecurringTasks: React.FC = () => {
             {isAdmin ? 'Team Pending Tasks' : 'My Pending Tasks'}
           </h1>
           <p className="mt-0 text-xs text-[var(--color-textSecondary)]">
-            {getCurrentTasks().length} of {filteredTasks.length} task(s) found
+            {currentTasks.length} of {totalTasks} task(s) found
             {isAdmin ? ' (All team members)' : ' (Your tasks)'}
           </p>
         </div>
@@ -648,7 +634,10 @@ const PendingRecurringTasks: React.FC = () => {
         <div className="flex flex-wrap gap-2 mb-1 items-center">
           <div className="flex flex-wrap gap-2">
             <button
-              onClick={() => setActiveSection('daily')}
+              onClick={() => {
+                setActiveSection('daily');
+                setCurrentPage(1);
+              }}
               className={`px-4 py-1 rounded-lg font-semibold transition-all duration-200 flex items-center gap-2 text-xs ${activeSection === 'daily'
                 ? 'bg-[var(--color-primary)] text-white shadow-md'
                 : 'bg-[var(--color-background)] text-[var(--color-textSecondary)] hover:bg-[var(--color-border)]'
@@ -665,7 +654,10 @@ const PendingRecurringTasks: React.FC = () => {
             </button>
 
             <button
-              onClick={() => setActiveSection('cyclic')}
+              onClick={() => {
+                setActiveSection('cyclic');
+                setCurrentPage(1);
+              }}
               className={`px-4 py-1 rounded-lg font-semibold transition-all duration-200 flex items-center gap-2 text-xs ${activeSection === 'cyclic'
                 ? 'bg-[var(--color-accent)] text-white shadow-md'
                 : 'bg-[var(--color-background)] text-[var(--color-textSecondary)] hover:bg-[var(--color-border)]'
@@ -698,7 +690,7 @@ const PendingRecurringTasks: React.FC = () => {
               <label className="block text-sm font-medium text-[var(--color-text)] mb-1">Task Type</label>
               <select
                 value={filter.taskType}
-                onChange={(e) => setFilter({ ...filter, taskType: e.target.value })}
+                onChange={(e) => setFilterValue('taskType', e.target.value)}
                 className="w-full text-sm px-1 py-1 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] transition-colors"
               >
                 <option value="">All Types</option>
@@ -713,7 +705,7 @@ const PendingRecurringTasks: React.FC = () => {
               <label className="block text-sm font-medium text-[var(--color-text)] mb-1">Priority</label>
               <select
                 value={filter.priority}
-                onChange={(e) => setFilter({ ...filter, priority: e.target.value })}
+                onChange={(e) => setFilterValue('priority', e.target.value)}
                 className="w-full text-sm px-1 py-1 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] transition-colors"
               >
                 <option value="">All Priorities</option>
@@ -728,16 +720,16 @@ const PendingRecurringTasks: React.FC = () => {
 
     <select
       value={filter.assignedBy}
-      onChange={(e) => setFilter({ ...filter, assignedBy: e.target.value })}
+      onChange={(e) => setFilterValue('assignedBy', e.target.value)}
       className="w-full text-sm px-1 py-1 border border-[var(--color-border)] bg-[var(--color-surface)] 
       text-[var(--color-text)] rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] 
       focus:border-[var(--color-primary)] transition-colors"
     >
       <option value="">All</option>
 
-      {[...new Set(allTasks.map(t => t.assignedBy.username))].map((name) => (
-        <option key={name} value={name}>
-          {name}
+      {users.filter((u) => u._id).map((u) => (
+        <option key={u._id} value={u._id}>
+          {u.username}
         </option>
       ))}
     </select>
@@ -746,9 +738,9 @@ const PendingRecurringTasks: React.FC = () => {
             {isAdmin && (
               <div>
                 <label className="block text-sm font-medium text-[var(--color-text)] mb-1">Team Member</label>
-                <select
-                  value={filter.assignedTo}
-                  onChange={(e) => setFilter({ ...filter, assignedTo: e.target.value })}
+                  <select
+                    value={filter.assignedTo}
+                    onChange={(e) => setFilterValue('assignedTo', e.target.value)}
                   className="w-full text-sm px-1 py-1 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] transition-colors"
                 >
                   <option value="">All Members</option>
@@ -766,7 +758,7 @@ const PendingRecurringTasks: React.FC = () => {
                   type="text"
                   placeholder="Search tasks..."
                   value={filter.search}
-                  onChange={(e) => setFilter({ ...filter, search: e.target.value })}
+                  onChange={(e) => setFilterValue('search', e.target.value)}
                   className="w-full pl-10 text-sm pr-1 py-1 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] transition-colors"
                 />
               </div>
@@ -780,7 +772,7 @@ const PendingRecurringTasks: React.FC = () => {
         )}
       </div>
 
-      {getCurrentTasks().length === 0 ? (
+      {totalTasks === 0 ? (
         <div className="text-center py-16 bg-[var(--color-background)] rounded-xl shadow-sm border border-[var(--color-border)]">
           <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-[var(--color-primary)]/20 to-[var(--color-accent)]/20 rounded-full flex items-center justify-center">
             {activeSection === 'daily' ? (
@@ -827,9 +819,9 @@ const PendingRecurringTasks: React.FC = () => {
                 {/* Page info */}
                 <div className="flex items-center">
                   <p className="text-sm text-[--color-textSecondary]">
-                    Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
-                    <span className="font-medium">{Math.min(endIndex, getCurrentTasks().length)}</span> of{' '}
-                    <span className="font-medium">{getCurrentTasks().length}</span> results
+                    Showing <span className="font-medium">{totalTasks === 0 ? 0 : startIndex + 1}</span> to{' '}
+                    <span className="font-medium">{Math.min(endIndex, totalTasks)}</span> of{' '}
+                    <span className="font-medium">{totalTasks}</span> results
                   </p>
                 </div>
 
@@ -1069,3 +1061,4 @@ const PendingRecurringTasks: React.FC = () => {
 };
 
 export default PendingRecurringTasks;
+

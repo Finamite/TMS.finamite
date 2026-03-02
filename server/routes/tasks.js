@@ -372,10 +372,26 @@ router.get('/pending', async (req, res) => {
   }
 });
 
-// ✅ ULTRA-OPTIMIZED: Get pending recurring tasks with maximum performance
+const CYCLIC_TASK_TYPES = ['weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly'];
+
+const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// ✅ ULTRA-OPTIMIZED: Get pending recurring tasks with backward-compatible response
 router.get('/pending-recurring', async (req, res) => {
   try {
-    const { companyId, userId } = req.query;
+    const {
+      companyId,
+      userId,
+      paginated,
+      page = 1,
+      limit = 10,
+      section = 'daily',
+      taskType,
+      priority,
+      assignedBy,
+      assignedTo,
+      search
+    } = req.query;
 
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
@@ -386,20 +402,98 @@ router.get('/pending-recurring', async (req, res) => {
     const fiveDaysLater = new Date(startOfToday);
     fiveDaysLater.setDate(fiveDaysLater.getDate() + 5);
 
-    const match = {
+    const baseMatch = {
       companyId,
       isActive: true,
       status: 'pending'
     };
 
     if (userId) {
-      match.assignedTo = userId;
+      // Non-admin users are always scoped to their own tasks.
+      baseMatch.assignedTo = userId;
+    } else if (assignedTo) {
+      baseMatch.assignedTo = assignedTo;
     }
 
+    if (taskType) {
+      baseMatch.taskType = taskType;
+    }
+
+    if (priority) {
+      baseMatch.priority = priority;
+    }
+
+    if (assignedBy) {
+      baseMatch.assignedBy = assignedBy;
+    }
+
+    const withSearch = (query) => {
+      if (!search || !String(search).trim()) {
+        return query;
+      }
+
+      const safeRegex = new RegExp(escapeRegex(String(search).trim()), 'i');
+      return {
+        ...query,
+        $or: [
+          { title: safeRegex },
+          { description: safeRegex }
+        ]
+      };
+    };
+
+    const dailyQuery = withSearch({
+      ...baseMatch,
+      taskType: 'daily',
+      dueDate: {
+        $gte: startOfToday,
+        $lte: endOfToday
+      }
+    });
+
+    const cyclicQuery = withSearch({
+      ...baseMatch,
+      taskType: { $in: CYCLIC_TASK_TYPES },
+      dueDate: { $lte: fiveDaysLater }
+    });
+
+    // New fast mode used by the PendingRecurringTasks page.
+    if (String(paginated) === 'true') {
+      const safePage = Math.max(parseInt(page, 10) || 1, 1);
+      const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 200);
+      const skip = (safePage - 1) * safeLimit;
+
+      const activeQuery = section === 'cyclic' ? cyclicQuery : dailyQuery;
+
+      const [tasks, total, dailyCount, cyclicCount] = await Promise.all([
+        Task.find(activeQuery)
+          .populate('assignedBy', 'username email')
+          .populate('assignedTo', 'username email')
+          .sort({ dueDate: 1, createdAt: -1 })
+          .skip(skip)
+          .limit(safeLimit)
+          .lean(),
+        Task.countDocuments(activeQuery),
+        Task.countDocuments(dailyQuery),
+        Task.countDocuments(cyclicQuery)
+      ]);
+
+      return res.json({
+        tasks,
+        total,
+        totalPages: Math.ceil(total / safeLimit),
+        currentPage: safePage,
+        counts: {
+          daily: dailyCount,
+          cyclic: cyclicCount
+        }
+      });
+    }
+
+    // Legacy response (array) kept for existing consumers.
     const tasks = await Task.find({
-      ...match,
+      ...baseMatch,
       $or: [
-        // ✅ DAILY → today only (FIXED)
         {
           taskType: 'daily',
           dueDate: {
@@ -407,24 +501,54 @@ router.get('/pending-recurring', async (req, res) => {
             $lte: endOfToday
           }
         },
-
-        // ✅ CYCLIC → overdue + today + next 5 days
         {
-          taskType: { $in: ['weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly'] },
-          dueDate: {
-            $lte: fiveDaysLater
-          }
+          taskType: { $in: CYCLIC_TASK_TYPES },
+          dueDate: { $lte: fiveDaysLater }
         }
       ]
     })
       .populate('assignedBy', 'username email')
       .populate('assignedTo', 'username email')
-      .sort({ dueDate: 1 });
+      .sort({ dueDate: 1 })
+      .lean();
 
     res.json(tasks);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Failed to load pending recurring tasks' });
+  }
+});
+
+router.get('/by-id/:id', async (req, res) => {
+  try {
+    const { companyId, userId } = req.query;
+
+    const query = {
+      _id: req.params.id,
+      isActive: true
+    };
+
+    if (companyId) {
+      query.companyId = companyId;
+    }
+
+    if (userId) {
+      query.assignedTo = userId;
+    }
+
+    const task = await Task.findOne(query)
+      .populate('assignedBy', 'username email')
+      .populate('assignedTo', 'username email')
+      .lean();
+
+    if (!task) {
+      return res.status(404).json({ message: 'Task not found' });
+    }
+
+    res.json(task);
+  } catch (error) {
+    console.error('Error fetching task by id:', error);
+    res.status(500).json({ message: 'Failed to fetch task details' });
   }
 });
 
