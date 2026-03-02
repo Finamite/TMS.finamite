@@ -864,7 +864,7 @@ const MasterTasks: React.FC = () => {
     try {
       // setDownloading(prev => ({ ...prev, [downloadKey]: true }));
 
-      const response = await fetch(`${address}/uploads/${attachment.filename}`);
+      const response = await fetch(`${address}/api/files/${encodeURIComponent(attachment.filename)}`);
 
       if (!response.ok) {
         throw new Error('Failed to download file');
@@ -1407,10 +1407,10 @@ const MasterTasks: React.FC = () => {
                           {isImage(attachment.filename, attachment.originalName) ? (
                             <div className="relative group">
                               <img
-                                src={`${address}/uploads/${attachment.filename}`}
+                                src={`${address}/api/files/${encodeURIComponent(attachment.filename)}`}
                                 alt={attachment.originalName}
                                 className="w-full h-32 object-cover rounded-md border border-[--color-border] cursor-pointer"
-                                onClick={() => setSelectedImagePreview(`${address}/uploads/${attachment.filename}`)}
+                                onClick={() => setSelectedImagePreview(`${address}/api/files/${encodeURIComponent(attachment.filename)}`)}
                               />
                               <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded-md flex items-center justify-center">
                                 <ExternalLink size={24} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -1439,7 +1439,7 @@ const MasterTasks: React.FC = () => {
                           {isImage(attachment.filename, attachment.originalName) ? (
                             <>
                               <button
-                                onClick={() => window.open(`${address}/uploads/${attachment.filename}`, '_blank')}
+                                onClick={() => window.open(`${address}/api/files/${encodeURIComponent(attachment.filename)}`, '_blank')}
                                 className="flex-1 px-3 py-2 text-xs font-medium bg-[--color-primary] text-white rounded-lg hover:bg-[--color-primary] transition-colors flex items-center justify-center"
                               >
                                 <ExternalLink size={14} className="mr-1" />

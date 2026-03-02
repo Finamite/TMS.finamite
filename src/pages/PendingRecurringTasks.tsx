@@ -56,7 +56,7 @@ interface PendingRecurringTasksResponse {
 // Function to handle file download
 const downloadFile = async (filename: string, originalName: string) => {
   try {
-    const response = await fetch(`${address}/uploads/${filename}`);
+    const response = await fetch(`${address}/api/files/${encodeURIComponent(filename)}`);
     const blob = await response.blob();
 
     // Create a temporary URL for the blob
@@ -75,7 +75,7 @@ const downloadFile = async (filename: string, originalName: string) => {
   } catch (error) {
     console.error('Error downloading file:', error);
     // Fallback to opening in new tab if download fails
-    window.open(`${address}/uploads/${filename}`, '_blank');
+    window.open(`${address}/api/files/${encodeURIComponent(filename)}`, '_blank');
   }
 };
 
@@ -1012,10 +1012,10 @@ const PendingRecurringTasks: React.FC = () => {
                             <>
                               {/* Small preview image in the list */}
                               <img
-                                src={`${address}/uploads/${attachment.filename}`}
+                                src={`${address}/api/files/${encodeURIComponent(attachment.filename)}`}
                                 alt={attachment.originalName}
                                 className="w-16 h-16 object-cover rounded-md mr-3 border border-[var(--color-border)] cursor-pointer hover:border-[var(--color-primary)] transition-colors shadow-sm"
-                                onClick={() => setSelectedImagePreview(`${address}/uploads/${attachment.filename}`)} // Set for full screen
+                                onClick={() => setSelectedImagePreview(`${address}/api/files/${encodeURIComponent(attachment.filename)}`)} // Set for full screen
                               />
                               <div className="flex-1 min-w-0">
                                 <div className="text-sm font-medium text-[var(--color-text)] truncate" title={attachment.originalName}>
@@ -1045,7 +1045,7 @@ const PendingRecurringTasks: React.FC = () => {
                         <div className="flex gap-2 shrink-0">
                           {isImage(attachment.filename, attachment.originalName) && (
                             <button
-                              onClick={() => setSelectedImagePreview(`${address}/uploads/${attachment.filename}`)}
+                              onClick={() => setSelectedImagePreview(`${address}/api/files/${encodeURIComponent(attachment.filename)}`)}
                               className="px-3 py-2 text-sm font-medium text-[var(--color-accent)] hover:text-[var(--color-accent)]/80 hover:bg-[var(--color-accent)]/10 rounded-lg transition-colors flex items-center gap-1"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

@@ -466,7 +466,7 @@ const PendingTasks: React.FC = () => {
     try {
       setDownloading(prev => ({ ...prev, [downloadKey]: true }));
 
-      const response = await fetch(`${address}/uploads/${attachment.filename}`);
+      const response = await fetch(`${address}/api/files/${encodeURIComponent(attachment.filename)}`);
 
       if (!response.ok) {
         throw new Error('Failed to download file');
@@ -1486,10 +1486,10 @@ const PendingTasks: React.FC = () => {
                           {isImage(attachment.filename, attachment.originalName) ? (
                             <>
                               <img
-                                src={`${address}/uploads/${attachment.filename}`}
+                                src={`${address}/api/files/${encodeURIComponent(attachment.filename)}`}
                                 alt={attachment.originalName}
                                 className="w-16 h-16 object-cover rounded-md mr-3 border border-[--color-border] cursor-pointer"
-                                onClick={() => setSelectedImagePreview(`${address}/uploads/${attachment.filename}`)}
+                                onClick={() => setSelectedImagePreview(`${address}/api/files/${encodeURIComponent(attachment.filename)}`)}
                               />
                               <span className="text-sm font-medium break-all">{attachment.originalName}</span>
                             </>
@@ -1503,7 +1503,7 @@ const PendingTasks: React.FC = () => {
                         {isImage(attachment.filename, attachment.originalName) ? (
                           <div className="flex items-center shrink-0 mt-2 sm:mt-0 space-x-2">
                             <button
-                              onClick={() => window.open(`${address}/uploads/${attachment.filename}`, '_blank')}
+                              onClick={() => window.open(`${address}/api/files/${encodeURIComponent(attachment.filename)}`, '_blank')}
                               className="text-sm font-medium text-[--color-primary] hover:text-[--color-primary-dark] flex items-center"
                             >
                               View

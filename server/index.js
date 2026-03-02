@@ -102,6 +102,26 @@ app.post('/api/upload', upload.array('files', 10), (req, res) => {
   }
 });
 
+// File fetch endpoint used by Pending/Master preview + download flows.
+app.get('/api/files/:filename', (req, res) => {
+  try {
+    const safeFilename = path.basename(req.params.filename || '');
+    if (!safeFilename) {
+      return res.status(400).json({ message: 'Invalid filename' });
+    }
+
+    const filePath = path.join(uploadsDir, safeFilename);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: 'File not found' });
+    }
+
+    return res.sendFile(filePath);
+  } catch (error) {
+    console.error('File serve error:', error);
+    return res.status(500).json({ message: 'Failed to serve file' });
+  }
+});
+
 // Serve uploaded files statically
 app.use('/uploads/chat', express.static(path.join(__dirname, 'uploads/chat')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
