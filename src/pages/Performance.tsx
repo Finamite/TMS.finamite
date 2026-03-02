@@ -552,7 +552,7 @@ const Performance: React.FC = () => {
         // CASE 3: One has percentage, one doesn't → one with % goes higher
         return bData.performanceRate - aData.performanceRate;
       })
-      .slice(0, 10)
+      .slice(0, 200)
     : [];
 
   if (loading) {
