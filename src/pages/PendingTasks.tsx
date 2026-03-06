@@ -734,7 +734,7 @@ const PendingTasks: React.FC = () => {
                   )}
                 </div>
 
-                <p className="text-sm mb-2 text-[--color-textSecondary]">
+                <p className="text-sm mb-2 text-[--color-textSecondary] whitespace-pre-wrap break-words">
                   {showFullDescription[task._id] ? task.description : truncateText(task.description, 150)}
                   {task.description.length > 150 && (
                     <button
@@ -880,7 +880,7 @@ const PendingTasks: React.FC = () => {
                             </button>
                           )}
                         </div>
-                        <div className="text-sm text-[--color-textSecondary]">
+                        <div className="text-sm text-[--color-textSecondary] whitespace-pre-wrap break-words">
                           {showFullDescription[task._id] ? task.description : truncateText(task.description, 100)}
                           {task.description.length > 100 && (
                             <button

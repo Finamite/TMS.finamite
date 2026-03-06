@@ -455,7 +455,7 @@ const PendingRecurringTasks: React.FC = () => {
                   </span>
                 ) : null}
               </div>
-              <p className="text-[var(--color-textSecondary)] text-sm mb-4">
+              <p className="text-[var(--color-textSecondary)] text-sm mb-4 whitespace-pre-wrap break-words">
                 {displayDescription}
                 {descriptionIsLong && (
                   <button
@@ -572,7 +572,7 @@ const PendingRecurringTasks: React.FC = () => {
                           </button>
                         )}
                       </div>
-                      <div className="text-sm text-[var(--color-textSecondary)]">
+                      <div className="text-sm text-[var(--color-textSecondary)] whitespace-pre-wrap break-words">
                         {displayDescription}
                         {descriptionIsLong && (
                           <button

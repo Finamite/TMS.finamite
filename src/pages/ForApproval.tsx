@@ -519,7 +519,7 @@ const ForApproval: React.FC = () => {
                                 <PriorityBadge priority={task.priority} />
                             </div>
 
-                            <p className={`text-sm mb-4 ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
+                            <p className={`text-sm mb-4 whitespace-pre-wrap break-words ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
                                 {displayDescription}
                                 {descriptionIsLong && (
                                     <button
@@ -680,7 +680,7 @@ const ForApproval: React.FC = () => {
                                                     </button>
                                                 )}
                                             </div>
-                                            <div className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
+                                            <div className={`text-sm whitespace-pre-wrap break-words ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
                                                 {displayDescription}
                                                 {descriptionIsLong && (
                                                     <button

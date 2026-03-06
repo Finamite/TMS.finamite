@@ -491,7 +491,7 @@ const MasterTasks: React.FC = () => {
                 )}
               </div>
 
-              <p className={`text-sm mb-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              <p className={`text-sm mb-4 whitespace-pre-wrap break-words ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                 {displayedDescription}
                 {showReadMore && (
                   <button
@@ -700,7 +700,7 @@ const MasterTasks: React.FC = () => {
                         )}
                       </div>
 
-                      <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      <div className={`text-sm whitespace-pre-wrap break-words ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                         {displayedDescription}
                         {showReadMore && (
                           <button

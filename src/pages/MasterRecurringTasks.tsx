@@ -218,11 +218,11 @@ const ReadMore = memo<{ text: string; maxLength: number }>(({ text, maxLength })
   }, [text, maxLength, isExpanded]);
 
   if (text.length <= maxLength) {
-    return <p className="text-[--color-textSecondary] text-sm mb-4">{text}</p>;
+    return <p className="text-[--color-textSecondary] text-sm mb-4 whitespace-pre-wrap break-words">{text}</p>;
   }
 
   return (
-    <p className="text-[--color-textSecondary] text-sm mb-4">
+    <p className="text-[--color-textSecondary] text-sm mb-4 whitespace-pre-wrap break-words">
       {displayText}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
