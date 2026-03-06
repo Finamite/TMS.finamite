@@ -893,6 +893,7 @@ const AssignTask: React.FC = () => {
                                 />
 
                                 {/* Clear Icon */}
+                               
                                 {userSearchTerm && (
                                   <button
                                     type="button"
