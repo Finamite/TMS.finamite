@@ -228,6 +228,7 @@ const AdminPanel: React.FC = () => {
       await axios.delete(`${address}/api/users/${userId}/permanent`);
       setMessage({ type: "success", text: "User permanently deleted!" });
       fetchUsers(); // refresh list
+      fetchCompanyData();
     } catch (error: any) {
       setMessage({
         type: "error",
@@ -268,6 +269,43 @@ const AdminPanel: React.FC = () => {
     else color = "#ef4444";                         // red
 
     return { remaining, percent, color };
+  };
+
+  const getAssignableRoleLimitData = (role: string, targetUser?: User | null) => {
+    if (!companyData) return { remaining: 0, percent: 0, color: "var(--color-text)" };
+
+    const baseData = getRoleLimitData(role);
+    const isEditingSameActiveRole = Boolean(targetUser?.isActive && targetUser.role === role);
+
+    if (!isEditingSameActiveRole) {
+      return baseData;
+    }
+
+    let limit = 0;
+
+    if (role === "admin") {
+      limit = companyData.limits.adminLimit;
+    } else if (role === "manager") {
+      limit = companyData.limits.managerLimit;
+    } else if (role === "employee") {
+      limit = companyData.limits.userLimit;
+    }
+
+    const remaining = baseData.remaining + 1;
+    const percent = limit > 0 ? (remaining / limit) * 100 : 0;
+
+    return {
+      remaining,
+      percent,
+      color: baseData.color
+    };
+  };
+
+  const isRoleLimitReachedForSelection = (role: string, targetUser?: User | null) => {
+    if (!companyData) return false;
+    if (targetUser && !targetUser.isActive) return false;
+
+    return getAssignableRoleLimitData(role, targetUser).remaining <= 0;
   };
 
 
@@ -384,6 +422,20 @@ const AdminPanel: React.FC = () => {
     e.preventDefault();
     if (!editingUser) return;
 
+    if (isRoleLimitReachedForSelection(formData.role, editingUser)) {
+      const roleLabel = getRoleLabel(formData.role);
+      const limit = formData.role === 'admin'
+        ? companyData?.limits.adminLimit
+        : formData.role === 'manager'
+          ? companyData?.limits.managerLimit
+          : companyData?.limits.userLimit;
+      const errorText = limit ? `${roleLabel} limit reached (${limit})` : `${roleLabel} limit reached`;
+
+      toast.error(errorText);
+      setMessage({ type: 'error', text: errorText });
+      return;
+    }
+
     try {
       await axios.put(`${address}/api/users/${editingUser._id}`, {
         username: formData.username,
@@ -397,7 +449,9 @@ const AdminPanel: React.FC = () => {
       setEditingUser(null);
       resetForm();
       fetchUsers();
+      fetchCompanyData();
     } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to update user');
       setMessage({ type: 'error', text: error.response?.data?.message || 'Failed to update user' });
     }
   };
@@ -407,6 +461,7 @@ const AdminPanel: React.FC = () => {
       const response = await axios.put(`${address}/api/users/${userId}/toggle-active`);
       setMessage({ type: 'success', text: response.data.message });
       fetchUsers(); // refresh list
+      fetchCompanyData();
     } catch (error: any) {
       setMessage({ type: 'error', text: error.response?.data?.message || 'Failed to update status' });
     }
@@ -1461,9 +1516,23 @@ const AdminPanel: React.FC = () => {
                         color: 'var(--color-text)'
                       }}
                     >
-                      <option value="employee">Employee</option>
-                      <option value="manager">Manager</option>
-                      {currentUser?.role === 'admin' && <option value="admin">Admin</option>}
+                      {(["employee", "manager", "admin"] as const)
+                        .filter((role) => currentUser?.role === 'admin' || role !== 'admin')
+                        .map((role) => {
+                          const { remaining, color } = getAssignableRoleLimitData(role, editingUser);
+                          const disabled = isRoleLimitReachedForSelection(role, editingUser);
+
+                          return (
+                            <option
+                              key={role}
+                              value={role}
+                              disabled={disabled}
+                              style={{ color }}
+                            >
+                              {getRoleLabel(role)} - {remaining} left
+                            </option>
+                          );
+                        })}
                       {/* {currentUser?.role === 'superadmin' && <option value="superadmin">SuperAdmin</option>} */}
                     </select>
                   </div>

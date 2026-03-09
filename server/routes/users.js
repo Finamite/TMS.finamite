@@ -4,6 +4,63 @@ import Company from '../models/Company.js';
 
 const router = express.Router();
 
+const getCompanyRoleCounts = async (companyId, excludeUserId = null) => {
+  const match = { companyId, isActive: true };
+
+  if (excludeUserId) {
+    match._id = { $ne: excludeUserId };
+  }
+
+  const userCounts = await User.aggregate([
+    { $match: match },
+    { $group: { _id: '$role', count: { $sum: 1 } } }
+  ]);
+
+  const counts = {
+    admin: 0,
+    manager: 0,
+    employee: 0
+  };
+
+  userCounts.forEach(item => {
+    counts[item._id] = item.count;
+  });
+
+  return counts;
+};
+
+const validateCompanyRoleLimit = async ({ companyId, role, excludeUserId = null }) => {
+  if (!companyId || role === 'superadmin') {
+    return null;
+  }
+
+  const company = await Company.findOne({ companyId });
+  if (!company) {
+    return { status: 404, message: 'Company not found' };
+  }
+
+  const counts = await getCompanyRoleCounts(companyId, excludeUserId);
+  const limitsByRole = {
+    admin: company.limits.adminLimit,
+    manager: company.limits.managerLimit,
+    employee: company.limits.userLimit
+  };
+  const labelsByRole = {
+    admin: 'Admin',
+    manager: 'Manager',
+    employee: 'User'
+  };
+
+  if (counts[role] >= limitsByRole[role]) {
+    return {
+      status: 400,
+      message: `${labelsByRole[role]} limit reached (${limitsByRole[role]})`
+    };
+  }
+
+  return null;
+};
+
 router.use(async (req, res, next) => {
   try {
     const userId = req.headers['userid'];
@@ -110,36 +167,9 @@ router.post('/', async (req, res) => {
 
     // Check company limits if creating within a company
     if (companyId && role !== 'superadmin') {
-      const company = await Company.findOne({ companyId });
-      if (!company) {
-        return res.status(404).json({ message: 'Company not found' });
-      }
-
-      // Count existing users by role
-      const userCounts = await User.aggregate([
-        { $match: { companyId, isActive: true } },
-        { $group: { _id: '$role', count: { $sum: 1 } } }
-      ]);
-
-      const counts = {
-        admin: 0,
-        manager: 0,
-        employee: 0
-      };
-
-      userCounts.forEach(item => {
-        counts[item._id] = item.count;
-      });
-
-      // Check limits
-      if (role === 'admin' && counts.admin >= company.limits.adminLimit) {
-        return res.status(400).json({ message: `Admin limit reached (${company.limits.adminLimit})` });
-      }
-      if (role === 'manager' && counts.manager >= company.limits.managerLimit) {
-        return res.status(400).json({ message: `Manager limit reached (${company.limits.managerLimit})` });
-      }
-      if (role === 'employee' && counts.employee >= company.limits.userLimit) {
-        return res.status(400).json({ message: `User limit reached (${company.limits.userLimit})` });
+      const limitError = await validateCompanyRoleLimit({ companyId, role });
+      if (limitError) {
+        return res.status(limitError.status).json({ message: limitError.message });
       }
     }
 
@@ -180,6 +210,28 @@ router.put('/:id', async (req, res) => {
       const existingUser = await User.findOne({ email, _id: { $ne: userId } });
       if (existingUser) {
         return res.status(400).json({ message: 'Email already exists' });
+      }
+    }
+
+    if (username !== user.username && user.companyId) {
+      const existingUsername = await User.findOne({
+        username,
+        companyId: user.companyId,
+        _id: { $ne: userId }
+      });
+      if (existingUsername) {
+        return res.status(400).json({ message: 'Username already exists in this company' });
+      }
+    }
+
+    if (user.isActive && user.companyId && role !== 'superadmin') {
+      const limitError = await validateCompanyRoleLimit({
+        companyId: user.companyId,
+        role,
+        excludeUserId: user._id
+      });
+      if (limitError) {
+        return res.status(limitError.status).json({ message: limitError.message });
       }
     }
 
@@ -281,6 +333,16 @@ router.put('/:id/toggle-active', async (req, res) => {
   }
 
   // 🟢 ACTIVATE
+  if (targetUser.companyId && targetUser.role !== 'superadmin') {
+    const limitError = await validateCompanyRoleLimit({
+      companyId: targetUser.companyId,
+      role: targetUser.role
+    });
+    if (limitError) {
+      return res.status(limitError.status).json({ message: limitError.message });
+    }
+  }
+
   targetUser.isActive = true;
   targetUser.sessionInvalidated = false;
 
