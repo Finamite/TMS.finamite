@@ -2174,7 +2174,17 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
           description: updates.description,
           priority: updates.priority,
           assignedTo: updates.assignedTo,
-          attachments: updates.attachments || []
+          attachments: updates.attachments || [],
+          // Keep schedule metadata in sync for all existing tasks
+          weekOffDays: updates.weekOffDays || [],
+          "parentTaskInfo.weekOffDays": updates.weekOffDays || [],
+          "parentTaskInfo.includeSunday": updates.includeSunday,
+          "parentTaskInfo.weeklyDays": updates.weeklyDays,
+          "parentTaskInfo.monthlyDay": updates.monthlyDay,
+          "parentTaskInfo.yearlyDuration": updates.yearlyDuration,
+          "parentTaskInfo.isForever": updates.isForever,
+          "parentTaskInfo.originalStartDate": updates.startDate,
+          "parentTaskInfo.originalEndDate": updates.endDate
         }
       }
     );
@@ -2279,6 +2289,12 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
             isActive: true,
             status: "pending",
             taskGroupId,
+            originalStartDate: updates.startDate,
+            originalEndDate: updates.endDate,
+            weeklyDays: updates.weeklyDays,
+            weekOffDays: updates.weekOffDays || [],
+            monthlyDay: updates.monthlyDay,
+            yearlyDuration: updates.yearlyDuration,
             parentTaskInfo: {
               originalStartDate: updates.startDate,
               originalEndDate: updates.endDate,

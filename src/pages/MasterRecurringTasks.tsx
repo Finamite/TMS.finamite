@@ -284,6 +284,21 @@ const formatFileSize = (bytes: number) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
+const resolveWeekOffDays = (
+  weekOffDays?: number[],
+  parentWeekOffDays?: number[]
+) => {
+  if (Array.isArray(parentWeekOffDays) && parentWeekOffDays.length > 0) {
+    return parentWeekOffDays;
+  }
+  if (Array.isArray(weekOffDays) && weekOffDays.length > 0) {
+    return weekOffDays;
+  }
+  if (Array.isArray(parentWeekOffDays)) return parentWeekOffDays;
+  if (Array.isArray(weekOffDays)) return weekOffDays;
+  return [];
+};
+
 const MasterRecurringTasks: React.FC = () => {
   const { user } = useAuth();
 
@@ -816,7 +831,10 @@ const MasterRecurringTasks: React.FC = () => {
       weeklyDays: masterTask.parentTaskInfo?.weeklyDays || [],
       monthlyDay: masterTask.parentTaskInfo?.monthlyDay,
       yearlyDuration: masterTask.parentTaskInfo?.yearlyDuration || 1,
-      weekOffDays: masterTask.parentTaskInfo?.weekOffDays || masterTask.weekOffDays || [],
+      weekOffDays: resolveWeekOffDays(
+        masterTask.weekOffDays,
+        masterTask.parentTaskInfo?.weekOffDays
+      ),
       attachments: masterTask.attachments || []
     };
     setEditFormData(formData);
@@ -1326,11 +1344,17 @@ const MasterRecurringTasks: React.FC = () => {
                   {masterTask.parentTaskInfo.includeSunday ? 'Yes' : 'No'}
                 </span>
               </div>
-              {(masterTask.parentTaskInfo?.weekOffDays || masterTask.weekOffDays || []).length > 0 && (
+              {resolveWeekOffDays(
+                masterTask.weekOffDays,
+                masterTask.parentTaskInfo?.weekOffDays
+              ).length > 0 && (
                 <div className="flex justify-between">
                   <span>Week Off:</span>
                   <span className="font-medium">
-                    {(masterTask.parentTaskInfo?.weekOffDays || masterTask.weekOffDays || [])
+                    {resolveWeekOffDays(
+                      masterTask.weekOffDays,
+                      masterTask.parentTaskInfo?.weekOffDays
+                    )
                       .map((d: number) =>
                         ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d]
                       )
@@ -1470,11 +1494,12 @@ const MasterRecurringTasks: React.FC = () => {
                 <span>Include Sunday:</span>
                 <span className="font-medium">{task.parentTaskInfo.includeSunday ? 'Yes' : 'No'}</span>
               </div>
-              {(task.parentTaskInfo.weekOffDays || task.weekOffDays || []).length > 0 && (
+              {resolveWeekOffDays(task.weekOffDays, task.parentTaskInfo.weekOffDays)
+                .length > 0 && (
                 <div className="flex justify-between">
                   <span>Week Off:</span>
                   <span className="font-medium">
-                    {(task.parentTaskInfo.weekOffDays || task.weekOffDays || [])
+                    {resolveWeekOffDays(task.weekOffDays, task.parentTaskInfo.weekOffDays)
                       .map((d: number) =>
                         ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d]
                       )
@@ -1604,10 +1629,16 @@ const MasterRecurringTasks: React.FC = () => {
                           <span>
                             Sunday: {masterTask.parentTaskInfo.includeSunday ? 'Yes' : 'No'}
                           </span>
-                          {(masterTask.parentTaskInfo.weekOffDays || masterTask.weekOffDays || []).length > 0 && (
+                          {resolveWeekOffDays(
+                            masterTask.weekOffDays,
+                            masterTask.parentTaskInfo.weekOffDays
+                          ).length > 0 && (
                             <span>
                               Week Off:{' '}
-                              {(masterTask.parentTaskInfo.weekOffDays || masterTask.weekOffDays || [])
+                              {resolveWeekOffDays(
+                                masterTask.weekOffDays,
+                                masterTask.parentTaskInfo.weekOffDays
+                              )
                                 .map((d: number) =>
                                   ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d]
                                 )
@@ -1798,10 +1829,11 @@ const MasterRecurringTasks: React.FC = () => {
                       {task.parentTaskInfo && (
                         <div className="flex flex-col space-y-1 text-xs text-[--color-textSecondary]">
                           <span>Sunday: {task.parentTaskInfo.includeSunday ? 'Yes' : 'No'}</span>
-                          {(task.parentTaskInfo.weekOffDays || task.weekOffDays || []).length > 0 && (
+                          {resolveWeekOffDays(task.weekOffDays, task.parentTaskInfo.weekOffDays)
+                            .length > 0 && (
                             <span>
                               Week Off:{' '}
-                              {(task.parentTaskInfo.weekOffDays || task.weekOffDays || [])
+                              {resolveWeekOffDays(task.weekOffDays, task.parentTaskInfo.weekOffDays)
                                 .map((d: number) =>
                                   ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d]
                                 )
