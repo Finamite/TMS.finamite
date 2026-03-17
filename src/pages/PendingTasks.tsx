@@ -21,6 +21,7 @@ interface Attachment {
 
 interface Task {
   _id: string;
+  taskId?: string;
   title: string;
   description: string;
   taskType: string;
@@ -327,7 +328,8 @@ const PendingTasks: React.FC = () => {
       filteredTasks = filteredTasks.filter(task =>
         task.title.toLowerCase().includes(filter.search.toLowerCase()) ||
         task.description.toLowerCase().includes(filter.search.toLowerCase()) ||
-        task.assignedTo.username.toLowerCase().includes(filter.search.toLowerCase())
+        task.assignedTo.username.toLowerCase().includes(filter.search.toLowerCase()) ||
+        (task.taskId || '').toLowerCase().includes(filter.search.toLowerCase())
       );
     }
 
@@ -749,6 +751,12 @@ const PendingTasks: React.FC = () => {
                 <div className="space-y-3 text-sm">
                   <div className={`flex items-center justify-between p-2 rounded-lg ${theme === 'light' ? 'bg-gray-50' : 'bg-[--color-background]'}`}>
                     <span className="flex items-center text-[--color-textSecondary]">
+                      Task ID:
+                    </span>
+                    <span className="font-medium text-[--color-text]">{task.taskId || '—'}</span>
+                  </div>
+                  <div className={`flex items-center justify-between p-2 rounded-lg ${theme === 'light' ? 'bg-gray-50' : 'bg-[--color-background]'}`}>
+                    <span className="flex items-center text-[--color-textSecondary]">
                       <Users size={14} className="mr-1" />
                       Assigned By:
                     </span>
@@ -821,6 +829,9 @@ const PendingTasks: React.FC = () => {
             <thead className={theme === 'light' ? 'bg-gray-50' : 'bg-[--color-surface]'}>
               <tr>
                 <th className="px-6 py-4 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
+                  Task ID
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
                   Task
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
@@ -867,6 +878,9 @@ const PendingTasks: React.FC = () => {
                       : index % 2 === 0 ? 'bg-[--color-background]' : 'bg-[--color-background]'
                       }`}
                   >
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[--color-text]">
+                      {task.taskId || '—'}
+                    </td>
                     <td className="px-6 py-4">
                       <div>
                         <div className="text-sm font-medium text-[--color-text] mb-1">
@@ -1264,7 +1278,7 @@ const PendingTasks: React.FC = () => {
                 <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[--color-textSecondary]" />
                 <input
                   type="text"
-                  placeholder="Search tasks..."
+                  placeholder="Search tasks or Task ID..."
                   value={filter.search}
                   onChange={(e) => setFilter({ ...filter, search: e.target.value })}
                   className="w-full pl-8 text-sm pr-1 py-1 border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] transition-colors bg-[--color-background] text-[--color-text]"

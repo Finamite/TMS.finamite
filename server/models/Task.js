@@ -52,6 +52,13 @@ const taskSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  taskId: {
+    type: String,
+    index: true
+  },
+  taskSeq: {
+    type: Number
+  },
 
   dueDate: {
     type: Date,
@@ -158,6 +165,8 @@ const taskSchema = new mongoose.Schema({
 
 // Create compound index for companyId and assignedTo
 taskSchema.index({ companyId: 1, assignedTo: 1 });
+taskSchema.index({ companyId: 1, taskSeq: 1 });
+taskSchema.index({ companyId: 1, taskId: 1 });
 
 taskSchema.index({ companyId: 1, status: 1, isActive: 1 });
 

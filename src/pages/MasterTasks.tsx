@@ -54,7 +54,8 @@ const filterTasks = (tasks: Task[], filter: any) => {
         task.title.toLowerCase().includes(searchLower) ||
         task.description.toLowerCase().includes(searchLower) ||
         task.assignedTo.username.toLowerCase().includes(searchLower) ||
-        task.assignedBy.username.toLowerCase().includes(searchLower);
+        task.assignedBy.username.toLowerCase().includes(searchLower) ||
+        (task.taskId || '').toLowerCase().includes(searchLower);
 
       if (!matchesSearch) return false;
     }
@@ -506,6 +507,12 @@ const MasterTasks: React.FC = () => {
               <div className="space-y-3 text-sm">
                 <div className={`flex items-center justify-between p-2 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
                   <span className={`flex items-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Task ID:
+                  </span>
+                  <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{task.taskId || '—'}</span>
+                </div>
+                <div className={`flex items-center justify-between p-2 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                  <span className={`flex items-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                     <Users size={14} className="mr-2" />
                     Assigned by:
                   </span>
@@ -605,6 +612,9 @@ const MasterTasks: React.FC = () => {
           <thead className={`${isDark ? 'bg-gray-700' : 'bg-gradient-to-r from-gray-50 to-gray-100'}`}>
             <tr>
               <th className={`px-6 py-4 text-left text-xs font-medium uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-500'}`}>
+                Task ID
+              </th>
+              <th className={`px-6 py-4 text-left text-xs font-medium uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-500'}`}>
                 <button
                   onClick={() => handleSort('created')}
                   className={`flex items-center space-x-1 transition-colors ${isDark ? 'hover:text-white' : 'hover:text-gray-700'}`}
@@ -681,6 +691,11 @@ const MasterTasks: React.FC = () => {
                       : ''
                     }`}
                 >
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <div className={`${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
+                      {task.taskId || '—'}
+                    </div>
+                  </td>
                   <td className="px-6 py-4">
                     <div>
                       <div className={`text-sm font-medium mb-1 flex items-center ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -1078,7 +1093,7 @@ const MasterTasks: React.FC = () => {
                 <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[--color-textSecondary]" />
                 <input
                   type="text"
-                  placeholder="Search tasks, descriptions, users..."
+                  placeholder="Search tasks, descriptions, users, or Task ID..."
                   value={filter.search}
                   onChange={(e) => setFilter({ ...filter, search: e.target.value })}
                   className="w-full pl-10 pr-3 py-2 text-sm border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] bg-[--color-surface] text-[--color-text]"

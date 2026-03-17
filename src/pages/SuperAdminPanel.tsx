@@ -50,6 +50,8 @@ const SuperAdminPanel: React.FC = () => {
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  const [showRebuildModal, setShowRebuildModal] = useState(false);
+  const [rebuildCompany, setRebuildCompany] = useState<Company | null>(null);
   const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -93,6 +95,7 @@ const SuperAdminPanel: React.FC = () => {
   });
   const [message, setMessage] = useState({ type: '', text: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [generatingTaskIds, setGeneratingTaskIds] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     fetchCompanies();
@@ -258,6 +261,34 @@ const SuperAdminPanel: React.FC = () => {
           text: error.response?.data?.message || `Failed to ${action} company`
         });
       }
+    }
+  };
+
+  const handleGenerateTaskIds = (company: Company) => {
+    setRebuildCompany(company);
+    setShowRebuildModal(true);
+  };
+
+  const confirmRebuildTaskIds = async () => {
+    if (!rebuildCompany) return;
+
+    const { companyId, companyName } = rebuildCompany;
+    setGeneratingTaskIds(prev => ({ ...prev, [companyId]: true }));
+    try {
+      const response = await axios.post(`${address}/api/tasks/generate-task-ids`, { companyId, overwrite: true });
+      setMessage({
+        type: 'success',
+        text: response.data?.message || `Task IDs generated for ${companyName}`
+      });
+      setShowRebuildModal(false);
+      setRebuildCompany(null);
+    } catch (error: any) {
+      setMessage({
+        type: 'error',
+        text: error.response?.data?.message || `Failed to generate Task IDs for ${companyName}`
+      });
+    } finally {
+      setGeneratingTaskIds(prev => ({ ...prev, [companyId]: false }));
     }
   };
 
@@ -620,6 +651,15 @@ const SuperAdminPanel: React.FC = () => {
                         title="Edit Company"
                       >
                         <Edit size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleGenerateTaskIds(company)}
+                        disabled={!!generatingTaskIds[company.companyId]}
+                        className={`p-2 rounded-lg hover:bg-opacity-10 transition-colors ${generatingTaskIds[company.companyId] ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        style={{ color: 'var(--color-accent)' }}
+                        title="Rebuild Task IDs"
+                      >
+                        <Database size={16} className={generatingTaskIds[company.companyId] ? 'animate-spin' : ''} />
                       </button>
                       {company.admin && (
                         <button
@@ -1198,6 +1238,80 @@ const SuperAdminPanel: React.FC = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rebuild Task IDs Modal */}
+      {showRebuildModal && rebuildCompany && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="rounded-2xl max-w-md w-full shadow-2xl border bg-[var(--color-surface)]" style={{ borderColor: 'var(--color-border)' }}>
+            <div className="p-5 border-b" style={{ borderColor: 'var(--color-border)' }}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-[var(--color-accent)]/15">
+                    <Database size={20} className="text-[var(--color-accent)]" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold" style={{ color: 'var(--color-text)' }}>
+                      Rebuild Task IDs
+                    </h3>
+                    <p className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>
+                      Admin action
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowRebuildModal(false);
+                    setRebuildCompany(null);
+                  }}
+                  className="h-9 w-9 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition"
+                  title="Close"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="text-sm">
+                <span className="text-[var(--color-textSecondary)]">Company</span>
+                <div className="mt-1 inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
+                  {rebuildCompany.companyName}
+                </div>
+              </div>
+
+              <div className="text-sm leading-relaxed text-[var(--color-textSecondary)] bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl p-4">
+                This will reset ALL Task IDs for this company to <strong>1, 2, 3…</strong> in creation order.
+                This action cannot be undone.
+              </div>
+            </div>
+
+            <div className="p-5 pt-0 flex flex-col sm:flex-row gap-3">
+              <button
+                type="button"
+                onClick={confirmRebuildTaskIds}
+                disabled={!!generatingTaskIds[rebuildCompany.companyId]}
+                className="flex-1 py-3 px-6 rounded-xl text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 transition"
+              >
+                {generatingTaskIds[rebuildCompany.companyId] ? 'Rebuilding...' : 'Rebuild Task IDs'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowRebuildModal(false);
+                  setRebuildCompany(null);
+                }}
+                className="flex-1 py-3 px-6 rounded-xl border font-semibold bg-[var(--color-background)] hover:bg-[var(--color-surface)] transition"
+                style={{
+                  borderColor: 'var(--color-border)',
+                  color: 'var(--color-text)'
+                }}
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>

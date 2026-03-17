@@ -21,6 +21,7 @@ interface Attachment {
 
 interface Task {
     _id: string;
+    taskId?: string;
     title: string;
     description: string;
     taskType: string;
@@ -927,6 +928,10 @@ const RecycleBin: React.FC = () => {
 
                 <div className="space-y-2 text-sm text-[--color-textSecondary]">
                     <div className="flex justify-between">
+                        <span>Task ID:</span>
+                        <span className="font-medium">{task.taskId || '—'}</span>
+                    </div>
+                    <div className="flex justify-between">
                         <span>Assigned by:</span>
                         <span className="font-medium">{task.assignedBy.username}</span>
                     </div>
@@ -1144,6 +1149,9 @@ const RecycleBin: React.FC = () => {
                     <thead className="bg-[--color-surface]">
                         <tr>
                             <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
+                                Task ID
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
                                 Task
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
@@ -1182,6 +1190,9 @@ const RecycleBin: React.FC = () => {
                     <tbody className="bg-[--color-background] divide-y divide-[--color-border]">
                         {individualTasks.map((task: Task) => (
                             <tr key={task._id} className="hover:bg-[--color-surface] transition-colors">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-[--color-text]">
+                                    {task.taskId || '—'}
+                                </td>
                                 <td className="px-6 py-4">
                                     <div>
                                         <div className="text-sm font-medium text-[--color-text] mb-1">
@@ -1525,7 +1536,7 @@ const RecycleBin: React.FC = () => {
                                 <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[--color-textSecondary]" />
                                 <input
                                     type="text"
-                                    placeholder="Search tasks, descriptions..."
+                                    placeholder="Search tasks, descriptions, or Task ID..."
                                     value={filter.search}
                                     onChange={(e) => setFilter({ ...filter, search: e.target.value })}
                                     className="w-full pl-10 pr-3 py-2 text-sm border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] bg-[--color-surface] text-[--color-text]"

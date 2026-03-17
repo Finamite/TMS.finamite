@@ -2,12 +2,14 @@ import express from 'express';
 import Task from '../models/Task.js';
 import User from '../models/User.js';
 import Settings from '../models/Settings.js';
+import Company from '../models/Company.js';
 import { sendSystemEmail } from '../Utils/sendEmail.js';
 import MasterTask from "../models/MasterTask.js";
 import TaskActivity from "../models/TaskActivity.js";
 import mongoose from "mongoose";
 // ✅ ADD THIS IMPORT FOR DATA USAGE TRACKING
 import {updateFileUsage, updateDatabaseUsage} from '../services/dataUsage.service.js';
+import { reserveTaskSequences, formatTaskId } from '../services/taskId.service.js';
 
 const router = express.Router();
 
@@ -37,7 +39,7 @@ let pendingRecurringCache = {};
 let pendingRecurringCacheTime = {};
 const PENDING_RECURRING_CACHE_TTL = 20 * 1000;
 const PENDING_RECURRING_SELECT =
-  'title description taskType assignedBy assignedTo dueDate priority status lastCompletedDate createdAt attachments';
+  'taskId title description taskType assignedBy assignedTo dueDate priority status lastCompletedDate createdAt attachments';
 
 // Helper function to get all dates for weekly tasks within a range based on selected days
 const getWeeklyTaskDates = (startDate, endDate, selectedDays, weekOffDays = []) => {
@@ -377,6 +379,101 @@ router.get('/pending', async (req, res) => {
   }
 });
 
+// ✅ Generate company-wise task IDs for existing tasks
+router.post('/generate-task-ids', async (req, res) => {
+  try {
+    const { companyId, overwrite } = req.body;
+
+    if (!companyId) {
+      return res.status(400).json({ message: 'companyId is required' });
+    }
+
+    if (overwrite) {
+      const allTasks = await Task.find({ companyId })
+        .select('_id createdAt')
+        .sort({ createdAt: 1 })
+        .lean();
+
+      if (allTasks.length === 0) {
+        return res.json({ message: 'No tasks found to rebuild', updated: 0 });
+      }
+
+      let seq = 1;
+      const bulkOps = allTasks.map((task) => {
+        const taskSeq = seq;
+        seq += 1;
+        return {
+          updateOne: {
+            filter: { _id: task._id },
+            update: {
+              $set: {
+                taskSeq,
+                taskId: formatTaskId(companyId, taskSeq)
+              }
+            }
+          }
+        };
+      });
+
+      await Task.bulkWrite(bulkOps, { ordered: false });
+      await Company.updateOne({ companyId }, { $set: { taskSequence: allTasks.length } });
+
+      return res.json({
+        message: `Rebuilt Task IDs for ${bulkOps.length} task(s)`,
+        updated: bulkOps.length
+      });
+    }
+
+    const missingTasks = await Task.find({
+      companyId,
+      $or: [
+        { taskId: { $exists: false } },
+        { taskId: null },
+        { taskId: '' }
+      ]
+    })
+      .select('_id createdAt')
+      .sort({ createdAt: 1 })
+      .lean();
+
+    if (missingTasks.length === 0) {
+      return res.json({ message: 'All tasks already have Task IDs', updated: 0 });
+    }
+
+    const seqRange = await reserveTaskSequences(companyId, missingTasks.length);
+    if (!seqRange) {
+      return res.status(500).json({ message: 'Failed to reserve task IDs' });
+    }
+
+    let seq = seqRange.start;
+    const bulkOps = missingTasks.map((task) => {
+      const taskSeq = seq;
+      seq += 1;
+      return {
+        updateOne: {
+          filter: { _id: task._id },
+          update: {
+            $set: {
+              taskSeq,
+              taskId: formatTaskId(companyId, taskSeq)
+            }
+          }
+        }
+      };
+    });
+
+    await Task.bulkWrite(bulkOps, { ordered: false });
+
+    return res.json({
+      message: `Generated Task IDs for ${bulkOps.length} task(s)`,
+      updated: bulkOps.length
+    });
+  } catch (error) {
+    console.error('Error generating task IDs:', error);
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 const CYCLIC_TASK_TYPES = ['weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly'];
 
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -442,7 +539,8 @@ router.get('/pending-recurring', async (req, res) => {
         ...query,
         $or: [
           { title: safeRegex },
-          { description: safeRegex }
+          { description: safeRegex },
+          { taskId: safeRegex }
         ]
       };
     };
@@ -778,7 +876,8 @@ router.get('/master-recurring', async (req, res) => {
     if (search) {
       matchStage.$or = [
         { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } }
+        { description: { $regex: search, $options: 'i' } },
+        { taskId: { $regex: search, $options: 'i' } }
       ];
     }
 
@@ -1236,13 +1335,14 @@ router.get('/recurring-instances', async (req, res) => {
     if (search) {
       query.$or = [
         { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } }
+        { description: { $regex: search, $options: 'i' } },
+        { taskId: { $regex: search, $options: 'i' } }
       ];
     }
 
     // ✅ Ultra-fast query with lean() and selective field projection
     const tasks = await Task.find(query)
-      .select('title description taskType assignedBy assignedTo dueDate priority status lastCompletedDate completedAt completionRemarks completionAttachments createdAt attachments parentTaskInfo weekOffDays taskGroupId')
+      .select('taskId title description taskType assignedBy assignedTo dueDate priority status lastCompletedDate completedAt completionRemarks completionAttachments createdAt attachments parentTaskInfo weekOffDays taskGroupId')
       .populate('assignedBy', 'username email')
       .populate('assignedTo', '_id username email')
       .sort({ dueDate: 1, createdAt: -1 })
@@ -1402,6 +1502,29 @@ router.post('/bulk-create', async (req, res) => {
 
     // ⚡ LIGHTNING STRIKE: Single ultra-fast bulk write operation
     if (allBulkOperations.length > 0) {
+      // ✅ Assign company-wise task IDs before insert
+      const opsByCompany = new Map();
+      allBulkOperations.forEach((op) => {
+        const doc = op?.insertOne?.document;
+        if (!doc || !doc.companyId) return;
+        if (!opsByCompany.has(doc.companyId)) {
+          opsByCompany.set(doc.companyId, []);
+        }
+        opsByCompany.get(doc.companyId).push(doc);
+      });
+
+      for (const [companyId, docs] of opsByCompany.entries()) {
+        const range = await reserveTaskSequences(companyId, docs.length);
+        if (range) {
+          let seq = range.start;
+          docs.forEach((doc) => {
+            doc.taskSeq = seq;
+            doc.taskId = formatTaskId(companyId, seq);
+            seq += 1;
+          });
+        }
+      }
+
       await Task.bulkWrite(allBulkOperations, {
         ordered: false,
         bypassDocumentValidation: false // ✅ Keep validation for data integrity
@@ -1557,35 +1680,48 @@ router.post('/create-scheduled', async (req, res) => {
     }
 
     // ✅ OPTIMIZED: Use bulk insert for better performance
-    const bulkOps = taskDates.map((taskDate, i) => ({
-      insertOne: {
-        document: {
-          title: taskData.title,
-          description: taskData.description,
-          taskType: taskData.taskType,
-          assignedBy: taskData.assignedBy,
-          assignedTo: taskData.assignedTo,
-          priority: taskData.priority,
-          dueDate: taskDate,
-          companyId: taskData.companyId,
-          attachments: taskData.attachments || [],
-          isActive: true,
-          status: 'pending',
-          taskGroupId: taskGroupId,
-          sequenceNumber: i + 1,
-          parentTaskInfo: {
-            originalStartDate: taskData.startDate,
-            originalEndDate: taskData.endDate,
-            isForever: taskData.isForever,
-            includeSunday: taskData.includeSunday,
-            weeklyDays: taskData.weeklyDays,
-            weekOffDays: taskData.weekOffDays || [],
-            monthlyDay: taskData.monthlyDay,
-            yearlyDuration: taskData.yearlyDuration
+    const seqRange = taskDates.length > 0
+      ? await reserveTaskSequences(taskData.companyId, taskDates.length)
+      : null;
+    let nextSeq = seqRange ? seqRange.start : null;
+    const bulkOps = taskDates.map((taskDate, i) => {
+      const taskSeq = nextSeq;
+      if (nextSeq !== null) {
+        nextSeq += 1;
+      }
+
+      return {
+        insertOne: {
+          document: {
+            title: taskData.title,
+            description: taskData.description,
+            taskType: taskData.taskType,
+            assignedBy: taskData.assignedBy,
+            assignedTo: taskData.assignedTo,
+            priority: taskData.priority,
+            dueDate: taskDate,
+            companyId: taskData.companyId,
+            taskSeq: taskSeq ?? undefined,
+            taskId: taskSeq != null ? formatTaskId(taskData.companyId, taskSeq) : undefined,
+            attachments: taskData.attachments || [],
+            isActive: true,
+            status: 'pending',
+            taskGroupId: taskGroupId,
+            sequenceNumber: i + 1,
+            parentTaskInfo: {
+              originalStartDate: taskData.startDate,
+              originalEndDate: taskData.endDate,
+              isForever: taskData.isForever,
+              includeSunday: taskData.includeSunday,
+              weeklyDays: taskData.weeklyDays,
+              weekOffDays: taskData.weekOffDays || [],
+              monthlyDay: taskData.monthlyDay,
+              yearlyDuration: taskData.yearlyDuration
+            }
           }
         }
-      }
-    }));
+      };
+    });
 
     if (bulkOps.length > 0) {
       await Task.bulkWrite(bulkOps, { ordered: false });
@@ -1636,8 +1772,14 @@ router.post('/', async (req, res) => {
       taskData.endDate = oneYearLater;
     }
 
+    const seqRange = await reserveTaskSequences(taskData.companyId, 1);
+    const taskSeq = seqRange ? seqRange.start : undefined;
+    const taskId = taskSeq != null ? formatTaskId(taskData.companyId, taskSeq) : undefined;
+
     const task = new Task({
       ...taskData,
+      taskSeq,
+      taskId,
       attachments: taskData.attachments || []
     });
     await task.save();
@@ -2274,40 +2416,51 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
     });
 
     if (datesToInsert.length > 0) {
-      const bulkOps = datesToInsert.map((date) => ({
-        insertOne: {
-          document: {
-            title: updates.title,
-            description: updates.description,
-            taskType: updates.taskType,
-            priority: updates.priority,
-            assignedBy: masterTask.assignedBy,
-            assignedTo: updates.assignedTo,
-            companyId: masterTask.companyId,
-            attachments: updates.attachments || [],
-            dueDate: date,
-            isActive: true,
-            status: "pending",
-            taskGroupId,
-            originalStartDate: updates.startDate,
-            originalEndDate: updates.endDate,
-            weeklyDays: updates.weeklyDays,
-            weekOffDays: updates.weekOffDays || [],
-            monthlyDay: updates.monthlyDay,
-            yearlyDuration: updates.yearlyDuration,
-            parentTaskInfo: {
+      const seqRange = await reserveTaskSequences(masterTask.companyId, datesToInsert.length);
+      let nextSeq = seqRange ? seqRange.start : null;
+      const bulkOps = datesToInsert.map((date) => {
+        const taskSeq = nextSeq;
+        if (nextSeq !== null) {
+          nextSeq += 1;
+        }
+
+        return {
+          insertOne: {
+            document: {
+              title: updates.title,
+              description: updates.description,
+              taskType: updates.taskType,
+              priority: updates.priority,
+              assignedBy: masterTask.assignedBy,
+              assignedTo: updates.assignedTo,
+              companyId: masterTask.companyId,
+              taskSeq: taskSeq ?? undefined,
+              taskId: taskSeq != null ? formatTaskId(masterTask.companyId, taskSeq) : undefined,
+              attachments: updates.attachments || [],
+              dueDate: date,
+              isActive: true,
+              status: "pending",
+              taskGroupId,
               originalStartDate: updates.startDate,
               originalEndDate: updates.endDate,
-              isForever: updates.isForever,
-              includeSunday: updates.includeSunday,
               weeklyDays: updates.weeklyDays,
               weekOffDays: updates.weekOffDays || [],
               monthlyDay: updates.monthlyDay,
-              yearlyDuration: updates.yearlyDuration
+              yearlyDuration: updates.yearlyDuration,
+              parentTaskInfo: {
+                originalStartDate: updates.startDate,
+                originalEndDate: updates.endDate,
+                isForever: updates.isForever,
+                includeSunday: updates.includeSunday,
+                weeklyDays: updates.weeklyDays,
+                weekOffDays: updates.weekOffDays || [],
+                monthlyDay: updates.monthlyDay,
+                yearlyDuration: updates.yearlyDuration
+              }
             }
           }
-        }
-      }));
+        };
+      });
 
       await Task.bulkWrite(bulkOps, { ordered: false });
     }
@@ -2578,7 +2731,8 @@ router.get('/bin/master-recurring', async (req, res) => {
       matchStage.$and.push({
         $or: [
           { title: { $regex: search, $options: 'i' } },
-          { description: { $regex: search, $options: 'i' } }
+          { description: { $regex: search, $options: 'i' } },
+          { taskId: { $regex: search, $options: 'i' } }
         ]
       });
     }
@@ -2652,6 +2806,7 @@ router.get('/bin/master-recurring', async (req, res) => {
         tasks: {
           $push: {
             _id: '$_id',
+            taskId: '$taskId',
             dueDate: '$dueDate',
             status: '$status',
             completedAt: '$completedAt',
@@ -2813,7 +2968,8 @@ router.get('/bin/recurring-instances', async (req, res) => {
       query.$and.push({
         $or: [
           { title: { $regex: search, $options: 'i' } },
-          { description: { $regex: search, $options: 'i' } }
+          { description: { $regex: search, $options: 'i' } },
+          { taskId: { $regex: search, $options: 'i' } }
         ]
       });
     }
@@ -2856,6 +3012,7 @@ router.get('/bin/recurring-instances', async (req, res) => {
         $project: {
           title: 1,
           description: 1,
+          taskId: 1,
           taskType: 1,
           'assignedBy.username': 1,
           'assignedBy.email': 1,
@@ -3143,14 +3300,25 @@ router.post("/reassign/:taskGroupId", async (req, res) => {
 
 
     const newTasks = [];
+    const seqRange = dates.length > 0
+      ? await reserveTaskSequences(companyId, dates.length)
+      : null;
+    let nextSeq = seqRange ? seqRange.start : null;
 
     for (let i = 0; i < dates.length; i++) {
+      const taskSeq = nextSeq;
+      if (nextSeq !== null) {
+        nextSeq += 1;
+      }
+
       const t = await Task.create({
         title: oldMaster.title,
         description: oldMaster.description,
         taskType: oldMaster.taskType,
         priority: oldMaster.priority,
         companyId,
+        taskSeq: taskSeq ?? undefined,
+        taskId: taskSeq != null ? formatTaskId(companyId, taskSeq) : undefined,
 
         assignedBy: oldMaster.assignedBy,
         assignedTo: oldMaster.assignedTo,

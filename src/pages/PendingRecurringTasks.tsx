@@ -21,6 +21,7 @@ interface Attachment {
 
 interface Task {
   _id: string;
+  taskId?: string;
   title: string;
   description: string;
   taskType: string;
@@ -468,6 +469,10 @@ const PendingRecurringTasks: React.FC = () => {
               </p>
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between items-center py-2 px-3 bg-[var(--color-surface)] rounded-lg">
+                  <span className="text-[var(--color-textSecondary)]">Task ID:</span>
+                  <span className="font-medium text-[var(--color-text)]">{task.taskId || '—'}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 px-3 bg-[var(--color-surface)] rounded-lg">
                   <span className="text-[var(--color-textSecondary)]">Assigned by:</span>
                   <span className="font-medium text-[var(--color-text)]">{task.assignedBy.username}</span>
                 </div>
@@ -531,6 +536,7 @@ const PendingRecurringTasks: React.FC = () => {
         <table className="min-w-full divide-y divide-[var(--color-border)]">
           <thead className="bg-[var(--color-surface)]">
             <tr>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-[var(--color-textSecondary)] uppercase tracking-wider">Task ID</th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-[var(--color-textSecondary)] uppercase tracking-wider">Task</th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-[var(--color-textSecondary)] uppercase tracking-wider">Type</th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-[var(--color-textSecondary)] uppercase tracking-wider">Priority</th>
@@ -559,6 +565,9 @@ const PendingRecurringTasks: React.FC = () => {
                       : ''
                     }`}
                 >
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--color-text)]">
+                    {task.taskId || '—'}
+                  </td>
                   <td className="px-6 py-4">
                     <div>
                       <div className="text-sm font-medium text-[var(--color-text)] mb-1">
@@ -817,7 +826,7 @@ const PendingRecurringTasks: React.FC = () => {
                 <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--color-textSecondary)]" />
                 <input
                   type="text"
-                  placeholder="Search tasks..."
+                  placeholder="Search tasks or Task ID..."
                   value={filter.search}
                   onChange={(e) => setFilterValue('search', e.target.value)}
                   className="w-full pl-10 text-sm pr-1 py-1 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] transition-colors"

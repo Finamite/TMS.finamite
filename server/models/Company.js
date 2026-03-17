@@ -25,6 +25,10 @@ const companySchema = new mongoose.Schema({
       default: 50
     }
   },
+  taskSequence: {
+    type: Number,
+    default: 0
+  },
   isActive: {
     type: Boolean,
     default: true

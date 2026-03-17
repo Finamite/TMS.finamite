@@ -17,6 +17,7 @@ interface Attachment {
 
 export interface Task {
   _id: string;
+  taskId?: string;
   title: string;
   description: string;
   taskType: string;

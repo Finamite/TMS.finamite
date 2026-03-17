@@ -1,5 +1,6 @@
 import Task from "../models/Task.js";
 import mongoose from "mongoose";
+import { reserveTaskSequences, formatTaskId } from "./taskId.service.js";
 
 /**
  * Reassign a FOREVER task group for next year
@@ -125,6 +126,16 @@ export const reassignSingleTaskLogic = async ({
 
   if (!newTasks.length) {
     throw new Error("No new tasks generated");
+  }
+
+  const seqRange = await reserveTaskSequences(companyId, newTasks.length);
+  if (seqRange) {
+    let seq = seqRange.start;
+    newTasks.forEach((task) => {
+      task.taskSeq = seq;
+      task.taskId = formatTaskId(companyId, seq);
+      seq += 1;
+    });
   }
 
   // 6️⃣ Insert
