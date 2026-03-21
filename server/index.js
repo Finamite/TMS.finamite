@@ -21,6 +21,7 @@ import performanceRoutes from './routes/performance.js';
 import chat from './routes/chat.js';
 import reportMailRoutes from "./routes/reportmail.js";
 import taskshiftRoutes from "./routes/taskshift.js";
+import pcmIntegrationRoutes from "./routes/pcmIntegration.js";
 import { startReportCron } from "./routes/reportmail.js";
 import dataUsageRoutes, { updateFileUsage, updateDatabaseUsage } from "./routes/dataUsage.js";
 
@@ -138,6 +139,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/chat', chat);
 app.use('/api/reports', reportMailRoutes);
 app.use('/api/taskshift', taskshiftRoutes);
+app.use('/api/pcm-integration', pcmIntegrationRoutes);
 app.use('/api/data-usage', dataUsageRoutes);
 
 // Serve frontend in production

@@ -9,12 +9,12 @@ import {
   LayoutDashboard,
   CheckSquare,
   RefreshCw,
+  GitBranch,
   Archive,
   RotateCcw,
   UserPlus,
   Settings,
   X,
-  ChevronLeft,
   ChevronRight,
   Zap,
   Crown,
@@ -102,6 +102,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const COUNTS_POLL_MS = 30000;
   const { user } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isHoverExpanded, setIsHoverExpanded] = useState(false);
   const [approvalPendingCount, setApprovalPendingCount] = useState(0);
 
   const [unreadChatsCount, setUnreadChatsCount] = useState(0);
@@ -138,6 +139,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     // If mobile width, always expand sidebar
     if (window.innerWidth < 1024) {
       setIsCollapsed(false);
+      setIsHoverExpanded(false);
     }
   }, [isOpen]);
 
@@ -292,6 +294,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', permission: cp.dashboard },
     { icon: CheckSquare, label: 'Pending Single', path: '/pending-tasks', permission: cp.pendingTasks },
     { icon: RefreshCw, label: 'Pending Recurring', path: '/pending-recurring', permission: cp.pendingRecurringTasks },
+    { icon: GitBranch, label: 'PCM Pending', path: '/pcm-pending-process', permission: cp.pendingTasks },
     { icon: Archive, label: 'Master Single', path: '/master-tasks', permission: cp.masterTasks },
     { icon: RotateCcw, label: 'Master Recurring', path: '/master-recurring', permission: cp.masterRecurringTasks },
     { icon: UserPlus, label: 'Assign Task', path: '/assign-task', permission: user?.permissions?.canAssignTasks },
@@ -314,7 +317,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
+    setIsHoverExpanded(false);
   };
+
+  const isExpanded = !isCollapsed || isHoverExpanded;
 
   return (
     <>
@@ -339,7 +345,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         style={{
           backgroundColor: "var(--color-surface)",
           borderColor: "var(--color-border)",
-          width: isCollapsed ? "80px" : "200px",
+          width: isExpanded ? "200px" : "80px",
+        }}
+        onMouseEnter={() => {
+          if (window.innerWidth >= 1024 && isCollapsed) {
+            setIsHoverExpanded(true);
+          }
+        }}
+        onMouseLeave={() => {
+          if (window.innerWidth >= 1024) {
+            setIsHoverExpanded(false);
+          }
         }}
       >
 
@@ -353,30 +369,27 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         >
           {/* Logo */}
           <div className="flex items-center">
-            {!isCollapsed ? (
-              <span className="text-xl font-bold tracking-tight" style={{ color: 'var(--color-text)' }}>
-                TMS
-              </span>
-            ) : (
-              <button
-                onClick={toggleCollapse}
-                className="p-2 rounded-xl border flex items-center justify-center shadow-md hover:scale-105 transition ml-1"
-                style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-primary)', borderColor: 'var(--color-border)' }}
-              >
-                <ChevronRight size={20} />
-              </button>
-            )}
+            <span
+              className={`text-xl font-bold tracking-tight overflow-hidden whitespace-nowrap transition-all duration-300 ease-out ${
+                isExpanded ? 'max-w-[90px] opacity-100 translate-x-0' : 'max-w-0 opacity-0 -translate-x-2'
+              }`}
+              style={{ color: 'var(--color-text)' }}
+            >
+              TMS
+            </span>
           </div>
 
-          {!isCollapsed && (
-            <button
-              onClick={toggleCollapse}
-              className="hidden lg:flex p-2 rounded-xl border shadow-sm hover:scale-105 transition ml-1"
-              style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-primary)', borderColor: 'var(--color-border)' }}
-            >
-              <ChevronLeft size={20} />
-            </button>
-          )}
+          <button
+            onClick={toggleCollapse}
+            className="hidden lg:flex p-2 rounded-xl border shadow-sm hover:scale-105 transition ml-1"
+            style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-primary)', borderColor: 'var(--color-border)' }}
+            aria-label={isExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+          >
+            <ChevronRight
+              size={20}
+              className={`transition-transform duration-300 ease-out ${isExpanded ? 'rotate-180' : 'rotate-0'}`}
+            />
+          </button>
 
           <button
             onClick={onClose}
@@ -401,14 +414,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               <Tooltip
                 key={item.path}
                 content={item.label}
-                show={isCollapsed}
+                show={!isExpanded}
               >
                 <NavLink
                   to={item.path}
                   onClick={onClose}
                   className={({ isActive }) =>
                     `flex items-center px-2 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${isActive ? 'text-white' : ''
-                    } ${isCollapsed ? 'justify-center' : ''}`
+                    } ${!isExpanded ? 'justify-center' : ''}`
                   }
                   style={({ isActive }) => ({
                     background: isActive
@@ -420,14 +433,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
 
                   {/* ICON + RED DOT */}
-                  <div className="relative">
-                    <item.icon size={16} className={isCollapsed ? '' : 'mr-3'} />
+                  <div className="relative flex items-center">
+                    <item.icon size={16} className={isExpanded ? 'mr-3 transition-all duration-300' : 'transition-all duration-300'} />
 
                     {item.label === "Pending Single" && pendingTaskCount > 0 && (
                       <span
                         className={`
       absolute -top-2
-      ${isCollapsed ? "-right-4" : "-top-1 left-2"}
+                      ${isExpanded ? "-top-1 left-2" : "-right-4"}
       bg-red-600 text-white text-[10px]
       rounded-full min-w-[18px] h-[18px]
       flex items-center justify-center px-1
@@ -441,7 +454,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                       <span
                         className={`
       absolute -top-2
-      ${isCollapsed ? "-right-4" : "-top-1 left-2"}
+      ${isExpanded ? "-top-1 left-2" : "-right-4"}
       bg-red-600 text-white text-[10px]
       rounded-full min-w-[18px] h-[18px]
       flex items-center justify-center px-1
@@ -456,7 +469,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                       <span
                         className={`
       absolute -top-2
-      ${isCollapsed ? "-right-4" : "left-2"}
+      ${isExpanded ? "left-2" : "-right-4"}
       bg-red-600 text-white text-[10px]
       rounded-full min-w-[18px] h-[18px]
       flex items-center justify-center px-1
@@ -469,7 +482,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                       <span
                         className={`
       absolute -top-2
-      ${isCollapsed ? "-right-4" : "left-2"}
+      ${isExpanded ? "left-2" : "-right-4"}
       bg-red-600 text-white text-[10px]
       rounded-full min-w-[18px] h-[18px]
       flex items-center justify-center px-1
@@ -480,12 +493,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                     )}
                   </div>
 
-                  {!isCollapsed && (
-                    <span className="transition-opacity duration-200">
-                      {item.label}
-                    </span>
-                  )}
-                </NavLink>
+                  <span
+                    className={`overflow-hidden whitespace-nowrap transition-all duration-300 ease-out ${
+                      isExpanded ? 'max-w-[140px] opacity-100 translate-x-0 ml-0' : 'max-w-0 opacity-0 -translate-x-2 ml-0'
+                    }`}
+                  >
+                    {item.label}
+                  </span>
+                  </NavLink>
               </Tooltip>
             ))}
           </div>
@@ -503,7 +518,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   "
           style={{ borderColor: 'var(--color-border)' }}
         >
-          {isCollapsed ? (
+          {!isExpanded ? (
             <Tooltip content={`${user?.username} (${user?.role})`} show={true}>
               <div className="flex justify-center">
                 <div
@@ -525,13 +540,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
               <div className="ml-3 min-w-0">
                 <p
-                  className="text-xs font-medium truncate"
+                  className={`text-xs font-medium truncate overflow-hidden whitespace-nowrap transition-all duration-300 ease-out ${
+                    isExpanded ? 'max-w-[120px] opacity-100 translate-x-0' : 'max-w-0 opacity-0 -translate-x-2'
+                  }`}
                   style={{ color: 'var(--color-text)' }}
                 >
                   {user?.username}
                 </p>
                 <p
-                  className="text-xs truncate"
+                  className={`text-xs truncate overflow-hidden whitespace-nowrap transition-all duration-300 ease-out ${
+                    isExpanded ? 'max-w-[120px] opacity-100 translate-x-0' : 'max-w-0 opacity-0 -translate-x-2'
+                  }`}
                   style={{ color: 'var(--color-textSecondary)' }}
                 >
                   {user?.role}

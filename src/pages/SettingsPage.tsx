@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Mail, AlertTriangle, Save, X, Loader as Loader2, Send, Calendar, Plus, Pencil, Trash, ClipboardCheck, FileWarning, MessageSquare, Paperclip, RefreshCw, Eye, Archive } from 'lucide-react';
+import { Settings, Mail, AlertTriangle, Save, X, Loader as Loader2, Send, Calendar, Plus, Pencil, Trash, ClipboardCheck, FileWarning, MessageSquare, Paperclip, RefreshCw, Eye, Archive, GitBranch } from 'lucide-react';
 import axios from 'axios';
 import { address } from '../../utils/ipAddress';
 import { useAuth } from '../contexts/AuthContext';
@@ -68,6 +68,14 @@ interface EmailSettings {
 
 interface SettingsData {
     taskCompletion: any;
+    pcmIntegration: {
+        enabled: boolean;
+        pcmApiKey: string;
+        pcmApiKeyLast4: string;
+        pcmUserEmailMap: Record<string, string>;
+        showInDashboard: boolean;
+        showInPendingPages: boolean;
+    };
     adminApproval: {
         enabled: boolean;
         defaultForOneTime: boolean;
@@ -126,7 +134,7 @@ const SettingsPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [testingEmail, setTestingEmail] = useState(false);
-    const [users, setUsers] = useState<User[]>([]);
+    const [, setUsers] = useState<User[]>([]);
     const [settings, setSettings] = useState<SettingsData>({
         revision: {
             limit: 3,
@@ -174,6 +182,14 @@ const SettingsPage: React.FC = () => {
                 mandatoryAttachments: false,
                 mandatoryRemarks: false
             }
+        },
+        pcmIntegration: {
+            enabled: false,
+            pcmApiKey: '',
+            pcmApiKeyLast4: '',
+            pcmUserEmailMap: {},
+            showInDashboard: true,
+            showInPendingPages: true
         }
     });
     const [expandedRevision, setExpandedRevision] = useState(false);
@@ -194,12 +210,14 @@ const SettingsPage: React.FC = () => {
     const [googleLoading, setGoogleLoading] = useState(false);
     const [expandedTask, setExpandedTask] = useState(false);
     const [expandedAdminApproval, setExpandedAdminApproval] = useState(false);
+    const [expandedPcmIntegration, setExpandedPcmIntegration] = useState(false);
 
 
     useEffect(() => {
         fetchSettings();
         fetchUsers();
         fetchTaskSettings();
+        fetchPcmIntegration();
         fetchBinSettings();
         fetchAdminApproval();
     }, [currentUser?.companyId]);
@@ -298,6 +316,28 @@ const SettingsPage: React.FC = () => {
                 pendingRecurringTasks: res.data.pendingRecurringTasks
             }
         }));
+    };
+
+    const fetchPcmIntegration = async () => {
+        if (!currentUser?.companyId) return;
+
+        try {
+            const res = await axios.get(`${address}/api/settings/pcm-integration?companyId=${currentUser.companyId}`);
+
+            setSettings(prev => ({
+                ...prev,
+                pcmIntegration: {
+                    enabled: res.data.enabled ?? false,
+                    pcmApiKey: '',
+                    pcmApiKeyLast4: res.data.pcmApiKeyLast4 || '',
+                    pcmUserEmailMap: res.data.pcmUserEmailMap || {},
+                    showInDashboard: res.data.showInDashboard ?? true,
+                    showInPendingPages: res.data.showInPendingPages ?? true
+                }
+            }));
+        } catch (error) {
+            console.error('Error fetching PCM integration settings:', error);
+        }
     };
 
     const areAllDaysSame = (daysObj: Record<number, number>) => {
@@ -512,6 +552,21 @@ const SettingsPage: React.FC = () => {
                     }
                 }));
             }
+
+            const pcmRes = await axios.get(`${address}/api/settings/pcm-integration?companyId=${currentUser.companyId}`);
+            if (pcmRes.data) {
+                setSettings(prev => ({
+                    ...prev,
+                    pcmIntegration: {
+                        enabled: pcmRes.data.enabled ?? false,
+                        pcmApiKey: '',
+                        pcmApiKeyLast4: pcmRes.data.pcmApiKeyLast4 || '',
+                        pcmUserEmailMap: pcmRes.data.pcmUserEmailMap || {},
+                        showInDashboard: pcmRes.data.showInDashboard ?? true,
+                        showInPendingPages: pcmRes.data.showInPendingPages ?? true
+                    }
+                }));
+            }
         } catch (error) {
             console.error('Error fetching settings:', error);
         } finally {
@@ -522,6 +577,18 @@ const SettingsPage: React.FC = () => {
 
     const handleSave = async () => {
         if (!currentUser?.companyId) return;
+        if (settings.pcmIntegration.enabled) {
+            const hasPcmConfig =
+                String(settings.pcmIntegration.pcmApiKey || '').trim() || String(settings.pcmIntegration.pcmApiKeyLast4 || '').trim();
+
+            if (!hasPcmConfig) {
+                setMessage({
+                    type: 'error',
+                    text: 'PCM integration needs the PCM API key before saving.'
+                });
+                return;
+            }
+        }
         setSaving(true);
         try {
             const revisionPayload = {
@@ -571,6 +638,15 @@ const SettingsPage: React.FC = () => {
                 companyId: currentUser.companyId,
                 enabled: settings.bin.enabled,
                 retentionDays: settings.bin.retentionDays
+            });
+
+            await axios.post(`${address}/api/settings/pcm-integration`, {
+                companyId: currentUser.companyId,
+                enabled: settings.pcmIntegration.enabled,
+                pcmApiKey: settings.pcmIntegration.pcmApiKey,
+                pcmUserEmailMap: settings.pcmIntegration.pcmUserEmailMap,
+                showInDashboard: settings.pcmIntegration.showInDashboard,
+                showInPendingPages: settings.pcmIntegration.showInPendingPages
             });
 
             window.dispatchEvent(new Event("bin-settings-updated"));
@@ -1862,6 +1938,141 @@ const SettingsPage: React.FC = () => {
                                             </div>
 
 
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* PCM Integration Settings */}
+                    <div className="bg-[var(--color-surface)] rounded-2xl shadow-xl border border-[var(--color-border)] overflow-hidden transition-all duration-300">
+                        <div
+                            className="flex items-center justify-between p-3 lg:p-6 cursor-pointer hover:bg-[var(--color-background)] transition-colors"
+                            onClick={() => setExpandedPcmIntegration(prev => !prev)}
+                        >
+                            <div className="flex items-center gap-4 min-w-0 max-w-[75%]">
+                                <div className="p-3 bg-[var(--color-primary)]/10 rounded-xl">
+                                    <GitBranch className="h-6 w-6 text-[var(--color-primary)]" />
+                                </div>
+
+                                <div className="min-w-0">
+                                    <h2 className="text-md lg:text-xl font-semibold text-[var(--color-text)] truncate">
+                                        PCM Integration
+                                    </h2>
+                                    <p className="text-[var(--color-textSecondary)] text-xs lg:text-sm mt-1 truncate">
+                                        Sync PCM pending steps into TMS and push completion back to PCM
+                                    </p>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (!currentUser?.permissions.canManageSettings) return;
+
+                                    setHasUnsavedChanges(true);
+                                    setSettings(prev => ({
+                                        ...prev,
+                                        pcmIntegration: {
+                                            ...prev.pcmIntegration,
+                                            enabled: !prev.pcmIntegration.enabled
+                                        }
+                                    }));
+                                    setExpandedPcmIntegration(true);
+                                }}
+                                disabled={!currentUser?.permissions.canManageSettings}
+                                className={`relative inline-flex h-5 lg:h-7 w-8 lg:w-12 mr-2 lg:mr-0 items-center rounded-full transition-all duration-200 shadow-inner ${settings.pcmIntegration.enabled ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border)]'} ${!currentUser?.permissions.canManageSettings ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                                <span
+                                    className={`inline-block h-3 lg:h-5 w-3 lg:w-5 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${settings.pcmIntegration.enabled ? 'translate-x-4 lg:translate-x-6' : 'translate-x-1'}`}
+                                />
+                            </button>
+                        </div>
+
+                        {expandedPcmIntegration && (
+                            <div className="px-6 pb-6 pt-2 border-t border-[var(--color-border)] bg-[var(--color-background)]">
+                                <div className="space-y-6 mt-6">
+                                    <div className="space-y-4">
+                                        <h3 className="text-xs font-bold text-[var(--color-text)] uppercase tracking-wider flex items-center gap-2">
+                                            <span className="w-1 h-4 bg-[var(--color-primary)] rounded-full"></span>
+                                            Connection Details
+                                        </h3>
+
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-medium text-[var(--color-text)]">
+                                                PCM API Key
+                                            </label>
+                                            <input
+                                                type="password"
+                                                value={settings.pcmIntegration.pcmApiKey}
+                                                onChange={(e) => handleInputChange("pcmIntegration", "pcmApiKey", e.target.value)}
+                                                disabled={!settings.pcmIntegration.enabled}
+                                                placeholder="Paste the API key generated in PCM"
+                                                className={`w-full px-4 py-3 border border-[var(--color-border)] rounded-lg text-sm bg-[var(--color-surface)] text-[var(--color-text)] transition-all focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] ${!settings.pcmIntegration.enabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            />
+                                            <p className="text-xs text-[var(--color-textSecondary)] mt-1">
+                                                Paste the one-time API key created in PCM. TMS stores it securely and uses it server-side only.
+                                            </p>
+                                            {settings.pcmIntegration.pcmApiKeyLast4 ? (
+                                                <p className="text-xs text-[var(--color-textSecondary)]">
+                                                    Current saved key: ****{settings.pcmIntegration.pcmApiKeyLast4}
+                                                </p>
+                                            ) : null}
+                                            {settings.pcmIntegration.enabled && !settings.pcmIntegration.pcmApiKeyLast4 && !settings.pcmIntegration.pcmApiKey ? (
+                                                <p className="text-xs text-red-500">
+                                                    PCM integration is enabled, but no API key is saved yet.
+                                                </p>
+                                            ) : null}
+                                        </div>
+
+                                        <div className="flex justify-end pt-2">
+                                            <button
+                                                type="button"
+                                                onClick={handleSave}
+                                                disabled={saving || !currentUser?.permissions.canManageSettings}
+                                                className="min-w-[160px] px-4 py-2 rounded-lg bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary)]/90 disabled:opacity-50 disabled:cursor-not-allowed font-semibold transition-all"
+                                            >
+                                                {saving ? 'Saving...' : 'Save PCM Integration'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <h3 className="text-xs font-bold text-[var(--color-text)] uppercase tracking-wider flex items-center gap-2">
+                                            <span className="w-1 h-4 bg-[var(--color-primary)] rounded-full"></span>
+                                            Visibility
+                                        </h3>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <label className={`flex items-center justify-between gap-4 p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] ${!settings.pcmIntegration.enabled ? 'opacity-50' : ''}`}>
+                                                <div>
+                                                    <p className="font-medium text-[var(--color-text)]">Show in Dashboard</p>
+                                                    <p className="text-xs text-[var(--color-textSecondary)] mt-1">Display PCM pending steps on the TMS dashboard</p>
+                                                </div>
+                                                <ToggleSwitch
+                                                    checked={settings.pcmIntegration.showInDashboard}
+                                                    disabled={!settings.pcmIntegration.enabled}
+                                                    onChange={(v) => handleInputChange("pcmIntegration", "showInDashboard", v)}
+                                                />
+                                            </label>
+
+                                            <label className={`flex items-center justify-between gap-4 p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] ${!settings.pcmIntegration.enabled ? 'opacity-50' : ''}`}>
+                                                <div>
+                                                    <p className="font-medium text-[var(--color-text)]">Show in Pending Pages</p>
+                                                    <p className="text-xs text-[var(--color-textSecondary)] mt-1">Show PCM steps in the pending task screens</p>
+                                                </div>
+                                                <ToggleSwitch
+                                                    checked={settings.pcmIntegration.showInPendingPages}
+                                                    disabled={!settings.pcmIntegration.enabled}
+                                                    onChange={(v) => handleInputChange("pcmIntegration", "showInPendingPages", v)}
+                                                />
+                                            </label>
+                                        </div>
+
+                                        <div className="p-4 bg-[var(--color-info)]/5 rounded-lg border border-[var(--color-info)]/10">
+                                            <p className="text-xs text-[var(--color-textSecondary)] leading-relaxed">
+                                                Once enabled, TMS will pull PCM pending steps using the PCM API key and push completion updates back to PCM so both systems stay in sync.
+                                            </p>
                                         </div>
                                     </div>
                                 </div>

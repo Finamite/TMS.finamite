@@ -59,6 +59,13 @@ interface CompanyData {
   createdAt: string;
 }
 
+interface PcmIntegrationSettings {
+  enabled: boolean;
+  pcmUserEmailMap: Record<string, string>;
+  showInDashboard: boolean;
+  showInPendingPages: boolean;
+}
+
 const formatDateTime = (dateValue: string | number | Date) => {
   if (!dateValue) return "No data";
 
@@ -109,6 +116,14 @@ const AdminPanel: React.FC = () => {
   });
   const [message, setMessage] = useState({ type: '', text: '' });
   const [settingsMessage, setSettingsMessage] = useState({ type: '', text: '' });
+  const [pcmIntegration, setPcmIntegration] = useState<PcmIntegrationSettings>({
+    enabled: false,
+    pcmUserEmailMap: {},
+    showInDashboard: true,
+    showInPendingPages: true,
+  });
+  const [pcmIntegrationLoading, setPcmIntegrationLoading] = useState(false);
+  const [pcmIntegrationSaving, setPcmIntegrationSaving] = useState(false);
   const [searchName, setSearchName] = useState("");
   const [searchEmail, setSearchEmail] = useState("");
   const [filterStatus, setFilterStatus] = useState("active");
@@ -118,6 +133,7 @@ const AdminPanel: React.FC = () => {
   const [showAccessModal, setShowAccessModal] = useState(false);
   const [showCreatePassword, setShowCreatePassword] = useState(false);
   const [showUpdatePassword, setShowUpdatePassword] = useState(false);
+  const [showPcmMappingModal, setShowPcmMappingModal] = useState(false);
 
   // Define allowed permissions for each role
   const rolePermissions = {
@@ -177,11 +193,78 @@ const AdminPanel: React.FC = () => {
     }
   };
 
+  const fetchPcmIntegration = async () => {
+    if (!currentUser?.companyId) return;
+
+    setPcmIntegrationLoading(true);
+    try {
+      const response = await axios.get(`${address}/api/settings/pcm-integration`, {
+        params: { companyId: currentUser.companyId }
+      });
+
+      setPcmIntegration({
+        enabled: response.data.enabled ?? false,
+        pcmUserEmailMap: response.data.pcmUserEmailMap && typeof response.data.pcmUserEmailMap === 'object'
+          ? response.data.pcmUserEmailMap
+          : {},
+        showInDashboard: response.data.showInDashboard ?? true,
+        showInPendingPages: response.data.showInPendingPages ?? true,
+      });
+    } catch (error) {
+      console.error('Error fetching PCM integration settings:', error);
+    } finally {
+      setPcmIntegrationLoading(false);
+    }
+  };
+
+  const handlePcmEmailMapChange = (userId: string, value: string) => {
+    setPcmIntegration(prev => ({
+      ...prev,
+      pcmUserEmailMap: {
+        ...(prev.pcmUserEmailMap || {}),
+        [userId]: value,
+      }
+    }));
+  };
+
+  const handleSavePcmIntegration = async () => {
+    if (!currentUser?.companyId) return;
+
+    setPcmIntegrationSaving(true);
+    try {
+      await axios.post(`${address}/api/settings/pcm-integration`, {
+        companyId: currentUser.companyId,
+        enabled: pcmIntegration.enabled,
+        pcmUserEmailMap: pcmIntegration.pcmUserEmailMap,
+        showInDashboard: pcmIntegration.showInDashboard,
+        showInPendingPages: pcmIntegration.showInPendingPages,
+      });
+
+      setSettingsMessage({
+        type: 'success',
+        text: 'PCM email mapping saved successfully!'
+      });
+    } catch (error: any) {
+      setSettingsMessage({
+        type: 'error',
+        text: error.response?.data?.message || 'Failed to save PCM email mapping'
+      });
+    } finally {
+      setPcmIntegrationSaving(false);
+    }
+  };
+
 
   useEffect(() => {
     fetchUsers();
     fetchCompanyData();
   }, []);
+
+  useEffect(() => {
+    if (currentUser?.companyId) {
+      void fetchPcmIntegration();
+    }
+  }, [currentUser?.companyId]);
 
   useEffect(() => {
     if (message.text) {
@@ -682,6 +765,46 @@ const AdminPanel: React.FC = () => {
             }`}
         >
           {message.text}
+        </div>
+      )}
+
+      {settingsMessage.text && (
+        <div
+          className={`p-3 mt-2 rounded-lg text-sm ${settingsMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
+            }`}
+        >
+          {settingsMessage.text}
+        </div>
+      )}
+
+      {(currentUser?.permissions?.canManageUsers || currentUser?.permissions?.canManageSettings) && (
+        <div className="rounded-lg border overflow-hidden mt-4" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
+          <div className="p-3 sm:p-4 border-b flex items-center justify-between gap-3" style={{ borderColor: 'var(--color-border)' }}>
+            <div>
+              <h2 className="text-md font-semibold flex items-center" style={{ color: 'var(--color-text)' }}>
+                <Building2 className="mr-2 text-[var(--color-primary)]" size={16} />
+                PCM Email Mapping
+              </h2>
+              <p className="text-xs mt-1" style={{ color: 'var(--color-textSecondary)' }}>
+                Map TMS users to their PCM Gmail IDs for step visibility.
+              </p>
+            </div>
+
+            {pcmIntegration.enabled ? (
+              <button
+                type="button"
+                onClick={() => setShowPcmMappingModal(true)}
+                className="px-4 py-2 rounded-lg text-white font-medium text-sm whitespace-nowrap"
+                style={{ backgroundColor: 'var(--color-primary)' }}
+              >
+                Open PCM Mapping
+              </button>
+            ) : (
+              <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg">
+                Enable PCM integration in Settings to manage mappings
+              </span>
+            )}
+          </div>
         </div>
       )}
 
@@ -1192,6 +1315,106 @@ const AdminPanel: React.FC = () => {
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PCM Email Mapping Modal */}
+      {showPcmMappingModal && (currentUser?.permissions?.canManageUsers || currentUser?.permissions?.canManageSettings) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl">
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4">
+              <div>
+                <h2 className="text-lg font-semibold text-[var(--color-text)]">PCM Email Mapping</h2>
+                <p className="text-xs text-[var(--color-textSecondary)]">
+                  Admins can see all PCM steps. Map each user here so non-admin users only see their own PCM items.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPcmMappingModal(false)}
+                className="rounded-full border border-[var(--color-border)] p-2 text-[var(--color-textSecondary)] transition-colors hover:bg-[var(--color-primary)]/10 hover:text-[var(--color-text)]"
+                aria-label="Close PCM mapping modal"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5">
+              {!pcmIntegration.enabled && (
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  PCM integration is disabled in Settings. Enable it first to edit mappings.
+                </div>
+              )}
+
+              <div className="grid gap-3">
+                {users.length > 0 ? users.map((user) => {
+                  const mappedEmail = String(pcmIntegration.pcmUserEmailMap?.[user._id] || '');
+                  const canEdit = Boolean(pcmIntegration.enabled);
+
+                  return (
+                    <div
+                      key={user._id}
+                      className="grid grid-cols-1 gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] p-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-[var(--color-text)]">
+                          {user.username}
+                        </p>
+                        <p className="truncate text-xs text-[var(--color-textSecondary)]">
+                          {user.email}
+                        </p>
+                        <p className="mt-1 text-[11px] text-[var(--color-textSecondary)]">
+                          Role: {getRoleLabel(user.role)}
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-[var(--color-text)]">
+                          PCM Gmail ID
+                        </label>
+                        <input
+                          type="email"
+                          value={mappedEmail}
+                          onChange={(e) => handlePcmEmailMapChange(user._id, e.target.value)}
+                          disabled={!canEdit}
+                          placeholder={user.email}
+                          className={`w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text)] transition-all focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)] ${!canEdit ? 'cursor-not-allowed opacity-50' : ''}`}
+                        />
+                      </div>
+                    </div>
+                  );
+                }) : (
+                  <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] p-4 text-sm text-[var(--color-textSecondary)]">
+                    No users found for this company.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-[var(--color-border)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-[var(--color-textSecondary)]">
+                Changes are saved for the current company only.
+              </p>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={handleSavePcmIntegration}
+                  disabled={pcmIntegrationSaving || pcmIntegrationLoading || !pcmIntegration.enabled}
+                  className="rounded-lg px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{ backgroundColor: 'var(--color-primary)' }}
+                >
+                  {pcmIntegrationSaving ? 'Saving...' : 'Save PCM Mapping'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowPcmMappingModal(false)}
+                  className="rounded-lg border border-[var(--color-border)] px-4 py-2 text-sm font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-primary)]/10"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

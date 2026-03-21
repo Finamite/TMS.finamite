@@ -6,6 +6,7 @@ import User from '../models/User.js'; // ✅ ADD MISSING IMPORT
 import { sendSystemEmail } from '../Utils/sendEmail.js'; // ✅ ADD MISSING IMPORT
 import { restartReportCron } from '../routes/reportmail.js';
 import Task from "../models/Task.js";
+import { encryptPcmSecret, getPcmSecretTail, maskPcmSecret } from '../services/pcmSecret.js';
 
 const router = express.Router();
 
@@ -86,6 +87,120 @@ router.post('/task-completion', async (req, res) => {
 
     res.json({ message: 'Settings saved', data: settings.data });
   } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// ---------------------------
+// PCM Integration endpoints
+// ---------------------------
+router.get('/pcm-integration', async (req, res) => {
+  try {
+    const { companyId } = req.query;
+    if (!companyId) return res.status(400).json({ message: 'companyId required' });
+
+    let settings = await Settings.findOne({ type: 'pcmIntegration', companyId });
+
+    if (!settings) {
+      settings = new Settings({
+        type: 'pcmIntegration',
+        companyId,
+        data: {
+          enabled: false,
+          pcmApiKeyEncrypted: '',
+          pcmApiKeyLast4: '',
+          pcmUserEmailMap: {},
+          showInDashboard: true,
+          showInPendingPages: true
+        }
+      });
+      await settings.save();
+    }
+
+    const data = settings.data || {};
+    res.json({
+      ...data,
+      hasApiKey: Boolean(data.pcmApiKeyEncrypted),
+      pcmApiKeyLast4: String(data.pcmApiKeyLast4 || ''),
+      pcmApiKeyMasked: maskPcmSecret(data.pcmApiKeyLast4),
+      pcmUserEmailMap: data.pcmUserEmailMap && typeof data.pcmUserEmailMap === 'object' ? data.pcmUserEmailMap : {},
+      pcmApiKey: '',
+    });
+  } catch (error) {
+    console.error('Error fetching PCM integration settings:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.post('/pcm-integration', async (req, res) => {
+  try {
+    const {
+      companyId,
+      enabled,
+      pcmApiKey,
+      pcmUserEmailMap,
+      showInDashboard,
+      showInPendingPages
+    } = req.body;
+
+    if (!companyId) return res.status(400).json({ message: 'companyId required' });
+
+    const payload = {
+      enabled: enabled ?? false,
+      showInDashboard: showInDashboard ?? true,
+      showInPendingPages: showInPendingPages ?? true,
+    };
+
+    const existing = await Settings.findOne({ type: 'pcmIntegration', companyId }).lean();
+    const existingData = existing?.data || {};
+    const incomingApiKey = String(pcmApiKey || '').trim();
+    if (incomingApiKey) {
+      payload.pcmApiKeyEncrypted = encryptPcmSecret(incomingApiKey);
+      payload.pcmApiKeyLast4 = getPcmSecretTail(incomingApiKey);
+    } else if (String(existingData.pcmApiKeyEncrypted || '').trim()) {
+      payload.pcmApiKeyEncrypted = String(existingData.pcmApiKeyEncrypted || '').trim();
+      payload.pcmApiKeyLast4 = String(existingData.pcmApiKeyLast4 || '').trim();
+    } else {
+      payload.pcmApiKeyEncrypted = '';
+      payload.pcmApiKeyLast4 = '';
+    }
+
+    const hasIncomingMap = Object.prototype.hasOwnProperty.call(req.body || {}, 'pcmUserEmailMap');
+    const normalizedMap = {};
+    if (hasIncomingMap && pcmUserEmailMap && typeof pcmUserEmailMap === 'object' && !Array.isArray(pcmUserEmailMap)) {
+      Object.entries(pcmUserEmailMap).forEach(([userId, pcmEmail]) => {
+        const cleanUserId = String(userId || '').trim();
+        const cleanPcmEmail = String(pcmEmail || '').trim().toLowerCase();
+        if (cleanUserId && cleanPcmEmail) {
+          normalizedMap[cleanUserId] = cleanPcmEmail;
+        }
+      });
+    }
+    payload.pcmUserEmailMap = hasIncomingMap
+      ? normalizedMap
+      : (existingData.pcmUserEmailMap && typeof existingData.pcmUserEmailMap === 'object'
+        ? existingData.pcmUserEmailMap
+        : {});
+
+    const settings = await Settings.findOneAndUpdate(
+      { type: 'pcmIntegration', companyId },
+      { $set: { data: payload } },
+      { upsert: true, new: true }
+    );
+
+    const data = settings.data || {};
+    res.json({
+      message: 'PCM integration settings saved',
+      data: {
+        ...data,
+        hasApiKey: Boolean(data.pcmApiKeyEncrypted),
+        pcmApiKeyMasked: maskPcmSecret(data.pcmApiKeyLast4),
+        pcmUserEmailMap: data.pcmUserEmailMap && typeof data.pcmUserEmailMap === 'object' ? data.pcmUserEmailMap : {},
+        pcmApiKey: '',
+      },
+    });
+  } catch (error) {
+    console.error('Error saving PCM integration settings:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

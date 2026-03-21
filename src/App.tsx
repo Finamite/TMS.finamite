@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import PendingTasks from './pages/PendingTasks';
 import PendingRecurringTasks from './pages/PendingRecurringTasks';
+import PcmPendingProcess from './pages/PcmPendingProcess';
 import MasterTasks from './pages/MasterTasks';
 import MasterRecurringTasks from './pages/MasterRecurringTasks';
 import AssignTask from './pages/AssignTask';
@@ -72,6 +73,15 @@ function App() {
                   element={
                     <ProtectedRoute requirePermission="pendingRecurringTasks">
                       <PendingRecurringTasks />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="pcm-pending-process"
+                  element={
+                    <ProtectedRoute requirePermission="pendingTasks">
+                      <PcmPendingProcess />
                     </ProtectedRoute>
                   }
                 />

@@ -8,7 +8,8 @@ import {
   CheckSquare, Clock, AlertTriangle, TrendingUp, Calendar,
   Target, Activity, CheckCircle, XCircle, Timer,
   ChevronDown, Star, Zap, BarChart3,
-  PieChart as PieChartIcon, Users, RotateCcw, ClipboardCheck
+  PieChart as PieChartIcon, Users, RotateCcw, ClipboardCheck,
+  GitBranch
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
@@ -16,6 +17,7 @@ import { format, startOfMonth, endOfMonth, subMonths, addMonths, isThisMonth, is
 // import { availableThemes } from '../contexts/ThemeContext';
 import { address } from '../../utils/ipAddress';
 import TeamPendingTasksChart from "../components/TeamPendingTasksChart";
+import { usePcmIntegration } from "../hooks/usePcmIntegration";
 import { useNavigate } from "react-router-dom";
 
 // --- Interfaces (updated to include quarterly) ---
@@ -173,6 +175,7 @@ const Dashboard: React.FC = () => {
   const [openSelector, setOpenSelector] = useState<string | null>(null);
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
   const [adminApprovalEnabled, setAdminApprovalEnabled] = useState(false);
+  const { enabled: pcmEnabled, settings: pcmSettings, steps: pcmSteps } = usePcmIntegration();
   const analyticsCacheRef = React.useRef<Map<string, { data: any; ts: number }>>(new Map());
   const countsCacheRef = React.useRef<Map<string, { data: any; ts: number }>>(new Map());
   const teamPendingCacheRef = React.useRef<Map<string, { data: TeamPendingData; ts: number }>>(new Map());
@@ -692,9 +695,13 @@ const Dashboard: React.FC = () => {
     return options;
   };
 
-  const gridColsClass = adminApprovalEnabled
-    ? "xl:grid-cols-5"
-    : "xl:grid-cols-4";
+  const pcmDashboardEnabled = pcmEnabled && (pcmSettings.showInDashboard ?? true);
+  const gridColsClass =
+    adminApprovalEnabled && pcmDashboardEnabled
+      ? "xl:grid-cols-6"
+      : adminApprovalEnabled || pcmDashboardEnabled
+        ? "xl:grid-cols-5"
+        : "xl:grid-cols-4";
 
   const monthOptions = generateMonthOptions();
 
@@ -1002,7 +1009,18 @@ const Dashboard: React.FC = () => {
             }
           />
         )}
+
+        {pcmDashboardEnabled && (
+          <MetricCard
+            icon={<GitBranch size={24} className="text-indigo-600" />}
+            title="PCM Pending"
+            value={pcmSteps.length}
+            valueColor="#4f46e5"
+            subtitle="Steps synced from PCM"
+          />
+        )}
       </div>
+
 
       {/* Task Type Distribution - Now includes quarterly and updated to 6 columns */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5 lg:gap-6 p-4 sm:p-2 lg:p-4">

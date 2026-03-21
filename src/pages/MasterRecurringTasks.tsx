@@ -344,7 +344,7 @@ const MasterRecurringTasks: React.FC = () => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
+  const [, setHasMore] = useState(false);
   const [fullMasterTasks, setFullMasterTasks] = useState<MasterTask[]>([]);
   const [showIncludeFilesModal, setShowIncludeFilesModal] = useState(false);
   const [filter, setFilter] = useState({
@@ -361,7 +361,7 @@ const MasterRecurringTasks: React.FC = () => {
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [activityLoading, setActivityLoading] = useState(false);
   const [taskActivities, setTaskActivities] = useState<any[]>([]);
-  const [selectedActivityGroupId, setSelectedActivityGroupId] = useState<string>("");
+  const [, setSelectedActivityGroupId] = useState<string>("");
 
 
   const [showFilters, setShowFilters] = useState(false);

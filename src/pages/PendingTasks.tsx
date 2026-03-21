@@ -1098,7 +1098,6 @@ const PendingTasks: React.FC = () => {
         </div>
       </div>
 
-
       {/* Enhanced Filters Section */}
       {showFilters && (
         <div
