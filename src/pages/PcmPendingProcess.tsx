@@ -146,6 +146,8 @@ const PcmPendingProcess: React.FC = () => {
   const [launchError, setLaunchError] = useState<string | null>(null);
   const [activeStep, setActiveStep] = useState<PcmPendingStep | null>(null);
   const [activeUrl, setActiveUrl] = useState<string>('');
+  const isAdminOrManager = user?.role === 'admin' || user?.role === 'manager';
+  const statusLabel = isAdminOrManager ? 'active' : 'pending';
 
   const filteredSteps = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -243,7 +245,7 @@ const PcmPendingProcess: React.FC = () => {
           </p>
           <h1 className="text-lg font-bold text-[var(--color-text)]">PCM Pending Process</h1>
           <p className="mt-1 text-xs text-[var(--color-textSecondary)]">
-            {count} pending step(s) synced from PCM
+            {count} {statusLabel} step(s) synced from PCM
           </p>
         </div>
 
@@ -301,11 +303,11 @@ const PcmPendingProcess: React.FC = () => {
         </div>
       )}
 
-      {enabled && !loading && (
+          {enabled && !loading && (
         <div className="mt-4 space-y-4">
           {workflowGroups.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-10 text-center text-sm text-[var(--color-textSecondary)] shadow-sm">
-              No PCM pending steps found.
+              No PCM {statusLabel} steps found.
             </div>
           ) : (
             workflowGroups.map((group) => {
@@ -325,7 +327,7 @@ const PcmPendingProcess: React.FC = () => {
                       </h2>
                     </div>
                     <div className="rounded-full bg-[var(--color-primary)]/10 px-3 py-1 text-xs font-semibold text-[var(--color-primary)]">
-                      {group.steps.length} pending
+                      {group.steps.length} {statusLabel}
                     </div>
                   </div>
 

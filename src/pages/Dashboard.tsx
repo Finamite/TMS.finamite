@@ -839,7 +839,7 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-full bg-[var(--color-background)] p-6 space-y-6">
+    <div className="min-h-full bg-[var(--color-background)] p-4 space-y-6 transition-all duration-300 ease-out sm:p-6 lg:p-8 [contain:layout_paint]">
       {/* Professional Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
         <div className="flex items-center space-x-6">
@@ -951,6 +951,7 @@ const Dashboard: React.FC = () => {
     ${gridColsClass}
     gap-4 sm:gap-6 lg:gap-8
     p-4 sm:p-2 lg:p-4
+    transition-all duration-300 ease-out
   `}
       >
         <MetricCard
@@ -1023,7 +1024,7 @@ const Dashboard: React.FC = () => {
 
 
       {/* Task Type Distribution - Now includes quarterly and updated to 6 columns */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5 lg:gap-6 p-4 sm:p-2 lg:p-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5 lg:gap-6 p-4 sm:p-2 lg:p-4 transition-all duration-300 ease-out">
         {taskTypeData.map((type) => (
           <MetricCard
             key={type.name}
@@ -1046,7 +1047,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Enhanced Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-10 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-10 gap-8 transition-all duration-300 ease-out">
         {/* Task Status Distribution - Enhanced Pie Chart */}
         <ThemeCard className="p-4 sm:p-8 lg:col-span-3" variant="glass">
           <div>
@@ -1228,7 +1229,7 @@ const Dashboard: React.FC = () => {
 
       </div>
       {/* Enhanced Completion Trend and Recent Activity - Split 7:3 for non-admin users */}
-      <div className={`grid grid-cols-1 gap-8 xl:grid-cols-10`}>
+      <div className={`grid grid-cols-1 gap-8 xl:grid-cols-10 transition-all duration-300 ease-out`}>
         {/* Completion Trend */}
         <ThemeCard className="p-4 sm:p-8 xl:col-span-7" variant="glass">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">

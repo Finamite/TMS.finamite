@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { usePcmIntegration } from '../hooks/usePcmIntegration';
 import { createPortal } from 'react-dom';
 import axios from "axios";
 import { address } from "../../utils/ipAddress";
@@ -101,6 +102,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const CHAT_POLL_MS = 30000;
   const COUNTS_POLL_MS = 30000;
   const { user } = useAuth();
+  const { enabled: pcmIntegrationEnabled, count: pcmPendingCount } = usePcmIntegration();
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [isHoverExpanded, setIsHoverExpanded] = useState(false);
   const [approvalPendingCount, setApprovalPendingCount] = useState(0);
@@ -420,8 +422,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                   to={item.path}
                   onClick={onClose}
                   className={({ isActive }) =>
-                    `flex items-center px-2 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${isActive ? 'text-white' : ''
-                    } ${!isExpanded ? 'justify-center' : ''}`
+                    `group flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ease-out ${
+                      isActive
+                        ? "text-white shadow-sm"
+                        : "text-[var(--color-text)] hover:-translate-y-0.5 hover:bg-[var(--color-surface)] hover:shadow-md hover:shadow-black/5 hover:text-[var(--color-primary)]"
+                    } ${!isExpanded ? "justify-center" : ""}`
                   }
                   style={({ isActive }) => ({
                     background: isActive
@@ -434,7 +439,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
                   {/* ICON + RED DOT */}
                   <div className="relative flex items-center">
-                    <item.icon size={16} className={isExpanded ? 'mr-3 transition-all duration-300' : 'transition-all duration-300'} />
+                    <item.icon
+                      size={16}
+                      className={`transition-all duration-300 ease-out group-hover:scale-110 group-hover:translate-x-0.5 ${
+                        isExpanded ? "mr-3" : ""
+                      }`}
+                    />
 
                     {item.label === "Pending Single" && pendingTaskCount > 0 && (
                       <span
@@ -491,10 +501,23 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                         {formatCount(approvalPendingCount)}
                       </span>
                     )}
+                    {item.label === "PCM Pending" && pcmIntegrationEnabled && pcmPendingCount > 0 && (
+                      <span
+                        className={`
+      absolute -top-2
+      ${isExpanded ? "-top-1 left-2" : "-right-4"}
+      bg-red-600 text-white text-[10px]
+      rounded-full min-w-[18px] h-[18px]
+      flex items-center justify-center px-1
+    `}
+                      >
+                        {formatCount(pcmPendingCount)}
+                      </span>
+                    )}
                   </div>
 
                   <span
-                    className={`overflow-hidden whitespace-nowrap transition-all duration-300 ease-out ${
+                    className={`overflow-hidden whitespace-nowrap transition-all duration-300 ease-out group-hover:translate-x-0.5 ${
                       isExpanded ? 'max-w-[140px] opacity-100 translate-x-0 ml-0' : 'max-w-0 opacity-0 -translate-x-2 ml-0'
                     }`}
                   >

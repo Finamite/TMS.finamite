@@ -1991,89 +1991,121 @@ const SettingsPage: React.FC = () => {
                         </div>
 
                         {expandedPcmIntegration && (
-                            <div className="px-6 pb-6 pt-2 border-t border-[var(--color-border)] bg-[var(--color-background)]">
-                                <div className="space-y-6 mt-6">
-                                    <div className="space-y-4">
-                                        <h3 className="text-xs font-bold text-[var(--color-text)] uppercase tracking-wider flex items-center gap-2">
-                                            <span className="w-1 h-4 bg-[var(--color-primary)] rounded-full"></span>
-                                            Connection Details
-                                        </h3>
-
-                                        <div className="space-y-2">
-                                            <label className="block text-sm font-medium text-[var(--color-text)]">
-                                                PCM API Key
-                                            </label>
-                                            <input
-                                                type="password"
-                                                value={settings.pcmIntegration.pcmApiKey}
-                                                onChange={(e) => handleInputChange("pcmIntegration", "pcmApiKey", e.target.value)}
-                                                disabled={!settings.pcmIntegration.enabled}
-                                                placeholder="Paste the API key generated in PCM"
-                                                className={`w-full px-4 py-3 border border-[var(--color-border)] rounded-lg text-sm bg-[var(--color-surface)] text-[var(--color-text)] transition-all focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] ${!settings.pcmIntegration.enabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                            />
-                                            <p className="text-xs text-[var(--color-textSecondary)] mt-1">
-                                                Paste the one-time API key created in PCM. TMS stores it securely and uses it server-side only.
-                                            </p>
-                                            {settings.pcmIntegration.pcmApiKeyLast4 ? (
-                                                <p className="text-xs text-[var(--color-textSecondary)]">
-                                                    Current saved key: ****{settings.pcmIntegration.pcmApiKeyLast4}
-                                                </p>
-                                            ) : null}
-                                            {settings.pcmIntegration.enabled && !settings.pcmIntegration.pcmApiKeyLast4 && !settings.pcmIntegration.pcmApiKey ? (
-                                                <p className="text-xs text-red-500">
-                                                    PCM integration is enabled, but no API key is saved yet.
-                                                </p>
-                                            ) : null}
-                                        </div>
-
-                                        <div className="flex justify-end pt-2">
-                                            <button
-                                                type="button"
-                                                onClick={handleSave}
-                                                disabled={saving || !currentUser?.permissions.canManageSettings}
-                                                className="min-w-[160px] px-4 py-2 rounded-lg bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary)]/90 disabled:opacity-50 disabled:cursor-not-allowed font-semibold transition-all"
-                                            >
-                                                {saving ? 'Saving...' : 'Save PCM Integration'}
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-4">
-                                        <h3 className="text-xs font-bold text-[var(--color-text)] uppercase tracking-wider flex items-center gap-2">
-                                            <span className="w-1 h-4 bg-[var(--color-primary)] rounded-full"></span>
-                                            Visibility
-                                        </h3>
-
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <label className={`flex items-center justify-between gap-4 p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] ${!settings.pcmIntegration.enabled ? 'opacity-50' : ''}`}>
+                            <div className="border-t border-[var(--color-border)] bg-[var(--color-background)] px-4 py-4 sm:px-6 sm:py-6">
+                                <div className="mx-auto w-full max-w-30xl space-y-5">
+                                    <div className="grid gap-6 xl:grid-cols-1">
+                                        <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm">
+                                            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4">
                                                 <div>
-                                                    <p className="font-medium text-[var(--color-text)]">Show in Dashboard</p>
-                                                    <p className="text-xs text-[var(--color-textSecondary)] mt-1">Display PCM pending steps on the TMS dashboard</p>
+                                                    <h3 className="text-lg font-semibold text-[var(--color-text)]">
+                                                        Connection Details
+                                                    </h3>
+                                                    <p className="mt-1 text-xs text-[var(--color-textSecondary)]">
+                                                        Save the one-time PCM API key that TMS uses server-side only.
+                                                    </p>
                                                 </div>
-                                                <ToggleSwitch
-                                                    checked={settings.pcmIntegration.showInDashboard}
-                                                    disabled={!settings.pcmIntegration.enabled}
-                                                    onChange={(v) => handleInputChange("pcmIntegration", "showInDashboard", v)}
-                                                />
-                                            </label>
 
-                                            <label className={`flex items-center justify-between gap-4 p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] ${!settings.pcmIntegration.enabled ? 'opacity-50' : ''}`}>
-                                                <div>
-                                                    <p className="font-medium text-[var(--color-text)]">Show in Pending Pages</p>
-                                                    <p className="text-xs text-[var(--color-textSecondary)] mt-1">Show PCM steps in the pending task screens</p>
+                                                <div className="flex items-center gap-2">
+                                                    {settings.pcmIntegration.pcmApiKeyLast4 ? (
+                                                        <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-1 text-[12px] font-medium text-[var(--color-textSecondary)]">
+                                                            Saved key ****{settings.pcmIntegration.pcmApiKeyLast4}
+                                                        </span>
+                                                    ) : null}
+                                                    {settings.pcmIntegration.enabled ? (
+                                                        <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-[12px] font-medium text-emerald-600">
+                                                            Integration active
+                                                        </span>
+                                                    ) : (
+                                                        <span className="rounded-full bg-[var(--color-border)]/40 px-3 py-1 text-[11px] font-medium text-[var(--color-textSecondary)]">
+                                                            Integration paused
+                                                        </span>
+                                                    )}
                                                 </div>
-                                                <ToggleSwitch
-                                                    checked={settings.pcmIntegration.showInPendingPages}
-                                                    disabled={!settings.pcmIntegration.enabled}
-                                                    onChange={(v) => handleInputChange("pcmIntegration", "showInPendingPages", v)}
-                                                />
-                                            </label>
-                                        </div>
+                                            </div>
 
-                                        <div className="p-4 bg-[var(--color-info)]/5 rounded-lg border border-[var(--color-info)]/10">
-                                            <p className="text-xs text-[var(--color-textSecondary)] leading-relaxed">
-                                                Once enabled, TMS will pull PCM pending steps using the PCM API key and push completion updates back to PCM so both systems stay in sync.
-                                            </p>
-                                        </div>
+                                            <div className="space-y-4 px-5 py-5">
+                                                <div className="space-y-2">
+                                                    <label className="block text-sm font-medium text-[var(--color-text)]">
+                                                        PCM API Key
+                                                    </label>
+                                                    <input
+                                                        type="password"
+                                                        value={settings.pcmIntegration.pcmApiKey}
+                                                        onChange={(e) => handleInputChange("pcmIntegration", "pcmApiKey", e.target.value)}
+                                                        disabled={!settings.pcmIntegration.enabled}
+                                                        placeholder="Paste the API key generated in PCM"
+                                                        className={`w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text)] transition-all placeholder:text-[var(--color-textSecondary)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 ${!settings.pcmIntegration.enabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                                                    />
+                                                    <p className="text-xs leading-relaxed text-[var(--color-textSecondary)]">
+                                                        Paste the one-time API key created in PCM. TMS encrypts it and uses it only from the backend.
+                                                    </p>
+                                                    {settings.pcmIntegration.enabled && !settings.pcmIntegration.pcmApiKeyLast4 && !settings.pcmIntegration.pcmApiKey ? (
+                                                        <p className="text-xs font-medium text-red-500">
+                                                            PCM integration is enabled, but no API key is saved yet.
+                                                        </p>
+                                                    ) : null}
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-end border-t border-[var(--color-border)] bg-[var(--color-background)] px-5 py-4">
+                                                <button
+                                                    type="button"
+                                                    onClick={handleSave}
+                                                    disabled={saving || !currentUser?.permissions.canManageSettings}
+                                                    className="inline-flex min-w-[190px] items-center justify-center rounded-xl bg-[var(--color-primary)] px-5 py-2.5 font-semibold text-white transition-all hover:bg-[var(--color-primary)]/90 disabled:cursor-not-allowed disabled:opacity-50"
+                                                >
+                                                    {saving ? 'Saving...' : 'Save PCM Integration'}
+                                                </button>
+                                            </div>
+                                            </div>
+                                        
+
+                                        {/* <section className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm">
+                                            <div className="border-b border-[var(--color-border)] px-5 py-4">
+                                                <h3 className="text-sm font-semibold text-[var(--color-text)]">
+                                                    Visibility
+                                                </h3>
+                                                <p className="mt-1 text-xs text-[var(--color-textSecondary)]">
+                                                    Choose where PCM steps should appear inside TMS.
+                                                </p>
+                                            </div>
+
+                                            <div className="space-y-4 px-5 py-5">
+                                                <label className={`flex items-center justify-between gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] p-4 transition-all ${!settings.pcmIntegration.enabled ? 'opacity-50' : ''}`}>
+                                                    <div className="min-w-0">
+                                                        <p className="font-medium text-[var(--color-text)]">Show in Dashboard</p>
+                                                        <p className="mt-1 text-xs leading-relaxed text-[var(--color-textSecondary)]">
+                                                            Display PCM pending steps on the TMS dashboard.
+                                                        </p>
+                                                    </div>
+                                                    <ToggleSwitch
+                                                        checked={settings.pcmIntegration.showInDashboard}
+                                                        disabled={!settings.pcmIntegration.enabled}
+                                                        onChange={(v) => handleInputChange("pcmIntegration", "showInDashboard", v)}
+                                                    />
+                                                </label>
+
+                                                <label className={`flex items-center justify-between gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] p-4 transition-all ${!settings.pcmIntegration.enabled ? 'opacity-50' : ''}`}>
+                                                    <div className="min-w-0">
+                                                        <p className="font-medium text-[var(--color-text)]">Show in Pending Pages</p>
+                                                        <p className="mt-1 text-xs leading-relaxed text-[var(--color-textSecondary)]">
+                                                            Show PCM items in the dedicated PCM pending process page.
+                                                        </p>
+                                                    </div>
+                                                    <ToggleSwitch
+                                                        checked={settings.pcmIntegration.showInPendingPages}
+                                                        disabled={!settings.pcmIntegration.enabled}
+                                                        onChange={(v) => handleInputChange("pcmIntegration", "showInPendingPages", v)}
+                                                    />
+                                                </label>
+
+                                                <div className="rounded-xl border border-[var(--color-info)]/15 bg-[var(--color-info)]/5 px-4 py-4">
+                                                    <p className="text-xs leading-relaxed text-[var(--color-textSecondary)]">
+                                                        Once enabled, TMS will pull PCM pending steps using the PCM API key and push completion updates back to PCM so both systems stay in sync.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </section> */}
                                     </div>
                                 </div>
                             </div>

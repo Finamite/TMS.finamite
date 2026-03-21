@@ -89,10 +89,18 @@ router.get('/pending-steps', async (req, res) => {
     });
 
     const payload = pcmRes.data || {};
+    const steps = Array.isArray(payload.steps)
+      ? payload.steps.map((step) => ({
+        ...step,
+        sourceStatus: step?.status,
+        status: isAdminView ? 'active' : step?.status,
+      }))
+      : [];
+
     res.json({
       enabled: true,
       count: Number(payload.count || 0),
-      steps: Array.isArray(payload.steps) ? payload.steps : [],
+      steps,
       settings: {
         enabled: true,
         showInDashboard: settings.showInDashboard ?? true,

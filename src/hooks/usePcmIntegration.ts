@@ -79,6 +79,9 @@ interface PcmIntegrationResponse {
   settings?: PcmIntegrationSettings;
 }
 
+const hasVisibleDueDate = (step: PcmPendingStep) =>
+  Boolean(step.plannedEndAt || step.plannedStartAt || step.startedAt);
+
 const INITIAL_SETTINGS: PcmIntegrationSettings = {
   enabled: false,
   pcmUserEmailMap: {},
@@ -161,10 +164,11 @@ export const usePcmIntegration = () => {
 
     const payload = response.data || { enabled: false, count: 0, steps: [] };
     const nextSteps = Array.isArray(payload.steps) ? payload.steps : [];
+    const visibleSteps = nextSteps.filter(hasVisibleDueDate);
 
-    setSteps(nextSteps);
-    setCount(Number(payload.count || nextSteps.length || 0));
-    return nextSteps;
+    setSteps(visibleSteps);
+    setCount(Number(visibleSteps.length || 0));
+    return visibleSteps;
   }, [companyId, isPcmAdmin, resolveEffectivePcmEmail, userRole]);
 
   const refresh = useCallback(async () => {
