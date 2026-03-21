@@ -314,6 +314,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const filteredMenuItems = menuItems.filter(item => {
     if (item.requireSuperAdmin && user?.role !== 'superadmin') return false;
     if (item.permission === false) return false;
+    if (item.label === 'PCM Pending' && !pcmIntegrationEnabled) return false;
     return true;
   });
 

@@ -90,6 +90,7 @@ const INITIAL_SETTINGS: PcmIntegrationSettings = {
 };
 
 const POLL_INTERVAL_MS = 30000;
+const PCM_INTEGRATION_UPDATED_EVENT = 'pcm-integration-updated';
 
 export const usePcmIntegration = () => {
   const { user } = useAuth();
@@ -212,6 +213,17 @@ export const usePcmIntegration = () => {
 
   useEffect(() => {
     refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    const handlePcmIntegrationUpdated = () => {
+      void refresh();
+    };
+
+    window.addEventListener(PCM_INTEGRATION_UPDATED_EVENT, handlePcmIntegrationUpdated);
+    return () => {
+      window.removeEventListener(PCM_INTEGRATION_UPDATED_EVENT, handlePcmIntegrationUpdated);
+    };
   }, [refresh]);
 
   useEffect(() => {

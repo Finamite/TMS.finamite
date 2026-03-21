@@ -650,6 +650,7 @@ const SettingsPage: React.FC = () => {
             });
 
             window.dispatchEvent(new Event("bin-settings-updated"));
+            window.dispatchEvent(new Event("pcm-integration-updated"));
 
             setHasUnsavedChanges(false);
             setMessage({ type: 'success', text: 'Settings saved successfully!' });
@@ -831,6 +832,40 @@ const SettingsPage: React.FC = () => {
 
     const allDaysSame = areAllDaysSame(settings.revision.days);
 
+    const sectionCardClass =
+        "group relative overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_16px_50px_rgba(15,23,42,0.06)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_24px_70px_rgba(15,23,42,0.1)] before:pointer-events-none before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-gradient-to-b before:from-[var(--color-primary)] before:via-[var(--color-secondary)] before:to-cyan-400 before:content-[''] before:opacity-70 before:transition-opacity before:duration-300 hover:before:opacity-100";
+    const sectionHeaderClass =
+        "flex cursor-pointer items-center justify-between gap-4 border-b border-slate-100 bg-white px-5 py-4 transition-colors hover:bg-slate-50/70 sm:px-6";
+    const sectionBodyClass =
+        "border-t border-slate-100 bg-slate-50/40 px-5 py-5 sm:px-6 sm:py-6";
+
+    const settingsSections = [
+        { id: 'revision', label: 'Revision & Scoring', note: 'Rules and scoring' },
+        { id: 'email', label: 'Email Notifications', note: 'Automation and reports' },
+        { id: 'reports', label: 'Automated Reports', note: 'Daily summary schedules' },
+        { id: 'task', label: 'Task Completion', note: 'Attachments and remarks' },
+        { id: 'recycle', label: 'Recycle Bin', note: 'Deletion and retention' },
+        { id: 'approval', label: 'Admin Approval', note: 'Approval policy' },
+        { id: 'pcm', label: 'PCM Integration', note: 'Company sync and mapping' },
+    ];
+
+    const scrollToSection = (id: string) => {
+        const el = document.getElementById(id);
+        el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+
+    const openSettingsSection = (id: string) => {
+        setExpandedRevision(id === 'revision');
+        setExpandedEmail(id === 'email');
+        setExpandedReports(id === 'reports');
+        setExpandedTask(id === 'task');
+        setExpandedPcmIntegration(id === 'pcm');
+        setExpandedBin(id === 'recycle');
+        setExpandedAdminApproval(id === 'approval');
+
+        window.requestAnimationFrame(() => scrollToSection(id));
+    };
+
     const handleLimitChange = (value: number) => {
         const limit = Math.max(1, Math.min(20, value || 1));
 
@@ -878,103 +913,140 @@ const SettingsPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[var(--color-background)] to-[var(--color-surface)] p-2 lg:p-6">
-            <div className="max-w-15xl mx-auto">
-                {/* Header */}
-                <div className="sticky top-0 z-10 bg-[var(--color-background)] bg-opacity-80 backdrop-blur-md px-1 py-2 lg:py-4 mb-6 border-b border-[var(--color-border)]
-    flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100/80 p-4 sm:p-6 lg:p-8">
+            <div className="mx-auto w-full max-w-15xl space-y-6">
+                <section className="relative overflow-hidden rounded-[32px] border border-slate-200/80 bg-white/90 p-5 shadow-[0_22px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-6 lg:p-8">
+                    <div className="pointer-events-none absolute inset-0">
+                        <div className="absolute -right-24 top-0 h-56 w-56 rounded-full bg-[var(--color-primary)]/10 blur-3xl" />
+                        <div className="absolute -left-20 -bottom-24 h-56 w-56 rounded-full bg-[var(--color-secondary)]/10 blur-3xl" />
+                    </div>
 
-                    {/* TOP ROW ON MOBILE —— System Settings + Save Icon */}
-                    <div className="w-full flex items-center justify-between sm:hidden">
+                    <div className="relative flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+                        <div className="max-w-3xl">
 
-                        {/* LEFT SIDE ICON + TITLE */}
-                        <div className="flex items-center">
-                            <div className="p-1.5 bg-[var(--color-primary)] rounded-xl mr-3">
-                                <Settings className="h-4 w-4 text-[var(--color-background)]" />
+                            <div className="mt-4">
+                                <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                                    Settings Studio
+                                </h1>
+                                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                                    A single place to control revisions, email automa
+                                    tion, task completion rules, PCM sync, recycle behaviour, and approval policy.
+                                </p>
                             </div>
-                            <h1 className="text-lg font-bold text-[var(--color-text)]">System Settings</h1>
                         </div>
 
-                        {/* SAVE ICON FOR MOBILE */}
-                        <button
-                            onClick={handleSave}
-                            disabled={saving}
-                            className="p-1.5 bg-[var(--color-primary)] rounded-lg text-white shadow-md disabled:opacity-60"
-                        >
-                            {saving ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <Save className="h-4 w-4" />
-                            )}
-                        </button>
-                    </div>
-                    {hasUnsavedChanges && (
-                        <div className="sm:hidden w-full text-red-500 font-medium text-xs blink-warning">
-                            ⚠ Changes are pending to save
-                        </div>
-                    )}
-
-                    {/* LEFT SIDE — DESKTOP VERSION (Mobile hidden) */}
-                    <div className="hidden sm:flex items-center">
-                        <div className="p-1.5 lg:p-3 bg-[var(--color-primary)] rounded-xl mr-4">
-                            <Settings className="h-4 lg:h-6 w-4 lg:w-6 text-[var(--color-background)]" />
-                        </div>
-                        <div>
-                            <h1 className="text-xl font-bold text-[var(--color-text)]">System Settings</h1>
-                            <p className="hidden md:block text-sm text-[var(--color-textSecondary)] mt-0">
-                                Configure system behavior, scoring impact, email automation, and reporting
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* RIGHT SIDE — DESKTOP SAVE BUTTON + ALERT */}
-                    <div className="hidden sm:flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 w-full sm:w-auto">
-
-                        {hasUnsavedChanges && (
-                            <div className="hidden sm:block text-red-500 font-medium text-xs lg:text-sm blink-warning">
-                                ⚠ Changes are pending to save
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                            {hasUnsavedChanges && (
+                            <div className="inline-flex items-center gap-2 rounded-2xl border border-amber-200/70 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800 shadow-sm">
+                                <AlertTriangle className="h-4 w-4" />
+                                Unsaved changes
                             </div>
                         )}
 
-                        <button
-                            onClick={handleSave}
-                            disabled={saving}
-                            className="w-full sm:w-auto py-1 px-2 lg:py-3 px-6 bg-gradient-to-r
-            from-[var(--color-primary)] to-[var(--color-secondary)]
-            hover:from-[var(--color-secondary)] hover:to-[var(--color-primary)]
-            disabled:opacity-60 disabled:cursor-not-allowed
-            text-[var(--color-background)] rounded-xl font-semibold transition-all duration-200
-            flex items-center justify-center shadow-lg hover:shadow-xl"
-                        >
-                            {saving ? (
-                                <>
-                                    <Loader2 className="h-4 lg:h-5 w-4 lg:w-5 mr-2 animate-spin" />
-                                    Saving...
-                                </>
-                            ) : (
-                                <>
-                                    <Save className="h-4 lg:h-5 w-4 lg:w-5 mr-2" />
-                                    Save All Settings
-                                </>
-                            )}
-                        </button>
+                            <button
+                                onClick={handleSave}
+                                disabled={saving}
+                                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] px-5 py-3 font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {saving ? (
+                                    <>
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        Saving...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Save className="h-4 w-4" />
+                                        Save All Settings
+                                    </>
+                                )}
+                            </button>
+                        </div>
                     </div>
 
-                </div>
+                    <div className="relative mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        <div className="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                            <div className="flex items-center justify-between gap-3">
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Revision</p>
+                                    <p className="mt-2 text-sm font-semibold text-slate-900">
+                                        {revisionEnabled ? 'Enabled' : 'Disabled'}
+                                    </p>
+                                </div>
+                                <div className={`rounded-2xl p-3 ${revisionEnabled ? 'bg-amber-500/10 text-amber-600' : 'bg-slate-100 text-slate-500'}`}>
+                                    <AlertTriangle className="h-5 w-5" />
+                                </div>
+                            </div>
+                            <p className="mt-2 text-xs text-slate-500">
+                                {settings.revision.scoringRules.length} scoring rule{settings.revision.scoringRules.length === 1 ? '' : 's'}
+                            </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                            <div className="flex items-center justify-between gap-3">
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Email</p>
+                                    <p className="mt-2 text-sm font-semibold text-slate-900">
+                                        {emailEnabled ? 'Connected' : 'Disconnected'}
+                                    </p>
+                                </div>
+                                <div className={`rounded-2xl p-3 ${emailEnabled ? 'bg-sky-500/10 text-sky-600' : 'bg-slate-100 text-slate-500'}`}>
+                                    <Mail className="h-5 w-5" />
+                                </div>
+                            </div>
+                            <p className="mt-2 text-xs text-slate-500">
+                                {settings.email.email || 'Google account not linked'}
+                            </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                            <div className="flex items-center justify-between gap-3">
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">PCM</p>
+                                    <p className="mt-2 text-sm font-semibold text-slate-900">
+                                        {settings.pcmIntegration.enabled ? 'Synced' : 'Off'}
+                                    </p>
+                                </div>
+                                <div className={`rounded-2xl p-3 ${settings.pcmIntegration.enabled ? 'bg-indigo-500/10 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>
+                                    <GitBranch className="h-5 w-5" />
+                                </div>
+                            </div>
+                            <p className="mt-2 text-xs text-slate-500">
+                                {settings.pcmIntegration.pcmApiKeyLast4 ? `Key ****${settings.pcmIntegration.pcmApiKeyLast4}` : 'No API key saved'}
+                            </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                            <div className="flex items-center justify-between gap-3">
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Approval</p>
+                                    <p className="mt-2 text-sm font-semibold text-slate-900">
+                                        {settings.adminApproval.enabled ? 'Active' : 'Inactive'}
+                                    </p>
+                                </div>
+                                <div className={`rounded-2xl p-3 ${settings.adminApproval.enabled ? 'bg-emerald-500/10 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                                    <ClipboardCheck className="h-5 w-5" />
+                                </div>
+                            </div>
+                            <p className="mt-2 text-xs text-slate-500">
+                                {settings.adminApproval.defaultForOneTime ? 'One-time tasks require review' : 'No default approval required'}
+                            </p>
+                        </div>
+                    </div>
+                </section>
 
                 {/* Success/Error Messages */}
                 {message.text && (
                     <div
-                        className={`mb-6 p-4 rounded-xl border-l-4 ${message.type === 'success'
-                            ? 'bg-[color:var(--color-success)/10] border-[var(--color-success)] text-[var(--color-success)]'
-                            : 'bg-[color:var(--color-error)/10] border-[var(--color-error)] text-[var(--color-error)]'
+                        className={`rounded-2xl border p-4 shadow-sm ${message.type === 'success'
+                            ? 'border-emerald-200/70 bg-emerald-50 text-emerald-700'
+                            : 'border-red-200/70 bg-red-50 text-red-700'
                             }`}
                     >
-                        <div className="flex items-center">
+                        <div className="flex items-center gap-3">
                             <div
-                                className={`mr-3 ${message.type === 'success'
-                                    ? 'text-[var(--color-success)]'
-                                    : 'text-[var(--color-error)]'
+                                className={`${message.type === 'success'
+                                    ? 'text-emerald-600'
+                                    : 'text-red-600'
                                     }`}
                             >
                                 {message.type === 'success' ? '✓' : '⚠'}
@@ -984,24 +1056,68 @@ const SettingsPage: React.FC = () => {
                     </div>
                 )}
 
-                <div className="space-y-8">
+                <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
+                    <aside className="hidden xl:block">
+                        <div className="sticky top-6 rounded-[28px] border border-slate-200/80 bg-white/90 p-4 shadow-[0_16px_50px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Navigation</p>
+                                    <h2 className="mt-1 text-lg font-semibold text-slate-900">Settings Map</h2>
+                                </div>
+                                <div className="rounded-2xl bg-slate-50 p-2 text-slate-500">
+                                    <Settings className="h-4 w-4" />
+                                </div>
+                            </div>
+
+                            <div className="mt-4 space-y-2">
+                                {settingsSections.map((section) => (
+                                    <button
+                                        key={section.id}
+                                        type="button"
+                                        onClick={() => openSettingsSection(section.id)}
+                                        className="group flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
+                                    >
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-semibold text-slate-900">{section.label}</p>
+                                            <p className="mt-0.5 text-xs text-slate-500">{section.note}</p>
+                                        </div>
+                                        <span className="text-slate-400 transition-transform duration-200 group-hover:translate-x-0.5">›</span>
+                                    </button>
+                                ))}
+                            </div>
+
+                            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Quick Status</p>
+                                <div className="mt-3 space-y-2 text-sm text-slate-600">
+                                    <div className="flex items-center justify-between">
+                                        <span>Revision</span>
+                                        <span className="font-medium text-slate-900">{revisionEnabled ? 'Enabled' : 'Disabled'}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <span>Email</span>
+                                        <span className="font-medium text-slate-900">{emailEnabled ? 'Connected' : 'Off'}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <span>PCM</span>
+                                        <span className="font-medium text-slate-900">{settings.pcmIntegration.enabled ? 'Synced' : 'Off'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </aside>
+
+                    <div className="space-y-6">
                     {/* Revision Settings */}
-                    <div className="bg-[var(--color-surface)] rounded-2xl shadow-xl border border-[var(--color-border)] overflow-hidden transition-all duration-300">
+                    <div id="revision" className={`${sectionCardClass} scroll-mt-6`}>
                         {/* Header */}
-                        <div
-                            className="
-    flex items-center justify-between 
-    p-3 lg:p-6 cursor-pointer 
-    hover:bg-[var(--color-background)] 
-    transition-colors
-  "
+                        <div className={sectionHeaderClass}
                             onClick={() => setExpandedRevision(!expandedRevision)}
                         >
                             {/* LEFT SIDE (text block) */}
-                            <div className="flex items-center gap-4 min-w-0 max-w-[75%]">
-                                <div className="p-3 bg-[var(--color-accent)]/10 rounded-xl">
-                                    <AlertTriangle className="h-6 w-6 text-[var(--color-accent)]" />
-                                </div>
+                        <div className="flex items-center gap-4 min-w-0 max-w-[75%]">
+                            <div className="p-3 bg-[var(--color-accent)]/10 rounded-xl">
+                                <AlertTriangle className="h-6 w-6 text-[var(--color-accent)]" />
+                            </div>
 
                                 <div className="min-w-0">
                                     <h2 className="text-md lg:text-xl font-semibold text-[var(--color-text)] truncate">
@@ -1031,7 +1147,7 @@ const SettingsPage: React.FC = () => {
                         </div>
                         {/* Expanded Content */}
                         {expandedRevision && (
-                            <div className="px-6 pb-6 pt-2 border-t border-[var(--color-border)] bg-[var(--color-background)]">
+                            <div className={sectionBodyClass}>
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6">
 
                                     {/* LEFT COLUMN */}
@@ -1304,15 +1420,9 @@ const SettingsPage: React.FC = () => {
                     </div>
 
                     {/* Email Configuration */}
-                    <div className="bg-[var(--color-surface)] rounded-2xl shadow-xl border border-[var(--color-border)] overflow-hidden transition-all duration-300">
+                    <div id="email" className={`${sectionCardClass} scroll-mt-6`}>
                         {/* Header */}
-                        <div
-                            className="
-    flex items-center justify-between 
-    p-3 lg:p-6 cursor-pointer 
-    hover:bg-[var(--color-background)] 
-    transition-colors
-  "
+                        <div className={sectionHeaderClass}
                             onClick={() => setExpandedEmail(!expandedEmail)}
                         >
                             {/* LEFT CONTENT */}
@@ -1354,7 +1464,7 @@ const SettingsPage: React.FC = () => {
 
                         {/* Expanded Content */}
                         {expandedEmail && (
-                            <div className="px-6 pb-6 pt-2 border-t border-[var(--color-border)] bg-[var(--color-background)]">
+                            <div className={sectionBodyClass}>
                                 <div className="space-y-8 mt-6">
 
                                     {/* Gmail Configuration */}
@@ -1524,15 +1634,9 @@ const SettingsPage: React.FC = () => {
                     </div>
 
                     {/* Report Scheduling */}
-                    <div className="bg-[var(--color-surface)] rounded-2xl shadow-xl border border-[var(--color-border)] overflow-hidden transition-all duration-300">
+                    <div id="reports" className={`${sectionCardClass} scroll-mt-6`}>
                         {/* Header */}
-                        <div
-                            className="
-    flex items-center justify-between 
-    p-3 lg:p-6 cursor-pointer 
-    hover:bg-[var(--color-background)] 
-    transition-colors
-  "
+                        <div className={sectionHeaderClass}
                             onClick={() => setExpandedReports(!expandedReports)}
                         >
                             {/* LEFT CONTENT */}
@@ -1574,7 +1678,7 @@ const SettingsPage: React.FC = () => {
 
                         {/* Expanded Content */}
                         {expandedReports && (
-                            <div className="px-6 pb-6 pt-2 border-t border-[var(--color-border)] bg-[var(--color-background)]">
+                            <div className={sectionBodyClass}>
                                 <div className="space-y-8 mt-6">
 
                                     {/* Report Configuration Grid */}
@@ -1686,16 +1790,10 @@ const SettingsPage: React.FC = () => {
                     </div>
 
                     {/* Task Completion Settings */}
-                    <div className="bg-[var(--color-surface)] rounded-2xl shadow-xl border border-[var(--color-border)] overflow-hidden transition-all duration-300">
+                    <div id="task" className={`${sectionCardClass} scroll-mt-6`}>
 
                         {/* Header */}
-                        <div
-                            className="
-    flex items-center justify-between 
-    p-3 lg:p-6 cursor-pointer 
-    hover:bg-[var(--color-background)] 
-    transition-colors
-  "
+                        <div className={sectionHeaderClass}
                             onClick={() => setExpandedTask(!expandedTask)}
                         >
                             <div className="flex items-center gap-4 min-w-0 max-w-[75%]">
@@ -1738,7 +1836,7 @@ const SettingsPage: React.FC = () => {
 
                         {/* Body */}
                         {expandedTask && (
-                            <div className="px-6 pb-6 pt-4 border-t border-[var(--color-border)] bg-[var(--color-background)]">
+                            <div className={sectionBodyClass}>
 
                                 {/* Responsive Two Columns */}
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1945,183 +2043,10 @@ const SettingsPage: React.FC = () => {
                         )}
                     </div>
 
-                    {/* PCM Integration Settings */}
-                    <div className="bg-[var(--color-surface)] rounded-2xl shadow-xl border border-[var(--color-border)] overflow-hidden transition-all duration-300">
-                        <div
-                            className="flex items-center justify-between p-3 lg:p-6 cursor-pointer hover:bg-[var(--color-background)] transition-colors"
-                            onClick={() => setExpandedPcmIntegration(prev => !prev)}
-                        >
-                            <div className="flex items-center gap-4 min-w-0 max-w-[75%]">
-                                <div className="p-3 bg-[var(--color-primary)]/10 rounded-xl">
-                                    <GitBranch className="h-6 w-6 text-[var(--color-primary)]" />
-                                </div>
-
-                                <div className="min-w-0">
-                                    <h2 className="text-md lg:text-xl font-semibold text-[var(--color-text)] truncate">
-                                        PCM Integration
-                                    </h2>
-                                    <p className="text-[var(--color-textSecondary)] text-xs lg:text-sm mt-1 truncate">
-                                        Sync PCM pending steps into TMS and push completion back to PCM
-                                    </p>
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (!currentUser?.permissions.canManageSettings) return;
-
-                                    setHasUnsavedChanges(true);
-                                    setSettings(prev => ({
-                                        ...prev,
-                                        pcmIntegration: {
-                                            ...prev.pcmIntegration,
-                                            enabled: !prev.pcmIntegration.enabled
-                                        }
-                                    }));
-                                    setExpandedPcmIntegration(true);
-                                }}
-                                disabled={!currentUser?.permissions.canManageSettings}
-                                className={`relative inline-flex h-5 lg:h-7 w-8 lg:w-12 mr-2 lg:mr-0 items-center rounded-full transition-all duration-200 shadow-inner ${settings.pcmIntegration.enabled ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border)]'} ${!currentUser?.permissions.canManageSettings ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                                <span
-                                    className={`inline-block h-3 lg:h-5 w-3 lg:w-5 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${settings.pcmIntegration.enabled ? 'translate-x-4 lg:translate-x-6' : 'translate-x-1'}`}
-                                />
-                            </button>
-                        </div>
-
-                        {expandedPcmIntegration && (
-                            <div className="border-t border-[var(--color-border)] bg-[var(--color-background)] px-4 py-4 sm:px-6 sm:py-6">
-                                <div className="mx-auto w-full max-w-30xl space-y-5">
-                                    <div className="grid gap-6 xl:grid-cols-1">
-                                        <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm">
-                                            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4">
-                                                <div>
-                                                    <h3 className="text-lg font-semibold text-[var(--color-text)]">
-                                                        Connection Details
-                                                    </h3>
-                                                    <p className="mt-1 text-xs text-[var(--color-textSecondary)]">
-                                                        Save the one-time PCM API key that TMS uses server-side only.
-                                                    </p>
-                                                </div>
-
-                                                <div className="flex items-center gap-2">
-                                                    {settings.pcmIntegration.pcmApiKeyLast4 ? (
-                                                        <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-1 text-[12px] font-medium text-[var(--color-textSecondary)]">
-                                                            Saved key ****{settings.pcmIntegration.pcmApiKeyLast4}
-                                                        </span>
-                                                    ) : null}
-                                                    {settings.pcmIntegration.enabled ? (
-                                                        <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-[12px] font-medium text-emerald-600">
-                                                            Integration active
-                                                        </span>
-                                                    ) : (
-                                                        <span className="rounded-full bg-[var(--color-border)]/40 px-3 py-1 text-[11px] font-medium text-[var(--color-textSecondary)]">
-                                                            Integration paused
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-4 px-5 py-5">
-                                                <div className="space-y-2">
-                                                    <label className="block text-sm font-medium text-[var(--color-text)]">
-                                                        PCM API Key
-                                                    </label>
-                                                    <input
-                                                        type="password"
-                                                        value={settings.pcmIntegration.pcmApiKey}
-                                                        onChange={(e) => handleInputChange("pcmIntegration", "pcmApiKey", e.target.value)}
-                                                        disabled={!settings.pcmIntegration.enabled}
-                                                        placeholder="Paste the API key generated in PCM"
-                                                        className={`w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text)] transition-all placeholder:text-[var(--color-textSecondary)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 ${!settings.pcmIntegration.enabled ? 'cursor-not-allowed opacity-50' : ''}`}
-                                                    />
-                                                    <p className="text-xs leading-relaxed text-[var(--color-textSecondary)]">
-                                                        Paste the one-time API key created in PCM. TMS encrypts it and uses it only from the backend.
-                                                    </p>
-                                                    {settings.pcmIntegration.enabled && !settings.pcmIntegration.pcmApiKeyLast4 && !settings.pcmIntegration.pcmApiKey ? (
-                                                        <p className="text-xs font-medium text-red-500">
-                                                            PCM integration is enabled, but no API key is saved yet.
-                                                        </p>
-                                                    ) : null}
-                                                </div>
-                                            </div>
-
-                                            <div className="flex items-center justify-end border-t border-[var(--color-border)] bg-[var(--color-background)] px-5 py-4">
-                                                <button
-                                                    type="button"
-                                                    onClick={handleSave}
-                                                    disabled={saving || !currentUser?.permissions.canManageSettings}
-                                                    className="inline-flex min-w-[190px] items-center justify-center rounded-xl bg-[var(--color-primary)] px-5 py-2.5 font-semibold text-white transition-all hover:bg-[var(--color-primary)]/90 disabled:cursor-not-allowed disabled:opacity-50"
-                                                >
-                                                    {saving ? 'Saving...' : 'Save PCM Integration'}
-                                                </button>
-                                            </div>
-                                            </div>
-                                        
-
-                                        {/* <section className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm">
-                                            <div className="border-b border-[var(--color-border)] px-5 py-4">
-                                                <h3 className="text-sm font-semibold text-[var(--color-text)]">
-                                                    Visibility
-                                                </h3>
-                                                <p className="mt-1 text-xs text-[var(--color-textSecondary)]">
-                                                    Choose where PCM steps should appear inside TMS.
-                                                </p>
-                                            </div>
-
-                                            <div className="space-y-4 px-5 py-5">
-                                                <label className={`flex items-center justify-between gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] p-4 transition-all ${!settings.pcmIntegration.enabled ? 'opacity-50' : ''}`}>
-                                                    <div className="min-w-0">
-                                                        <p className="font-medium text-[var(--color-text)]">Show in Dashboard</p>
-                                                        <p className="mt-1 text-xs leading-relaxed text-[var(--color-textSecondary)]">
-                                                            Display PCM pending steps on the TMS dashboard.
-                                                        </p>
-                                                    </div>
-                                                    <ToggleSwitch
-                                                        checked={settings.pcmIntegration.showInDashboard}
-                                                        disabled={!settings.pcmIntegration.enabled}
-                                                        onChange={(v) => handleInputChange("pcmIntegration", "showInDashboard", v)}
-                                                    />
-                                                </label>
-
-                                                <label className={`flex items-center justify-between gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] p-4 transition-all ${!settings.pcmIntegration.enabled ? 'opacity-50' : ''}`}>
-                                                    <div className="min-w-0">
-                                                        <p className="font-medium text-[var(--color-text)]">Show in Pending Pages</p>
-                                                        <p className="mt-1 text-xs leading-relaxed text-[var(--color-textSecondary)]">
-                                                            Show PCM items in the dedicated PCM pending process page.
-                                                        </p>
-                                                    </div>
-                                                    <ToggleSwitch
-                                                        checked={settings.pcmIntegration.showInPendingPages}
-                                                        disabled={!settings.pcmIntegration.enabled}
-                                                        onChange={(v) => handleInputChange("pcmIntegration", "showInPendingPages", v)}
-                                                    />
-                                                </label>
-
-                                                <div className="rounded-xl border border-[var(--color-info)]/15 bg-[var(--color-info)]/5 px-4 py-4">
-                                                    <p className="text-xs leading-relaxed text-[var(--color-textSecondary)]">
-                                                        Once enabled, TMS will pull PCM pending steps using the PCM API key and push completion updates back to PCM so both systems stay in sync.
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </section> */}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
                     {/* Recycle Bin Settings */}
-                    <div className="bg-[var(--color-surface)] rounded-2xl shadow-xl border border-[var(--color-border)] overflow-hidden transition-all duration-300">
+                    <div id="recycle" className={`${sectionCardClass} scroll-mt-6`}>
                         {/* Header */}
-                        <div
-                            className="
-    flex items-center justify-between 
-    p-3 lg:p-6 cursor-pointer 
-    hover:bg-[var(--color-background)] 
-    transition-colors
-  "
+                        <div className={sectionHeaderClass}
                             onClick={() => setExpandedBin(!expandedBin)}
                         >
                             {/* LEFT CONTENT */}
@@ -2163,7 +2088,7 @@ const SettingsPage: React.FC = () => {
 
                         {/* Expanded Content */}
                         {expandedBin && (
-                            <div className="px-6 pb-6 pt-2 border-t border-[var(--color-border)] bg-[var(--color-background)]">
+                            <div className={sectionBodyClass}>
                                 <div className="space-y-8 mt-6">
 
                                     {/* Bin Configuration */}
@@ -2245,15 +2170,9 @@ const SettingsPage: React.FC = () => {
                     </div>
 
                     {/* Admin Approval Settings */}
-                    <div className="bg-[var(--color-surface)] rounded-2xl shadow-xl border border-[var(--color-border)] overflow-hidden transition-all duration-300">
+                    <div id="approval" className={`${sectionCardClass} scroll-mt-6`}>
                         {/* Header */}
-                        <div
-                            className="
-            flex items-center justify-between
-            p-3 lg:p-6 cursor-pointer
-            hover:bg-[var(--color-background)]
-            transition-colors
-        "
+                        <div className={sectionHeaderClass}
                             onClick={() => setExpandedAdminApproval(prev => !prev)}
                         >
                             {/* LEFT CONTENT */}
@@ -2315,7 +2234,7 @@ const SettingsPage: React.FC = () => {
 
                         {/* Expanded Content */}
                         {expandedAdminApproval && (
-                            <div className="px-6 pb-6 pt-2 border-t border-[var(--color-border)] bg-[var(--color-background)]">
+                            <div className={sectionBodyClass}>
                                 <div className="space-y-6 mt-6">
 
                                     {/* Configuration */}
@@ -2373,10 +2292,129 @@ const SettingsPage: React.FC = () => {
                         )}
                     </div>
 
+                    {/* PCM Integration Settings */}
+                    <div id="pcm" className={`${sectionCardClass} scroll-mt-6`}>
+                        <div className={sectionHeaderClass}
+                            onClick={() => setExpandedPcmIntegration(prev => !prev)}
+                        >
+                            <div className="flex items-center gap-4 min-w-0 max-w-[75%]">
+                                <div className="p-3 bg-[var(--color-primary)]/10 rounded-xl">
+                                    <GitBranch className="h-6 w-6 text-[var(--color-primary)]" />
+                                </div>
+
+                                <div className="min-w-0">
+                                    <h2 className="text-md lg:text-xl font-semibold text-[var(--color-text)] truncate">
+                                        PCM Integration
+                                    </h2>
+                                    <p className="text-[var(--color-textSecondary)] text-xs lg:text-sm mt-1 truncate">
+                                        Sync PCM pending steps into TMS and push completion back to PCM
+                                    </p>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (!currentUser?.permissions.canManageSettings) return;
+
+                                    setHasUnsavedChanges(true);
+                                    setSettings(prev => ({
+                                        ...prev,
+                                        pcmIntegration: {
+                                            ...prev.pcmIntegration,
+                                            enabled: !prev.pcmIntegration.enabled
+                                        }
+                                    }));
+                                    setExpandedPcmIntegration(true);
+                                }}
+                                disabled={!currentUser?.permissions.canManageSettings}
+                                className={`relative inline-flex h-5 lg:h-7 w-8 lg:w-12 mr-2 lg:mr-0 items-center rounded-full transition-all duration-200 shadow-inner ${settings.pcmIntegration.enabled ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border)]'} ${!currentUser?.permissions.canManageSettings ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                                <span
+                                    className={`inline-block h-3 lg:h-5 w-3 lg:w-5 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${settings.pcmIntegration.enabled ? 'translate-x-4 lg:translate-x-6' : 'translate-x-1'}`}
+                                />
+                            </button>
+                        </div>
+
+                        {expandedPcmIntegration && (
+                            <div className={sectionBodyClass}>
+                                <div className="mx-auto w-full max-w-7xl space-y-5">
+                                    <div className="grid gap-6 xl:grid-cols-1">
+                                        <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm">
+                                            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4">
+                                                <div>
+                                                    <h3 className="text-lg font-semibold text-[var(--color-text)]">
+                                                        Connection Details
+                                                    </h3>
+                                                    <p className="mt-1 text-xs text-[var(--color-textSecondary)]">
+                                                        Save the one-time PCM API key that TMS uses server-side only.
+                                                    </p>
+                                                </div>
+
+                                                <div className="flex items-center gap-2">
+                                                    {settings.pcmIntegration.pcmApiKeyLast4 ? (
+                                                        <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-1 text-[12px] font-medium text-[var(--color-textSecondary)]">
+                                                            Saved key ****{settings.pcmIntegration.pcmApiKeyLast4}
+                                                        </span>
+                                                    ) : null}
+                                                    {settings.pcmIntegration.enabled ? (
+                                                        <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-[12px] font-medium text-emerald-600">
+                                                            Integration active
+                                                        </span>
+                                                    ) : (
+                                                        <span className="rounded-full bg-[var(--color-border)]/40 px-3 py-1 text-[11px] font-medium text-[var(--color-textSecondary)]">
+                                                            Integration paused
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-4 px-5 py-5">
+                                                <div className="space-y-2">
+                                                    <label className="block text-sm font-medium text-[var(--color-text)]">
+                                                        PCM API Key
+                                                    </label>
+                                                    <input
+                                                        type="password"
+                                                        value={settings.pcmIntegration.pcmApiKey}
+                                                        onChange={(e) => handleInputChange("pcmIntegration", "pcmApiKey", e.target.value)}
+                                                        disabled={!settings.pcmIntegration.enabled}
+                                                        placeholder="Paste the API key generated in PCM"
+                                                        className={`w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text)] transition-all placeholder:text-[var(--color-textSecondary)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 ${!settings.pcmIntegration.enabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                                                    />
+                                                    <p className="text-xs leading-relaxed text-[var(--color-textSecondary)]">
+                                                        Paste the one-time API key created in PCM. TMS encrypts it and uses it only from the backend.
+                                                    </p>
+                                                    {settings.pcmIntegration.enabled && !settings.pcmIntegration.pcmApiKeyLast4 && !settings.pcmIntegration.pcmApiKey ? (
+                                                        <p className="text-xs font-medium text-red-500">
+                                                            PCM integration is enabled, but no API key is saved yet.
+                                                        </p>
+                                                    ) : null}
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-end border-t border-[var(--color-border)] bg-[var(--color-background)] px-5 py-4">
+                                                <button
+                                                    type="button"
+                                                    onClick={handleSave}
+                                                    disabled={saving || !currentUser?.permissions.canManageSettings}
+                                                    className="inline-flex min-w-[190px] items-center justify-center rounded-xl bg-[var(--color-primary)] px-5 py-2.5 font-semibold text-white transition-all hover:bg-[var(--color-primary)]/90 disabled:cursor-not-allowed disabled:opacity-50"
+                                                >
+                                                    {saving ? 'Saving...' : 'Save PCM Integration'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
 
 
                 </div>
             </div>
+        </div>
 
             {/* New Rule Modal */}
             {openNewRuleModal && (

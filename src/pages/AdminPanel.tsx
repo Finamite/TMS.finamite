@@ -244,6 +244,7 @@ const AdminPanel: React.FC = () => {
         type: 'success',
         text: 'PCM email mapping saved successfully!'
       });
+      window.dispatchEvent(new Event('pcm-integration-updated'));
     } catch (error: any) {
       setSettingsMessage({
         type: 'error',
@@ -777,7 +778,7 @@ const AdminPanel: React.FC = () => {
         </div>
       )}
 
-      {(currentUser?.permissions?.canManageUsers || currentUser?.permissions?.canManageSettings) && (
+      {(currentUser?.permissions?.canManageUsers || currentUser?.permissions?.canManageSettings) && pcmIntegration.enabled && (
         <div className="rounded-lg border overflow-hidden mt-4" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
           <div className="p-3 sm:p-4 border-b flex items-center justify-between gap-3" style={{ borderColor: 'var(--color-border)' }}>
             <div>
@@ -789,21 +790,14 @@ const AdminPanel: React.FC = () => {
                 Map TMS users to their PCM Gmail IDs for step visibility.
               </p>
             </div>
-
-            {pcmIntegration.enabled ? (
-              <button
-                type="button"
-                onClick={() => setShowPcmMappingModal(true)}
-                className="px-4 py-2 rounded-lg text-white font-medium text-sm whitespace-nowrap"
-                style={{ backgroundColor: 'var(--color-primary)' }}
-              >
-                Open PCM Mapping
-              </button>
-            ) : (
-              <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg">
-                Enable PCM integration in Settings to manage mappings
-              </span>
-            )}
+            <button
+              type="button"
+              onClick={() => setShowPcmMappingModal(true)}
+              className="px-4 py-2 rounded-lg text-white font-medium text-sm whitespace-nowrap"
+              style={{ backgroundColor: 'var(--color-primary)' }}
+            >
+              Open PCM Mapping
+            </button>
           </div>
         </div>
       )}

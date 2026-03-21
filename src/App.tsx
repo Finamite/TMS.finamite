@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Navigate, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Layout from './components/Layout';
@@ -24,6 +24,32 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Home from "./pages/Home";
 import TermsAndConditions from "./pages/TermsAndConditions";
 import { ToastContainer } from 'react-toastify';
+import { usePcmIntegration } from './hooks/usePcmIntegration';
+
+const PcmPendingRoute = () => {
+  const { enabled, loading } = usePcmIntegration();
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div
+          className="h-12 w-12 animate-spin rounded-full border-b-2"
+          style={{ borderColor: 'var(--color-primary)' }}
+        />
+      </div>
+    );
+  }
+
+  if (!enabled) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return (
+    <ProtectedRoute requirePermission="pendingTasks">
+      <PcmPendingProcess />
+    </ProtectedRoute>
+  );
+};
 
 function App() {
   return (
@@ -79,11 +105,7 @@ function App() {
 
                 <Route
                   path="pcm-pending-process"
-                  element={
-                    <ProtectedRoute requirePermission="pendingTasks">
-                      <PcmPendingProcess />
-                    </ProtectedRoute>
-                  }
+                  element={<PcmPendingRoute />}
                 />
 
                 <Route
