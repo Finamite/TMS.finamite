@@ -560,6 +560,19 @@ const MasterTasks: React.FC = () => {
                     }) : 'N/A'}
                   </span>
                 </div>
+                <div className={`flex items-center justify-between p-2 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                  <span className={`flex items-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    <Calendar size={14} className="mr-2" />
+                    Created date:
+                  </span>
+                  <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {new Date(task.createdAt).toLocaleDateString('en-GB', {
+                      day: '2-digit',
+                      month: 'numeric',
+                      year: 'numeric',
+                    })}
+                  </span>
+                </div>
                 {task.completedAt && (
                   <div className={`flex items-center justify-between p-2 rounded-lg ${isDark ? 'bg-purple-900' : 'bg-purple-50'}`}>
                     <span className={`flex items-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -693,7 +706,7 @@ const MasterTasks: React.FC = () => {
                 >
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <div className={`${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
-                      {task.taskId || '—'}
+                      <div>{task.taskId || '—'}</div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -798,6 +811,13 @@ const MasterTasks: React.FC = () => {
                         month: 'numeric',
                         year: 'numeric',
                       }) : 'N/A'}
+                    </div>
+                    <div className={`mt-1 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Created: {new Date(task.createdAt).toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: 'numeric',
+                        year: 'numeric',
+                      })}
                     </div>
                     {isTaskOverdue(task.dueDate, task.status) && (
                       <div className={`text-xs ${isDark ? 'text-red-300' : 'text-red-500'}`}>Overdue</div>
