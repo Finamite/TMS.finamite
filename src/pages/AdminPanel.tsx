@@ -227,6 +227,12 @@ const AdminPanel: React.FC = () => {
     }));
   };
 
+  const handleUseSameEmail = (userId: string, email: string) => {
+    const cleanEmail = String(email || '').trim().toLowerCase();
+    if (!cleanEmail) return;
+    handlePcmEmailMapChange(userId, cleanEmail);
+  };
+
   const handleSavePcmIntegration = async () => {
     if (!currentUser?.companyId) return;
 
@@ -1368,14 +1374,23 @@ const AdminPanel: React.FC = () => {
                         <label className="block text-sm font-medium text-[var(--color-text)]">
                           PCM Gmail ID
                         </label>
-                        <input
-                          type="email"
-                          value={mappedEmail}
-                          onChange={(e) => handlePcmEmailMapChange(user._id, e.target.value)}
-                          disabled={!canEdit}
-                          placeholder={user.email}
-                          className={`w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text)] transition-all focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)] ${!canEdit ? 'cursor-not-allowed opacity-50' : ''}`}
-                        />
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                          <input
+                            type="email"
+                            value={mappedEmail}
+                            onChange={(e) => handlePcmEmailMapChange(user._id, e.target.value)}
+                            disabled={!canEdit}
+                            className={`min-w-0 flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text)] transition-all focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)] ${!canEdit ? 'cursor-not-allowed opacity-50' : ''}`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleUseSameEmail(user._id, user.email)}
+                            disabled={!canEdit || !user.email}
+                            className="rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-primary)]/10 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Same email
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );

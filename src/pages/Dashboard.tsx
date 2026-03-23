@@ -175,7 +175,8 @@ const Dashboard: React.FC = () => {
   const [openSelector, setOpenSelector] = useState<string | null>(null);
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
   const [adminApprovalEnabled, setAdminApprovalEnabled] = useState(false);
-  const { enabled: pcmEnabled, settings: pcmSettings, steps: pcmSteps } = usePcmIntegration();
+  const { enabled: pcmEnabled, settings: pcmSettings, steps: pcmSteps, error: pcmError } = usePcmIntegration();
+  const pcmBillingBlocked = Boolean(pcmError && /billing|payment|trial/i.test(pcmError));
   const analyticsCacheRef = React.useRef<Map<string, { data: any; ts: number }>>(new Map());
   const countsCacheRef = React.useRef<Map<string, { data: any; ts: number }>>(new Map());
   const teamPendingCacheRef = React.useRef<Map<string, { data: TeamPendingData; ts: number }>>(new Map());
@@ -1017,7 +1018,7 @@ const Dashboard: React.FC = () => {
             title="PCM Pending"
             value={pcmSteps.length}
             valueColor="#4f46e5"
-            subtitle="Steps synced from PCM"
+            subtitle={pcmBillingBlocked ? "Billing pending" : "Steps synced from PCM"}
           />
         )}
       </div>

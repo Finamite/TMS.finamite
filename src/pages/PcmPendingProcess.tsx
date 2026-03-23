@@ -148,6 +148,7 @@ const PcmPendingProcess: React.FC = () => {
   const [activeUrl, setActiveUrl] = useState<string>('');
   const isAdminOrManager = user?.role === 'admin' || user?.role === 'manager';
   const statusLabel = isAdminOrManager ? 'active' : 'pending';
+  const billingBlocked = Boolean(error && /billing|payment|trial/i.test(error));
 
   const filteredSteps = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -285,8 +286,17 @@ const PcmPendingProcess: React.FC = () => {
       )}
 
       {enabled && error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
+        <div
+          className={`rounded-2xl border px-4 py-3 text-sm ${
+            billingBlocked
+              ? 'border-amber-200 bg-amber-50 text-amber-800'
+              : 'border-red-200 bg-red-50 text-red-700'
+          }`}
+        >
+          <p className="font-semibold">
+            {billingBlocked ? 'PCM billing is pending' : 'PCM sync unavailable'}
+          </p>
+          <p className="mt-1">{error}</p>
         </div>
       )}
 
@@ -303,12 +313,14 @@ const PcmPendingProcess: React.FC = () => {
         </div>
       )}
 
-          {enabled && !loading && (
+      {enabled && !loading && (
         <div className="mt-4 space-y-4">
           {workflowGroups.length === 0 ? (
+            error ? null : (
             <div className="rounded-3xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-10 text-center text-sm text-[var(--color-textSecondary)] shadow-sm">
               No PCM {statusLabel} steps found.
             </div>
+            )
           ) : (
             workflowGroups.map((group) => {
               const groupHeaders = getGroupTableHeaders(group.steps);

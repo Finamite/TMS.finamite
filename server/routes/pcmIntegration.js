@@ -22,6 +22,21 @@ const buildHeaders = (apiKey) => ({
   'x-pcm-api-key': String(apiKey || '').trim(),
 });
 
+const forwardPcmError = (res, error, fallbackMessage) => {
+  const status = Number(error?.response?.status);
+  const responseData = error?.response?.data;
+
+  if (Number.isFinite(status) && responseData && typeof responseData === 'object') {
+    return res.status(status).json(responseData);
+  }
+
+  return res.status(Number.isFinite(status) ? status : 502).json({
+    message:
+      (responseData && typeof responseData === 'object' && responseData.message) ||
+      fallbackMessage,
+  });
+};
+
 router.get('/pending-steps', async (req, res) => {
   try {
     const { companyId, userEmail, userRole } = req.query;
@@ -109,12 +124,7 @@ router.get('/pending-steps', async (req, res) => {
     });
   } catch (error) {
     console.error('PCM pending steps proxy error:', error?.response?.data || error?.message || error);
-    res.status(502).json({
-      message: 'Failed to load PCM pending steps',
-      enabled: false,
-      count: 0,
-      steps: [],
-    });
+    forwardPcmError(res, error, 'Failed to load PCM pending steps');
   }
 });
 
@@ -169,9 +179,7 @@ router.post('/steps/:runId/:stepId/complete', async (req, res) => {
     });
   } catch (error) {
     console.error('PCM step completion proxy error:', error?.response?.data || error?.message || error);
-    res.status(502).json({
-      message: error?.response?.data?.message || 'Failed to complete PCM step',
-    });
+    forwardPcmError(res, error, 'Failed to complete PCM step');
   }
 });
 
