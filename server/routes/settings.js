@@ -10,6 +10,29 @@ import { encryptPcmSecret, getPcmSecretTail, maskPcmSecret } from '../services/p
 
 const router = express.Router();
 
+const defaultTaskCompletionSettings = {
+  enabled: false,
+  pendingTasks: {
+    allowAttachments: false,
+    mandatoryAttachments: false,
+    mandatoryRemarks: false
+  },
+  pendingRecurringTasks: {
+    allowAttachments: false,
+    mandatoryAttachments: false,
+    mandatoryRemarks: false
+  }
+};
+
+const normalizeTaskCompletionSection = (section = {}) => {
+  const allowAttachments = Boolean(section.allowAttachments);
+  return {
+    allowAttachments,
+    mandatoryAttachments: allowAttachments ? Boolean(section.mandatoryAttachments) : false,
+    mandatoryRemarks: Boolean(section.mandatoryRemarks)
+  };
+};
+
 // --- Ensure env variables are present ---
 const {
   GOOGLE_CLIENT_ID,
@@ -43,24 +66,23 @@ router.get('/task-completion', async (req, res) => {
       settings = new Settings({
         type: 'taskCompletion',
         companyId,
-        data: {
-          enabled: false,
-          pendingTasks: {
-            allowAttachments: false,
-            mandatoryAttachments: false,
-            mandatoryRemarks: false
-          },
-          pendingRecurringTasks: {
-            allowAttachments: false,
-            mandatoryAttachments: false,
-            mandatoryRemarks: false
-          }
-        }
+        data: defaultTaskCompletionSettings
       });
       await settings.save();
     }
 
-    res.json(settings.data);
+    res.json({
+      ...defaultTaskCompletionSettings,
+      ...(settings.data || {}),
+      pendingTasks: {
+        ...defaultTaskCompletionSettings.pendingTasks,
+        ...normalizeTaskCompletionSection(settings.data?.pendingTasks)
+      },
+      pendingRecurringTasks: {
+        ...defaultTaskCompletionSettings.pendingRecurringTasks,
+        ...normalizeTaskCompletionSection(settings.data?.pendingRecurringTasks)
+      }
+    });
   } catch (error) {
     console.error('Error fetching task completion settings:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -74,9 +96,16 @@ router.post('/task-completion', async (req, res) => {
     if (!companyId) return res.status(400).json({ message: 'companyId required' });
 
     const payload = {
+      ...defaultTaskCompletionSettings,
       enabled: enabled ?? false,
-      pendingTasks: pendingTasks || {},
-      pendingRecurringTasks: pendingRecurringTasks || {}
+      pendingTasks: {
+        ...defaultTaskCompletionSettings.pendingTasks,
+        ...normalizeTaskCompletionSection(pendingTasks)
+      },
+      pendingRecurringTasks: {
+        ...defaultTaskCompletionSettings.pendingRecurringTasks,
+        ...normalizeTaskCompletionSection(pendingRecurringTasks)
+      }
     };
 
     const settings = await Settings.findOneAndUpdate(

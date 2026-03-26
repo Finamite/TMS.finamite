@@ -354,7 +354,10 @@ const SettingsPage: React.FC = () => {
                 ...prev.taskCompletion,
                 [section]: {
                     ...prev.taskCompletion[section],
-                    [field]: value
+                    [field]: value,
+                    ...(field === 'allowAttachments' && value === false
+                        ? { mandatoryAttachments: false }
+                        : {})
                 }
             }
         }));
@@ -835,9 +838,15 @@ const SettingsPage: React.FC = () => {
     const sectionCardClass =
         "group relative overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_16px_50px_rgba(15,23,42,0.06)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_24px_70px_rgba(15,23,42,0.1)] before:pointer-events-none before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-gradient-to-b before:from-[var(--color-primary)] before:via-[var(--color-secondary)] before:to-cyan-400 before:content-[''] before:opacity-70 before:transition-opacity before:duration-300 hover:before:opacity-100";
     const sectionHeaderClass =
-        "flex cursor-pointer items-center justify-between gap-4 border-b border-slate-100 bg-white px-5 py-4 transition-colors hover:bg-slate-50/70 sm:px-6";
+        "flex cursor-pointer flex-col gap-4 border-b border-slate-100 bg-white px-4 py-4 transition-colors hover:bg-slate-50/70 sm:flex-row sm:items-center sm:justify-between sm:px-6";
+    const sectionHeaderContentClass =
+        "flex w-full min-w-0 items-start gap-3 sm:items-center sm:gap-4 sm:max-w-[75%]";
+    const sectionHeaderTitleClass =
+        "text-md lg:text-xl font-semibold text-[var(--color-text)] leading-snug break-words whitespace-normal";
+    const sectionHeaderSubtitleClass =
+        "text-[var(--color-textSecondary)] text-xs lg:text-sm mt-1 leading-relaxed break-words whitespace-normal";
     const sectionBodyClass =
-        "border-t border-slate-100 bg-slate-50/40 px-5 py-5 sm:px-6 sm:py-6";
+        "border-t border-slate-100 bg-slate-50/40 px-4 py-4 sm:px-6 sm:py-6";
 
     const settingsSections = [
         { id: 'revision', label: 'Revision & Scoring', note: 'Rules and scoring' },
@@ -921,7 +930,7 @@ const SettingsPage: React.FC = () => {
                         <div className="absolute -left-20 -bottom-24 h-56 w-56 rounded-full bg-[var(--color-secondary)]/10 blur-3xl" />
                     </div>
 
-                    <div className="relative flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+                    <div className="relative">
                         <div className="max-w-3xl">
 
                             <div className="mt-4">
@@ -933,33 +942,6 @@ const SettingsPage: React.FC = () => {
                                     tion, task completion rules, PCM sync, recycle behaviour, and approval policy.
                                 </p>
                             </div>
-                        </div>
-
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                            {hasUnsavedChanges && (
-                            <div className="inline-flex items-center gap-2 rounded-2xl border border-amber-200/70 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800 shadow-sm">
-                                <AlertTriangle className="h-4 w-4" />
-                                Unsaved changes
-                            </div>
-                        )}
-
-                            <button
-                                onClick={handleSave}
-                                disabled={saving}
-                                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] px-5 py-3 font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                                {saving ? (
-                                    <>
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                        Saving...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Save className="h-4 w-4" />
-                                        Save All Settings
-                                    </>
-                                )}
-                            </button>
                         </div>
                     </div>
 
@@ -1030,6 +1012,50 @@ const SettingsPage: React.FC = () => {
                             <p className="mt-2 text-xs text-slate-500">
                                 {settings.adminApproval.defaultForOneTime ? 'One-time tasks require review' : 'No default approval required'}
                             </p>
+                        </div>
+                    </div>
+                </section>
+
+                <section className="sticky top-4 z-20 rounded-[28px] border border-slate-200/80 bg-white/95 px-5 py-4 shadow-[0_16px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:px-6">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="min-w-0">
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                Save Panel
+                            </p>
+                            <p className="mt-1 text-sm text-slate-600">
+                                Changes made below will stay unsaved until you confirm them here.
+                            </p>
+                        </div>
+
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                            {hasUnsavedChanges && (
+                                <div className="inline-flex items-center gap-2 rounded-2xl border border-amber-200/70 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800 shadow-sm">
+                                    <AlertTriangle className="h-4 w-4" />
+                                    Unsaved changes
+                                </div>
+                            )}
+
+                            <button
+                                onClick={handleSave}
+                                disabled={saving}
+                                className={`inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] px-5 py-3 font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60 ${
+                                    hasUnsavedChanges && !saving
+                                        ? 'ring-2 ring-amber-300 ring-offset-2 ring-offset-white animate-pulse shadow-[0_0_0_6px_rgba(251,191,36,0.18)]'
+                                        : ''
+                                }`}
+                            >
+                                {saving ? (
+                                    <>
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        Saving...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Save className="h-4 w-4" />
+                                        Save All Settings
+                                    </>
+                                )}
+                            </button>
                         </div>
                     </div>
                 </section>
@@ -1114,16 +1140,16 @@ const SettingsPage: React.FC = () => {
                             onClick={() => setExpandedRevision(!expandedRevision)}
                         >
                             {/* LEFT SIDE (text block) */}
-                        <div className="flex items-center gap-4 min-w-0 max-w-[75%]">
+                        <div className={sectionHeaderContentClass}>
                             <div className="p-3 bg-[var(--color-accent)]/10 rounded-xl">
                                 <AlertTriangle className="h-6 w-6 text-[var(--color-accent)]" />
                             </div>
 
                                 <div className="min-w-0">
-                                    <h2 className="text-md lg:text-xl font-semibold text-[var(--color-text)] truncate">
+                                    <h2 className={sectionHeaderTitleClass}>
                                         Revision & Scoring
                                     </h2>
-                                    <p className="text-[var(--color-textSecondary)] text-xs lg:text-sm mt-1 truncate">
+                                    <p className={sectionHeaderSubtitleClass}>
                                         Configure task revision limits and scoring impact on performance
                                     </p>
                                 </div>
@@ -1426,16 +1452,16 @@ const SettingsPage: React.FC = () => {
                             onClick={() => setExpandedEmail(!expandedEmail)}
                         >
                             {/* LEFT CONTENT */}
-                            <div className="flex items-center gap-4 min-w-0 max-w-[75%]">
+                            <div className={sectionHeaderContentClass}>
                                 <div className="p-3 bg-[var(--color-primary)]/10 rounded-xl">
                                     <Mail className="h-6 w-6 text-[var(--color-primary)]" />
                                 </div>
 
                                 <div className="min-w-0">
-                                    <h2 className="text-md lg:text-xl font-semibold text-[var(--color-text)] truncate">
+                                    <h2 className={sectionHeaderTitleClass}>
                                         Email Notifications
                                     </h2>
-                                    <p className="text-[var(--color-textSecondary)] text-xs lg:text-sm mt-1 truncate">
+                                    <p className={sectionHeaderSubtitleClass}>
                                         Configure Gmail integration and automation
                                     </p>
                                 </div>
@@ -1640,16 +1666,16 @@ const SettingsPage: React.FC = () => {
                             onClick={() => setExpandedReports(!expandedReports)}
                         >
                             {/* LEFT CONTENT */}
-                            <div className="flex items-center gap-4 min-w-0 max-w-[75%]">
+                            <div className={sectionHeaderContentClass}>
                                 <div className="p-3 bg-[var(--color-info)]/10 rounded-xl">
                                     <Calendar className="h-6 w-6 text-[var(--color-info)]" />
                                 </div>
 
                                 <div className="min-w-0">
-                                    <h2 className="text-md lg:text-xl font-semibold text-[var(--color-text)] truncate">
+                                    <h2 className={sectionHeaderTitleClass}>
                                         Automated Reports
                                     </h2>
-                                    <p className="text-[var(--color-textSecondary)] text-xs lg:text-sm mt-1 truncate">
+                                    <p className={sectionHeaderSubtitleClass}>
                                         Schedule daily reports and summaries
                                     </p>
                                 </div>
@@ -1796,16 +1822,16 @@ const SettingsPage: React.FC = () => {
                         <div className={sectionHeaderClass}
                             onClick={() => setExpandedTask(!expandedTask)}
                         >
-                            <div className="flex items-center gap-4 min-w-0 max-w-[75%]">
+                            <div className={sectionHeaderContentClass}>
                                 <div className="p-3 bg-[var(--color-primary)]/10 rounded-xl">
                                     <Settings className="h-6 w-6 text-[var(--color-primary)]" />
                                 </div>
 
                                 <div className="min-w-0">
-                                    <h2 className="text-md lg:text-xl font-semibold text-[var(--color-text)] truncate">
+                                    <h2 className={sectionHeaderTitleClass}>
                                         Task Completion Settings
                                     </h2>
-                                    <p className="text-[var(--color-textSecondary)] text-xs lg:text-sm mt-1 truncate">
+                                    <p className={sectionHeaderSubtitleClass}>
                                         Configure attachments & remarks for different task types
                                     </p>
                                 </div>
@@ -2050,16 +2076,16 @@ const SettingsPage: React.FC = () => {
                             onClick={() => setExpandedBin(!expandedBin)}
                         >
                             {/* LEFT CONTENT */}
-                            <div className="flex items-center gap-4 min-w-0 max-w-[75%]">
+                            <div className={sectionHeaderContentClass}>
                                 <div className="p-3 bg-[var(--color-warning)]/10 rounded-xl">
                                     <Archive className="h-6 w-6 text-[var(--color-warning)]" />
                                 </div>
 
                                 <div className="min-w-0">
-                                    <h2 className="text-md lg:text-xl font-semibold text-[var(--color-text)] truncate">
+                                    <h2 className={sectionHeaderTitleClass}>
                                         Recycle Bin
                                     </h2>
-                                    <p className="text-[var(--color-textSecondary)] text-xs lg:text-sm mt-1 truncate">
+                                    <p className={sectionHeaderSubtitleClass}>
                                         Configure task deletion and recovery settings
                                     </p>
                                 </div>
@@ -2176,16 +2202,16 @@ const SettingsPage: React.FC = () => {
                             onClick={() => setExpandedAdminApproval(prev => !prev)}
                         >
                             {/* LEFT CONTENT */}
-                            <div className="flex items-center gap-4 min-w-0 max-w-[75%]">
+                            <div className={sectionHeaderContentClass}>
                                 <div className="p-3 bg-[var(--color-primary)]/10 rounded-xl">
                                     <ClipboardCheck className="h-6 w-6 text-[var(--color-primary)]" />
                                 </div>
 
                                 <div className="min-w-0">
-                                    <h2 className="text-md lg:text-xl font-semibold text-[var(--color-text)] truncate">
+                                    <h2 className={sectionHeaderTitleClass}>
                                         Admin Approval
                                     </h2>
-                                    <p className="text-[var(--color-textSecondary)] text-xs lg:text-sm mt-1 truncate">
+                                    <p className={sectionHeaderSubtitleClass}>
                                         Require admin approval before completing one-time tasks
                                     </p>
                                 </div>
@@ -2297,16 +2323,16 @@ const SettingsPage: React.FC = () => {
                         <div className={sectionHeaderClass}
                             onClick={() => setExpandedPcmIntegration(prev => !prev)}
                         >
-                            <div className="flex items-center gap-4 min-w-0 max-w-[75%]">
+                            <div className={sectionHeaderContentClass}>
                                 <div className="p-3 bg-[var(--color-primary)]/10 rounded-xl">
                                     <GitBranch className="h-6 w-6 text-[var(--color-primary)]" />
                                 </div>
 
                                 <div className="min-w-0">
-                                    <h2 className="text-md lg:text-xl font-semibold text-[var(--color-text)] truncate">
+                                    <h2 className={sectionHeaderTitleClass}>
                                         PCM Integration
                                     </h2>
-                                    <p className="text-[var(--color-textSecondary)] text-xs lg:text-sm mt-1 truncate">
+                                    <p className={sectionHeaderSubtitleClass}>
                                         Sync PCM pending steps into TMS and push completion back to PCM
                                     </p>
                                 </div>

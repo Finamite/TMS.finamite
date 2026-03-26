@@ -3,6 +3,20 @@ import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { address } from '../../utils/ipAddress';
 
+const defaultTaskCompletionSettings = {
+  enabled: false,
+  pendingTasks: {
+    allowAttachments: false,
+    mandatoryAttachments: false,
+    mandatoryRemarks: false
+  },
+  pendingRecurringTasks: {
+    allowAttachments: false,
+    mandatoryAttachments: false,
+    mandatoryRemarks: false
+  }
+};
+
 export const useTaskSettings = () => {
   const { user } = useAuth();
   const [settings, setSettings] = useState<any>(null);
@@ -22,7 +36,18 @@ export const useTaskSettings = () => {
           params: { companyId: user.company.companyId }
         });
 
-        setSettings(response.data);
+        setSettings({
+          ...defaultTaskCompletionSettings,
+          ...(response.data || {}),
+          pendingTasks: {
+            ...defaultTaskCompletionSettings.pendingTasks,
+            ...(response.data?.pendingTasks || {})
+          },
+          pendingRecurringTasks: {
+            ...defaultTaskCompletionSettings.pendingRecurringTasks,
+            ...(response.data?.pendingRecurringTasks || {})
+          }
+        });
       } catch (error) {
         console.error('Error fetching task settings:', error);
       } finally {
