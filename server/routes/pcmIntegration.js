@@ -25,12 +25,16 @@ const buildHeaders = (apiKey) => ({
 const forwardPcmError = (res, error, fallbackMessage) => {
   const status = Number(error?.response?.status);
   const responseData = error?.response?.data;
+  const isUpstreamAuthError = status === 401 || status === 403;
+  const responseStatus = isUpstreamAuthError
+    ? 502
+    : (Number.isFinite(status) ? status : 502);
 
-  if (Number.isFinite(status) && responseData && typeof responseData === 'object') {
-    return res.status(status).json(responseData);
+  if (responseData && typeof responseData === 'object') {
+    return res.status(responseStatus).json(responseData);
   }
 
-  return res.status(Number.isFinite(status) ? status : 502).json({
+  return res.status(responseStatus).json({
     message:
       (responseData && typeof responseData === 'object' && responseData.message) ||
       fallbackMessage,

@@ -67,6 +67,7 @@ axios.interceptors.response.use(
   (response) => response,
   (error) => {
     const url = error?.config?.url || "";
+    const message = String(error?.response?.data?.message || "").toLowerCase();
 
     // ❌ Do NOT redirect when login fails (invalid email/password)
     if (url.includes("/api/auth/login")) {
@@ -74,7 +75,10 @@ axios.interceptors.response.use(
     }
 
     // ✅ Redirect only when session expired
-    if (error.response?.status === 401) {
+    if (
+      error.response?.status === 401 &&
+      (url.includes("/api/auth/me/") || message.includes("session expired"))
+    ) {
       localStorage.removeItem("user");
       window.location.href = "/login";
     }

@@ -321,7 +321,7 @@ export const updateDatabaseUsage = async () => {
   try {
     const companies = await Company.find({ isActive: true }).select('companyId companyName');
     
-    console.log(`🔄 Updating database usage for ${companies.length} companies...`);
+    // console.log(`🔄 Updating database usage for ${companies.length} companies...`);
 
     for (const company of companies) {
       const companyId = company.companyId;
