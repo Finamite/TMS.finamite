@@ -13,6 +13,7 @@ interface Task {
     _id: string;
     title: string;
     description: string;
+    taskType: string;
     assignedBy: { username: string; email: string; _id: string };
     assignedTo: { username: string; email: string; _id: string };
     dueDate: string;
@@ -322,13 +323,16 @@ const ForApproval: React.FC = () => {
                     params: {
                         status: 'in-progress',
                         requiresApproval: true,
+                        taskType: 'one-time',
                         companyId: user?.company?.companyId,
                         limit: 10000   // ✅ IMPORTANT
                     }
                 }
             );
 
-            setTasks(Array.isArray(response.data.tasks) ? response.data.tasks : []);
+            setTasks(Array.isArray(response.data.tasks)
+                ? response.data.tasks.filter((task: Task) => task.taskType === 'one-time')
+                : []);
         } catch (error) {
             toast.error('Error fetching tasks');
             setTasks([]);

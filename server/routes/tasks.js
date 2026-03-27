@@ -41,6 +41,10 @@ const PENDING_RECURRING_CACHE_TTL = 20 * 1000;
 const PENDING_RECURRING_SELECT =
   'taskId title description taskType assignedBy assignedTo dueDate priority status lastCompletedDate createdAt attachments';
 
+const isOneTimeTask = (taskType) => String(taskType || '').trim() === 'one-time';
+const isApprovalEligibleTask = (taskType, requiresApproval) =>
+  isOneTimeTask(taskType) && Boolean(requiresApproval);
+
 // Helper function to get all dates for weekly tasks within a range based on selected days
 const getWeeklyTaskDates = (startDate, endDate, selectedDays, weekOffDays = []) => {
   const dates = [];
@@ -276,6 +280,7 @@ router.get('/', async (req, res) => {
     const {
       taskType,
       status,
+      requiresApproval,
       assignedTo,
       assignedBy,
       priority,
@@ -293,6 +298,11 @@ router.get('/', async (req, res) => {
       query.companyId = companyId;
     }
 
+    const approvalFilterRequested =
+      requiresApproval === true ||
+      requiresApproval === 'true' ||
+      requiresApproval === '1';
+
     // Handle multiple task types (comma-separated)
     if (taskType) {
       if (taskType.includes(',')) {
@@ -300,6 +310,11 @@ router.get('/', async (req, res) => {
       } else {
         query.taskType = taskType;
       }
+    }
+
+    if (approvalFilterRequested) {
+      query.requiresApproval = true;
+      query.taskType = 'one-time';
     }
 
     if (status) {
@@ -1263,7 +1278,8 @@ router.get('/approval-count', async (req, res) => {
       companyId,
       isActive: true,
       status: 'in-progress',
-      requiresApproval: true
+      requiresApproval: true,
+      taskType: 'one-time'
     });
 
     res.json({ count });
@@ -1466,6 +1482,7 @@ router.post('/bulk-create', async (req, res) => {
               ...taskTemplate,
               assignedTo: assignedUserId,
               dueDate: taskDate,
+              requiresApproval: isApprovalEligibleTask(taskData.taskType, taskData.requiresApproval),
               isActive: true,
               status: 'pending',
               taskGroupId: taskGroupId,
@@ -1704,6 +1721,7 @@ router.post('/create-scheduled', async (req, res) => {
             taskSeq: taskSeq ?? undefined,
             taskId: taskSeq != null ? formatTaskId(taskData.companyId, taskSeq) : undefined,
             attachments: taskData.attachments || [],
+            requiresApproval: isApprovalEligibleTask(taskData.taskType, taskData.requiresApproval),
             isActive: true,
             status: 'pending',
             taskGroupId: taskGroupId,
@@ -1778,6 +1796,7 @@ router.post('/', async (req, res) => {
 
     const task = new Task({
       ...taskData,
+      requiresApproval: isApprovalEligibleTask(taskData.taskType, taskData.requiresApproval),
       taskSeq,
       taskId,
       attachments: taskData.attachments || []
@@ -1883,7 +1902,10 @@ router.post('/:id/complete', async (req, res) => {
     let emailSubject = '';
     let emailText = '';
 
-    if (task.requiresApproval === true) {
+    const approvalRequired = isApprovalEligibleTask(task.taskType, task.requiresApproval);
+    task.requiresApproval = approvalRequired;
+
+    if (approvalRequired) {
       // ✅ SEND TO APPROVAL
       task.status = 'in-progress';
 
@@ -1942,8 +1964,8 @@ https://tms.finamite.in
     if (
       emailSettings?.data?.enabled &&
       (
-        (task.requiresApproval && emailSettings.data.sendOnTaskApproval) ||
-        (!task.requiresApproval && emailSettings.data.sendOnTaskComplete)
+        (approvalRequired && emailSettings.data.sendOnTaskApproval) ||
+        (!approvalRequired && emailSettings.data.sendOnTaskComplete)
       )
     ) {
       const admins = await User.find({
@@ -1974,7 +1996,7 @@ https://tms.finamite.in
 
     res.json({
       success: true,
-      requiresApproval: task.requiresApproval,
+      requiresApproval: approvalRequired,
       status: task.status,
       task: populatedTask
     });
@@ -2437,6 +2459,7 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
               taskSeq: taskSeq ?? undefined,
               taskId: taskSeq != null ? formatTaskId(masterTask.companyId, taskSeq) : undefined,
               attachments: updates.attachments || [],
+              requiresApproval: isApprovalEligibleTask(updates.taskType, updates.requiresApproval),
               dueDate: date,
               isActive: true,
               status: "pending",
@@ -3075,7 +3098,8 @@ router.get("/pending-approval-count", async (req, res) => {
       companyId,
       isActive: true,
       status: "in-progress",
-      requiresApproval: true
+      requiresApproval: true,
+      taskType: "one-time"
     };
 
     // 🔒 STRICT USER FILTER
@@ -3366,7 +3390,7 @@ router.post('/:id/approve', async (req, res) => {
     const { remarks } = req.body;
 
     const task = await Task.findById(id);
-    if (!task || task.status !== 'in-progress') {
+    if (!task || task.status !== 'in-progress' || !isApprovalEligibleTask(task.taskType, task.requiresApproval)) {
       return res.status(400).json({ message: 'Invalid task for approval' });
     }
 
@@ -3434,6 +3458,10 @@ router.post('/:id/reject', async (req, res) => {
     const task = await Task.findById(taskId);
     if (!task) {
       return res.status(404).json({ message: 'Task not found' });
+    }
+
+    if (!isApprovalEligibleTask(task.taskType, task.requiresApproval)) {
+      return res.status(400).json({ message: 'Invalid task for approval' });
     }
 
     // ✅ Common rejection fields
