@@ -24,6 +24,7 @@ import taskshiftRoutes from "./routes/taskshift.js";
 import pcmIntegrationRoutes from "./routes/pcmIntegration.js";
 import { startReportCron } from "./routes/reportmail.js";
 import dataUsageRoutes, { updateFileUsage, updateDatabaseUsage } from "./routes/dataUsage.js";
+import { processOverdueTaskNotifications } from './services/taskWhatsapp.js';
 
 
 dotenv.config();
@@ -142,6 +143,14 @@ app.use('/api/taskshift', taskshiftRoutes);
 app.use('/api/pcm-integration', pcmIntegrationRoutes);
 app.use('/api/data-usage', dataUsageRoutes);
 
+// FiChat OAuth compatibility callback.
+// Some envs/providers still point at /api/fichat/callback, so forward them to the
+// settings callback handler without changing the configured redirect URI.
+app.get('/api/fichat/callback', (req, res) => {
+  const query = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
+  return res.redirect(307, `/api/settings/whatsapp/fichat/callback${query}`);
+});
+
 // Serve frontend in production
 if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(__dirname, '..', 'dist');
@@ -185,6 +194,14 @@ mongoose.connect(process.env.MONGO_URI, {
         await updateDatabaseUsage();
       } catch (err) {
         console.error("❌ Database usage tracking error:", err);
+      }
+    });
+
+    cron.schedule("15 * * * *", async () => {
+      try {
+        await processOverdueTaskNotifications();
+      } catch (err) {
+        console.error("Task WhatsApp overdue cron error:", err);
       }
     });
 

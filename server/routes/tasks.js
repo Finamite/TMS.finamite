@@ -10,6 +10,7 @@ import mongoose from "mongoose";
 // ✅ ADD THIS IMPORT FOR DATA USAGE TRACKING
 import {updateFileUsage, updateDatabaseUsage} from '../services/dataUsage.service.js';
 import { reserveTaskSequences, formatTaskId } from '../services/taskId.service.js';
+import { notifyTaskWhatsAppEvent } from '../services/taskWhatsapp.js';
 
 const router = express.Router();
 
@@ -239,6 +240,16 @@ https://tms.finamite.in
 };
 
 // ✅ ADD FILE USAGE TRACKING FUNCTION
+const queueTaskWhatsAppNotification = (taskLike, eventType) => {
+  setImmediate(async () => {
+    try {
+      await notifyTaskWhatsAppEvent({ task: taskLike, eventType });
+    } catch (error) {
+      console.error(`Task WhatsApp ${eventType} notification failed:`, error);
+    }
+  });
+};
+
 const trackFileUsage = async (companyId, attachments, uploadedBy) => {
   try {
     if (!attachments || !Array.isArray(attachments) || attachments.length === 0) {
@@ -1514,6 +1525,14 @@ router.post('/bulk-create', async (req, res) => {
           ...taskData,
           assignedTo: assignedUserId
         }));
+        queueTaskWhatsAppNotification(
+          {
+            ...taskData,
+            assignedTo: assignedUserId,
+            dueDate: taskDates?.[0] || taskData.dueDate
+          },
+          'assigned'
+        );
       }));
     }));
 
@@ -1755,6 +1774,13 @@ router.post('/create-scheduled', async (req, res) => {
 
     // ✅ SEND EMAIL NOTIFICATION
     await sendTaskAssignmentEmail(taskData);
+    queueTaskWhatsAppNotification(
+      {
+        ...taskData,
+        dueDate: taskDates?.[0] || taskData.dueDate
+      },
+      'assigned'
+    );
 
     // RESPONSE
     res.status(201).json({
@@ -1813,6 +1839,7 @@ router.post('/', async (req, res) => {
 
     // ✅ SEND EMAIL NOTIFICATION FOR SINGLE TASK CREATION
     await sendTaskAssignmentEmail(taskData);
+    queueTaskWhatsAppNotification(task, 'assigned');
 
     const populatedTask = await Task.findById(task._id)
       .populate('assignedBy', 'username email companyId')
@@ -1842,9 +1869,17 @@ router.put('/:id', async (req, res) => {
       delete updateQuery.companyId;
     }
 
+    const nextUpdate = {
+      ...req.body
+    };
+
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'dueDate')) {
+      nextUpdate.overdueAlertSentAt = null;
+    }
+
     const task = await Task.findOneAndUpdate(
       updateQuery,
-      req.body,
+      nextUpdate,
       { new: true }
     ).populate('assignedBy', 'username email companyId')
       .populate('assignedTo', 'username email companyId')
@@ -1952,6 +1987,10 @@ https://tms.finamite.in
 
     // ✅ Track database usage after task completion
     await trackDatabaseUsage(task.companyId);
+
+    if (!approvalRequired) {
+      queueTaskWhatsAppNotification(task, 'completed');
+    }
 
     // --------------------------------------------------
     // 📩 EMAIL NOTIFICATION
@@ -2098,6 +2137,7 @@ router.post('/:id/revise', async (req, res) => {
     task.revisionCount += 1;
     task.dueDate = pickedDate;
     task.lastPlannedDate = pickedDate;
+    task.overdueAlertSentAt = null;
 
     await task.save();
 
@@ -3415,6 +3455,7 @@ router.post('/:id/approve', async (req, res) => {
     await trackDatabaseUsage(task.companyId);
 
     // 📩 Notify assignee
+    queueTaskWhatsAppNotification(task, 'completed');
     const assignedUser = await User.findById(task.assignedTo);
     if (assignedUser) {
       await sendSystemEmail(

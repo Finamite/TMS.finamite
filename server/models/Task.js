@@ -64,6 +64,7 @@ const taskSchema = new mongoose.Schema({
     type: Date,
     required: true
   },
+  lastPlannedDate: Date,
   originalStartDate: Date,
   originalEndDate: Date,
   weeklyDays: [Number],
@@ -136,6 +137,7 @@ const taskSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
+  overdueAlertSentAt: Date,
 
   isActive: {
     type: Boolean,

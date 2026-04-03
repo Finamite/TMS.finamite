@@ -20,6 +20,7 @@ import RecycleBin from './pages/RecycleBin';
 import HelpSupport from './pages/HelpSupport';
 import TaskShift from './pages/TaskShift';
 import ForApproval from './pages/ForApproval';
+import IntegrationsPage from './pages/IntegrationsPage';
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Home from "./pages/Home";
 import TermsAndConditions from "./pages/TermsAndConditions";
@@ -179,6 +180,14 @@ function App() {
                   element={
                     <ProtectedRoute requirePermission="forapproval">
                       <ForApproval />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="integrations"
+                  element={
+                    <ProtectedRoute requireAdmin requirePermission="settingspage">
+                      <IntegrationsPage />
                     </ProtectedRoute>
                   }
                 />

@@ -25,6 +25,7 @@ import {
   HelpCircle,
   ArrowLeftRight,
   ClipboardCheck,
+  Plug,
 } from 'lucide-react';
 
 
@@ -305,6 +306,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { icon: MessageCircle, label: 'Chat Support', path: '/chat', permission: cp.chat },
     { icon: Recycle, label: 'Recycle bin', path: '/recycle-bin', permission: user?.permissions?.canManageRecycle },
     { icon: Zap, label: 'Performance', path: '/performance', permission: cp.performance },
+    { icon: Plug, label: 'Integrations', path: '/integrations', permission: cp.settingspage && user?.permissions?.canManageSettings },
     { icon: Shield, label: 'Admin Panel', path: '/admin', permission: user?.permissions?.canManageUsers },
     { icon: Settings, label: 'Settings', path: '/settings-page', permission: user?.permissions?.canManageSettings },
     { icon: HelpCircle, label: 'Help & Support', path: '/help-support', permission: cp.helpsupport },
@@ -341,6 +343,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           fixed inset-y-0 left-0 z-30 
     border-r shadow-sm
     transition-[transform,width] duration-300 ease-out
+    overflow-hidden
     lg:static lg:inset-0
     flex flex-col
           ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
@@ -348,7 +351,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         style={{
           backgroundColor: "var(--color-surface)",
           borderColor: "var(--color-border)",
-          width: isExpanded ? "200px" : "80px",
+          width: isExpanded ? "224px" : "84px",
         }}
         onMouseEnter={() => {
           if (window.innerWidth >= 1024 && isCollapsed) {
@@ -373,8 +376,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           {/* Logo */}
           <div className="flex items-center">
             <span
-              className={`text-xl font-bold tracking-tight overflow-hidden whitespace-nowrap transition-all duration-300 ease-out ${
-                isExpanded ? 'max-w-[90px] opacity-100 translate-x-0' : 'max-w-0 opacity-0 -translate-x-2'
+              className={`font-bold tracking-tight overflow-hidden whitespace-nowrap transition-all duration-300 ease-out ${
+                isExpanded
+                  ? 'max-w-[100px] text-2xl opacity-100 translate-x-0'
+                  : 'max-w-0 text-xl opacity-0 -translate-x-2'
               }`}
               style={{ color: 'var(--color-text)' }}
             >
@@ -423,11 +428,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                   to={item.path}
                   onClick={onClose}
                   className={({ isActive }) =>
-                    `group flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ease-out ${
+                    `group flex items-center rounded-xl px-3 py-2.5 font-medium transition-all duration-300 ease-out ${
                       isActive
                         ? "text-white shadow-sm"
                         : "text-[var(--color-text)] hover:-translate-y-0.5 hover:bg-[var(--color-surface)] hover:shadow-md hover:shadow-black/5 hover:text-[var(--color-primary)]"
-                    } ${!isExpanded ? "justify-center" : ""}`
+                    } ${isExpanded ? "text-[15px]" : "text-sm justify-center"}`
                   }
                   style={({ isActive }) => ({
                     background: isActive
@@ -441,9 +446,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                   {/* ICON + RED DOT */}
                   <div className="relative flex items-center">
                     <item.icon
-                      size={16}
+                      size={isExpanded ? 19 : 16}
                       className={`transition-all duration-300 ease-out group-hover:scale-110 group-hover:translate-x-0.5 ${
-                        isExpanded ? "mr-3" : ""
+                        isExpanded ? "mr-3 shrink-0" : ""
                       }`}
                     />
 
@@ -519,7 +524,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
                   <span
                     className={`overflow-hidden whitespace-nowrap transition-all duration-300 ease-out group-hover:translate-x-0.5 ${
-                      isExpanded ? 'max-w-[140px] opacity-100 translate-x-0 ml-0' : 'max-w-0 opacity-0 -translate-x-2 ml-0'
+                      isExpanded
+                        ? 'max-w-[150px] opacity-100 translate-x-0 ml-0'
+                        : 'max-w-0 opacity-0 -translate-x-2 ml-0'
                     }`}
                   >
                     {item.label}
@@ -546,7 +553,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             <Tooltip content={`${user?.username} (${user?.role})`} show={true}>
               <div className="flex justify-center">
                 <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium"
+                  className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-medium transition-transform duration-300 ease-out"
                   style={{ backgroundColor: 'var(--color-primary)' }}
                 >
                   {user?.username?.charAt(0).toUpperCase()}
@@ -556,7 +563,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           ) : (
             <div className="flex items-center">
               <div
-                className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium"
+                className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-medium transition-transform duration-300 ease-out"
                 style={{ backgroundColor: 'var(--color-primary)' }}
               >
                 {user?.username?.charAt(0).toUpperCase()}

@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Users, Plus, Edit, Save, X, ChevronDown, User, LockKeyhole, CreditCard, Info, Building2, UserCheck, UserCog, Loader2, Shield, Search, Activity, Building, Clock, EyeOff, Eye } from 'lucide-react';
 import axios from 'axios';
+import { getCountries, getCountryCallingCode, parsePhoneNumberFromString, type CountryCode } from 'libphonenumber-js';
 import { address } from '../../utils/ipAddress';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-toastify';
@@ -82,6 +83,54 @@ const formatDateTime = (dateValue: string | number | Date) => {
   return `${dd}/${mm}/${yyyy} ${hh}:${min}:${ss}`;
 };
 
+const DEFAULT_PHONE_COUNTRY: CountryCode = 'IN';
+
+const countryCodeToFlag = (countryCode: string) =>
+  String(countryCode || '')
+    .toUpperCase()
+    .replace(/./g, (char) => String.fromCodePoint(127397 + char.charCodeAt(0)));
+
+const normalizePhoneNumberForSave = (countryCode: CountryCode, phone: string) => {
+  const raw = String(phone || '').trim();
+  if (!raw) return '';
+
+  const country = countryCode || DEFAULT_PHONE_COUNTRY;
+  const parsed = parsePhoneNumberFromString(raw, country);
+  if (parsed?.isValid()) {
+    return parsed.number;
+  }
+
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return '';
+
+  const dialCode = getCountryCallingCode(country);
+  if (digits.startsWith(dialCode) && digits.length > dialCode.length) {
+    return `+${digits}`;
+  }
+
+  return `+${dialCode}${digits}`;
+};
+
+const parsePhoneForForm = (phone: string) => {
+  const raw = String(phone || '').trim();
+  if (!raw) {
+    return { country: DEFAULT_PHONE_COUNTRY, phone: '' };
+  }
+
+  const parsed = parsePhoneNumberFromString(raw);
+  if (parsed?.country) {
+    return {
+      country: parsed.country as CountryCode,
+      phone: parsed.nationalNumber || ''
+    };
+  }
+
+  return {
+    country: DEFAULT_PHONE_COUNTRY,
+    phone: raw.replace(/\D/g, '')
+  };
+};
+
 
 const AdminPanel: React.FC = () => {
   const { user: currentUser } = useAuth();
@@ -101,6 +150,7 @@ const AdminPanel: React.FC = () => {
     role: '',
     department: '',
     phone: '',
+    phoneCountry: DEFAULT_PHONE_COUNTRY,
     permissions: {
       canViewTasks: true,
       canViewAllTeamTasks: false,
@@ -423,6 +473,76 @@ const AdminPanel: React.FC = () => {
     return allowedPermissions.includes(permissionKey);
   };
 
+  const phoneCountryOptions = useMemo(() => {
+    const regionNames =
+      typeof Intl !== 'undefined' && typeof Intl.DisplayNames !== 'undefined'
+        ? new Intl.DisplayNames(['en'], { type: 'region' })
+        : null;
+
+    return getCountries()
+      .map((country) => {
+        const code = country as CountryCode;
+        return {
+          code,
+          label: regionNames?.of(country) || country,
+          dialCode: `+${getCountryCallingCode(code)}`,
+          flag: countryCodeToFlag(country)
+        };
+      })
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, []);
+
+  const renderPhoneField = () => (
+    <div className="sm:col-span-2">
+      <label className="block text-sm font-medium mb-2">
+        Phone Number *
+      </label>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>
+            Country Code
+          </label>
+          <div className="overflow-hidden rounded-xl border bg-[var(--color-background)]" style={{ borderColor: 'var(--color-border)' }}>
+            <select
+              name="phoneCountry"
+              value={formData.phoneCountry}
+              onChange={handleInputChange}
+              className="w-full border-0 bg-transparent px-3 py-2.5 text-sm outline-none"
+              style={{ color: 'var(--color-text)' }}
+            >
+              {phoneCountryOptions.map((country) => (
+                <option key={country.code} value={country.code}>
+                  {country.flag} {country.label} ({country.dialCode})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>
+            Mobile Number
+          </label>
+          <div className="overflow-hidden rounded-xl border bg-[var(--color-background)]" style={{ borderColor: 'var(--color-border)' }}>
+            <input
+              type="tel"
+              name="phone"
+              value={formData.phone}
+              onChange={handleInputChange}
+              required
+              className="w-full min-w-0 border-0 bg-transparent px-3 py-2.5 text-sm outline-none"
+              placeholder={formData.phoneCountry === 'IN' ? '9876543210' : 'Enter phone number'}
+              style={{ color: 'var(--color-text)' }}
+            />
+          </div>
+        </div>
+      </div>
+      <p className="mt-1 text-xs" style={{ color: 'var(--color-textSecondary)' }}>
+        Default country code is India (+91).
+      </p>
+    </div>
+  );
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
 
@@ -490,8 +610,15 @@ const AdminPanel: React.FC = () => {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const phone = normalizePhoneNumberForSave(formData.phoneCountry as CountryCode, formData.phone);
       const userData = {
-        ...formData,
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
+        role: formData.role,
+        department: formData.department,
+        phone,
+        permissions: formData.permissions,
         companyId: currentUser?.companyId
       };
       await axios.post(`${address}/api/users`, userData);
@@ -533,7 +660,7 @@ const AdminPanel: React.FC = () => {
         role: formData.role,
         permissions: formData.permissions,
         department: formData.department,
-        phone: formData.phone,
+        phone: normalizePhoneNumberForSave(formData.phoneCountry as CountryCode, formData.phone),
       });
       setMessage({ type: 'success', text: 'User updated successfully!' });
       setEditingUser(null);
@@ -558,6 +685,7 @@ const AdminPanel: React.FC = () => {
   };
 
   const startEditUser = (user: User) => {
+    const parsedPhone = parsePhoneForForm(user.phone || '');
     setEditingUser(user);
     setFormData({
       username: user.username,
@@ -566,7 +694,8 @@ const AdminPanel: React.FC = () => {
       role: user.role,
       permissions: user.permissions,
       department: user.department || '',
-      phone: user.phone || '',
+      phone: parsedPhone.phone,
+      phoneCountry: parsedPhone.country,
     });
   };
 
@@ -578,6 +707,7 @@ const AdminPanel: React.FC = () => {
       role: '',
       department: '',
       phone: '',
+      phoneCountry: DEFAULT_PHONE_COUNTRY,
       permissions: {
         canViewTasks: true,
         canViewAllTeamTasks: false,
@@ -1584,25 +1714,7 @@ const AdminPanel: React.FC = () => {
                       }}
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Phone Number *
-                    </label>
-                    <input
-                      type="text"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 border rounded-lg text-sm"
-                      placeholder="Enter phone number"
-                      style={{
-                        backgroundColor: 'var(--color-background)',
-                        borderColor: 'var(--color-border)',
-                        color: 'var(--color-text)'
-                      }}
-                    />
-                  </div>
+                  {renderPhoneField()}
                 </div>
 
                 <div>
@@ -1786,24 +1898,7 @@ const AdminPanel: React.FC = () => {
                       }}
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Phone Number *
-                    </label>
-                    <input
-                      type="text"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 border rounded-lg text-sm"
-                      style={{
-                        backgroundColor: 'var(--color-background)',
-                        borderColor: 'var(--color-border)',
-                        color: 'var(--color-text)'
-                      }}
-                    />
-                  </div>
+                  {renderPhoneField()}
                 </div>
 
                 <div>
