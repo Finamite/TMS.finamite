@@ -45,15 +45,25 @@ const supportedVariableLabelMap: Record<string, string> = {
 };
 const getSupportedVariableLabel = (key: string) => supportedVariableLabelMap[key] || key.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 const defaultTemplateConfigs = (): Record<EventKey, TemplateConfig> =>
-  Object.fromEntries(
-    EVENTS.map((e) => [e.key, { enabled: false, templateName: '', templateVariables: [], placeholderCount: 0 }])
-  ) as Record<EventKey, TemplateConfig>;
+  EVENTS.reduce((acc, event) => {
+    acc[event.key] = { enabled: false, templateName: '', templateVariables: [], placeholderCount: 0 };
+    return acc;
+  }, {} as Record<EventKey, TemplateConfig>);
 const emptyEventStringMap = (): Record<EventKey, string> =>
-  Object.fromEntries(EVENTS.map((e) => [e.key, ''])) as Record<EventKey, string>;
+  EVENTS.reduce((acc, event) => {
+    acc[event.key] = '';
+    return acc;
+  }, {} as Record<EventKey, string>);
 const emptyEventBooleanMap = (): Record<EventKey, boolean> =>
-  Object.fromEntries(EVENTS.map((e) => [e.key, false])) as Record<EventKey, boolean>;
+  EVENTS.reduce((acc, event) => {
+    acc[event.key] = false;
+    return acc;
+  }, {} as Record<EventKey, boolean>);
 const emptyEventNumberMap = (): Record<EventKey, number> =>
-  Object.fromEntries(EVENTS.map((e) => [e.key, 0])) as Record<EventKey, number>;
+  EVENTS.reduce((acc, event) => {
+    acc[event.key] = 0;
+    return acc;
+  }, {} as Record<EventKey, number>);
 const defaultRecipients = (): Record<EventKey, RecipientConfig> => ({
   oneTimeAssigned: { assignee: true, admins: false }, oneTimeCompleted: { assignee: false, admins: true }, oneTimeOverdue: { assignee: true, admins: true },
   recurringAssigned: { assignee: true, admins: false }, recurringCompleted: { assignee: false, admins: true }, recurringOverdue: { assignee: true, admins: true }
