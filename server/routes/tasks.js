@@ -6,6 +6,8 @@ import Company from '../models/Company.js';
 import { sendSystemEmail } from '../Utils/sendEmail.js';
 import MasterTask from "../models/MasterTask.js";
 import TaskActivity from "../models/TaskActivity.js";
+import TaskDeleteLog from "../models/TaskDeleteLog.js";
+import { createTaskDeleteLogs } from '../services/taskDeleteLog.service.js';
 import mongoose from "mongoose";
 // ✅ ADD THIS IMPORT FOR DATA USAGE TRACKING
 import {updateFileUsage, updateDatabaseUsage} from '../services/dataUsage.service.js';
@@ -280,6 +282,24 @@ const trackDatabaseUsage = async (companyId) => {
     await updateDatabaseUsage(companyId);
   } catch (error) {
     console.error('Error tracking database usage:', error);
+  }
+};
+
+const getRequestActorId = (req) => req.headers.userid || req.headers['x-user-id'] || null;
+
+const logTaskDeleteActivity = async ({ req, tasks, companyId, deleteMode, source, deletedByName, deletedByRole }) => {
+  try {
+    await createTaskDeleteLogs({
+      tasks,
+      companyId,
+      deleteMode,
+      source,
+      deletedById: getRequestActorId(req),
+      deletedByName,
+      deletedByRole
+    });
+  } catch (error) {
+    console.error('Error creating task delete logs:', error);
   }
 };
 
@@ -2574,6 +2594,14 @@ router.put("/:taskId/bin", async (req, res) => {
       return res.status(404).json({ message: "Task not found" });
     }
 
+    await logTaskDeleteActivity({
+      req,
+      tasks: [task],
+      companyId,
+      deleteMode: 'soft',
+      source: 'move-to-bin'
+    });
+
     // ✅ Track database usage after changes
     setImmediate(() => trackDatabaseUsage(companyId));
 
@@ -2610,6 +2638,14 @@ router.delete('/onetime/:onetimeid', async (req, res) => {
     task.deletedAt = new Date();
 
     await task.save();
+
+    await logTaskDeleteActivity({
+      req,
+      tasks: [task],
+      companyId: task.companyId,
+      deleteMode: 'soft',
+      source: 'one-time-delete'
+    });
 
     // ✅ Track database usage after deletion
     await trackDatabaseUsage(task.companyId);
@@ -2656,6 +2692,14 @@ router.delete('/:id', async (req, res) => {
         return res.status(404).json({ message: 'Task not found or already deleted' });
       }
 
+      await logTaskDeleteActivity({
+        req,
+        tasks: [task],
+        companyId,
+        deleteMode: 'soft',
+        source: 'soft-delete'
+      });
+
       // ✅ Also soft delete the master task entry
       if (task.taskGroupId) {
         await MasterTask.findOneAndUpdate(
@@ -2692,15 +2736,25 @@ router.delete('/:id', async (req, res) => {
     } else {
       // Hard delete: Permanent removal
       const deleteQuery = { _id: id, companyId };
-      const task = await Task.findOneAndDelete(deleteQuery);
+      const task = await Task.findOne(deleteQuery).lean();
       if (!task) {
         return res.status(404).json({ message: 'Task not found' });
       }
+
+      await logTaskDeleteActivity({
+        req,
+        tasks: [task],
+        companyId,
+        deleteMode: 'permanent',
+        source: 'direct-delete'
+      });
 
       // ✅ Also permanently delete the master task entry
       if (task.taskGroupId) {
         await MasterTask.findOneAndDelete({ taskGroupId: task.taskGroupId });
       }
+
+      await Task.findOneAndDelete(deleteQuery);
 
       // ✅ Track database usage after deletion
       setImmediate(() => trackDatabaseUsage(companyId));
@@ -3273,12 +3327,30 @@ router.delete('/bin/permanent/:id', async (req, res) => {
     let companyId = null;
 
     if (isObjectId) {
-      const task = await Task.findById(id).select('companyId');
+      const task = await Task.findById(id).lean();
       companyId = task?.companyId;
+      if (task) {
+        await logTaskDeleteActivity({
+          req,
+          tasks: [task],
+          companyId,
+          deleteMode: 'permanent',
+          source: 'bin-permanent'
+        });
+      }
       result = await Task.findOneAndDelete({ _id: id });
     } else {
-      const tasks = await Task.find({ taskGroupId: id }).select('companyId').limit(1);
+      const tasks = await Task.find({ taskGroupId: id }).lean();
       companyId = tasks[0]?.companyId;
+      if (tasks.length > 0) {
+        await logTaskDeleteActivity({
+          req,
+          tasks,
+          companyId,
+          deleteMode: 'permanent',
+          source: 'bin-permanent-group'
+        });
+      }
       result = await Task.deleteMany({ taskGroupId: id });
     }
 
@@ -3643,8 +3715,7 @@ router.post('/:id/archive', async (req, res) => {
 router.post('/bin/cleanup', async (req, res) => {
   try {
     const now = new Date();
-
-    const result = await Task.deleteMany({
+    const cleanupQuery = {
       $or: [
         {
           isDeleted: true,
@@ -3656,7 +3727,33 @@ router.post('/bin/cleanup', async (req, res) => {
           updatedAt: { $lte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) }
         }
       ]
-    });
+    };
+
+    const expiredTasks = await Task.find(cleanupQuery).lean();
+    if (expiredTasks.length > 0) {
+      const companyGroups = expiredTasks.reduce((map, task) => {
+        const key = task.companyId || 'unknown';
+        if (!map.has(key)) {
+          map.set(key, []);
+        }
+        map.get(key).push(task);
+        return map;
+      }, new Map());
+
+      for (const [companyId, tasks] of companyGroups.entries()) {
+        await logTaskDeleteActivity({
+          req,
+          tasks,
+          companyId: companyId === 'unknown' ? null : companyId,
+          deleteMode: 'permanent',
+          source: 'cron-cleanup',
+          deletedByName: 'System Cleanup',
+          deletedByRole: 'system'
+        });
+      }
+    }
+
+    const result = await Task.deleteMany(cleanupQuery);
 
     res.json({
       message: 'Cleanup completed successfully',
@@ -3687,6 +3784,88 @@ router.get("/task-activities/:taskGroupId", async (req, res) => {
   }
 });
 
+router.get('/delete-logs', async (req, res) => {
+  try {
+    const {
+      companyId,
+      taskType,
+      taskFamily,
+      assignedTo,
+      assignedBy,
+      deletedBy,
+      deleteMode,
+      search,
+      dateFrom,
+      dateTo,
+      page = 1,
+      limit = 25
+    } = req.query;
+
+    const query = {};
+
+    if (companyId && companyId !== 'all') query.companyId = companyId;
+    if (taskType && taskType !== 'all') query.taskType = taskType;
+    if (taskFamily && taskFamily !== 'all') query.taskFamily = taskFamily;
+    if (assignedTo && assignedTo !== 'all') query.assignedTo = assignedTo;
+    if (assignedBy && assignedBy !== 'all') query.assignedBy = assignedBy;
+    if (deletedBy && deletedBy !== 'all') query.deletedBy = deletedBy;
+    if (deleteMode && deleteMode !== 'all') query.deleteMode = deleteMode;
+
+    if (dateFrom || dateTo) {
+      query.deletedAt = {};
+      if (dateFrom) {
+        const start = new Date(dateFrom);
+        start.setHours(0, 0, 0, 0);
+        query.deletedAt.$gte = start;
+      }
+      if (dateTo) {
+        const end = new Date(dateTo);
+        end.setHours(23, 59, 59, 999);
+        query.deletedAt.$lte = end;
+      }
+    }
+
+    if (search) {
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { taskTitle: { $regex: search, $options: 'i' } },
+          { taskId: { $regex: search, $options: 'i' } },
+          { taskGroupId: { $regex: search, $options: 'i' } },
+          { companyName: { $regex: search, $options: 'i' } },
+          { assignedByName: { $regex: search, $options: 'i' } },
+          { assignedToName: { $regex: search, $options: 'i' } },
+          { deletedByName: { $regex: search, $options: 'i' } },
+          { taskDescription: { $regex: search, $options: 'i' } }
+        ]
+      });
+    }
+
+    const pageNumber = Math.max(1, parseInt(page, 10) || 1);
+    const pageLimit = Math.max(1, Math.min(200, parseInt(limit, 10) || 25));
+
+    const [logs, total] = await Promise.all([
+      TaskDeleteLog.find(query)
+        .sort({ deletedAt: -1, createdAt: -1 })
+        .skip((pageNumber - 1) * pageLimit)
+        .limit(pageLimit)
+        .lean(),
+      TaskDeleteLog.countDocuments(query)
+    ]);
+
+    res.json({
+      logs,
+      total,
+      totalPages: Math.ceil(total / pageLimit),
+      currentPage: pageNumber,
+      hasMore: pageNumber * pageLimit < total
+    });
+  } catch (error) {
+    console.error('Error fetching delete logs:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 
 
 // Empty entire recycle bin for a company
@@ -3696,6 +3875,21 @@ router.delete('/bin/empty', async (req, res) => {
 
     if (!companyId) {
       return res.status(400).json({ message: 'Company ID is required' });
+    }
+
+    const deletedTasks = await Task.find({
+      companyId,
+      isActive: false
+    }).lean();
+
+    if (deletedTasks.length > 0) {
+      await logTaskDeleteActivity({
+        req,
+        tasks: deletedTasks,
+        companyId,
+        deleteMode: 'permanent',
+        source: 'bin-empty'
+      });
     }
 
     const result = await Task.deleteMany({
@@ -3729,6 +3923,17 @@ router.delete('/bulk/master', async (req, res) => {
 
     // 🔥 PERMANENT DELETE
     if (permanent === 'true') {
+      const deletedTasks = await Task.find({ taskGroupId, companyId }).lean();
+      if (deletedTasks.length > 0) {
+        await logTaskDeleteActivity({
+          req,
+          tasks: deletedTasks,
+          companyId,
+          deleteMode: 'permanent',
+          source: 'bulk-master-permanent'
+        });
+      }
+
       await Task.deleteMany({ taskGroupId, companyId });
       await MasterTask.deleteOne({ taskGroupId, companyId });
 
@@ -3746,6 +3951,17 @@ router.delete('/bulk/master', async (req, res) => {
     const autoDeleteAt = new Date(
       now.getTime() + 30 * 24 * 60 * 60 * 1000
     );
+
+    const deletedTasks = await Task.find({ taskGroupId, companyId }).lean();
+    if (deletedTasks.length > 0) {
+      await logTaskDeleteActivity({
+        req,
+        tasks: deletedTasks,
+        companyId,
+        deleteMode: 'soft',
+        source: 'bulk-master-bin'
+      });
+    }
 
     await Task.updateMany(
       { taskGroupId, companyId },
@@ -3803,6 +4019,14 @@ router.delete("/:taskId", async (req, res) => {
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
     }
+
+    await logTaskDeleteActivity({
+      req,
+      tasks: [task],
+      companyId,
+      deleteMode: 'permanent',
+      source: 'direct-delete-body'
+    });
 
     // ✅ Track database usage after deletion
     setImmediate(() => trackDatabaseUsage(companyId));

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Plus, CreditCard as Edit, Save, X, Users, Crown, Mail, Lock, Building, Eye, EyeOff, Key, ChevronUp, ChevronDown, Database, BarChart3 } from 'lucide-react';
+import { Building2, Plus, CreditCard as Edit, Save, X, Users, Crown, Mail, Lock, Building, Eye, EyeOff, Key, ChevronUp, ChevronDown, Database, BarChart3, History } from 'lucide-react';
 import axios from 'axios';
 import { address } from '../../utils/ipAddress';
 import DataUsagePanel from '../components/DataUsagePanel';
+import DeletedTaskLogsPanel from '../components/DeletedTaskLogsPanel';
 
 interface Company {
   permissions: {
@@ -46,7 +47,7 @@ interface Company {
 const SuperAdminPanel: React.FC = () => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'companies' | 'dataUsage'>('companies');
+  const [activeTab, setActiveTab] = useState<'companies' | 'dataUsage' | 'deletedLogs'>('companies');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -462,6 +463,17 @@ const SuperAdminPanel: React.FC = () => {
           <BarChart3 size={18} className="mr-2" />
           Data Usage
         </button>
+        <button
+          onClick={() => setActiveTab('deletedLogs')}
+          className={`flex items-center px-4 py-2 rounded-md font-medium transition-colors ${activeTab === 'deletedLogs' ? 'text-white' : ''}`}
+          style={{
+            backgroundColor: activeTab === 'deletedLogs' ? 'var(--color-primary)' : 'transparent',
+            color: activeTab === 'deletedLogs' ? 'white' : 'var(--color-text)'
+          }}
+        >
+          <History size={18} className="mr-2" />
+          Deleted Logs
+        </button>
       </div>
       {activeTab === 'companies' && (
         <>
@@ -739,6 +751,7 @@ const SuperAdminPanel: React.FC = () => {
       )}
 
       {activeTab === 'dataUsage' && <DataUsagePanel />}
+      {activeTab === 'deletedLogs' && <DeletedTaskLogsPanel companies={companies} />}
       {/* Create Company Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

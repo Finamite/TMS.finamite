@@ -8,6 +8,7 @@ import fs from 'fs';
 import dotenv from 'dotenv';
 import cron from "node-cron";
 import Task from "./models/Task.js";
+import { createTaskDeleteLogs } from "./services/taskDeleteLog.service.js";
 
 
 // Import routes
@@ -172,13 +173,42 @@ mongoose.connect(process.env.MONGO_URI, {
   .then(() => {
     console.log('✅ Connected to MongoDB');
 
-     cron.schedule("0 * * * *", async () => {
+    cron.schedule("0 * * * *", async () => {
       try {
         const now = new Date();
-        const result = await Task.deleteMany({
+        const cleanupQuery = {
           isActive: false,
           autoDeleteAt: { $lte: now }
-        });
+        };
+
+        const expiredTasks = await Task.find(cleanupQuery).lean();
+        if (expiredTasks.length > 0) {
+          const tasksByCompany = expiredTasks.reduce((map, task) => {
+            const key = task.companyId || 'unknown';
+            if (!map.has(key)) {
+              map.set(key, []);
+            }
+            map.get(key).push(task);
+            return map;
+          }, new Map());
+
+          for (const [companyId, tasks] of tasksByCompany.entries()) {
+            try {
+              await createTaskDeleteLogs({
+                tasks,
+                companyId: companyId === 'unknown' ? null : companyId,
+                deleteMode: 'permanent',
+                source: 'cron-cleanup',
+                deletedByName: 'System Cleanup',
+                deletedByRole: 'system'
+              });
+            } catch (logError) {
+              console.error('Failed to create cleanup delete logs:', logError);
+            }
+          }
+        }
+
+        const result = await Task.deleteMany(cleanupQuery);
 
         if (result.deletedCount > 0) {
           console.log(`🧹 Auto-cleanup: Deleted ${result.deletedCount} expired bin tasks`);
