@@ -412,9 +412,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
         {/* Navigation */}
         <nav
-          className="
+        className="
     flex-1
     overflow-y-auto
+    scrollbar-hide
     mt-4
     pb-24
   "

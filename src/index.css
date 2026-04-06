@@ -138,4 +138,13 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   animation: toastOut 200ms ease-in forwards;
 }
 
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 

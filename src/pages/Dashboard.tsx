@@ -7,7 +7,7 @@ import {
 import {
   CheckSquare, Clock, AlertTriangle, TrendingUp, Calendar,
   Target, Activity, CheckCircle, XCircle, Timer,
-  ChevronDown, Star, Zap, BarChart3,
+  ChevronDown, Star, Zap, BarChart3, Sparkles,
   PieChart as PieChartIcon, Users, RotateCcw, ClipboardCheck,
   MessageSquare,
   GitBranch
@@ -154,6 +154,16 @@ interface TeamPendingCounts {
 interface TeamPendingData {
   [username: string]: TeamPendingCounts;
 }
+
+interface TeamPerformanceItem {
+  username: string;
+  totalTasks: number;
+  completedTasks: number;
+  pendingTasks: number;
+  completionRate: number;
+  onTimeRate: number;
+  totalPerformanceRate: number;
+}
 // window.scrollTo({ top: scrollPosition, behavior: 'instant' });
 
 const Dashboard: React.FC = () => {
@@ -172,6 +182,7 @@ const Dashboard: React.FC = () => {
   const [showTeamMemberFilter, setShowTeamMemberFilter] = useState(false);
   const [memberTrendData, setMemberTrendData] = useState<any[]>([]);
   const [teamPendingData, setTeamPendingData] = useState<TeamPendingData>({});
+  const [teamPerformance, setTeamPerformance] = useState<TeamPerformanceItem[]>([]);
   const monthListRef = React.useRef<HTMLDivElement>(null);
   const [openSelector, setOpenSelector] = useState<string | null>(null);
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
@@ -545,6 +556,26 @@ const Dashboard: React.FC = () => {
     }
   }, [user?.id, user?.role]);
 
+  const fetchPerformanceAnalytics = useCallback(async (startDate?: string, endDate?: string) => {
+    try {
+      const params: any = {
+        userId: user?.id,
+        isAdmin: (user?.role === 'admin' || user?.role === 'manager') ? 'true' : 'false'
+      };
+
+      if (startDate && endDate) {
+        params.startDate = startDate;
+        params.endDate = endDate;
+      }
+
+      const response = await axios.get(`${address}/api/performance/analytics`, { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching performance analytics:', error);
+      return null;
+    }
+  }, [user?.id, user?.role]);
+
   // New function to fetch individual member trend data
   const fetchMemberTrendData = useCallback(async (memberUsername: string, startDate?: string, endDate?: string) => {
     try {
@@ -573,6 +604,7 @@ const Dashboard: React.FC = () => {
       try {
         let analyticsPromise;
         let countsPromise;
+        let performancePromise;
 
         if (viewMode === 'current') {
           // For current month view, use date filters
@@ -580,10 +612,12 @@ const Dashboard: React.FC = () => {
           const monthEnd = endOfMonth(selectedMonth);
           analyticsPromise = fetchDashboardAnalytics(monthStart.toISOString(), monthEnd.toISOString());
           countsPromise = fetchTaskCounts(monthStart.toISOString(), monthEnd.toISOString());
+          performancePromise = fetchPerformanceAnalytics(monthStart.toISOString(), monthEnd.toISOString());
         } else {
           // For all-time view, fetch without date filters
           analyticsPromise = fetchDashboardAnalytics();
           countsPromise = fetchTaskCounts();
+          performancePromise = fetchPerformanceAnalytics();
         }
 
         fetchTeamPendingTasks().then((teamPending) => {
@@ -592,18 +626,23 @@ const Dashboard: React.FC = () => {
           }
         }).catch(() => {});
 
-        const [analyticsData, countsData] = await Promise.all([
+        const [analyticsData, countsData, performanceData] = await Promise.all([
           analyticsPromise,
-          countsPromise
+          countsPromise,
+          performancePromise
         ]);
 
         if (!cancelled) {
           setDashboardData(analyticsData);
           setTaskCounts(countsData);
+          setTeamPerformance(performanceData?.teamPerformance || []);
         }
 
       } catch (error) {
         console.error('Error in loadData:', error);
+        if (!cancelled) {
+          setTeamPerformance([]);
+        }
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -618,7 +657,7 @@ const Dashboard: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [user, selectedMonth, viewMode, fetchDashboardAnalytics, fetchTaskCounts, fetchTeamPendingTasks]);
+  }, [user, selectedMonth, viewMode, fetchDashboardAnalytics, fetchTaskCounts, fetchTeamPendingTasks, fetchPerformanceAnalytics]);
 
   useEffect(() => {
     if (showMonthFilter && monthListRef.current) {
@@ -845,9 +884,9 @@ const Dashboard: React.FC = () => {
 
   // Get team members list for the dropdown
   const getTeamMembersList = () => {
-    if (!dashboardData?.teamPerformance || (user?.role !== 'admin' && user?.role === 'manager')) return [];
+    if ((user?.role !== 'admin' && user?.role !== 'manager') || !teamPerformance.length) return [];
 
-    return dashboardData.teamPerformance.map(member => ({
+    return teamPerformance.map(member => ({
       username: member.username,
       totalTasks: member.totalTasks,
       completionRate: member.totalTasks > 0 ? (member.completedTasks / member.totalTasks) * 100 : 0
@@ -855,850 +894,682 @@ const Dashboard: React.FC = () => {
   };
 
   const teamMembersList = getTeamMembersList();
+  const selectedTeamMemberData = teamPerformance.find((member) => member.username === selectedTeamMember);
+  const topTeamMembers = teamPerformance.slice(0, 4);
+
+  const cardStyle = {
+    backgroundColor: isDark ? 'rgba(15, 23, 42, 0.80)' : 'rgba(255, 255, 255, 0.92)',
+    borderColor: isDark ? 'rgba(148, 163, 184, 0.14)' : 'rgba(148, 163, 184, 0.18)',
+    boxShadow: isDark ? '0 28px 80px rgba(2, 6, 23, 0.32)' : '0 28px 80px rgba(15, 23, 42, 0.08)',
+    backdropFilter: 'blur(18px)'
+  };
+
+  const softCardStyle = {
+    backgroundColor: isDark ? 'rgba(15, 23, 42, 0.66)' : 'rgba(248, 250, 252, 0.95)',
+    borderColor: isDark ? 'rgba(148, 163, 184, 0.14)' : 'rgba(148, 163, 184, 0.18)',
+  };
+
+  const periodLabel =
+    viewMode === 'current'
+      ? (isSameMonth(selectedMonth, new Date()) && isSameYear(selectedMonth, new Date())
+          ? 'Current month'
+          : format(selectedMonth, 'MMMM yyyy'))
+      : 'All time';
+
+  const totalStatus = statusData.reduce((sum, item) => sum + item.value, 0);
+  const totalPlanned = trendData.reduce((sum, item) => sum + item.planned, 0);
+  const totalCompleted = trendData.reduce((sum, item) => sum + item.completed, 0);
+  const totalTaskTypes = taskTypeData.reduce((sum, item) => sum + item.value, 0);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--color-background)] flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-primary)] mx-auto mb-4"></div>
-          <p className="text-[var(--color-textSecondary)]">Loading dashboard...</p>
+      <div className="relative min-h-full overflow-hidden bg-[var(--color-background)] px-4 py-6 sm:px-6 lg:px-8">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute -top-24 right-0 h-80 w-80 rounded-full bg-cyan-500/10 blur-3xl" />
+          <div className="absolute left-0 top-1/3 h-96 w-96 rounded-full bg-indigo-500/10 blur-3xl" />
+        </div>
+        <div className="relative z-10 space-y-6">
+          <div className="h-56 animate-pulse rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)]/70" />
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div
+                key={index}
+                className="h-36 animate-pulse rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/70"
+              />
+            ))}
+          </div>
+          <div className="grid gap-6 xl:grid-cols-[1.45fr_0.95fr]">
+            <div className="space-y-6">
+              <div className="h-[420px] animate-pulse rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/70" />
+              <div className="h-[300px] animate-pulse rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/70" />
+            </div>
+            <div className="space-y-6">
+              <div className="h-[320px] animate-pulse rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/70" />
+              <div className="h-[400px] animate-pulse rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/70" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!dashboardData || !taskCounts) {
+    return (
+      <div className="relative min-h-full overflow-hidden bg-[var(--color-background)] px-4 py-6 sm:px-6 lg:px-8">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute -top-24 right-0 h-80 w-80 rounded-full bg-cyan-500/10 blur-3xl" />
+          <div className="absolute left-0 top-1/3 h-96 w-96 rounded-full bg-indigo-500/10 blur-3xl" />
+        </div>
+        <div className="relative z-10 rounded-[32px] border px-6 py-10 text-center" style={cardStyle}>
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+            <BarChart3 size={28} className="text-[var(--color-primary)]" />
+          </div>
+          <h1 className="text-2xl font-semibold text-[var(--color-text)]">Dashboard unavailable</h1>
+          <p className="mx-auto mt-3 max-w-xl text-sm text-[var(--color-textSecondary)]">
+            We could not load the live dashboard data right now. Please refresh the page or try again in a moment.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate('/master-tasks')}
+            className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-[var(--color-primary)] px-5 py-3 text-sm font-semibold text-white transition hover:translate-y-[-1px]"
+          >
+            Open tasks
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-full bg-[var(--color-background)] p-4 space-y-6 transition-all duration-300 ease-out sm:p-6 lg:p-8 [contain:layout_paint]">
-      {/* Professional Header */}
-      <div className="relative flex flex-col gap-4 xl:flex-row xl:items-center">
-        <div className="flex items-center space-x-6">
-          <div className="p-3 rounded-xl shadow-xl" style={{ background: `linear-gradient(135deg,  #6a11cb 0%, #2575fc 100%)` }}>
-            <BarChart3 size={20} className="text-white" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-[var(--color-text)] mb-2">
-              Analytics Dashboard
-            </h1>
-            <p className="text-xs text-[var(--color-textSecondary)]">
-              Welcome back, <span className="font-bold text-[var(--color-text)]">{user?.username}</span>!
-              {(user?.role === 'admin' || user?.role === 'manager') ? ' Team performance overview' : ' Here\'s your performance overview'}
-            </p>
-          </div>
-        </div>
+    <div className="relative min-h-full overflow-hidden bg-[var(--color-background)] px-4 py-6 sm:px-6 lg:px-8">
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute -top-24 right-0 h-80 w-80 rounded-full bg-cyan-500/10 blur-3xl" />
+        <div className="absolute left-0 top-1/3 h-96 w-96 rounded-full bg-indigo-500/10 blur-3xl" />
+        <div
+          className="absolute inset-0 opacity-[0.05]"
+          style={{
+            backgroundImage: isDark
+              ? 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.85) 1px, transparent 0)'
+              : 'radial-gradient(circle at 1px 1px, rgba(15,23,42,0.85) 1px, transparent 0)',
+            backgroundSize: '28px 28px'
+          }}
+        />
+      </div>
 
-        {(user?.role === 'admin' || user?.role === 'manager') && (
-          <div
-            className="relative flex w-full items-center gap-2.5 rounded-[20px] border px-3 py-2 shadow-sm xl:absolute xl:left-1/2 xl:top-1/2 xl:w-auto xl:min-w-[420px] xl:max-w-[580px] xl:-translate-x-1/2 xl:-translate-y-1/2"
-            style={{
-              backgroundColor: isDark ? 'rgba(15, 23, 42, 0.72)' : 'rgba(236, 253, 245, 0.96)',
-              borderColor: isDark ? 'rgba(74, 222, 128, 0.30)' : 'rgba(74, 222, 128, 0.28)',
-              boxShadow: isDark ? '0 10px 30px rgba(15, 23, 42, 0.22)' : '0 10px 28px rgba(34, 197, 94, 0.10)',
-              transformOrigin: 'center'
-            }}
-          >
-            <span
-              aria-hidden="true"
-              className="pointer-events-none absolute -inset-1 rounded-[26px] border animate-pulse"
-              style={{
-                borderColor: 'rgba(74, 222, 128, 0.22)',
-                opacity: 0.65
-              }}
-            />
-            <span
-              aria-hidden="true"
-              className="pointer-events-none absolute -inset-2 rounded-[28px] border animate-pulse"
-              style={{
-                borderColor: 'rgba(74, 222, 128, 0.12)',
-                animationDelay: '700ms',
-                opacity: 0.35
-              }}
-            />
-            <div
-              className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border"
-              style={{
-                backgroundColor: isDark ? 'rgba(34, 197, 94, 0.16)' : 'rgba(34, 197, 94, 0.12)',
-                borderColor: isDark ? 'rgba(74, 222, 128, 0.25)' : 'rgba(74, 222, 128, 0.30)',
-                color: 'var(--color-success)',
-                boxShadow: '0 0 0 0 rgba(34, 197, 94, 0.45)'
-              }}
-            >
-              <MessageSquare size={16} />
-              <span
-                className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full animate-pulse"
-                style={{ backgroundColor: 'var(--color-success)' }}
-              />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm font-semibold leading-5" style={{ color: 'var(--color-text)' }}>
-                  WhatsApp integration is live now
-                </p>
-                <span
-                  className="rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide mr-6 animate-pulse"
-                  style={{
-                    borderColor: 'rgba(74, 222, 128, 0.26)',
-                    backgroundColor: isDark ? 'rgba(34, 197, 94, 0.12)' : 'rgba(34, 197, 94, 0.08)',
-                    color: 'var(--color-success)'
-                  }}
-                >
-                  Live
+      <div className="relative z-10 space-y-6">
+        <section className="rounded-[28px] border px-5 py-4 sm:px-6 sm:py-5 lg:px-7 lg:py-6" style={cardStyle}>
+          <div className="grid gap-4 xl:grid-cols-[1.3fr_0.7fr] xl:items-start">
+            <div className="max-w-3xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--color-textSecondary)]">
+                <Sparkles size={12} />
+                Command center
+              </div>
+              <h1 className="mt-3 text-3xl font-semibold tracking-tight text-[var(--color-text)] sm:text-[2rem]">
+                Welcome back, {user?.username || 'there'}
+              </h1>
+              {/* <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--color-textSecondary)] sm:text-[15px]">
+                A cleaner snapshot of your workload, live activity, and delivery rhythm, rebuilt as a modern SaaS dashboard.
+              </p> */}
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)]/75 px-3 py-1.5 text-xs font-semibold text-[var(--color-text)]">
+                  <Calendar size={14} />
+                  {periodLabel}
                 </span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)]/75 px-3 py-1.5 text-xs font-semibold text-[var(--color-text)]">
+                  <Users size={14} />
+                  {user?.role || 'user'}
+                </span>
+                {whatsappIntegrationStatus.live && (
+                  <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600">
+                    <MessageSquare size={14} />
+                    WhatsApp live
+                  </span>
+                )}
               </div>
             </div>
-            <button
-              type="button"
-              onClick={openIntegrationsPage}
-              className="shrink-0 rounded-xl border px-3.5 py-1.5 text-xs font-semibold transition hover:-translate-y-0.5"
-              style={{
-                borderColor: 'rgba(74, 222, 128, 0.26)',
-                backgroundColor: isDark ? 'rgba(34, 197, 94, 0.12)' : 'rgba(255,255,255,0.9)',
-                color: 'var(--color-text)'
-              }}
-            >
-              Open Integrations
-            </button>
-          </div>
-        )}
 
-        <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4 w-full sm:w-auto xl:ml-auto"> {/* Adjusted for mobile stacking */}
-          {/* View Mode Toggle */}
-          <ThemeCard className="p-1 w-full sm:w-auto" variant="bordered" hover={false}> {/* Full width on mobile */}
-            <div className="flex items-center justify-center"> {/* Centered buttons on mobile */}
-              <button
-                onClick={() => {
-                  setViewMode('current');
-                  setSelectedMonth(new Date());
-                }}
-                className={`px-2 py-2 rounded-xl text-xs font-semibold transition-all duration-200 w-1/2 sm:w-auto ${ /* Half width on mobile */
-                  viewMode === 'current'
-                    ? 'bg-[#3a2ee2ff]  text-white shadow-md'
-                    : 'text-[var(--color-textSecondary)] hover:text-[var(--color-text)]'
-                  }`}
-              >
-                Current Month
-              </button>
-              <button
-                onClick={() => setViewMode('all-time')}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-200 w-1/2 sm:w-auto ${ /* Half width on mobile */
-                  viewMode === 'all-time'
-                    ? 'bg-[#3a2ee2ff] text-white shadow-md'
-                    : 'text-[var(--color-textSecondary)] hover:text-[var(--color-text)]'
-                  }`}
-              >
-                All Time
-              </button>
-            </div>
-          </ThemeCard>
+            <div className="rounded-[24px] border p-3 sm:p-4" style={softCardStyle}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
+                  Quick filters
+                </p>
+                <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-textSecondary)]">
+                  <Calendar size={13} />
+                  {periodLabel}
+                </div>
+              </div>
 
-          {/* Month Filter - Visible only in 'current' view mode */}
-          {viewMode === 'current' && (
-            <div className="relative z-10 w-full sm:w-auto"> {/* Full width on mobile */}
-              <button
-                onClick={() => setShowMonthFilter(!showMonthFilter)}
-                className="flex items-center justify-center px-2 py-2 bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] shadow-lg hover:shadow-xl transition-all duration-200 text-[var(--color-text)] font-md w-full" /* Full width on mobile, centered content */
-              >
-                <Calendar size={16} className="mr-3" />
-                <span>
-                  {isSameMonth(selectedMonth, new Date()) && isSameYear(selectedMonth, new Date())
-                    ? 'Current Month'
-                    : format(selectedMonth, 'MMMM yyyy')}
-                </span>
-                <ChevronDown size={16} className="ml-3" />
-              </button>
-              {showMonthFilter && (
-                <div className="absolute left-0 right-0 top-full mt-2 w-full sm:w-52 z-20"> {/* Adjusted for full width on mobile, right-0 added for better positioning */}
-                  <ThemeCard className="p-3 max-h-80 overflow-y-auto" variant="elevated" hover={false}>
-                    <div ref={monthListRef} className="space-y-2">
-                      {monthOptions.map((date, index) => {
-                        const isSelected = format(date, 'yyyy-MM') === format(selectedMonth, 'yyyy-MM');
-                        const isCurrent = isThisMonth(date);
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewMode('current');
+                    setSelectedMonth(new Date());
+                  }}
+                  className={`inline-flex h-10 items-center rounded-full px-4 text-sm font-semibold transition ${
+                    viewMode === 'current'
+                      ? 'bg-[var(--color-primary)] text-white shadow-lg'
+                      : 'border border-[var(--color-border)] text-[var(--color-textSecondary)] hover:text-[var(--color-text)]'
+                  }`}
+                >
+                  Current month
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('all-time')}
+                  className={`inline-flex h-10 items-center rounded-full px-4 text-sm font-semibold transition ${
+                    viewMode === 'all-time'
+                      ? 'bg-[var(--color-primary)] text-white shadow-lg'
+                      : 'border border-[var(--color-border)] text-[var(--color-textSecondary)] hover:text-[var(--color-text)]'
+                  }`}
+                >
+                  All time
+                </button>
+
+                {viewMode === 'current' && (
+                  <label className="inline-flex h-10 min-w-[220px] flex-1 items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)]/80 px-4 text-sm text-[var(--color-text)] shadow-sm">
+                    <Calendar size={15} className="shrink-0 text-[var(--color-textSecondary)]" />
+                    <select
+                      value={format(selectedMonth, 'yyyy-MM')}
+                      onChange={(event) => setSelectedMonth(new Date(`${event.target.value}-01T00:00:00`))}
+                      className="min-w-0 flex-1 bg-transparent outline-none"
+                    >
+                      {monthOptions.map((date) => {
+                        const key = format(date, 'yyyy-MM');
                         return (
-                          <button
-                            key={index}
-                            onClick={() => {
-                              setSelectedMonth(date);
-                              setShowMonthFilter(false);
-                            }}
-                            className={`w-full text-left px-2 py-3 rounded-xl transition-all duration-200 ${isSelected
-                              ? 'selected-month bg-[#3a2ee2ff] text-white shadow-lg'
-                              : 'hover:bg-[var(--color-border)] text-[var(--color-text)]'
-                              }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="font-semibold">{format(date, 'MMMM yyyy')}</span>
-                              <div className="flex items-center space-x-0">
-                                {isCurrent && (
-                                  <div className="w-2 h-2 bg-[var(--color-success)] rounded-full"></div>
-                                )}
-                              </div>
-                            </div>
-                          </button>
+                          <option key={key} value={key}>
+                            {format(date, 'MMMM yyyy')}
+                          </option>
                         );
                       })}
-                    </div>
-                  </ThemeCard>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+                    </select>
+                    <ChevronDown size={14} className="shrink-0 text-[var(--color-textSecondary)]" />
+                  </label>
+                )}
 
-      {/* Main Metrics Grid with Real Trends */}
-      <div
-        className={`
-    grid grid-cols-1
-    sm:grid-cols-2
-    md:grid-cols-3
-    lg:grid-cols-4
-    ${gridColsClass}
-    gap-4 sm:gap-6 lg:gap-8
-    p-4 sm:p-2 lg:p-4
-    transition-all duration-300 ease-out
-  `}
-      >
-        <MetricCard
-          icon={<CheckSquare size={24} className="text-green-600" />}
-          title="Total Tasks"
-          slug="total"
-          value={displayData?.totalTasks || 0}
-          valueColor="#1f8825ff"
-          subtitle={
-            viewMode === 'current' && isSameMonth(selectedMonth, new Date()) && isSameYear(selectedMonth, new Date())
-              ? 'Current Month'
-              : viewMode === 'current'
-                ? format(selectedMonth, 'MMMM yyyy')
-                : 'All time'
-          }
-        />
-
-        <MetricCard
-          icon={<Clock size={24} className="text-cyan-500" />}
-          title="Pending"
-          slug="pending"
-          value={displayData?.pendingTasks || 0}
-          valueColor="#04b9ddff"
-          subtitle="Awaiting completion"
-        />
-
-        <MetricCard
-          icon={<CheckCircle size={24} className="text-blue-500" />}
-          title="Completed"
-          slug="completed"
-          value={displayData?.completedTasks || 0}
-          valueColor="#5b88dbff"
-          subtitle="Successfully finished"
-        />
-
-        <MetricCard
-          icon={<AlertTriangle size={24} className="text-red-500" />}
-          title="Overdue"
-          slug="overdue"
-          value={displayData?.overdueTasks || 0}
-          valueColor="#ef4444"
-          subtitle={`${displayData?.overduePercentage?.toFixed(1)}% of total`}
-        />
-
-        {adminApprovalEnabled && user && (
-          <MetricCard
-            icon={<ClipboardCheck size={24} className="text-purple-600" />}
-            title="Approval Due"
-            value={pendingApprovalCount}
-            valueColor="#7c3aed"
-            subtitle="Tasks waiting for approval"
-            onClick={
-              canOpenApprovalPage
-                ? () => navigate('/for-approval')
-                : undefined
-            }
-          />
-        )}
-
-        {pcmDashboardEnabled && (
-          <MetricCard
-            icon={<GitBranch size={24} className="text-indigo-600" />}
-            title="PCM Pending"
-            value={pcmSteps.length}
-            valueColor="#4f46e5"
-            subtitle={pcmBillingBlocked ? "Billing pending" : "Steps synced from PCM"}
-          />
-        )}
-      </div>
-
-
-      {/* Task Type Distribution - Now includes quarterly and updated to 6 columns */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5 lg:gap-6 p-4 sm:p-2 lg:p-4 transition-all duration-300 ease-out">
-        {taskTypeData.map((type) => (
-          <MetricCard
-            key={type.name}
-            icon={
-              type.name === 'One-time' ? <Target size={18} className="text-blue-600" /> :
-                type.name === 'Daily' ? <Zap size={18} className="text-yellow-500" /> :
-                  type.name === 'Weekly' ? <Calendar size={18} className="text-green-500" /> :
-                    type.name === 'Monthly' ? <Timer size={18} className="text-purple-500" /> :
-                      type.name === 'Quarterly' ? <RotateCcw size={18} className="text-orange-500" /> :
-                        <Star size={18} className="text-gray-500" />
-            }
-            title={type.name}
-            value={type.value}
-            subtitle={`${((type.value / (displayData?.totalTasks || 1)) * 100).toFixed(1)}% of total`}
-            percentage={(type.value / (displayData?.totalTasks || 1)) * 100}
-            pendingValue={type.pending}
-            completedValue={type.completed}
-          />
-        ))}
-      </div>
-
-      {/* Enhanced Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-10 gap-8 transition-all duration-300 ease-out">
-        {/* Task Status Distribution - Enhanced Pie Chart */}
-        <ThemeCard className="p-4 sm:p-8 lg:col-span-3" variant="glass">
-          <div>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-2">
-              <div className="flex items-center space-x-3">
-                <div className="p-3 rounded-2xl text-white" style={{ background: `linear-gradient(135deg,  #6a11cb 0%, #2575fc 100%)` }}>
-                  <PieChartIcon size={20} />
-                </div>
-                <div>
-                  <h3 className="text-lg sm:text-xl font-bold text-[var(--color-text)]">
-                    {(user?.role === 'admin' || user?.role === 'manager') ? 'Team Task Status' : 'Your Task Status'}
-                  </h3>
-                  <p className="text-xs text-[var(--color-textSecondary)]">
-                    {(user?.role === 'admin' || user?.role === 'manager') ? 'Team distribution' : 'Your current distribution'}
-                  </p>
-                </div>
+                {/* <span className="inline-flex h-10 items-center rounded-full border border-[var(--color-border)] px-3 text-xs font-medium text-[var(--color-textSecondary)]">
+                  Team: {selectedTeamMember === 'all' ? 'All members' : selectedTeamMember}
+                </span>
+                <span className="inline-flex h-10 items-center rounded-full border border-[var(--color-border)] px-3 text-xs font-medium text-[var(--color-textSecondary)]">
+                  Updates: {dashboardData.recentActivity.length}
+                </span> */}
               </div>
-              <div className="text-sm px-3 py-1.5 rounded-full font-bold whitespace-nowrap" style={{ backgroundColor: 'var(--color-primary)20', color: 'var(--color-primary)' }}>
-                {statusData.reduce((sum, item) => sum + item.value, 0)} Total
-              </div>
-            </div>
-
-            {/* Professional Pie Chart */}
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <defs>
-                  {/* Pending - Professional Amber */}
-                  <linearGradient id="statusGrad-0" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#00d4ff" stopOpacity={1} />
-                    <stop offset="100%" stopColor="#a940f0ff" stopOpacity={1} />
-                  </linearGradient>
-
-                  {/* In Progress - Professional Blue */}
-                  <linearGradient id="statusGrad-1" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#A940F0" stopOpacity={1} />
-                    <stop offset="100%" stopColor="#FF4FD3" stopOpacity={1} />
-                  </linearGradient>
-
-                  {/* Completed - Professional Green */}
-                  <linearGradient id="statusGrad-2" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#7a36e9ff" stopOpacity={1} />
-                    <stop offset="100%" stopColor="#592ca1ff" stopOpacity={1} />
-                  </linearGradient>
-
-                  <linearGradient id="statusGrad-3" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#2f9ad8ff" stopOpacity={1} />
-                    <stop offset="100%" stopColor="#10718aff" stopOpacity={1} />
-                  </linearGradient>
-
-                  {/* Subtle Shadow */}
-                  <filter id="subtleShadow">
-                    <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.2" />
-                  </filter>
-                </defs>
-
-                <Pie
-                  data={statusData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-                    const RADIAN = Math.PI / 180;
-                    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-                    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                    const y = cy + radius * Math.sin(-midAngle * RADIAN);
-
-                    return (
-                      <text
-                        x={x}
-                        y={y}
-                        fill="white"
-                        textAnchor="middle"
-                        dominantBaseline="central"
-                        style={{
-                          fontSize: window.innerWidth > 640 ? '15px' : '13px',
-                          fontWeight: '700',
-                          textShadow: '0 1px 3px rgba(0,0,0,0.3)'
-                        }}
-                      >
-                        {`${(percent * 100).toFixed(0)}%`}
-                      </text>
-                    );
-                  }}
-                  outerRadius={window.innerWidth > 640 ? 125 : 95}
-                  innerRadius={window.innerWidth > 640 ? 75 : 55}
-                  dataKey="value"
-                  stroke="var(--color-background)"
-                  strokeWidth={3}
-                  paddingAngle={2}
-                  animationBegin={0}
-                  animationDuration={800}
-                  style={{ filter: 'url(#subtleShadow)' }}
-                >
-                  {statusData.map((_, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={`url(#statusGrad-${index})`}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
-
-            {/* Clean, Professional Legend */}
-            <div className="mt-2 flex flex-wrap justify-center gap-1">
-              {statusData.map((entry, index) => {
-                const colors = [
-                  { primary: '#516ff8ff', light: '#FEF3C7' },
-                  { primary: '#c13bf6ff', light: '#DBEAFE' },
-                  { primary: '#916fc7ff', light: '#D1FAE5' },
-                  { primary: '#49b2ccff', light: '#D1FAE5' },
-                ];
-
-                const percentage = ((entry.value / statusData.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(0);
-
-                return (
-                  <div
-                    key={index}
-                    className="flex items-center space-x-3 px-3 py-1 rounded-lg transition-all duration-200 hover:scale-105"
-
-                  >
-                    <div
-                      className="w-2 h-2 rounded-full"
-                      style={{ backgroundColor: colors[index].primary }}
-                    ></div>
-                    <span className="text-sm font-semibold text-[var(--color-text)]">
-                      {entry.name}
-                    </span>
-                    <span
-                      className="text-lg font-bold ml-2"
-                      style={{ color: colors[index].primary }}
-                    >
-                      {entry.value}
-                    </span>
-                    <span className="text-xs font-medium text-[var(--color-text)]">
-                      ({percentage}%)
-                    </span>
-                  </div>
-                );
-              })}
             </div>
           </div>
-        </ThemeCard>
+        </section>
 
-        {/* Task Type Breakdown - Enhanced Bar Chart */}
-        <ThemeCard className="p-6 sm:p-8 lg:col-span-7" variant="glass">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-3">
-            <div className="flex items-center space-x-3">
-              <div
-                className="p-3 rounded-2xl text-white"
-                style={{ background: `linear-gradient(135deg,  #6a11cb 0%, #2575fc 100%)` }}
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            {
+              label: 'Total tasks',
+              value: taskCounts.totalTasks,
+              icon: <CheckSquare size={20} />,
+              key: 'total' as const,
+              onClick: () => navigate('/master-tasks')
+            },
+            {
+              label: 'Pending',
+              value: taskCounts.pendingTasks,
+              icon: <Clock size={20} />,
+              key: 'pending' as const,
+              onClick: () => navigate('/pending-tasks')
+            },
+            {
+              label: 'Completed',
+              value: taskCounts.completedTasks,
+              icon: <CheckCircle size={20} />,
+              key: 'completed' as const,
+              onClick: () => navigate('/master-tasks')
+            },
+            {
+              label: 'Overdue',
+              value: taskCounts.overdueTasks,
+              icon: <AlertTriangle size={20} />,
+              key: 'overdue' as const,
+              onClick: () => navigate('/pending-tasks')
+            }
+          ].map((item) => {
+            const color = item.key === 'total' ? '#3b82f6' : item.key === 'pending' ? '#f59e0b' : item.key === 'completed' ? '#10b981' : '#ef4444';
+            const toneBg = `${color}18`;
+            const trendKey = item.key === 'total' ? taskCounts.trends?.totalTasks : item.key === 'pending' ? taskCounts.trends?.pendingTasks : item.key === 'completed' ? taskCounts.trends?.completedTasks : taskCounts.trends?.overdueTasks;
+            const trendGood = item.key === 'pending' || item.key === 'overdue' ? trendKey?.direction === 'down' : trendKey?.direction === 'up';
+            return (
+              <button
+                key={item.label}
+                type="button"
+                onClick={item.onClick}
+                className="rounded-[28px] border p-5 text-left transition hover:-translate-y-0.5 hover:border-[var(--color-primary)]/30"
+                style={cardStyle}
               >
-                <BarChart3 size={22} />
-              </div>
-              <div>
-                <h3 className="text-lg sm:text-xl font-bold text-[var(--color-text)]">
-                  {(user?.role === 'admin' || user?.role === 'manager')
-                    ? 'Team Pending Tasks'
-                    : 'Your Pending Tasks'}
-                </h3>
-                <p className="text-xs text-[var(--color-textSecondary)]">
-                  {(user?.role === 'admin' || user?.role === 'manager')
-                    ? 'A quick view of each team member’s today pending and overdue tasks.'
-                    : 'A quick view of your today pending and overdue tasks.'}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {user && (
-            <TeamPendingTasksChart
-              teamPendingData={memoTeamPendingData}
-              user={user}
-            />
-          )}
-        </ThemeCard>
-
-
-      </div>
-      {/* Enhanced Completion Trend and Recent Activity - Split 7:3 for non-admin users */}
-      <div className={`grid grid-cols-1 gap-8 xl:grid-cols-10 transition-all duration-300 ease-out`}>
-        {/* Completion Trend */}
-        <ThemeCard className="p-4 sm:p-8 xl:col-span-7" variant="glass">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <div className="p-4 rounded-3xl text-white" style={{ background: `linear-gradient(135deg, #6a11cb 0%, #2575fc 100%)` }}>
-                  <TrendingUp size={24} />
-                </div>
-              </div>
-              <div>
-                <h3 className="text-lg sm:text-xl font-bold text-[var(--color-text)] mb-1">
-                  {(user?.role === 'admin' || user?.role === 'manager') ? 'Team Completion Trend' : 'Your Completion Trend'}
-                </h3>
-                <p className="text-xs text-[var(--color-textSecondary)]">
-                  {(user?.role === 'admin' || user?.role === 'manager') ? 'Team performance insights over the last 6 months' : 'Your performance insights over the last 6 months'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
-              {(user?.role === 'admin' || user?.role === 'manager') && teamMembersList.length > 0 && (
-                <div className="relative z-10 w-full sm:w-auto">
-                  <button
-                    onClick={() => setShowTeamMemberFilter(!showTeamMemberFilter)}
-                    className="flex items-center justify-center px-4 py-2 bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] shadow-lg hover:shadow-xl transition-all duration-200 text-[var(--color-text)] font-semibold w-full"
-                  >
-                    <Users size={16} className="mr-2" />
-                    <span>
-                      {selectedTeamMember === 'all' ? 'All Team' : selectedTeamMember}
-                    </span>
-                    <ChevronDown size={16} className="ml-2" />
-                  </button>
-                  {showTeamMemberFilter && (
-                    <div className="absolute left-0 right-0 top-full mt-2 w-full sm:w-64 z-20">
-                      <ThemeCard className="p-3 max-h-80 overflow-y-auto" variant="elevated" hover={false}>
-                        <div ref={monthListRef} className="space-y-2">
-                          <button
-                            onClick={() => {
-                              setSelectedTeamMember('all');
-                              setShowTeamMemberFilter(false);
-                            }}
-                            className={`w-full text-left px-3 py-3 rounded-xl transition-all duration-200 ${selectedTeamMember === 'all'
-                              ? 'bg-[var(--color-primary)] text-white shadow-lg'
-                              : 'hover:bg-[var(--color-border)] text-[var(--color-text)]'
-                              }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3">
-                                <div className="w-8 h-8 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
-                                  <Users size={16} />
-                                </div>
-                                <div>
-                                  <span className="font-semibold">All Team</span>
-                                  <p className="text-xs opacity-75">Overall team data</p>
-                                </div>
-                              </div>
-                            </div>
-                          </button>
-                          {teamMembersList.map((member, index) => (
-                            <button
-                              key={member.username}
-                              onClick={() => {
-                                setSelectedTeamMember(member.username);
-                                setShowTeamMemberFilter(false);
-                              }}
-                              className={`w-full text-left px-3 py-3 rounded-xl transition-all duration-200 ${selectedTeamMember === member.username
-                                ? 'bg-[var(--color-primary)] text-white shadow-lg'
-                                : 'hover:bg-[var(--color-border)] text-[var(--color-text)]'
-                                }`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-3">
-                                  <div className="w-8 h-8 rounded-xl bg-gradient-to-r from-blue-400 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
-                                    {member.username.charAt(0).toUpperCase()}
-                                  </div>
-                                  <div>
-                                    <span className="font-semibold">{member.username}</span>
-                                    <p className="text-xs opacity-75">{member.totalTasks} tasks {member.completionRate.toFixed(1)}% completion</p>
-                                  </div>
-                                </div>
-                                <div className="text-right">
-                                  <div className="text-sm font-bold opacity-75">{index + 1}</div>
-                                </div>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </ThemeCard>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl" style={{ backgroundColor: toneBg, color }}>
+                      {item.icon}
                     </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">{item.label}</p>
+                      <p className="mt-2 text-3xl font-semibold text-[var(--color-text)]">{item.value}</p>
+                    </div>
+                  </div>
+                  {trendKey && (
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${trendGood ? 'bg-emerald-500/10 text-emerald-600' : 'bg-rose-500/10 text-rose-600'}`}>
+                      {trendKey.direction === 'up' ? <TrendingUp size={12} /> : <TrendingUp size={12} className="rotate-180" />}
+                      {trendKey.direction === 'up' ? '+' : '-'}{trendKey.value}%
+                    </span>
                   )}
                 </div>
-              )}
+                <p className="mt-4 text-sm text-[var(--color-textSecondary)]">
+                  {item.key === 'total' && 'All active work items in the selected scope'}
+                  {item.key === 'pending' && 'Tasks waiting for action'}
+                  {item.key === 'completed' && 'Tasks delivered successfully'}
+                  {item.key === 'overdue' && `${taskCounts.overduePercentage.toFixed(1)}% of active tasks`}
+                </p>
+              </button>
+            );
+          })}
+        </section>
 
-              <div className="flex items-center justify-around sm:justify-between flex-wrap gap-2 sm:gap-6 bg-[var(--color-surface)]/50 backdrop-blur-sm rounded-2xl p-3 sm:p-4 border border-[var(--color-border)] w-full sm:w-auto">
-                <div className="flex items-center space-x-2 sm:space-x-3">
-                  <div className="relative">
-                    <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full shadow-lg" style={{ background: `linear-gradient(135deg, #6a11cb 0%, #2575fc 100%)` }}></div>
-                    <div className="absolute inset-0 w-3 h-3 sm:w-4 sm:h-4 rounded-full animate-pulse opacity-50" style={{ background: `linear-gradient(135deg, var(--color-success), var(--color-primary))` }}></div>
+        <div className="grid gap-6 xl:grid-cols-[1.18fr_0.82fr] xl:items-start">
+          <div className="space-y-6">
+            <section className="rounded-[28px] border p-5 sm:p-6" style={cardStyle}>
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] px-3 py-1 text-xs font-semibold text-[var(--color-textSecondary)]">
+                    <TrendingUp size={12} />
+                    Delivery curve
                   </div>
-                  <span className="text-xs sm:text-sm font-semibold text-[var(--color-text)]">Completed</span>
-                  <div className="text-base sm:text-lg font-bold" style={{ color: '#5598fcff' }}>
-                    {trendData.reduce((sum, item) => sum + item.completed, 0)}
-                  </div>
+                  <h2 className="mt-3 text-2xl font-semibold text-[var(--color-text)]">Planned vs completed</h2>
+                  <p className="mt-2 text-sm text-[var(--color-textSecondary)]">Six-month momentum view for the selected period.</p>
                 </div>
-                <div className="w-px h-6 sm:h-8 bg-[var(--color-border)]"></div>
-                <div className="flex items-center space-x-2 sm:space-x-3">
-                  <div className="relative">
-                    <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full shadow-lg" style={{ background: `linear-gradient(135deg, #6a11cb 0%, #22dcf5ff 100%)` }}></div>
-                    <div className="absolute inset-0 w-3 h-3 sm:w-4 sm:h-4 rounded-full animate-pulse opacity-50" style={{ background: `linear-gradient(135deg, #40d5daff 0%, #22dcf5ff 100%)` }}></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/75 px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Completed</p>
+                    <p className="mt-2 text-2xl font-semibold text-[var(--color-text)]">{totalCompleted}</p>
                   </div>
-                  <span className="text-xs sm:text-sm font-semibold text-[var(--color-text)]">Planned</span>
-                  <div className="text-base sm:text-lg font-bold" style={{ color: '#04b9ddff' }}>
-                    {trendData.reduce((sum, item) => sum + item.planned, 0)}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {
-            (user?.role === 'admin' || user?.role === 'manager') && selectedTeamMember !== 'all' && (
-              <div className="mb-6 p-4 rounded-2xl border border-[var(--color-primary)]/30" style={{ backgroundColor: 'var(--color-primary)05' }}>
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-r from-blue-400 to-purple-600 flex items-center justify-center text-white font-bold">
-                    {selectedTeamMember.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-bold text-[var(--color-text)]">
-                      {selectedTeamMember}'s Performance Trend
-                    </h4>
-                    <p className="text-sm text-[var(--color-textSecondary)]">
-                      Showing individual completion data for {selectedTeamMember}
-                    </p>
+                  <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/75 px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Planned</p>
+                    <p className="mt-2 text-2xl font-semibold text-[var(--color-text)]">{totalPlanned}</p>
                   </div>
                 </div>
               </div>
-            )
-          }
-
-          <div className="relative">
-            <ResponsiveContainer width="100%" height={470}>
-              <AreaChart
-                data={trendData}
-                margin={{ top: 40, right: 20, left: 0, bottom: 20 }}
-              >
-                <defs>
-                  {/* COMPLETED AREA GRADIENT */}
-                  <linearGradient id="completedArea" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#1614b1ff" stopOpacity={0.55} />
-                    <stop offset="95%" stopColor="#1614b1ff" stopOpacity={0.05} />
-                  </linearGradient>
-
-                  {/* COMPLETED STROKE GRADIENT */}
-                  <linearGradient id="completedStroke" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#1614b1ff" />
-                    <stop offset="100%" stopColor="#182fb1ff" />
-                  </linearGradient>
-
-                  {/* PLANNED AREA GRADIENT */}
-                  <linearGradient id="plannedArea" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#00d4ff" stopOpacity={0.55} />
-                    <stop offset="95%" stopColor="#00d4ff" stopOpacity={0.05} />
-                  </linearGradient>
-
-                  {/* PLANNED STROKE GRADIENT */}
-                  <linearGradient id="plannedStroke" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#00d4ff" />
-                    <stop offset="100%" stopColor="#04b9ddff" />
-                  </linearGradient>
-
-                  {/* Soft Glow Effect */}
-                  <filter id="chartGlow">
-                    <feGaussianBlur stdDeviation="6" result="blur" />
-                    <feMerge>
-                      <feMergeNode in="blur" />
-                      <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                  </filter>
-                </defs>
-
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="var(--color-border)"
-                  opacity={0.35}
-                  vertical={false}
-                />
-
-                <XAxis
-                  dataKey="month"
-                  stroke="var(--color-textSecondary)"
-                  fontSize={12}
-                  fontWeight={600}
-                  tickLine={false}
-                  axisLine={false}
-                  dy={10}
-                />
-
-                <YAxis
-                  stroke="var(--color-textSecondary)"
-                  fontSize={12}
-                  fontWeight={600}
-                  tickLine={false}
-                  axisLine={false}
-                  dx={-5}
-                />
-
-                {/* Modern Glass Tooltip */}
-                <Tooltip
-                  content={({ active, payload, label }) => {
-                    if (active && payload && payload.length) {
+              <div className="mt-5 h-[340px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="plannedFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.35} />
+                        <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.02} />
+                      </linearGradient>
+                      <linearGradient id="completedFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10b981" stopOpacity={0.35} />
+                        <stop offset="100%" stopColor="#10b981" stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="4 4" stroke="var(--color-border)" vertical={false} />
+                    <XAxis dataKey="month" tickLine={false} axisLine={false} stroke="var(--color-textSecondary)" fontSize={12} />
+                    <YAxis tickLine={false} axisLine={false} stroke="var(--color-textSecondary)" fontSize={12} />
+                    <Tooltip content={({ active, payload, label }) => {
+                      if (!active || !payload || !payload.length) return null;
                       return (
-                        <div className="backdrop-blur-xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-2xl rounded-2xl p-4">
-                          <p className="text-sm font-bold text-[var(--color-text)] mb-2">
-                            {label} {new Date().getFullYear()}
-                          </p>
-                          <div className="space-y-1">
-                            {payload.map((entry: any, i: number) => (
-                              <div
-                                key={i}
-                                className="flex justify-between items-center text-sm"
-                              >
-                                <span className="text-[var(--color-textSecondary)]">
-                                  {entry.name}
-                                </span>
-                                <span style={{ color: entry.color }} className="font-bold">
-                                  {entry.value}
-                                </span>
+                        <div className="rounded-2xl border px-4 py-3 shadow-2xl backdrop-blur-xl" style={cardStyle}>
+                          <p className="text-sm font-semibold text-[var(--color-text)]">{label}</p>
+                          <div className="mt-2 space-y-1">
+                            {payload.map((entry: any) => (
+                              <div key={entry.dataKey} className="flex items-center justify-between gap-8 text-sm">
+                                <span className="text-[var(--color-textSecondary)]">{entry.name}</span>
+                                <span className="font-semibold" style={{ color: entry.color }}>{entry.value}</span>
                               </div>
                             ))}
                           </div>
                         </div>
                       );
-                    }
-                    return null;
-                  }}
-                />
-
-                {/* PLANNED LINE */}
-                <Area
-                  type="monotone"
-                  dataKey="planned"
-                  name="Planned Tasks"
-                  stroke="url(#plannedStroke)"
-                  strokeWidth={3}
-                  fill="url(#plannedArea)"
-                  fillOpacity={1}
-                  filter="url(#chartGlow)"
-                  dot={{
-                    r: 5,
-                    stroke: "var(--color-background)",
-                    strokeWidth: 2,
-                    fill: "#04b9ddff",
-                  }}
-                  activeDot={{
-                    r: 7,
-                    stroke: "var(--color-background)",
-                    strokeWidth: 3,
-                    fill: "#04b9ddff",
-                  }}
-                />
-
-                {/* COMPLETED LINE */}
-                <Area
-                  type="monotone"
-                  dataKey="completed"
-                  name="Completed Tasks"
-                  stroke="url(#completedStroke)"
-                  strokeWidth={3}
-                  fill="url(#completedArea)"
-                  fillOpacity={1}
-                  filter="url(#chartGlow)"
-                  dot={{
-                    r: 5,
-                    stroke: "var(--color-background)",
-                    strokeWidth: 2,
-                    fill: "#182fb1ff",
-                  }}
-                  activeDot={{
-                    r: 7,
-                    stroke: "var(--color-background)",
-                    strokeWidth: 3,
-                    fill: "#182fb1ff",
-                  }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-            <div className="absolute top-4 right-4 opacity-20">
-              <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: 'var(--color-primary)' }}></div>
-            </div>
-            <div className="absolute bottom-8 left-8 opacity-15">
-              <div className="w-3 h-3 rounded-full animate-pulse delay-1000" style={{ backgroundColor: 'var(--color-accent)' }}></div>
-            </div>
-          </div>
-        </ThemeCard >
-
-        {/* Recent Activity */}
-        < ThemeCard className="p-4 sm:p-8 xl:col-span-3" variant="glass" >
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-2">
-            <div className="flex items-center space-x-3">
-              <div className="p-3 rounded-2xl text-white" style={{ background: `linear-gradient(135deg, #6a11cb 0%, #2575fc 100%)` }}>
-                <Activity size={20} />
+                    }} />
+                    <Area type="monotone" dataKey="planned" name="Planned" stroke="#3b82f6" strokeWidth={3} fill="url(#plannedFill)" dot={{ r: 4, stroke: 'var(--color-background)', strokeWidth: 2, fill: '#3b82f6' }} activeDot={{ r: 6, stroke: 'var(--color-background)', strokeWidth: 2, fill: '#3b82f6' }} />
+                    <Area type="monotone" dataKey="completed" name="Completed" stroke="#10b981" strokeWidth={3} fill="url(#completedFill)" dot={{ r: 4, stroke: 'var(--color-background)', strokeWidth: 2, fill: '#10b981' }} activeDot={{ r: 6, stroke: 'var(--color-background)', strokeWidth: 2, fill: '#10b981' }} />
+                  </AreaChart>
+                </ResponsiveContainer>
               </div>
-              <div>
-                <h3 className="text-lg sm:text-xl font-bold text-[var(--color-text)]">
-                  {(user?.role === 'admin' || user?.role === 'manager') ? 'Recent Activity' : 'Your Recent Activity'}
-                </h3>
-                <p className="text-xs text-[var(--color-textSecondary)]">
-                  {(user?.role === 'admin' || user?.role === 'manager') ? 'Latest team task updates' : 'Your latest task updates'}
-                </p>
-              </div>
-            </div>
-            <div className="text-sm px-3 py-1.5 rounded-full font-bold whitespace-nowrap" style={{ backgroundColor: 'var(--color-success)20', color: 'var(--color-success)' }}>
-              Last {dashboardData?.recentActivity?.slice(0, 10).length || 0}
-            </div>
-          </div>
-          <div className="space-y-3 max-h-[480px] sm:max-h-[480px] overflow-y-auto">
-            {dashboardData?.recentActivity?.slice(0, 10).map((activity) => (
-              <div
-                key={activity._id}
-                className="flex items-start space-x-4 p-3 sm:p-4 rounded-2xl border border-[var(--color-border)] hover:border-[var(--color-primary)]/30 transition-all duration-200"
-                style={{ backgroundColor: 'var(--color-surface)' }}
-              >
-                <div className="p-2 rounded-xl shadow-sm" style={{ backgroundColor: 'var(--color-background)' }}>
-                  {getActivityIcon(activity.type)}
+            </section>
+
+            <section className="rounded-[28px] border p-5 sm:p-6" style={cardStyle}>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] px-3 py-1 text-xs font-semibold text-[var(--color-textSecondary)]">
+                    <BarChart3 size={12} />
+                    Task mix
+                  </div>
+                  <h2 className="mt-3 text-2xl font-semibold text-[var(--color-text)]">Workload by cadence</h2>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-[var(--color-text)] mb-1">
-                    {(user?.role === 'admin' || user?.role === 'manager') ? (
-                      <>
-                        <span className="font-bold">{activity.username}</span>
-                        <span className="mx-1 text-[var(--color-textSecondary)]">
-                          {activity.type === 'assigned' && 'was assigned'}
-                          {activity.type === 'completed' && 'completed'}
-                          {activity.type === 'overdue' && 'has overdue'}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="mx-1 text-[var(--color-textSecondary)]">
-                        {activity.type === 'assigned' && 'You were assigned'}
-                        {activity.type === 'completed' && 'You completed'}
-                        {activity.type === 'overdue' && 'You have overdue'}
-                      </span>
+                <div className="text-sm text-[var(--color-textSecondary)]">{totalTaskTypes} tasks across six cadences</div>
+              </div>
+              <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {taskTypeData.map((item) => {
+                  const percent = totalTaskTypes > 0 ? (item.value / totalTaskTypes) * 100 : 0;
+                  return (
+                    <div key={item.name} className="rounded-[24px] border border-[var(--color-border)] p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-[var(--color-text)]">{item.name}</p>
+                          <p className="mt-1 text-xs text-[var(--color-textSecondary)]">{percent.toFixed(1)}% of total workload</p>
+                        </div>
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl" style={{ backgroundColor: `${item.color}18`, color: item.color }}>
+                          <Target size={18} />
+                        </div>
+                      </div>
+                      <div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--color-border)]">
+                        <div className="h-full rounded-full" style={{ width: `${Math.max(percent, 2)}%`, backgroundColor: item.color }} />
+                      </div>
+                      <div className="mt-4 flex items-center justify-between text-sm">
+                        <span className="text-[var(--color-textSecondary)]">Total</span>
+                        <span className="font-semibold text-[var(--color-text)]">{item.value}</span>
+                      </div>
+                      <div className="mt-2 flex items-center justify-between text-xs text-[var(--color-textSecondary)]">
+                        <span>Pending {item.pending}</span>
+                        <span>Completed {item.completed}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="rounded-[28px] border p-5 sm:p-6" style={cardStyle}>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] px-3 py-1 text-xs font-semibold text-[var(--color-textSecondary)]">
+                    <Activity size={12} />
+                    Recent activity
+                  </div>
+                  <h2 className="mt-3 text-2xl font-semibold text-[var(--color-text)]">Latest updates</h2>
+                </div>
+                <div className="rounded-full border border-[var(--color-border)] px-3 py-1.5 text-xs font-semibold text-[var(--color-textSecondary)]">
+                  Last {Math.min(dashboardData.recentActivity?.slice(0, 10).length || 0, 10)}
+                </div>
+              </div>
+              <div className="mt-5 max-h-[380px] space-y-3 overflow-y-auto pr-1">
+                {dashboardData?.recentActivity?.slice(0, 10).length ? (
+                  dashboardData.recentActivity.slice(0, 10).map((activity) => (
+                    <div key={activity._id} className="rounded-[22px] border border-[var(--color-border)] px-4 py-4 transition hover:border-[var(--color-primary)]/30">
+                      <div className="flex items-start gap-3">
+                        <div
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
+                          style={{
+                            backgroundColor:
+                              activity.type === 'completed'
+                                ? '#10b9811a'
+                                : activity.type === 'overdue'
+                                  ? '#ef44441a'
+                                  : '#3b82f61a',
+                            color:
+                              activity.type === 'completed'
+                                ? '#10b981'
+                                : activity.type === 'overdue'
+                                  ? '#ef4444'
+                                  : '#3b82f6'
+                          }}
+                        >
+                          {getActivityIcon(activity.type)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-[var(--color-text)]">
+                            {(user?.role === 'admin' || user?.role === 'manager') ? (
+                              <>
+                                <span className="font-semibold">{activity.username}</span>
+                                <span className="mx-1 text-[var(--color-textSecondary)]">
+                                  {activity.type === 'assigned' && 'was assigned'}
+                                  {activity.type === 'completed' && 'completed'}
+                                  {activity.type === 'overdue' && 'has overdue'}
+                                </span>
+                                <span className="font-semibold">{activity.title}</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-[var(--color-textSecondary)]">
+                                  {activity.type === 'assigned' && 'You were assigned'}
+                                  {activity.type === 'completed' && 'You completed'}
+                                  {activity.type === 'overdue' && 'You have overdue'}
+                                </span>
+                                <span className="mx-1 font-semibold">{activity.title}</span>
+                              </>
+                            )}
+                          </p>
+                          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[var(--color-textSecondary)]">
+                            <span className="rounded-full border border-[var(--color-border)] px-2.5 py-1">{activity.taskType}</span>
+                            <span>{format(new Date(activity.date), 'MMM d, h:mm a')}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-[24px] border border-dashed border-[var(--color-border)] px-6 py-10 text-center">
+                    <Activity size={32} className="mx-auto text-[var(--color-textSecondary)]" />
+                    <p className="mt-3 text-sm font-semibold text-[var(--color-text)]">No recent activity</p>
+                    <p className="mt-1 text-xs text-[var(--color-textSecondary)]">Task updates will appear here as work moves.</p>
+                  </div>
+                )}
+              </div>
+            </section>
+          </div>
+
+          <div className="space-y-6">
+            {(user?.role === 'admin' || user?.role === 'manager') && (
+              <section className="rounded-[28px] border p-5 sm:p-6" style={cardStyle}>
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] px-3 py-1 text-xs font-semibold text-[var(--color-textSecondary)]">
+                      <Users size={12} />
+                      Team lens
+                    </div>
+                    <h2 className="mt-3 text-2xl font-semibold text-[var(--color-text)]">Team performance focus</h2>
+                    <p className="mt-2 text-sm text-[var(--color-textSecondary)]">
+                      Switch between team members and inspect the current rhythm without leaving the dashboard.
+                    </p>
+                  </div>
+
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowTeamMemberFilter((value) => !value)}
+                      className="inline-flex items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 px-4 py-3 text-sm font-semibold text-[var(--color-text)] shadow-sm transition hover:border-[var(--color-primary)]/30"
+                    >
+                      <Users size={16} className="text-[var(--color-textSecondary)]" />
+                      <span>{selectedTeamMember === 'all' ? 'All team' : selectedTeamMember}</span>
+                      <ChevronDown size={14} className="text-[var(--color-textSecondary)]" />
+                    </button>
+
+                    {showTeamMemberFilter && (
+                      <div className="absolute right-0 top-full z-20 mt-2 w-[280px] overflow-hidden rounded-[22px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl">
+                        <div className="max-h-72 overflow-y-auto p-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedTeamMember('all');
+                              setShowTeamMemberFilter(false);
+                            }}
+                            className={`mb-1 w-full rounded-2xl px-3 py-3 text-left transition ${
+                              selectedTeamMember === 'all'
+                                ? 'bg-[var(--color-primary)] text-white'
+                                : 'hover:bg-[var(--color-background)]'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-semibold">All team</p>
+                                <p className="text-xs opacity-80">Whole company performance</p>
+                              </div>
+                              <span className="text-xs opacity-80">{teamPerformance.length}</span>
+                            </div>
+                          </button>
+
+                          {teamMembersList.map((member, index) => (
+                            <button
+                              key={member.username}
+                              type="button"
+                              onClick={() => {
+                                setSelectedTeamMember(member.username);
+                                setShowTeamMemberFilter(false);
+                              }}
+                              className={`mb-1 w-full rounded-2xl px-3 py-3 text-left transition ${
+                                selectedTeamMember === member.username
+                                  ? 'bg-[var(--color-primary)] text-white'
+                                  : 'hover:bg-[var(--color-background)]'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-semibold">{member.username}</p>
+                                  <p className="text-xs opacity-80">
+                                    {member.totalTasks} tasks, {member.completionRate.toFixed(1)}% complete
+                                  </p>
+                                </div>
+                                <span className="text-xs opacity-80">#{index + 1}</span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     )}
-                    <span className="font-bold">{activity.title}</span>
-                  </p>
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-1 sm:space-y-0 sm:space-x-3">
-                    <span className="text-xs px-2 py-0.5 sm:px-3 sm:py-1 rounded-full font-semibold" style={{ backgroundColor: 'var(--color-primary)20', color: 'var(--color-primary)' }}>
-                      {activity.taskType}
-                    </span>
-                    <span className="text-xs text-[var(--color-textSecondary)]">
-                      {format(new Date(activity.date), 'MMM d, h:mm a')}
-                    </span>
                   </div>
                 </div>
+
+                {selectedTeamMember !== 'all' && selectedTeamMemberData && (
+                  <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/70 px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Tasks</p>
+                      <p className="mt-2 text-xl font-semibold text-[var(--color-text)]">{selectedTeamMemberData.totalTasks}</p>
+                    </div>
+                    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/70 px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Completed</p>
+                      <p className="mt-2 text-xl font-semibold text-[var(--color-text)]">{selectedTeamMemberData.completedTasks}</p>
+                    </div>
+                    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/70 px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Rate</p>
+                      <p className="mt-2 text-xl font-semibold text-[var(--color-text)]">{selectedTeamMemberData.totalPerformanceRate}%</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-5 space-y-3">
+                  {topTeamMembers.length > 0 ? (
+                    topTeamMembers.map((member) => {
+                      const barWidth = Math.max(member.totalPerformanceRate, 8);
+                      return (
+                        <div key={member.username} className="rounded-[20px] border border-[var(--color-border)] px-4 py-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-[var(--color-text)]">{member.username}</p>
+                              <p className="text-xs text-[var(--color-textSecondary)]">
+                                {member.totalTasks} tasks, {member.completionRate.toFixed(1)}% completion
+                              </p>
+                            </div>
+                            <span className="text-sm font-semibold text-[var(--color-text)]">{member.totalPerformanceRate}%</span>
+                          </div>
+                          <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--color-border)]">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-[var(--color-primary)] to-cyan-500"
+                              style={{ width: `${Math.min(barWidth, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="rounded-[24px] border border-dashed border-[var(--color-border)] px-6 py-8 text-center text-sm text-[var(--color-textSecondary)]">
+                      Team performance data will appear here once the analytics endpoint loads.
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            <section className="rounded-[28px] border p-5 sm:p-6" style={cardStyle}>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] px-3 py-1 text-xs font-semibold text-[var(--color-textSecondary)]">
+                    <PieChartIcon size={12} />
+                    Status breakdown
+                  </div>
+                  <h2 className="mt-3 text-2xl font-semibold text-[var(--color-text)]">Live task states</h2>
+                </div>
+                <div className="rounded-full border border-[var(--color-border)] px-3 py-1.5 text-xs font-semibold text-[var(--color-textSecondary)]">{totalStatus} total</div>
               </div>
-            )) || (
-                <div className="text-center py-12 text-[var(--color-textSecondary)]">
-                  <Activity size={48} className="mx-auto mb-4 opacity-30" />
-                  <p className="text-lg font-semibold opacity-60">No recent activity</p>
-                  <p className="text-sm opacity-40">Activity will appear here as tasks are updated</p>
+              {totalStatus > 0 ? (
+                <div className="mt-5 grid gap-5 lg:grid-cols-[220px_1fr]">
+                  <div className="h-[240px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={68} outerRadius={96} paddingAngle={2}>
+                          {statusData.map((entry) => (
+                            <Cell key={entry.name} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip content={({ active, payload }) => {
+                          if (!active || !payload || !payload.length) return null;
+                          const item = payload[0].payload as { name: string; value: number; color: string };
+                          return (
+                            <div className="rounded-2xl border px-4 py-3 shadow-2xl" style={cardStyle}>
+                              <p className="text-sm font-semibold text-[var(--color-text)]">{item.name}</p>
+                              <p className="mt-1 text-sm" style={{ color: item.color }}>{item.value}</p>
+                            </div>
+                          );
+                        }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="space-y-3">
+                    {statusData.map((item) => {
+                      const percent = totalStatus > 0 ? (item.value / totalStatus) * 100 : 0;
+                      return (
+                        <div key={item.name} className="rounded-[20px] border border-[var(--color-border)] p-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                              <span className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />
+                              <span className="text-sm font-semibold text-[var(--color-text)]">{item.name}</span>
+                            </div>
+                            <span className="text-sm font-semibold text-[var(--color-text)]">{item.value}</span>
+                          </div>
+                          <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--color-border)]">
+                            <div className="h-full rounded-full" style={{ width: `${Math.max(percent, 2)}%`, backgroundColor: item.color }} />
+                          </div>
+                          <p className="mt-2 text-xs text-[var(--color-textSecondary)]">{percent.toFixed(1)}% of status total</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-6 rounded-[24px] border border-dashed border-[var(--color-border)] px-6 py-10 text-center text-sm text-[var(--color-textSecondary)]">
+                  No status data is available for the selected period.
                 </div>
               )}
+            </section>
+
+            {(user?.role === 'admin' || user?.role === 'manager') && (
+              <section className="rounded-[28px] border p-5 sm:p-6" style={cardStyle}>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] px-3 py-1 text-xs font-semibold text-[var(--color-textSecondary)]">
+                      <Activity size={12} />
+                      Team pending
+                    </div>
+                    <h2 className="mt-3 text-2xl font-semibold text-[var(--color-text)]">Pending work by member</h2>
+                    <p className="mt-2 text-sm text-[var(--color-textSecondary)]">
+                      A quick view of today&apos;s pending and overdue items.
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <TeamPendingTasksChart teamPendingData={teamPendingData} user={user} />
+                </div>
+              </section>
+            )}
+
           </div>
-        </ThemeCard >
-      </div >
-    </div >
+        </div>
+
+      </div>
+    </div>
   );
 };
 
