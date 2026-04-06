@@ -402,6 +402,11 @@ const SuperAdminPanel: React.FC = () => {
     return 'var(--color-success)';
   };
 
+  const permissionEntries = Object.keys(formData.permissions);
+  const activePermissionCount = permissionEntries.filter(
+    (key) => formData.permissions[key as keyof typeof formData.permissions]
+  ).length;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -411,7 +416,7 @@ const SuperAdminPanel: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-background)] p-2 sm:p-6 space-y-2">
+    <div className="min-h-screen bg-[var(--color-background)] p-2 sm:p-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center space-x-3">
@@ -754,77 +759,124 @@ const SuperAdminPanel: React.FC = () => {
       {activeTab === 'deletedLogs' && <DeletedTaskLogsPanel companies={companies} />}
       {/* Create Company Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" style={{ backgroundColor: 'var(--color-surface)' }}>
-            <div className="sticky top-0 p-6 border-b" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xl">
+          <div className="flex h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] border shadow-2xl" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+            <div className="shrink-0 border-b px-6 py-5" style={{ background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-surfacehelp) 100%)', borderColor: 'var(--color-border)' }}>
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-semibold flex items-center" style={{ color: 'var(--color-text)' }}>
-                  <Building size={24} className="mr-3" style={{ color: 'var(--color-primary)' }} />
-                  Create New Company
-                </h3>
+                <div>
+                  <div className="mb-2 inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ borderColor: 'rgba(99, 102, 241, 0.18)', color: 'var(--color-primary)' }}>
+                    Company Setup
+                  </div>
+                  <h3 className="flex items-center text-2xl font-semibold" style={{ color: 'var(--color-text)' }}>
+                    <Building size={24} className="mr-3" style={{ color: 'var(--color-primary)' }} />
+                    Create New Company
+                  </h3>
+                  <p className="mt-1 text-sm" style={{ color: 'var(--color-textSecondary)' }}>
+                    Configure the company, admin account, limits, and access in one polished workflow.
+                  </p>
+                </div>
                 <button
                   onClick={() => {
                     setShowCreateModal(false);
                     resetForm();
                   }}
-                  className="text-gray-500 hover:text-gray-700"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border transition-colors hover:opacity-90"
+                  style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
                 >
-                  <X size={24} />
+                  <X size={18} />
                 </button>
               </div>
             </div>
 
-            <div className="p-6">
+            <div className="grid min-h-0 flex-1 gap-0 overflow-y-auto border-t  xl:grid-cols-[280px_1fr]" style={{ borderColor: 'var(--color-border)' }}>
+              <aside className="border-b px-5 py-5 xl:border-b-0 xl:border-r" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surfacehelp)' }}>
+                <div className="rounded-3xl border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl" style={{ backgroundColor: 'rgba(99, 102, 241, 0.12)' }}>
+                      <Building2 size={20} style={{ color: 'var(--color-primary)' }} />
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Setup snapshot</div>
+                      <div className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>Company permissions and admin details</div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    <div className="rounded-2xl border px-4 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: 'var(--color-textSecondary)' }}>Company</div>
+                      <div className="mt-1 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+                        {formData.companyName || 'Company name'}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border px-4 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: 'var(--color-textSecondary)' }}>Admin</div>
+                      <div className="mt-1 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+                        {formData.adminName || 'Admin account'}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border px-4 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: 'var(--color-textSecondary)' }}>Access</div>
+                      <div className="mt-1 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+                        {activePermissionCount} / {permissionEntries.length} enabled
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </aside>
+
+              <div className="p-4 pt-6 sm:p-6 sm:pt-8">
               <form onSubmit={handleCreateCompany} className="space-y-6">
                 {/* Company Information */}
-                <div className="space-y-4">
-                  <h4 className="text-lg font-medium flex items-center" style={{ color: 'var(--color-text)' }}>
+                <div className="space-y-4 rounded-2xl border p-4 sm:p-5" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
+                  <h4 className="text-lg font-semibold flex items-center" style={{ color: 'var(--color-text)' }}>
                     <Building2 size={20} className="mr-2" />
                     Company Information
                   </h4>
 
-                  <div>
-                    <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>
-                      Company Name *
-                    </label>
-                    <input
-                      type="text"
-                      name="companyName"
-                      value={formData.companyName}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-4 py-3 border rounded-lg"
-                      style={{
-                        backgroundColor: 'var(--color-background)',
-                        borderColor: 'var(--color-border)',
-                        color: 'var(--color-text)'
-                      }}
-                    />
+                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    <div>
+                      <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>
+                        Company Name *
+                      </label>
+                      <input
+                        type="text"
+                        name="companyName"
+                        value={formData.companyName}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full rounded-2xl border px-4 py-3 outline-none transition-shadow focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                        style={{
+                          backgroundColor: 'var(--color-background)',
+                          borderColor: 'var(--color-border)',
+                          color: 'var(--color-text)'
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>
+                        Admin Name *
+                      </label>
+                      <input
+                        type="text"
+                        name="adminName"
+                        value={formData.adminName}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full rounded-2xl border px-4 py-3 outline-none transition-shadow focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                        style={{
+                          backgroundColor: 'var(--color-background)',
+                          borderColor: 'var(--color-border)',
+                          color: 'var(--color-text)'
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>
-                    Admin Name *
-                  </label>
-                  <input
-                    type="text"
-                    name="adminName"
-                    value={formData.adminName}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-3 border rounded-lg"
-                    style={{
-                      backgroundColor: 'var(--color-background)',
-                      borderColor: 'var(--color-border)',
-                      color: 'var(--color-text)'
-                    }}
-                  />
-                </div>
-
                 {/* Admin Information */}
-                <div className="space-y-4">
-                  <h4 className="text-lg font-medium flex items-center" style={{ color: 'var(--color-text)' }}>
+                <div className="space-y-4 rounded-2xl border p-4 sm:p-5" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
+                  <h4 className="text-lg font-semibold flex items-center" style={{ color: 'var(--color-text)' }}>
                     <Crown size={20} className="mr-2" />
                     Company Admin Details
                   </h4>
@@ -844,7 +896,7 @@ const SuperAdminPanel: React.FC = () => {
                           value={formData.adminEmail}
                           onChange={handleInputChange}
                           required
-                          className="w-full pl-10 pr-4 py-3 border rounded-lg"
+                          className="w-full rounded-2xl border py-3 pl-10 pr-4 outline-none transition-shadow focus:ring-2 focus:ring-[var(--color-primary)]/20"
                           style={{
                             backgroundColor: 'var(--color-background)',
                             borderColor: 'var(--color-border)',
@@ -868,7 +920,7 @@ const SuperAdminPanel: React.FC = () => {
                           value={formData.adminPassword}
                           onChange={handleInputChange}
                           required
-                          className="w-full pl-10 pr-10 py-3 border rounded-lg"
+                          className="w-full rounded-2xl border py-3 pl-10 pr-10 outline-none transition-shadow focus:ring-2 focus:ring-[var(--color-primary)]/20"
                           style={{
                             backgroundColor: 'var(--color-background)',
                             borderColor: 'var(--color-border)',
@@ -878,7 +930,7 @@ const SuperAdminPanel: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => setShowAdminPassword(prev => !prev)}
-                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
+                          className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700"
                         >
                           {showAdminPassword ? (
                             <EyeOff size={18} />
@@ -898,7 +950,7 @@ const SuperAdminPanel: React.FC = () => {
                         value={formData.adminPhone}
                         onChange={handleInputChange}
                         placeholder={editingCompany?.admin?.phone || 'Current admin phone'}
-                        className="w-full px-4 py-3 border rounded-lg"
+                        className="w-full rounded-2xl border px-4 py-3 outline-none transition-shadow focus:ring-2 focus:ring-[var(--color-primary)]/20"
                         required
                         style={{
                           backgroundColor: 'var(--color-background)',
@@ -911,8 +963,8 @@ const SuperAdminPanel: React.FC = () => {
                 </div>
 
                 {/* User Limits */}
-                <div className="space-y-4">
-                  <h4 className="text-lg font-medium flex items-center" style={{ color: 'var(--color-text)' }}>
+                <div className="space-y-4 rounded-2xl border p-4 sm:p-5" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
+                  <h4 className="text-lg font-semibold flex items-center" style={{ color: 'var(--color-text)' }}>
                     <Users size={20} className="mr-2" />
                     User Limits
                   </h4>
@@ -929,7 +981,7 @@ const SuperAdminPanel: React.FC = () => {
                         onChange={handleInputChange}
                         min="1"
                         required
-                        className="w-full px-3 py-2 border rounded-lg"
+                        className="w-full rounded-2xl border px-4 py-3 outline-none transition-shadow focus:ring-2 focus:ring-[var(--color-primary)]/20"
                         style={{
                           backgroundColor: 'var(--color-background)',
                           borderColor: 'var(--color-border)',
@@ -949,7 +1001,7 @@ const SuperAdminPanel: React.FC = () => {
                         onChange={handleInputChange}
                         min="1"
                         required
-                        className="w-full px-3 py-2 border rounded-lg"
+                        className="w-full rounded-2xl border px-4 py-3 outline-none transition-shadow focus:ring-2 focus:ring-[var(--color-primary)]/20"
                         style={{
                           backgroundColor: 'var(--color-background)',
                           borderColor: 'var(--color-border)',
@@ -969,7 +1021,7 @@ const SuperAdminPanel: React.FC = () => {
                         onChange={handleInputChange}
                         min="1"
                         required
-                        className="w-full px-3 py-2 border rounded-lg"
+                        className="w-full rounded-2xl border px-4 py-3 outline-none transition-shadow focus:ring-2 focus:ring-[var(--color-primary)]/20"
                         style={{
                           backgroundColor: 'var(--color-background)',
                           borderColor: 'var(--color-border)',
@@ -978,14 +1030,22 @@ const SuperAdminPanel: React.FC = () => {
                       />
                     </div>
                   </div>
-                  <div className="space-y-4 mt-4">
-                    <h4 className="text-lg font-medium" style={{ color: 'var(--color-text)' }}>
+                  <div className="mt-4 space-y-4 rounded-2xl border p-4 sm:p-5" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
+                    <div className="flex items-center justify-between gap-3">
+                      <h4 className="text-lg font-semibold" style={{ color: 'var(--color-text)' }}>
                       Company Permissions
-                    </h4>
+                      </h4>
+                      <div className="rounded-full border px-3 py-1 text-xs font-semibold" style={{ borderColor: 'var(--color-border)', color: 'var(--color-textSecondary)' }}>
+                        {activePermissionCount} enabled
+                      </div>
+                    </div>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                       {Object.keys(formData.permissions).map((key) => (
-                        <label key={key} className="flex items-center gap-2">
+                        <label key={key} className="flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 transition-colors" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
+                          <span className="capitalize text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+                            {getCompanyPermissionLabel(key)}
+                          </span>
                           <input
                             type="checkbox"
                             name={`permissions.${key}`}
@@ -999,47 +1059,44 @@ const SuperAdminPanel: React.FC = () => {
                                 }
                               }))
                             }
-                            className="w-4 h-4"
+                            className="h-4 w-4"
                           />
-                          <span className="capitalize text-sm" style={{ color: 'var(--color-text)' }}>
-                            {getCompanyPermissionLabel(key)}
-                          </span>
                         </label>
                       ))}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 pt-6">
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="flex-1 py-3 px-6 rounded-lg text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ backgroundColor: 'var(--color-primary)' }}
-                  >
-                    {isSubmitting ? 'Creating...' : (
-                      <>
-                        <Save size={18} className="inline mr-2" />
-                        Create Company
-                      </>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowCreateModal(false);
-                      resetForm();
-                    }}
-                    className="flex-1 py-3 px-6 rounded-lg border font-medium"
-                    style={{
-                      borderColor: 'var(--color-border)',
-                      color: 'var(--color-text)'
-                    }}
-                  >
-                    Cancel
-                  </button>
+                <div className="sticky bottom-0 z-10 border-t px-0 pt-6" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowCreateModal(false);
+                        resetForm();
+                      }}
+                      className="inline-flex items-center justify-center rounded-2xl border px-6 py-3 font-semibold"
+                      style={{
+                        borderColor: 'var(--color-border)',
+                        color: 'var(--color-text)',
+                        backgroundColor: 'var(--color-background)'
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl px-6 py-3 font-semibold text-white shadow-lg transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
+                      style={{ backgroundColor: 'var(--color-primary)' }}
+                    >
+                      <Save size={18} />
+                      {isSubmitting ? 'Creating...' : 'Create Company'}
+                    </button>
+                  </div>
                 </div>
               </form>
+            </div>
             </div>
           </div>
         </div>
@@ -1047,55 +1104,87 @@ const SuperAdminPanel: React.FC = () => {
 
       {/* Edit Company Modal */}
       {editingCompany && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" style={{ backgroundColor: 'var(--color-surface)' }}>
-            <div className="sticky top-0 p-6 border-b" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xl">
+          <div className="flex h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] border shadow-2xl" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+            <div className="shrink-0 border-b px-6 py-5" style={{ background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-surfacehelp) 100%)', borderColor: 'var(--color-border)' }}>
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-semibold flex items-center" style={{ color: 'var(--color-text)' }}>
-                  <Building size={24} className="mr-3" style={{ color: 'var(--color-primary)' }} />
-                  Edit Company - {editingCompany.companyName}
-                </h3>
+                <div>
+                  <div className="mb-2 inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ borderColor: 'rgba(99, 102, 241, 0.18)', color: 'var(--color-primary)' }}>
+                    Company settings
+                  </div>
+                  <h3 className="flex items-center text-2xl font-semibold" style={{ color: 'var(--color-text)' }}>
+                    <Building size={24} className="mr-3" style={{ color: 'var(--color-primary)' }} />
+                    Edit Company - {editingCompany.companyName}
+                  </h3>
+                  <p className="mt-1 text-sm" style={{ color: 'var(--color-textSecondary)' }}>
+                    Update the company profile, admin contact, limits, and permissions.
+                  </p>
+                </div>
                 <button
                   onClick={() => {
                     setEditingCompany(null);
                     resetForm();
                   }}
-                  className="text-gray-500 hover:text-gray-700"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border transition-colors hover:opacity-90"
+                  style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
                 >
-                  <X size={24} />
+                  <X size={18} />
                 </button>
               </div>
             </div>
 
-            <div className="p-6">
-              <form onSubmit={handleUpdateCompany} className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>
-                    Company Name *
-                  </label>
-                  <input
-                    type="text"
-                    name="companyName"
-                    value={formData.companyName}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-3 border rounded-lg"
-                    style={{
-                      backgroundColor: 'var(--color-background)',
-                      borderColor: 'var(--color-border)',
-                      color: 'var(--color-text)'
-                    }}
-                  />
+            <div className="grid min-h-0 flex-1 gap-0 overflow-y-auto border-t pt-5 xl:grid-cols-[280px_1fr]" style={{ borderColor: 'var(--color-border)' }}>
+              <aside className="border-b px-5 py-5 xl:border-b-0 xl:border-r" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surfacehelp)' }}>
+                <div className="rounded-3xl border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl" style={{ backgroundColor: 'rgba(99, 102, 241, 0.12)' }}>
+                      <Building size={20} style={{ color: 'var(--color-primary)' }} />
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Edit snapshot</div>
+                      <div className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>{editingCompany.companyName}</div>
+                    </div>
+                  </div>
+                  <div className="mt-4 space-y-3">
+                    <div className="rounded-2xl border px-4 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: 'var(--color-textSecondary)' }}>Company</div>
+                      <div className="mt-1 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{formData.companyName || editingCompany.companyName}</div>
+                    </div>
+                    <div className="rounded-2xl border px-4 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: 'var(--color-textSecondary)' }}>Admin</div>
+                      <div className="mt-1 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{formData.adminNewName || editingCompany.admin?.username || 'Admin account'}</div>
+                    </div>
+                    <div className="rounded-2xl border px-4 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: 'var(--color-textSecondary)' }}>Access</div>
+                      <div className="mt-1 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{activePermissionCount} / {permissionEntries.length} enabled</div>
+                    </div>
+                  </div>
                 </div>
+              </aside>
 
-                {/* Admin Information */}
-                <div className="space-y-4">
-                  <h4 className="text-lg font-medium flex items-center" style={{ color: 'var(--color-text)' }}>
-                    <Crown size={20} className="mr-2" />
-                    Admin Information
-                  </h4>
+              <div className="p-4 pt-6 sm:p-6 sm:pt-8">
+              <form onSubmit={handleUpdateCompany} className="space-y-6">
+                <div className="space-y-4 rounded-2xl border p-4 sm:p-5" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
+                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    <div>
+                      <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>
+                        Company Name *
+                      </label>
+                      <input
+                        type="text"
+                        name="companyName"
+                        value={formData.companyName}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full rounded-2xl border px-4 py-3 outline-none transition-shadow focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                        style={{
+                          backgroundColor: 'var(--color-background)',
+                          borderColor: 'var(--color-border)',
+                          color: 'var(--color-text)'
+                        }}
+                      />
+                    </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>
                         Admin Name
@@ -1106,7 +1195,7 @@ const SuperAdminPanel: React.FC = () => {
                         value={formData.adminNewName}
                         onChange={handleInputChange}
                         placeholder={editingCompany?.admin?.username || 'Current admin name'}
-                        className="w-full px-4 py-3 border rounded-lg"
+                        className="w-full rounded-2xl border px-4 py-3 outline-none transition-shadow focus:ring-2 focus:ring-[var(--color-primary)]/20"
                         style={{
                           backgroundColor: 'var(--color-background)',
                           borderColor: 'var(--color-border)',
@@ -1114,7 +1203,17 @@ const SuperAdminPanel: React.FC = () => {
                         }}
                       />
                     </div>
+                  </div>
+                </div>
 
+                {/* Admin Information */}
+                <div className="space-y-4 rounded-2xl border p-4 sm:p-5" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
+                  <h4 className="text-lg font-semibold flex items-center" style={{ color: 'var(--color-text)' }}>
+                    <Crown size={20} className="mr-2" />
+                    Admin Information
+                  </h4>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>
                         Admin Email
@@ -1129,7 +1228,7 @@ const SuperAdminPanel: React.FC = () => {
                           value={formData.adminNewEmail}
                           onChange={handleInputChange}
                           placeholder={editingCompany?.admin?.email || 'Current admin email'}
-                          className="w-full pl-10 pr-4 py-3 border rounded-lg"
+                        className="w-full rounded-2xl border py-3 pl-10 pr-4 outline-none transition-shadow focus:ring-2 focus:ring-[var(--color-primary)]/20"
                           style={{
                             backgroundColor: 'var(--color-background)',
                             borderColor: 'var(--color-border)',
@@ -1148,7 +1247,7 @@ const SuperAdminPanel: React.FC = () => {
                         value={formData.adminNewPhone}
                         onChange={handleInputChange}
                         placeholder={editingCompany?.admin?.phone || 'Current admin phone'}
-                        className="w-full px-4 py-3 border rounded-lg"
+                        className="w-full rounded-2xl border px-4 py-3 outline-none transition-shadow focus:ring-2 focus:ring-[var(--color-primary)]/20"
                         style={{
                           backgroundColor: 'var(--color-background)',
                           borderColor: 'var(--color-border)',
@@ -1159,8 +1258,8 @@ const SuperAdminPanel: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <h4 className="text-lg font-medium" style={{ color: 'var(--color-text)' }}>
+                <div className="space-y-4 rounded-2xl border p-4 sm:p-5" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
+                  <h4 className="text-lg font-semibold" style={{ color: 'var(--color-text)' }}>
                     User Limits
                   </h4>
 
@@ -1176,7 +1275,7 @@ const SuperAdminPanel: React.FC = () => {
                         onChange={handleInputChange}
                         min="1"
                         required
-                        className="w-full px-3 py-2 border rounded-lg"
+                        className="w-full rounded-2xl border px-4 py-3 outline-none transition-shadow focus:ring-2 focus:ring-[var(--color-primary)]/20"
                         style={{
                           backgroundColor: 'var(--color-background)',
                           borderColor: 'var(--color-border)',
@@ -1196,7 +1295,7 @@ const SuperAdminPanel: React.FC = () => {
                         onChange={handleInputChange}
                         min="1"
                         required
-                        className="w-full px-3 py-2 border rounded-lg"
+                        className="w-full rounded-2xl border px-4 py-3 outline-none transition-shadow focus:ring-2 focus:ring-[var(--color-primary)]/20"
                         style={{
                           backgroundColor: 'var(--color-background)',
                           borderColor: 'var(--color-border)',
@@ -1216,7 +1315,7 @@ const SuperAdminPanel: React.FC = () => {
                         onChange={handleInputChange}
                         min="1"
                         required
-                        className="w-full px-3 py-2 border rounded-lg"
+                        className="w-full rounded-2xl border px-4 py-3 outline-none transition-shadow focus:ring-2 focus:ring-[var(--color-primary)]/20"
                         style={{
                           backgroundColor: 'var(--color-background)',
                           borderColor: 'var(--color-border)',
@@ -1225,14 +1324,22 @@ const SuperAdminPanel: React.FC = () => {
                       />
                     </div>
                   </div>
-                  <div className="space-y-4 mt-4">
-                    <h4 className="text-lg font-medium" style={{ color: 'var(--color-text)' }}>
+                  <div className="mt-4 space-y-4 rounded-2xl border p-4 sm:p-5" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
+                    <div className="flex items-center justify-between gap-3">
+                      <h4 className="text-lg font-semibold" style={{ color: 'var(--color-text)' }}>
                       Company Permissions
-                    </h4>
+                      </h4>
+                      <div className="rounded-full border px-3 py-1 text-xs font-semibold" style={{ borderColor: 'var(--color-border)', color: 'var(--color-textSecondary)' }}>
+                        {activePermissionCount} enabled
+                      </div>
+                    </div>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                       {Object.keys(formData.permissions).map((key) => (
-                        <label key={key} className="flex items-center gap-2">
+                        <label key={key} className="flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 transition-colors" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
+                          <span className="capitalize text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+                            {getCompanyPermissionLabel(key)}
+                          </span>
                           <input
                             type="checkbox"
                             name={`permissions.${key}`}
@@ -1246,47 +1353,44 @@ const SuperAdminPanel: React.FC = () => {
                                 }
                               }))
                             }
-                            className="w-4 h-4"
+                            className="h-4 w-4"
                           />
-                          <span className="capitalize text-sm" style={{ color: 'var(--color-text)' }}>
-                            {getCompanyPermissionLabel(key)}
-                          </span>
                         </label>
                       ))}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 pt-6">
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="flex-1 py-3 px-6 rounded-lg text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ backgroundColor: 'var(--color-primary)' }}
-                  >
-                    {isSubmitting ? 'Updating...' : (
-                      <>
-                        <Save size={18} className="inline mr-2" />
-                        Update Company
-                      </>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingCompany(null);
-                      resetForm();
-                    }}
-                    className="flex-1 py-3 px-6 rounded-lg border font-medium"
-                    style={{
-                      borderColor: 'var(--color-border)',
-                      color: 'var(--color-text)'
-                    }}
-                  >
-                    Cancel
-                  </button>
+                <div className="sticky bottom-0 z-10 border-t pt-6" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingCompany(null);
+                        resetForm();
+                      }}
+                      className="inline-flex items-center justify-center rounded-2xl border px-6 py-3 font-semibold"
+                      style={{
+                        borderColor: 'var(--color-border)',
+                        color: 'var(--color-text)',
+                        backgroundColor: 'var(--color-background)'
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl px-6 py-3 font-semibold text-white shadow-lg transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
+                      style={{ backgroundColor: 'var(--color-primary)' }}
+                    >
+                      <Save size={18} />
+                      {isSubmitting ? 'Updating...' : 'Update Company'}
+                    </button>
+                  </div>
                 </div>
               </form>
+            </div>
             </div>
           </div>
         </div>
