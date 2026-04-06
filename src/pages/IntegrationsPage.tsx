@@ -79,6 +79,11 @@ const emptyEventBooleanMap = (): Record<EventKey, boolean> =>
     acc[event.key] = false;
     return acc;
   }, {} as Record<EventKey, boolean>);
+const collapsedEventEditorDefaults = (): Record<EventKey, boolean> =>
+  EVENTS.reduce((acc, event) => {
+    acc[event.key] = false;
+    return acc;
+  }, {} as Record<EventKey, boolean>);
 const emptyEventNumberMap = (): Record<EventKey, number> =>
   EVENTS.reduce((acc, event) => {
     acc[event.key] = 0;
@@ -187,6 +192,7 @@ const IntegrationsPage: React.FC = () => {
     oneTime: false,
     recurring: false
   });
+  const [expandedEventEditors, setExpandedEventEditors] = useState<Record<EventKey, boolean>>(collapsedEventEditorDefaults);
   const [showSecrets, setShowSecrets] = useState({ interakt: false, wati: false, fichat: false });
   const [pendingClear, setPendingClear] = useState<{ provider: ProviderKey; field: 'apiKey' | 'apiEndpoint' } | null>(null);
   const integrationsLocked = user?.company?.permissions?.integrationspage === false;
@@ -513,6 +519,7 @@ const IntegrationsPage: React.FC = () => {
       return;
     }
     setActiveProvider(p);
+    setExpandedEventEditors(collapsedEventEditorDefaults());
     if (getProviderConnectionReady(settings[p], p)) {
       await fetchTemplates(p);
     } else {
@@ -957,199 +964,212 @@ const IntegrationsPage: React.FC = () => {
           .filter(Boolean)
       )
     );
+    const isExpanded = expandedEventEditors[k];
     return (
       <div
         key={`${p}-${k}`}
         className={`overflow-hidden rounded-[28px] border bg-[var(--color-surface)] p-4 shadow-[0_14px_40px_rgba(15,23,42,0.05)] sm:p-5 ${integrationsLocked ? 'pointer-events-none select-none opacity-60' : ''}`}
         style={{ borderColor: 'var(--color-border)' }}
       >
-        <div className="mb-4 h-1.5 rounded-full" style={{ background: providerTheme[p].accent }} />
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold tracking-tight" style={{ color: 'var(--color-text)' }}>{sectionTitle(k)}</p>
-            <p className="text-xs" style={{ color: modalTextSecondary }}>Use the approved template for this event.</p>
-          </div>
+        <div className="flex items-start justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => setExpandedEventEditors((prev) => ({ ...prev, [k]: !prev[k] }))}
+            className="flex min-w-0 flex-1 items-start gap-3 text-left"
+          >
+            <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface, color: modalTextSecondary }}>
+              <ChevronDown size={16} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold tracking-tight" style={{ color: 'var(--color-text)' }}>{sectionTitle(k)}</p>
+              <p className="text-xs" style={{ color: modalTextSecondary }}>Use the approved template for this event.</p>
+            </div>
+          </button>
           <Toggle checked={cfg.enabled} onChange={(v) => updateConfig(p, k, 'enabled', v)} />
         </div>
-        <div className="mt-4 grid gap-4 xl:grid-cols-[480px_minmax(0,1fr)]">
-          <div className="space-y-4">
-            <div className="rounded-[24px] border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: modalTextSecondary }}>Template Source</p>
-              <div className="mt-2 space-y-3">
-                {list.length > 0 ? (
-                    <select
-                      value={selectedTemplate ? selectedTemplate.name : '__custom'}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (value === '__custom') {
-                        updateConfig(p, k, 'templateName', '');
-                        updateConfig(p, k, 'placeholderCount', 0);
-                        updateConfig(p, k, 'templateVariables', []);
-                        setTemplateBodies((prev) => ({ ...prev, [p]: { ...prev[p], [k]: '' } }));
-                        setTemplateBodyLoading((prev) => ({ ...prev, [p]: { ...prev[p], [k]: false } }));
-                        setTemplateBodyError((prev) => ({ ...prev, [p]: { ...prev[p], [k]: '' } }));
-                        return;
-                      }
 
-                      const next = list.find((item) => item.name === value);
-                      updateConfig(p, k, 'templateName', value);
-                      updateConfig(p, k, 'placeholderCount', 0);
-                      updateConfig(p, k, 'templateVariables', []);
-                      const nextLanguage = String(next?.language || (p === 'fichat' ? settings.fichat.templateLanguage || 'en_US' : '')).trim();
-                      const nextCache = p === 'fichat' ? fiChatTemplateBodyCache[getFiChatTemplateCacheKey(value, nextLanguage)] : undefined;
-                      setTemplateBodies((prev) => ({ ...prev, [p]: { ...prev[p], [k]: nextCache?.body || '' } }));
-                      setTemplateBodyLoading((prev) => ({ ...prev, [p]: { ...prev[p], [k]: p === 'fichat' ? !nextCache?.body : false } }));
-                      setTemplateBodyError((prev) => ({ ...prev, [p]: { ...prev[p], [k]: '' } }));
-                      if (p === 'fichat' && value !== '__custom' && !nextCache?.body) {
-                        void fetchTemplateBody(p, k, value, nextLanguage || 'en_US');
-                      }
-                    }}
-                    className="w-full rounded-2xl border px-4 py-3 text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)]"
-                    style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceStrong, color: 'var(--color-text)' }}
-                  >
-                    <option value="__custom">Custom template</option>
-                    {list.map((t) => {
-                      const variableCount = Number(t.placeholderCount ?? t.variables?.length ?? 0) || 0;
-                      return (
-                        <option key={t.name} value={t.name}>
-                          {t.name} 
-                        </option>
-                      );
-                    })}
-                  </select>
-                ) : (
-                    <input
-                      value={cfg.templateName}
-                      onChange={(e) => updateConfig(p, k, 'templateName', e.target.value)}
-                    className="w-full rounded-2xl border px-4 py-3 text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-textSecondary)] focus:border-[var(--color-primary)]"
-                      placeholder="Template name"
-                    style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceStrong, color: 'var(--color-text)' }}
-                    />
-                )}
-                {!selectedTemplate || !list.length ? (
-                    <input
-                      value={cfg.templateName}
-                      onChange={(e) => updateConfig(p, k, 'templateName', e.target.value)}
-                    className="w-full rounded-2xl border px-4 py-3 text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-textSecondary)] focus:border-[var(--color-primary)]"
-                      placeholder="Custom template name"
-                    style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceStrong, color: 'var(--color-text)' }}
-                    />
-                ) : null}
-                <button
-                  type="button"
-                  onClick={() => fetchTemplateBody(p, k)}
-                  disabled={bodyLoading || !cfg.templateName.trim()}
-                  className="inline-flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-semibold transition hover:-translate-y-0.5"
-                  style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceSoft, color: 'var(--color-text)' }}
-                >
-                  <RefreshCw size={14} />
-                  {bodyLoading ? 'Loading Body...' : 'Fetch Body'}
-                </button>
-              </div>
-            </div>
-
-            <div className="rounded-[24px] border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: modalTextSecondary }}>Body Preview</p>
-                <span className="text-[11px]" style={{ color: modalTextSecondary }}>{bodyVariables.length} detected</span>
-              </div>
-              <div className="mt-3 max-h-56 overflow-auto rounded-2xl border bg-[var(--color-background)] p-3" style={{ borderColor: 'var(--color-border)' }}>
-                <div className="rounded-2xl border bg-[var(--color-surface)] p-4 shadow-sm" style={{ borderColor: 'var(--color-border)', backgroundColor: isDark ? 'rgba(45,55,72,0.88)' : 'var(--color-surface)' }}>
-                  <div className="mb-2 flex items-center justify-between gap-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: modalTextSecondary }}>
-                    <span>Message Preview</span>
-                    <span>{templateBody ? `${templateBody.length} chars` : 'Draft'}</span>
-                  </div>
-                  <div className="whitespace-pre-wrap break-words text-sm leading-6" style={{ color: 'var(--color-text)' }}>
-                    {bodyError ? (
-                      <span className="text-red-600">{bodyError}</span>
-                    ) : templateBody ? (
-                      templateBody
-                    ) : (
-                      <span style={{ color: modalTextSecondary }}>Body not loaded yet. Use Fetch Body to load the selected template.</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {bodyVariables.length ? bodyVariables.map((variable) => (
-                  <span
-                    key={variable}
-                    className="rounded-full border px-2.5 py-1 text-[11px] font-semibold"
-                    style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface, color: modalTextSecondary }}
-                  >
-                    {variable}
-                  </span>
-                )) : <span className="text-xs" style={{ color: modalTextSecondary }}>No placeholders detected yet.</span>}
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-[24px] border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: modalTextSecondary }}>Variable Mapping</p>
-                <p className="text-xs" style={{ color: modalTextSecondary }}>
-                  {placeholderCount > 0 ? 'Map each placeholder to a supported variable.' : 'Fetch the body first, then map placeholders.'}
-                </p>
-              </div>
-              <span className="rounded-full border px-2.5 py-1 text-[11px] font-semibold" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface, color: modalTextSecondary }}>
-                {placeholderCount} slot{placeholderCount === 1 ? '' : 's'}
-              </span>
-            </div>
-
-            <div className="mt-3">
-              {placeholderCount > 0 ? (
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-                  {Array.from({ length: placeholderCount }).map((_, idx) => (
-                    <div key={`${p}-${k}-slot-${idx}`} className="grid grid-cols-[40px_1fr] items-center gap-2 rounded-2xl border p-3" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
-                      <span className="rounded-full border px-2 py-1 text-center text-[11px] font-semibold" style={{ borderColor: 'var(--color-border)', color: modalTextSecondary }}>
-                        #{idx + 1}
-                      </span>
+        {isExpanded ? (
+          <>
+            <div className="mt-4 grid gap-4 xl:grid-cols-[480px_minmax(0,1fr)]">
+              <div className="space-y-4">
+                <div className="rounded-[24px] border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: modalTextSecondary }}>Template Source</p>
+                  <div className="mt-2 space-y-3">
+                    {list.length > 0 ? (
                       <select
-                        value={cfg.templateVariables[idx] || '__none'}
+                        value={selectedTemplate ? selectedTemplate.name : '__custom'}
                         onChange={(e) => {
-                          const next = resizeVariableSlots(cfg.templateVariables || [], placeholderCount);
-                          next[idx] = e.target.value === '__none' ? '' : e.target.value;
-                          updateConfig(p, k, 'templateVariables', next);
+                          const value = e.target.value;
+                          if (value === '__custom') {
+                            updateConfig(p, k, 'templateName', '');
+                            updateConfig(p, k, 'placeholderCount', 0);
+                            updateConfig(p, k, 'templateVariables', []);
+                            setTemplateBodies((prev) => ({ ...prev, [p]: { ...prev[p], [k]: '' } }));
+                            setTemplateBodyLoading((prev) => ({ ...prev, [p]: { ...prev[p], [k]: false } }));
+                            setTemplateBodyError((prev) => ({ ...prev, [p]: { ...prev[p], [k]: '' } }));
+                            return;
+                          }
+
+                          const next = list.find((item) => item.name === value);
+                          updateConfig(p, k, 'templateName', value);
+                          updateConfig(p, k, 'placeholderCount', 0);
+                          updateConfig(p, k, 'templateVariables', []);
+                          const nextLanguage = String(next?.language || (p === 'fichat' ? settings.fichat.templateLanguage || 'en_US' : '')).trim();
+                          const nextCache = p === 'fichat' ? fiChatTemplateBodyCache[getFiChatTemplateCacheKey(value, nextLanguage)] : undefined;
+                          setTemplateBodies((prev) => ({ ...prev, [p]: { ...prev[p], [k]: nextCache?.body || '' } }));
+                          setTemplateBodyLoading((prev) => ({ ...prev, [p]: { ...prev[p], [k]: p === 'fichat' ? !nextCache?.body : false } }));
+                          setTemplateBodyError((prev) => ({ ...prev, [p]: { ...prev[p], [k]: '' } }));
+                          if (p === 'fichat' && value !== '__custom' && !nextCache?.body) {
+                            void fetchTemplateBody(p, k, value, nextLanguage || 'en_US');
+                          }
                         }}
                         className="w-full rounded-2xl border px-4 py-3 text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)]"
                         style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceStrong, color: 'var(--color-text)' }}
                       >
-                        <option value="__none">Select variable</option>
-                        {sortedSupportedVariableKeys.map((variable) => (
-                          <option key={`${p}-${k}-${idx}-${variable}`} value={variable}>
-                            {getSupportedVariableLabel(variable)}
-                          </option>
+                        <option value="__custom">Custom template</option>
+                        {list.map((t) => (
+                          <option key={t.name} value={t.name}>{t.name}</option>
                         ))}
                       </select>
-                    </div>
-                  ))}
+                    ) : (
+                      <input
+                        value={cfg.templateName}
+                        onChange={(e) => updateConfig(p, k, 'templateName', e.target.value)}
+                        className="w-full rounded-2xl border px-4 py-3 text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-textSecondary)] focus:border-[var(--color-primary)]"
+                        placeholder="Template name"
+                        style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceStrong, color: 'var(--color-text)' }}
+                      />
+                    )}
+                    {!selectedTemplate || !list.length ? (
+                      <input
+                        value={cfg.templateName}
+                        onChange={(e) => updateConfig(p, k, 'templateName', e.target.value)}
+                        className="w-full rounded-2xl border px-4 py-3 text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-textSecondary)] focus:border-[var(--color-primary)]"
+                        placeholder="Custom template name"
+                        style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceStrong, color: 'var(--color-text)' }}
+                      />
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => fetchTemplateBody(p, k)}
+                      disabled={bodyLoading || !cfg.templateName.trim()}
+                      className="inline-flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-semibold transition hover:-translate-y-0.5"
+                      style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceSoft, color: 'var(--color-text)' }}
+                    >
+                      <RefreshCw size={14} />
+                      {bodyLoading ? 'Loading Body...' : 'Fetch Body'}
+                    </button>
+                  </div>
                 </div>
-              ) : (
-                  <div className="rounded-2xl border border-dashed px-4 py-8 text-sm" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceMuted, color: modalTextSecondary }}>
-                  No placeholder slots yet. Choose a template and fetch its body to build the mapping.
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
 
-        <div className="mt-4 rounded-[24px] border px-4 py-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
-          <div className="mb-3 flex items-center justify-between">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: modalTextSecondary }}>Recipients</p>
-            <span className="text-[11px]" style={{ color: modalTextSecondary }}>One-time and recurring are separate</span>
+                <div className="rounded-[24px] border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: modalTextSecondary }}>Body Preview</p>
+                    <span className="text-[11px]" style={{ color: modalTextSecondary }}>{bodyVariables.length} detected</span>
+                  </div>
+                  <div className="mt-3 max-h-56 overflow-auto rounded-2xl border bg-[var(--color-background)] p-3" style={{ borderColor: 'var(--color-border)' }}>
+                    <div className="rounded-2xl border bg-[var(--color-surface)] p-4 shadow-sm" style={{ borderColor: 'var(--color-border)', backgroundColor: isDark ? 'rgba(45,55,72,0.88)' : 'var(--color-surface)' }}>
+                      <div className="mb-2 flex items-center justify-between gap-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: modalTextSecondary }}>
+                        <span>Message Preview</span>
+                        <span>{templateBody ? `${templateBody.length} chars` : 'Draft'}</span>
+                      </div>
+                      <div className="whitespace-pre-wrap break-words text-sm leading-6" style={{ color: 'var(--color-text)' }}>
+                        {bodyError ? (
+                          <span className="text-red-600">{bodyError}</span>
+                        ) : templateBody ? (
+                          templateBody
+                        ) : (
+                          <span style={{ color: modalTextSecondary }}>Body not loaded yet. Use Fetch Body to load the selected template.</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {bodyVariables.length ? bodyVariables.map((variable) => (
+                      <span
+                        key={variable}
+                        className="rounded-full border px-2.5 py-1 text-[11px] font-semibold"
+                        style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface, color: modalTextSecondary }}
+                      >
+                        {variable}
+                      </span>
+                    )) : <span className="text-xs" style={{ color: modalTextSecondary }}>No placeholders detected yet.</span>}
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-[24px] border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: modalTextSecondary }}>Variable Mapping</p>
+                    <p className="text-xs" style={{ color: modalTextSecondary }}>
+                      {placeholderCount > 0 ? 'Map each placeholder to a supported variable.' : 'Fetch the body first, then map placeholders.'}
+                    </p>
+                  </div>
+                  <span className="rounded-full border px-2.5 py-1 text-[11px] font-semibold" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface, color: modalTextSecondary }}>
+                    {placeholderCount} slot{placeholderCount === 1 ? '' : 's'}
+                  </span>
+                </div>
+
+                <div className="mt-3">
+                  {placeholderCount > 0 ? (
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                      {Array.from({ length: placeholderCount }).map((_, idx) => (
+                        <div key={`${p}-${k}-slot-${idx}`} className="grid grid-cols-[40px_1fr] items-center gap-2 rounded-2xl border p-3" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
+                          <span className="rounded-full border px-2 py-1 text-center text-[11px] font-semibold" style={{ borderColor: 'var(--color-border)', color: modalTextSecondary }}>
+                            #{idx + 1}
+                          </span>
+                          <select
+                            value={cfg.templateVariables[idx] || '__none'}
+                            onChange={(e) => {
+                              const next = resizeVariableSlots(cfg.templateVariables || [], placeholderCount);
+                              next[idx] = e.target.value === '__none' ? '' : e.target.value;
+                              updateConfig(p, k, 'templateVariables', next);
+                            }}
+                            className="w-full rounded-2xl border px-4 py-3 text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)]"
+                            style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceStrong, color: 'var(--color-text)' }}
+                          >
+                            <option value="__none">Select variable</option>
+                            {sortedSupportedVariableKeys.map((variable) => (
+                              <option key={`${p}-${k}-${idx}-${variable}`} value={variable}>
+                                {getSupportedVariableLabel(variable)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-dashed px-4 py-8 text-sm" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceMuted, color: modalTextSecondary }}>
+                      No placeholder slots yet. Choose a template and fetch its body to build the mapping.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-[24px] border px-4 py-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: modalTextSecondary }}>Recipients</p>
+                <span className="text-[11px]" style={{ color: modalTextSecondary }}>One-time and recurring are separate</span>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <label className="flex items-center justify-between rounded-2xl border px-4 py-3 text-sm" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceSoft }}>
+                  <span style={{ color: 'var(--color-text)' }}>Assignee</span>
+                  <Toggle checked={settings.recipients[k].assignee} onChange={(v) => updateRecipient(k, 'assignee', v)} />
+                </label>
+                <label className="flex items-center justify-between rounded-2xl border px-4 py-3 text-sm" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceSoft }}>
+                  <span style={{ color: 'var(--color-text)' }}>Admins</span>
+                  <Toggle checked={settings.recipients[k].admins} onChange={(v) => updateRecipient(k, 'admins', v)} />
+                </label>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="mt-4 rounded-[24px] border border-dashed px-4 py-4 text-sm" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceMuted, color: modalTextSecondary }}>
+            Collapsed. Click the chevron to open {sectionTitle(k)} and edit its template mapping.
           </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <label className="flex items-center justify-between rounded-2xl border px-4 py-3 text-sm" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceSoft }}>
-              <span style={{ color: 'var(--color-text)' }}>Assignee</span>
-              <Toggle checked={settings.recipients[k].assignee} onChange={(v) => updateRecipient(k, 'assignee', v)} />
-            </label>
-            <label className="flex items-center justify-between rounded-2xl border px-4 py-3 text-sm" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceSoft }}>
-              <span style={{ color: 'var(--color-text)' }}>Admins</span>
-              <Toggle checked={settings.recipients[k].admins} onChange={(v) => updateRecipient(k, 'admins', v)} />
-            </label>
-          </div>
-        </div>
+        )}
       </div>
     );
   };
