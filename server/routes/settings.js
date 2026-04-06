@@ -200,12 +200,26 @@ const extractTemplateVariables = (tpl = {}, body = '') => {
 
 const normalizeTemplateList = (data = {}) => {
   const candidates = [
+    Array.isArray(data) ? data : null,
     data?.templates,
     data?.data?.templates,
+    data?.data,
+    data?.data?.data,
+    data?.data?.messageTemplates,
+    data?.data?.whatsAppTemplates,
+    data?.data?.whatsappTemplates,
+    data?.data?.result?.templates,
+    data?.data?.result?.messageTemplates,
     data?.results?.templates,
     data?.data?.results?.templates,
+    data?.result?.templates,
+    data?.result?.data,
+    data?.result?.messageTemplates,
     data?.whatsappTemplates,
     data?.data?.whatsappTemplates,
+    data?.messageTemplates,
+    data?.message_templates,
+    data?.whatsAppTemplates,
     data?.templateList,
     data?.data?.templateList,
     data?.template_list,
@@ -240,6 +254,27 @@ const normalizeTemplateList = (data = {}) => {
       return { name, language, status, placeholderCount, body, variables };
     })
     .filter((tpl) => tpl.name);
+};
+
+const buildWatiAuthHeaders = (apiKey = '') => {
+  const token = String(apiKey || '').trim();
+  return token
+    ? [
+        { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        { Authorization: token, 'Content-Type': 'application/json' }
+      ]
+    : [{ 'Content-Type': 'application/json' }];
+};
+
+const isApprovedTemplate = (template = {}) => {
+  const status = String(
+    template?.status ||
+      template?.templateStatus ||
+      template?.approvalStatus ||
+      template?.state ||
+      ''
+  ).trim().toLowerCase();
+  return !status || status === 'approved';
 };
 
 const parsePlaceholderCountFromAny = (input) => {
@@ -375,20 +410,15 @@ const buildWatiBases = (endpoint = '') => {
   if (!normalized) return [];
 
   const stripped = normalized.replace(/\/api\/(v[12]|ext\/v3)$/i, '');
-  const strippedTenant = stripped.replace(/\/\d+$/i, '');
 
   return Array.from(
     new Set(
       [
         normalized,
         stripped,
-        strippedTenant,
         `${stripped}/api/v1`,
         `${stripped}/api/v2`,
-        `${stripped}/api/ext/v3`,
-        `${strippedTenant}/api/v1`,
-        `${strippedTenant}/api/v2`,
-        `${strippedTenant}/api/ext/v3`
+        `${stripped}/api/ext/v3`
       ].filter(Boolean)
     )
   );
@@ -409,17 +439,19 @@ const fetchWatiTemplates = async (apiKey, apiEndpoint) => {
 
   let lastError = null;
   for (const url of urls) {
-    try {
-      const response = await axios.get(url, {
-        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        timeout: 15000
-      });
-      const templates = normalizeTemplateList(response.data);
-      if (templates.length) {
-        return { templates, source: url };
+    for (const headers of buildWatiAuthHeaders(apiKey)) {
+      try {
+        const response = await axios.get(url, {
+          headers,
+          timeout: 15000
+        });
+        const templates = normalizeTemplateList(response.data).filter(isApprovedTemplate);
+        if (templates.length) {
+          return { templates, source: url };
+        }
+      } catch (error) {
+        lastError = error;
       }
-    } catch (error) {
-      lastError = error;
     }
   }
 
@@ -1094,32 +1126,38 @@ router.get('/whatsapp/template-body', async (req, res) => {
       let source = '';
 
       for (const url of endpointCandidates) {
-        try {
-          const response = await axios.get(url, {
-            headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-            timeout: 15000,
-            validateStatus: () => true
-          });
+        for (const headers of buildWatiAuthHeaders(apiKey)) {
+          try {
+            const response = await axios.get(url, {
+              headers,
+              timeout: 15000,
+              validateStatus: () => true
+            });
 
-          if (response.status < 200 || response.status >= 300) {
-            lastErr = new Error(`HTTP ${response.status} @ ${url}`);
-            continue;
+            if (response.status < 200 || response.status >= 300) {
+              lastErr = new Error(`HTTP ${response.status} @ ${url}`);
+              continue;
+            }
+
+            const items = normalizeTemplateList(response.data).filter(isApprovedTemplate);
+            const byName = (Array.isArray(items) ? items : []).find((item) => {
+              const candidate = String(item?.name || item?.templateName || item?.elementName || item?.id || '').trim().toLowerCase();
+              return candidate === templateName.toLowerCase();
+            });
+
+            const body = pickTemplateBodyFromAny(byName || response.data);
+            if (body) {
+              foundBody = body;
+              source = `GET ${url}`;
+              break;
+            }
+          } catch (error) {
+            lastErr = error;
           }
+        }
 
-          const items = normalizeTemplateList(response.data);
-          const byName = (Array.isArray(items) ? items : []).find((item) => {
-            const candidate = String(item?.name || item?.templateName || item?.elementName || item?.id || '').trim().toLowerCase();
-            return candidate === templateName.toLowerCase();
-          });
-
-          const body = pickTemplateBodyFromAny(byName || response.data);
-          if (body) {
-            foundBody = body;
-            source = `GET ${url}`;
-            break;
-          }
-        } catch (error) {
-          lastErr = error;
+        if (foundBody) {
+          break;
         }
       }
 

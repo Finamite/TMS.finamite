@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
-import { ChevronDown, Eye, EyeOff, Plug, RefreshCw, Save, Settings2, Shield, Sparkles } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ChevronDown, Eye, EyeOff, Plug, RefreshCw, Save, Settings2, Shield, Sparkles, Zap } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -27,6 +27,29 @@ const EVENTS: Array<{ key: EventKey; label: string; section: 'One-time' | 'Recur
 ];
 
 const providerLabel: Record<ProviderKey, string> = { interakt: 'Interakt', wati: 'WATI', fichat: 'FiChat' };
+const providerTheme: Record<ProviderKey, { accent: string; glow: string; tint: string; ring: string; iconTint: string }> = {
+  interakt: {
+    accent: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%)',
+    glow: 'rgba(58, 46, 226, 0.10)',
+    tint: 'rgba(58, 46, 226, 0.04)',
+    ring: 'rgba(58, 46, 226, 0.18)',
+    iconTint: 'var(--color-primary)'
+  },
+  wati: {
+    accent: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%)',
+    glow: 'rgba(58, 46, 226, 0.10)',
+    tint: 'rgba(58, 46, 226, 0.04)',
+    ring: 'rgba(58, 46, 226, 0.18)',
+    iconTint: 'var(--color-primary)'
+  },
+  fichat: {
+    accent: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%)',
+    glow: 'rgba(58, 46, 226, 0.10)',
+    tint: 'rgba(58, 46, 226, 0.04)',
+    ring: 'rgba(58, 46, 226, 0.18)',
+    iconTint: 'var(--color-primary)'
+  }
+};
 const supportedVariableLabelMap: Record<string, string> = {
   task_title: 'Task Title',
   task_description: 'Task Description',
@@ -34,14 +57,11 @@ const supportedVariableLabelMap: Record<string, string> = {
   task_type: 'Task Type',
   task_category: 'Task Category',
   due_date: 'Due Date',
-  due_date_time: 'Due Date Time',
-  assignee_name: 'Assignee Name',
-  assignee_phone: 'Assignee Phone',
-  assigner_name: 'Assigner Name',
-  assigner_phone: 'Assigner Phone',
+  assignee_name: 'Assigned To',
+  // assignee_phone: 'Assigned To Phone',
+  assigner_name: 'Assigned By',
+  // assigner_phone: 'Assigned By Phone',
   completion_remarks: 'Completion Remarks',
-  company_id: 'Company ID',
-  event_label: 'Event Label'
 };
 const getSupportedVariableLabel = (key: string) => supportedVariableLabelMap[key] || key.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 const defaultTemplateConfigs = (): Record<EventKey, TemplateConfig> =>
@@ -73,7 +93,7 @@ const createDefaultSettings = (): SettingsData => ({
   activeProvider: 'interakt',
   recipients: defaultRecipients(),
   interakt: { apiKey: '', templateLanguage: 'en', configs: defaultTemplateConfigs() },
-  wati: { apiKey: '', apiEndpoint: '', configs: defaultTemplateConfigs() },
+  wati: { apiKey: '', apiEndpoint: '', templateLanguage: 'en', configs: defaultTemplateConfigs() },
   fichat: {
     baseUrl: '',
     accessToken: '',
@@ -83,7 +103,7 @@ const createDefaultSettings = (): SettingsData => ({
     templateLanguage: 'en_US',
     configs: defaultTemplateConfigs()
   },
-  supportedVariableKeys: ['task_title', 'task_description', 'task_id', 'task_type', 'task_category', 'due_date', 'due_date_time', 'assignee_name', 'assignee_phone', 'assigner_name', 'assigner_phone', 'completion_remarks', 'company_id', 'event_label']
+  supportedVariableKeys: ['assignee_name', 'assigner_name', 'completion_remarks', 'due_date', 'task_category', 'task_description', 'task_id', 'task_title', 'task_type']
 });
 
 const getProviderConnectionReady = (cfg: ProviderCfg, provider: ProviderKey) => {
@@ -98,20 +118,33 @@ const Toggle = ({ checked, onChange }: { checked: boolean; onChange: (v: boolean
   </button>
 );
 
-const Modal = ({ open, onClose, title, children, footer }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode; footer: React.ReactNode }) => {
+const Modal = ({ open, onClose, title, children, footer, isDark }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode; footer: React.ReactNode; isDark: boolean }) => {
   if (!open) return null;
+  const modalTextSecondary = isDark ? 'rgba(255,255,255,0.96)' : 'var(--color-textSecondary)';
   return createPortal(
-    <div className="fixed inset-0 z-50 bg-slate-950/45 p-3 backdrop-blur-sm sm:flex sm:items-center sm:justify-center">
-      <div className="w-[min(98vw,1600px)] overflow-hidden rounded-[32px] border bg-[var(--color-surface)] shadow-[0_30px_100px_rgba(15,23,42,0.28)] ring-1 ring-white/30 dark:ring-white/10" style={{ borderColor: 'var(--color-border)' }}>
-        <div className="flex items-center justify-between border-b px-6 py-5 sm:px-8" style={{ borderColor: 'var(--color-border)', background: 'linear-gradient(180deg, rgba(255,255,255,0.96), rgba(250,250,255,0.92))' }}>
+    <div className={`fixed inset-0 z-50 p-3 backdrop-blur-sm sm:flex sm:items-center sm:justify-center ${isDark ? 'bg-slate-950/75' : 'bg-slate-950/45'}`}>
+      <div
+        className="w-[min(98vw,1600px)] overflow-hidden rounded-[32px] border shadow-[0_24px_80px_rgba(15,23,42,0.18)]"
+        style={{
+          borderColor: 'var(--color-border)',
+          backgroundColor: isDark ? 'rgba(26,32,44,0.98)' : 'var(--color-surface)'
+        }}
+      >
+        <div
+          className="flex items-center justify-between border-b px-6 py-5 sm:px-8"
+          style={{
+            borderColor: 'var(--color-border)',
+            backgroundColor: isDark ? 'rgba(26,32,44,0.98)' : 'var(--color-surface)'
+          }}
+        >
           <div>
             <h3 className="text-lg font-semibold tracking-tight" style={{ color: 'var(--color-text)' }}>{title}</h3>
-            <p className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>Keep this lightweight. Provider connection lives on the cards, and templates refresh after save.</p>
+            <p className="text-xs" style={{ color: modalTextSecondary }}>Keep this lightweight. Provider connection lives on the cards, and templates refresh after save.</p>
           </div>
-          <button onClick={onClose} className="rounded-xl border px-3 py-2 text-sm shadow-sm transition hover:-translate-y-0.5" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)' }}>Close</button>
+          <button onClick={onClose} className="rounded-xl border px-3 py-2 text-sm shadow-sm transition hover:-translate-y-0.5" style={{ borderColor: 'var(--color-border)', backgroundColor: isDark ? 'rgba(45,55,72,0.9)' : 'var(--color-surface)', color: 'var(--color-text)' }}>Close</button>
         </div>
         <div className="max-h-[calc(92vh-140px)] overflow-y-auto px-6 py-5 sm:px-8">{children}</div>
-        <div className="border-t px-6 py-4 sm:px-8" style={{ borderColor: 'var(--color-border)', background: 'linear-gradient(180deg, rgba(250,250,255,0.72), rgba(255,255,255,0.92))' }}>{footer}</div>
+        <div className="border-t px-6 py-4 sm:px-8" style={{ borderColor: 'var(--color-border)', backgroundColor: isDark ? 'rgba(15,23,42,0.95)' : 'var(--color-background)' }}>{footer}</div>
       </div>
     </div>,
     document.body
@@ -155,6 +188,13 @@ const IntegrationsPage: React.FC = () => {
     recurring: false
   });
   const [showSecrets, setShowSecrets] = useState({ interakt: false, wati: false, fichat: false });
+  const [showWatiEndpoint, setShowWatiEndpoint] = useState(false);
+  const modalSurface = isDark ? 'rgba(26,32,44,0.92)' : 'rgba(255,255,255,0.72)';
+  const modalSurfaceStrong = isDark ? 'rgba(30,41,59,0.98)' : 'rgba(255,255,255,0.82)';
+  const modalSurfaceSoft = isDark ? 'rgba(30,41,59,0.82)' : 'rgba(255,255,255,0.74)';
+  const modalSurfaceMuted = isDark ? 'rgba(30,41,59,0.66)' : 'rgba(255,255,255,0.52)';
+  const modalSurfaceInset = isDark ? 'rgba(15,23,42,0.70)' : 'rgba(255,255,255,0.72)';
+  const modalTextSecondary = isDark ? 'rgba(255,255,255,0.96)' : 'var(--color-textSecondary)';
   const notify = (type: 'success' | 'error' | 'info' | 'warning', message: string) => {
     toast[type](message, {
       theme: isDark ? 'dark' : 'light',
@@ -464,8 +504,19 @@ const IntegrationsPage: React.FC = () => {
     }
     setSavingProvider(providerToSave);
     try {
-      const res = await axios.post(`${address}/api/settings/whatsapp`, { companyId, ...settings, activeProvider: providerToSave });
+      const nextSettings = {
+        ...settings,
+        wati: {
+          ...settings.wati,
+          templateLanguage: String(settings.wati.templateLanguage || 'en').trim() || 'en'
+        },
+        activeProvider: providerToSave
+      };
+      const res = await axios.post(`${address}/api/settings/whatsapp`, { companyId, ...nextSettings });
       setSettings((prev) => ({ ...prev, ...(res.data?.data || {}) }));
+      if (providerToSave === 'wati') {
+        await fetchTemplates('wati');
+      }
       notify('success', 'Saved successfully.');
     } catch (err: any) {
       notify('error', err?.response?.data?.message || 'Failed to save.');
@@ -477,9 +528,15 @@ const IntegrationsPage: React.FC = () => {
   const currentTemplates = activeProvider ? templates[activeProvider] : [];
   const currentLoading = activeProvider ? templateLoading[activeProvider] : false;
   const currentError = activeProvider ? templateError[activeProvider] : '';
+  const providerOrder: ProviderKey[] = ['interakt', 'wati', 'fichat'];
+  const configuredEventCount = providerOrder.reduce((sum, provider) => (
+    sum + Object.values(settings[provider].configs).filter((cfg) => cfg.enabled).length
+  ), 0);
+  const activeSenderLabel = settings.enabled ? providerLabel[settings.activeProvider] : 'Alerts off';
 
   const card = (p: ProviderKey) => {
     const cfg = settings[p];
+    const theme = providerTheme[p];
     const enabled = Object.values(cfg.configs).filter((x) => x.enabled).length;
     const selected = Object.values(cfg.configs).filter((x) => x.templateName).length;
     const isActive = settings.enabled && settings.activeProvider === p;
@@ -491,216 +548,216 @@ const IntegrationsPage: React.FC = () => {
     return (
       <div
         key={p}
-        className="group overflow-hidden rounded-[26px] border bg-[var(--color-surface)] p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
+        className="group relative flex h-full min-h-[420px] flex-col overflow-hidden rounded-[28px] border bg-[var(--color-surface)] shadow-[0_16px_50px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_60px_rgba(15,23,42,0.1)]"
         style={{
-          borderColor: isActive ? 'rgba(76,61,245,0.5)' : 'var(--color-border)',
-          boxShadow: isActive ? '0 14px 30px rgba(76,61,245,0.10)' : undefined
+          borderColor: isActive ? 'var(--color-primary)' : 'var(--color-border)',
+          boxShadow: isActive ? '0 0 0 1px rgba(58,46,226,0.12), 0 18px 40px rgba(58,46,226,0.12)' : undefined,
+          backgroundColor: isActive && isDark ? 'rgba(26,32,44,0.96)' : isActive ? 'rgba(58,46,226,0.02)' : 'var(--color-surface)'
         }}
       >
-        <div className="mb-4 h-1 rounded-full" style={{ backgroundColor: isActive ? 'var(--color-primary)' : 'rgba(148,163,184,0.20)' }} />
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border" style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(76,61,245,0.06)', color: 'var(--color-primary)' }}>
-              <Plug size={19} />
-            </div>
-            <div>
-              <p className="text-[15px] font-semibold tracking-tight" style={{ color: 'var(--color-text)' }}>{providerLabel[p]}</p>
-              <p className="text-xs leading-5" style={{ color: 'var(--color-textSecondary)' }}>
-                {p === 'fichat' ? 'Popup connect flow' : 'Credentials and sender control'}
-              </p>
-            </div>
-          </div>
-          <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ backgroundColor: isActive ? 'var(--color-primary)' : 'var(--color-background)', color: isActive ? '#fff' : 'var(--color-textSecondary)' }}>
-            {isActive ? 'Active' : isConnected ? 'Connected' : 'Open'}
-          </span>
-        </div>
-
-        <div className="mt-4 grid gap-3 text-xs sm:grid-cols-3">
-          <div className="rounded-2xl border px-3 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
-            <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Templates</p>
-            <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{selected}</p>
-          </div>
-          <div className="rounded-2xl border px-3 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
-            <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Enabled</p>
-            <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{enabled}</p>
-          </div>
-          <div className="rounded-2xl border px-3 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
-            <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Status</p>
-            <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{isConnected ? 'Ready' : 'Not connected'}</p>
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-[24px] border p-3.5" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
-          {p === 'fichat' ? (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>FiChat</p>
-                  <p className="text-sm font-semibold">{cfg.connected ? 'Connected' : 'Needs login'}</p>
-                </div>
-                <Toggle checked={isActive} onChange={(next) => handleProviderToggle(p, next)} />
+        {isActive ? <div className="relative h-1.5" style={{ background: 'var(--color-primary)' }} /> : <div className="h-1.5" />}
+        <div className="relative flex flex-1 flex-col p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border shadow-sm" style={{ borderColor: 'var(--color-border)', backgroundColor: isDark ? 'rgba(45,55,72,0.95)' : 'var(--color-background)', color: 'var(--color-primary)' }}>
+                <Plug size={20} />
               </div>
-              <p className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>
-                {cfg.accountName ? `Connected as ${cfg.accountName}` : 'Click connect to launch the FiChat login popup.'}
-              </p>
-              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(100px,120px)]">
-                <div className="rounded-xl border px-3 py-2.5" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Connection</p>
-                  <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-                    {cfg.connected ? 'Ready to send' : 'Not connected'}
-                  </p>
-                </div>
-                <div className="rounded-xl border px-3 py-2.5" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Action</p>
-                  <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-                    {cfg.connected ? 'Disconnect available' : 'Connect available'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-2 pt-1">
-                {cfg.connected ? (
-                  <button
-                    type="button"
-                    onClick={disconnectFiChat}
-                    className="rounded-xl px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:-translate-y-0.5"
-                    style={{ backgroundColor: '#dc2626' }}
-                  >
-                    Disconnect
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={connectFiChat}
-                    className="rounded-xl px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:-translate-y-0.5"
-                    style={{ backgroundColor: '#16a34a' }}
-                  >
-                    Connect FiChat
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => saveSettings(p)}
-                  disabled={savingProvider === p}
-                  className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-white"
-                  style={{ backgroundColor: 'var(--color-primary)' }}
-                >
-                  <Save size={14} />
-                  {savingProvider === p ? 'Saving...' : 'Save'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openModal(p)}
-                  className="rounded-xl border px-3 py-2 text-xs font-semibold"
-                  style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)' }}
-                >
-                 Open Setup
-                </button>
+              <div>
+                <p className="text-[15px] font-semibold tracking-tight" style={{ color: 'var(--color-text)' }}>{providerLabel[p]}</p>
+                <p className="text-xs leading-5" style={{ color: 'var(--color-textSecondary)' }}>
+                  {p === 'fichat' ? 'Connect account' : 'Add credentials'}
+                </p>
               </div>
             </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>{isActive ? 'Sender active' : 'Sender inactive'}</p>
-                  <p className="text-sm font-semibold">{isActive ? 'Current WhatsApp sender' : 'Turn this sender on from the toggle'}</p>
-                </div>
-                <Toggle checked={isActive} onChange={(next) => handleProviderToggle(p, next)} />
-              </div>
+            <span className="rounded-full border px-3 py-1 text-[11px] font-semibold" style={{ borderColor: 'var(--color-border)', backgroundColor: isDark ? 'rgba(45,55,72,0.95)' : 'var(--color-background)', color: 'var(--color-textSecondary)' }}>
+              {isActive ? 'Active' : isConnected ? 'Connected' : 'Not connected'}
+            </span>
+          </div>
 
-              <div className={p === 'interakt' ? 'grid gap-3' : 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(100px,120px)]'}>
-                <div>
-                  <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>API Key</label>
-                  <div className="flex gap-2">
-                    <input
-                      type={showSecrets[p] ? 'text' : 'password'}
-                      value={cfg.apiKey || ''}
-                      onChange={(e) => updateProvider(p, 'apiKey', e.target.value)}
-                      className="w-full rounded-xl border px-3 py-2.5 text-sm outline-none"
-                      placeholder={`${providerLabel[p]} API key`}
-                      style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}
-                    />
-                    <button type="button" onClick={() => setShowSecrets((prev) => ({ ...prev, [p]: !prev[p] }))} className="rounded-xl border px-3" style={{ borderColor: 'var(--color-border)' }}>
-                      {showSecrets[p] ? <EyeOff size={16} /> : <Eye size={16} />}
+          <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: isDark ? 'rgba(15,23,42,0.55)' : 'var(--color-background)' }}>
+            {p === 'fichat' ? (
+              <div className="flex flex-1 flex-col gap-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{cfg.connected ? 'Connected and ready' : 'Needs account connection'}</p>
+                    <p className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>
+                      {cfg.accountName ? `Connected as ${cfg.accountName}` : 'Launch the FiChat login popup to connect.'}
+                    </p>
+                  </div>
+                  <Toggle checked={isActive} onChange={(next) => handleProviderToggle(p, next)} />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl border p-3" style={{ borderColor: 'var(--color-border)', backgroundColor: isDark ? 'rgba(45,55,72,0.86)' : 'var(--color-surface)' }}>
+                    <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Connection</p>
+                    <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+                      {cfg.connected ? 'Ready to send' : 'Not connected'}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border p-3" style={{ borderColor: 'var(--color-border)', backgroundColor: isDark ? 'rgba(45,55,72,0.86)' : 'var(--color-surface)' }}>
+                    <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Templates</p>
+                    <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{selected}</p>
+                  </div>
+                  <div className="rounded-2xl border p-3" style={{ borderColor: 'var(--color-border)', backgroundColor: isDark ? 'rgba(45,55,72,0.86)' : 'var(--color-surface)' }}>
+                    <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Updated</p>
+                    <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+                      {cfg.connectedAt ? new Date(cfg.connectedAt).toLocaleDateString() : 'Not yet'}
+                    </p>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-dashed px-4 py-3 text-xs leading-5" style={{ borderColor: 'var(--color-border)', color: 'var(--color-textSecondary)' }}>
+                  {cfg.connected
+                    ? 'FiChat is linked and ready to be used as the active WhatsApp sender.'
+                    : 'Connect FiChat first, then save to keep the sender ready for templates.'}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {cfg.connected ? (
+                    <button
+                      type="button"
+                      onClick={disconnectFiChat}
+                      className="inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5"
+                      style={{ backgroundColor: 'var(--color-error)' }}
+                    >
+                      Disconnect
                     </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={connectFiChat}
+                      className="inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5"
+                      style={{ backgroundColor: 'var(--color-success)' }}
+                    >
+                      Connect FiChat
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => saveSettings(p)}
+                    disabled={savingProvider === p}
+                    className="inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold text-white"
+                    style={{ backgroundColor: 'var(--color-primary)' }}
+                  >
+                    <Save size={14} />
+                    {savingProvider === p ? 'Saving...' : 'Save'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openModal(p)}
+                    className="inline-flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-semibold transition hover:-translate-y-0.5"
+                    style={{ borderColor: isActive ? 'var(--color-primary)' : 'var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)' }}
+                  >
+                    Open Setup
+                    <ArrowRight size={14} />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{isActive ? 'Current WhatsApp sender' : 'Turn this sender on with the toggle'}</p>
+                    <p className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>
+                      {isActive ? 'This provider is used for WhatsApp alerts.' : 'Save credentials first, then enable it.'}
+                    </p>
                   </div>
+                  <Toggle checked={isActive} onChange={(next) => handleProviderToggle(p, next)} />
                 </div>
 
-                {p === 'wati' ? (
-                  <div className="sm:justify-self-start">
-                    <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Template Language</label>
-                    <input
-                      value={cfg.templateLanguage || ''}
-                      onChange={(e) => updateProvider('wati', 'templateLanguage', e.target.value)}
-                      className="w-full rounded-xl border px-3 py-2.5 text-sm outline-none sm:w-[120px]"
-                      placeholder="en"
-                      style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}
-                    />
+                <div className="grid gap-3">
+                  <div>
+                    <label className="mb-2 block text-xs font-semibold" style={{ color: 'var(--color-textSecondary)' }}>API Key</label>
+                    <div className="flex gap-2">
+                      <input
+                        type={showSecrets[p] ? 'text' : 'password'}
+                        value={cfg.apiKey || ''}
+                        onChange={(e) => updateProvider(p, 'apiKey', e.target.value)}
+                        className="w-full rounded-2xl border px-4 py-3 text-sm outline-none transition placeholder:text-[var(--color-textSecondary)] focus:border-[var(--color-primary)]"
+                        placeholder={`${providerLabel[p]} API key`}
+                        style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)' }}
+                      />
+                      <button type="button" onClick={() => setShowSecrets((prev) => ({ ...prev, [p]: !prev[p] }))} className="rounded-2xl border px-3 transition hover:-translate-y-0.5" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
+                        {showSecrets[p] ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
                   </div>
-                ) : p === 'interakt' ? (
-                  <div className="sm:justify-self-start">
-                    <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Template Language</label>
-                    <input
-                      value={cfg.templateLanguage || ''}
-                      onChange={(e) => updateProvider(p, 'templateLanguage', e.target.value)}
-                      className="w-full rounded-xl border px-3 py-2.5 text-sm outline-none sm:w-[120px]"
-                      placeholder="en"
-                      style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}
-                    />
-                  </div>
-                ) : (
-                  <div className="sm:justify-self-start">
-                    <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Template Language</label>
-                    <input
-                      value={cfg.templateLanguage || ''}
-                      onChange={(e) => updateProvider(p, 'templateLanguage', e.target.value)}
-                      className="w-full rounded-xl border px-3 py-2.5 text-sm outline-none sm:w-[120px]"
-                      placeholder={p === 'interakt' ? 'en' : 'en_US'}
-                      style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}
-                    />
-                  </div>
-                )}
-              </div>
 
-              {p === 'wati' ? (
-                <div>
-                  <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>API Endpoint</label>
-                  <input
-                    value={cfg.apiEndpoint || ''}
-                    onChange={(e) => updateProvider('wati', 'apiEndpoint', e.target.value)}
-                    className="w-full rounded-xl border px-3 py-2.5 text-sm outline-none"
-                    placeholder="https://your-wati-host/api/v1"
-                    style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}
-                  />
+                  {p === 'wati' ? (
+                    <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_140px]">
+                      <div>
+                        <label className="mb-2 block text-xs font-semibold" style={{ color: 'var(--color-textSecondary)' }}>API Endpoint</label>
+                        <div className="flex gap-2">
+                          <input
+                            type={showWatiEndpoint ? 'text' : 'password'}
+                            value={cfg.apiEndpoint || ''}
+                            onChange={(e) => updateProvider('wati', 'apiEndpoint', e.target.value)}
+                            className="w-full rounded-2xl border px-4 py-3 text-sm outline-none transition placeholder:text-[var(--color-textSecondary)] focus:border-[var(--color-primary)]"
+                            placeholder="https://your-wati-host/api/v1"
+                            style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)' }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowWatiEndpoint((prev) => !prev)}
+                            className="rounded-2xl border px-3 transition hover:-translate-y-0.5"
+                            style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}
+                            aria-label={showWatiEndpoint ? 'Hide API Endpoint' : 'Show API Endpoint'}
+                          >
+                            {showWatiEndpoint ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="mb-2 block text-xs font-semibold" style={{ color: 'var(--color-textSecondary)' }}>Template Language</label>
+                        <input
+                          value={cfg.templateLanguage || ''}
+                          readOnly
+                          aria-readonly="true"
+                          className="w-full rounded-2xl border px-3 py-3 text-sm outline-none transition focus:border-[var(--color-primary)] md:max-w-[140px]"
+                          placeholder="en"
+                          style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', cursor: 'default' }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="mb-2 block text-xs font-semibold" style={{ color: 'var(--color-textSecondary)' }}>Template Language</label>
+                      <input
+                      value={cfg.templateLanguage || ''}
+                      onChange={(e) => updateProvider(p, 'templateLanguage', e.target.value)}
+                      className="w-full rounded-2xl border px-4 py-3 text-sm outline-none transition placeholder:text-[var(--color-textSecondary)] focus:border-[var(--color-primary)]"
+                      placeholder={p === 'fichat' ? 'en_US' : 'en'}
+                      style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)' }}
+                    />
+                    </div>
+                  )}
                 </div>
-              ) : null}
 
-              <div className="flex flex-wrap gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => saveSettings(p)}
-                  disabled={savingProvider === p}
-                  className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-white"
-                  style={{ backgroundColor: 'var(--color-primary)' }}
-                >
-                  <Save size={14} />
-                  {savingProvider === p ? 'Saving...' : 'Save'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openModal(p)}
-                  className="rounded-xl border px-3 py-2 text-xs font-semibold"
-                  style={{ borderColor: 'var(--color-border)' }}
-                >
-                  Open Setup
-                </button>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => saveSettings(p)}
+                    disabled={savingProvider === p}
+                    className="inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5"
+                    style={{ backgroundColor: 'var(--color-primary)' }}
+                  >
+                    <Save size={14} />
+                    {savingProvider === p ? 'Saving...' : 'Save'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openModal(p)}
+                    className="inline-flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-semibold transition hover:-translate-y-0.5"
+                    style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)' }}
+                  >
+                    Open Setup
+                    <ArrowRight size={14} />
+                  </button>
+                </div>
+
+                <p className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>
+                  Saving refreshes templates right away for the provider you changed.
+                </p>
               </div>
-
-              <p className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>
-                Saving refreshes templates right away for the provider you changed.
-              </p>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     );
@@ -743,22 +800,27 @@ const IntegrationsPage: React.FC = () => {
       )
     );
     return (
-      <div key={`${p}-${k}`} className="rounded-2xl border p-3 sm:p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
+      <div
+        key={`${p}-${k}`}
+        className="overflow-hidden rounded-[28px] border bg-[var(--color-surface)] p-4 shadow-[0_14px_40px_rgba(15,23,42,0.05)] sm:p-5"
+        style={{ borderColor: 'var(--color-border)' }}
+      >
+        <div className="mb-4 h-1.5 rounded-full" style={{ background: providerTheme[p].accent }} />
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold">{sectionTitle(k)}</p>
-            <p className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>Use the approved template for this event.</p>
+            <p className="text-sm font-semibold tracking-tight" style={{ color: 'var(--color-text)' }}>{sectionTitle(k)}</p>
+            <p className="text-xs" style={{ color: modalTextSecondary }}>Use the approved template for this event.</p>
           </div>
           <Toggle checked={cfg.enabled} onChange={(v) => updateConfig(p, k, 'enabled', v)} />
         </div>
         <div className="mt-4 grid gap-4 xl:grid-cols-[480px_minmax(0,1fr)]">
           <div className="space-y-4">
-            <div className="rounded-2xl border p-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
-              <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Template Source</p>
+            <div className="rounded-[24px] border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: modalTextSecondary }}>Template Source</p>
               <div className="mt-2 space-y-3">
                 {list.length > 0 ? (
-                  <select
-                    value={selectedTemplate ? selectedTemplate.name : '__custom'}
+                    <select
+                      value={selectedTemplate ? selectedTemplate.name : '__custom'}
                     onChange={(e) => {
                       const value = e.target.value;
                       if (value === '__custom') {
@@ -784,36 +846,43 @@ const IntegrationsPage: React.FC = () => {
                         void fetchTemplateBody(p, k, value, nextLanguage || 'en_US');
                       }
                     }}
-                    className="w-full rounded-xl border px-4 py-2.5 outline-none"
-                    style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}
+                    className="w-full rounded-2xl border px-4 py-3 text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)]"
+                    style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceStrong, color: 'var(--color-text)' }}
                   >
                     <option value="__custom">Custom template</option>
-                    {list.map((t) => <option key={t.name} value={t.name}>{t.name}{t.language ? ` - ${t.language}` : ''}{t.status ? ` - ${t.status}` : ''}</option>)}
+                    {list.map((t) => {
+                      const variableCount = Number(t.placeholderCount ?? t.variables?.length ?? 0) || 0;
+                      return (
+                        <option key={t.name} value={t.name}>
+                          {t.name} 
+                        </option>
+                      );
+                    })}
                   </select>
                 ) : (
-                  <input
-                    value={cfg.templateName}
-                    onChange={(e) => updateConfig(p, k, 'templateName', e.target.value)}
-                    className="w-full rounded-xl border px-4 py-2.5 outline-none"
-                    placeholder="Template name"
-                    style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}
-                  />
+                    <input
+                      value={cfg.templateName}
+                      onChange={(e) => updateConfig(p, k, 'templateName', e.target.value)}
+                    className="w-full rounded-2xl border px-4 py-3 text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-textSecondary)] focus:border-[var(--color-primary)]"
+                      placeholder="Template name"
+                    style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceStrong, color: 'var(--color-text)' }}
+                    />
                 )}
                 {!selectedTemplate || !list.length ? (
-                  <input
-                    value={cfg.templateName}
-                    onChange={(e) => updateConfig(p, k, 'templateName', e.target.value)}
-                    className="w-full rounded-xl border px-4 py-2.5 outline-none"
-                    placeholder="Custom template name"
-                    style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}
-                  />
+                    <input
+                      value={cfg.templateName}
+                      onChange={(e) => updateConfig(p, k, 'templateName', e.target.value)}
+                    className="w-full rounded-2xl border px-4 py-3 text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-textSecondary)] focus:border-[var(--color-primary)]"
+                      placeholder="Custom template name"
+                    style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceStrong, color: 'var(--color-text)' }}
+                    />
                 ) : null}
                 <button
                   type="button"
                   onClick={() => fetchTemplateBody(p, k)}
                   disabled={bodyLoading || !cfg.templateName.trim()}
-                  className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold"
-                  style={{ borderColor: 'var(--color-border)' }}
+                  className="inline-flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-semibold transition hover:-translate-y-0.5"
+                  style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceSoft, color: 'var(--color-text)' }}
                 >
                   <RefreshCw size={14} />
                   {bodyLoading ? 'Loading Body...' : 'Fetch Body'}
@@ -821,14 +890,14 @@ const IntegrationsPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="rounded-2xl border p-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
+            <div className="rounded-[24px] border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
               <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Body Preview</p>
-                <span className="text-[11px]" style={{ color: 'var(--color-textSecondary)' }}>{bodyVariables.length} detected</span>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: modalTextSecondary }}>Body Preview</p>
+                <span className="text-[11px]" style={{ color: modalTextSecondary }}>{bodyVariables.length} detected</span>
               </div>
-              <div className="mt-2 max-h-56 overflow-auto rounded-2xl border bg-[var(--color-background)] p-3" style={{ borderColor: 'var(--color-border)' }}>
-                <div className="rounded-2xl border bg-[var(--color-surface)] p-3 shadow-sm" style={{ borderColor: 'var(--color-border)' }}>
-                  <div className="mb-2 flex items-center justify-between gap-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>
+              <div className="mt-3 max-h-56 overflow-auto rounded-2xl border bg-[var(--color-background)] p-3" style={{ borderColor: 'var(--color-border)' }}>
+                <div className="rounded-2xl border bg-[var(--color-surface)] p-4 shadow-sm" style={{ borderColor: 'var(--color-border)', backgroundColor: isDark ? 'rgba(45,55,72,0.88)' : 'var(--color-surface)' }}>
+                  <div className="mb-2 flex items-center justify-between gap-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: modalTextSecondary }}>
                     <span>Message Preview</span>
                     <span>{templateBody ? `${templateBody.length} chars` : 'Draft'}</span>
                   </div>
@@ -838,7 +907,7 @@ const IntegrationsPage: React.FC = () => {
                     ) : templateBody ? (
                       templateBody
                     ) : (
-                      <span style={{ color: 'var(--color-textSecondary)' }}>Body not loaded yet. Use Fetch Body to load the selected template.</span>
+                      <span style={{ color: modalTextSecondary }}>Body not loaded yet. Use Fetch Body to load the selected template.</span>
                     )}
                   </div>
                 </div>
@@ -848,24 +917,24 @@ const IntegrationsPage: React.FC = () => {
                   <span
                     key={variable}
                     className="rounded-full border px-2.5 py-1 text-[11px] font-semibold"
-                    style={{ borderColor: 'var(--color-border)', color: 'var(--color-textSecondary)' }}
+                    style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface, color: modalTextSecondary }}
                   >
                     {variable}
                   </span>
-                )) : <span className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>No placeholders detected yet.</span>}
+                )) : <span className="text-xs" style={{ color: modalTextSecondary }}>No placeholders detected yet.</span>}
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border p-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
+          <div className="rounded-[24px] border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Variable Mapping</p>
-                <p className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: modalTextSecondary }}>Variable Mapping</p>
+                <p className="text-xs" style={{ color: modalTextSecondary }}>
                   {placeholderCount > 0 ? 'Map each placeholder to a supported variable.' : 'Fetch the body first, then map placeholders.'}
                 </p>
               </div>
-              <span className="rounded-full border px-2.5 py-1 text-[11px] font-semibold" style={{ borderColor: 'var(--color-border)', color: 'var(--color-textSecondary)' }}>
+              <span className="rounded-full border px-2.5 py-1 text-[11px] font-semibold" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface, color: modalTextSecondary }}>
                 {placeholderCount} slot{placeholderCount === 1 ? '' : 's'}
               </span>
             </div>
@@ -874,8 +943,8 @@ const IntegrationsPage: React.FC = () => {
               {placeholderCount > 0 ? (
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
                   {Array.from({ length: placeholderCount }).map((_, idx) => (
-                    <div key={`${p}-${k}-slot-${idx}`} className="grid grid-cols-[40px_1fr] items-center gap-2 rounded-xl border p-2.5" style={{ borderColor: 'var(--color-border)' }}>
-                      <span className="rounded-full border px-2 py-1 text-center text-[11px] font-semibold" style={{ borderColor: 'var(--color-border)', color: 'var(--color-textSecondary)' }}>
+                    <div key={`${p}-${k}-slot-${idx}`} className="grid grid-cols-[40px_1fr] items-center gap-2 rounded-2xl border p-3" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
+                      <span className="rounded-full border px-2 py-1 text-center text-[11px] font-semibold" style={{ borderColor: 'var(--color-border)', color: modalTextSecondary }}>
                         #{idx + 1}
                       </span>
                       <select
@@ -885,11 +954,11 @@ const IntegrationsPage: React.FC = () => {
                           next[idx] = e.target.value === '__none' ? '' : e.target.value;
                           updateConfig(p, k, 'templateVariables', next);
                         }}
-                        className="w-full rounded-xl border px-4 py-2.5 outline-none"
-                        style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}
+                        className="w-full rounded-2xl border px-4 py-3 text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)]"
+                        style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceStrong, color: 'var(--color-text)' }}
                       >
                         <option value="__none">Select variable</option>
-                        {settings.supportedVariableKeys.map((variable) => (
+                        {sortedSupportedVariableKeys.map((variable) => (
                           <option key={`${p}-${k}-${idx}-${variable}`} value={variable}>
                             {getSupportedVariableLabel(variable)}
                           </option>
@@ -899,7 +968,7 @@ const IntegrationsPage: React.FC = () => {
                   ))}
                 </div>
               ) : (
-                <div className="rounded-xl border border-dashed px-4 py-8 text-sm" style={{ borderColor: 'var(--color-border)', color: 'var(--color-textSecondary)' }}>
+                  <div className="rounded-2xl border border-dashed px-4 py-8 text-sm" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceMuted, color: modalTextSecondary }}>
                   No placeholder slots yet. Choose a template and fetch its body to build the mapping.
                 </div>
               )}
@@ -907,18 +976,18 @@ const IntegrationsPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="mt-3 rounded-2xl border px-3 py-3" style={{ borderColor: 'var(--color-border)' }}>
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Recipients</p>
-            <span className="text-[11px]" style={{ color: 'var(--color-textSecondary)' }}>One-time and recurring are separate</span>
+        <div className="mt-4 rounded-[24px] border px-4 py-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: modalTextSecondary }}>Recipients</p>
+            <span className="text-[11px]" style={{ color: modalTextSecondary }}>One-time and recurring are separate</span>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
-            <label className="flex items-center justify-between rounded-xl border px-3 py-2 text-sm" style={{ borderColor: 'var(--color-border)' }}>
-              <span>Assignee</span>
+            <label className="flex items-center justify-between rounded-2xl border px-4 py-3 text-sm" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceSoft }}>
+              <span style={{ color: 'var(--color-text)' }}>Assignee</span>
               <Toggle checked={settings.recipients[k].assignee} onChange={(v) => updateRecipient(k, 'assignee', v)} />
             </label>
-            <label className="flex items-center justify-between rounded-xl border px-3 py-2 text-sm" style={{ borderColor: 'var(--color-border)' }}>
-              <span>Admins</span>
+            <label className="flex items-center justify-between rounded-2xl border px-4 py-3 text-sm" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceSoft }}>
+              <span style={{ color: 'var(--color-text)' }}>Admins</span>
               <Toggle checked={settings.recipients[k].admins} onChange={(v) => updateRecipient(k, 'admins', v)} />
             </label>
           </div>
@@ -930,156 +999,196 @@ const IntegrationsPage: React.FC = () => {
   const providerForm = () => {
     if (!activeProvider) return null;
     const cfg = settings[activeProvider];
+    const theme = providerTheme[activeProvider];
     const canRefreshTemplates = activeProvider === 'fichat' ? Boolean(cfg.connected || cfg.accessToken) : true;
     return (
       <Modal
         open={!!activeProvider}
         onClose={() => setActiveProvider(null)}
         title={`${providerLabel[activeProvider]} Integration`}
+        isDark={isDark}
         footer={
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-xs" style={{ color: 'var(--color-textSecondary)' }}><Sparkles size={14} className="inline-block align-text-bottom" /> Save the provider card first, then refresh templates separately if needed.</div>
-            <div className="flex gap-3">
-              <button type="button" onClick={() => fetchTemplates(activeProvider)} disabled={currentLoading || !canRefreshTemplates} className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold" style={{ borderColor: 'var(--color-border)' }}><RefreshCw size={14} />{currentLoading ? 'Loading...' : 'Refresh Templates'}</button>
-              <button type="button" onClick={() => saveSettings(activeProvider)} disabled={savingProvider === activeProvider} className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white" style={{ backgroundColor: 'var(--color-primary)' }}><Save size={14} />{savingProvider === activeProvider ? 'Saving...' : 'Save'}</button>
+            <div className="text-xs" style={{ color: modalTextSecondary }}>
+              <Sparkles size={14} className="inline-block align-text-bottom" /> Save the provider card first, then refresh templates to update the editor.
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => fetchTemplates(activeProvider)}
+                disabled={currentLoading || !canRefreshTemplates}
+                className="inline-flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-semibold transition hover:-translate-y-0.5"
+                style={{ borderColor: theme.ring, backgroundColor: modalSurface, color: 'var(--color-text)' }}
+              >
+                <RefreshCw size={14} />
+                {currentLoading ? 'Loading...' : 'Refresh Templates'}
+              </button>
+              <button
+                type="button"
+                onClick={() => saveSettings(activeProvider)}
+                disabled={savingProvider === activeProvider}
+                className="inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5"
+                style={{ background: theme.accent }}
+              >
+                <Save size={14} />
+                {savingProvider === activeProvider ? 'Saving...' : 'Save'}
+              </button>
             </div>
           </div>
         }
       >
-        <div className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
-          <div className="space-y-4">
-            <div className="rounded-3xl border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
-              <div className="mb-3 flex items-center justify-between">
-                <div><p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Global</p><p className="text-sm font-semibold">Enable WhatsApp alerts</p></div>
-                <Toggle checked={settings.enabled} onChange={(v) => setSettings((prev) => ({ ...prev, enabled: v }))} />
+        <div className="space-y-5">
+          <div className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
+            <div className="space-y-4">
+              <div className="rounded-[28px] border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
+                <div className="mb-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: modalTextSecondary }}>Global</p>
+                    <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Enable WhatsApp alerts</p>
+                  </div>
+                  <Toggle checked={settings.enabled} onChange={(v) => setSettings((prev) => ({ ...prev, enabled: v }))} />
+                </div>
+                <p className="text-xs" style={{ color: modalTextSecondary }}>
+                  When this is off, no provider sends notifications even if individual templates are enabled.
+                </p>
+              </div>
+
+              <div className="rounded-[28px] border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 size={16} style={{ color: theme.iconTint }} />
+                  <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Provider Snapshot</p>
+                </div>
+                <div className="mt-3 grid gap-3">
+                  <div className="rounded-2xl border px-3 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceInset }}>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: modalTextSecondary }}>Connection</p>
+                    <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+                      {settings.enabled
+                        ? (activeProvider === 'fichat'
+                            ? (settings.fichat.connected ? `FiChat connected${settings.fichat.accountName ? ` as ${settings.fichat.accountName}` : ''}` : 'FiChat not connected')
+                            : activeProvider
+                              ? `${providerLabel[activeProvider]} ready`
+                              : 'Choose a provider')
+                        : 'All alerts disabled'}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border px-3 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceInset }}>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: modalTextSecondary }}>Events active</p>
+                    <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+                      {configuredEventCount} of {EVENTS.length * providerOrder.length}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-[28px] border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
+                <div className="flex items-center gap-2">
+                  <Shield size={16} style={{ color: theme.iconTint }} />
+                  <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Supported Variables</p>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {sortedSupportedVariableKeys.map((k) => (
+                    <span
+                      key={k}
+                      className="rounded-full border px-2.5 py-1 text-[11px] font-semibold"
+                      style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface, color: modalTextSecondary }}
+                    >
+                      {getSupportedVariableLabel(k)}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
 
-            <div className="rounded-3xl border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
-              <div className="flex items-center gap-2"><Settings2 size={16} style={{ color: 'var(--color-primary)' }} /><p className="text-sm font-semibold">Provider Snapshot</p></div>
-              <div className="mt-3 grid gap-3">
-                <div className="rounded-2xl border px-3 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
-                  <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Current sender</p>
-                  <p className="mt-1 text-sm font-semibold">
-                    {settings.enabled ? providerLabel[settings.activeProvider] : 'WhatsApp alerts off'}
-                  </p>
-                  <p className="mt-1 text-xs" style={{ color: 'var(--color-textSecondary)' }}>
-                    Use the card controls to switch active provider or connect FiChat.
-                  </p>
-                </div>
-                <div className="rounded-2xl border px-3 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
-                  <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Connection</p>
-                  <p className="mt-1 text-sm font-semibold">
-                    {settings.enabled
-                      ? (activeProvider === 'fichat'
-                          ? (settings.fichat.connected ? `FiChat connected${settings.fichat.accountName ? ` as ${settings.fichat.accountName}` : ''}` : 'FiChat not connected')
-                          : activeProvider
-                            ? `${providerLabel[activeProvider]} ready`
-                            : 'Choose a provider')
-                      : 'All alerts disabled'}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-3xl border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
-              <div className="flex items-center gap-2"><Shield size={16} style={{ color: 'var(--color-primary)' }} /><p className="text-sm font-semibold">Supported Variables</p></div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {settings.supportedVariableKeys.map((k) => (
-                  <span
-                    key={k}
-                    className="rounded-full border px-2.5 py-1 text-[11px] font-semibold"
-                    style={{ borderColor: 'var(--color-border)', color: 'var(--color-textSecondary)' }}
+            <div className="space-y-4">
+              {EVENTS.filter((e) => e.section === 'One-time').length ? (
+                <div className="space-y-3 rounded-[28px] border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedSections((prev) => ({ ...prev, oneTime: !prev.oneTime }))}
+                    className="flex w-full items-start justify-between gap-4 text-left"
                   >
-                    {getSupportedVariableLabel(k)}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            {EVENTS.filter((e) => e.section === 'One-time').length ? (
-              <div className="space-y-3 rounded-3xl border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
+                    <div>
+                      <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>One-time Tasks</p>
+                      <p className="text-xs" style={{ color: modalTextSecondary }}>Assigned, completed, and overdue alerts.</p>
+                    </div>
+                    <ChevronDown size={16} className={`mt-0.5 shrink-0 transition-transform ${expandedSections.oneTime ? 'rotate-180' : ''}`} style={{ color: modalTextSecondary }} />
+                  </button>
+                  {expandedSections.oneTime ? <div className="space-y-3 pt-1">{EVENTS.filter((e) => e.section === 'One-time').map((e) => renderEditor(activeProvider!, e.key))}</div> : null}
+                </div>
+              ) : null}
+              {EVENTS.filter((e) => e.section === 'Recurring').length ? (
+                <div className="space-y-3 rounded-[28px] border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedSections((prev) => ({ ...prev, recurring: !prev.recurring }))}
+                    className="flex w-full items-start justify-between gap-4 text-left"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Recurring Tasks</p>
+                      <p className="text-xs" style={{ color: modalTextSecondary }}>Assigned, completed, and overdue alerts.</p>
+                    </div>
+                    <ChevronDown size={16} className={`mt-0.5 shrink-0 transition-transform ${expandedSections.recurring ? 'rotate-180' : ''}`} style={{ color: modalTextSecondary }} />
+                  </button>
+                  {expandedSections.recurring ? <div className="space-y-3 pt-1">{EVENTS.filter((e) => e.section === 'Recurring').map((e) => renderEditor(activeProvider!, e.key))}</div> : null}
+                </div>
+              ) : null}
+              <div className="flex items-center justify-between rounded-[28px] border px-4 py-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
+                <div className="text-xs" style={{ color: modalTextSecondary }}>{currentLoading ? 'Loading templates...' : `${currentTemplates.length} template(s) loaded.`}</div>
                 <button
                   type="button"
-                  onClick={() => setExpandedSections((prev) => ({ ...prev, oneTime: !prev.oneTime }))}
-                  className="flex w-full items-start justify-between gap-4 text-left"
+                  onClick={() => fetchTemplates(activeProvider!)}
+                  disabled={!canRefreshTemplates}
+                  className="inline-flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-semibold transition hover:-translate-y-0.5"
+                  style={{ borderColor: theme.ring, backgroundColor: modalSurface, color: 'var(--color-text)' }}
                 >
-                  <div>
-                    <p className="text-sm font-semibold">One-time Tasks</p>
-                    <p className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>Assigned, completed, and overdue alerts.</p>
-                  </div>
-                  <ChevronDown size={16} className={`mt-0.5 shrink-0 transition-transform ${expandedSections.oneTime ? 'rotate-180' : ''}`} style={{ color: 'var(--color-textSecondary)' }} />
+                  <RefreshCw size={14} />
+                  Reload Templates
                 </button>
-                {expandedSections.oneTime ? <div className="space-y-3 pt-1">{EVENTS.filter((e) => e.section === 'One-time').map((e) => renderEditor(activeProvider!, e.key))}</div> : null}
               </div>
-            ) : null}
-            {EVENTS.filter((e) => e.section === 'Recurring').length ? (
-              <div className="space-y-3 rounded-3xl border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
-                <button
-                  type="button"
-                  onClick={() => setExpandedSections((prev) => ({ ...prev, recurring: !prev.recurring }))}
-                  className="flex w-full items-start justify-between gap-4 text-left"
-                >
-                  <div>
-                    <p className="text-sm font-semibold">Recurring Tasks</p>
-                    <p className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>Assigned, completed, and overdue alerts.</p>
-                  </div>
-                  <ChevronDown size={16} className={`mt-0.5 shrink-0 transition-transform ${expandedSections.recurring ? 'rotate-180' : ''}`} style={{ color: 'var(--color-textSecondary)' }} />
-                </button>
-                {expandedSections.recurring ? <div className="space-y-3 pt-1">{EVENTS.filter((e) => e.section === 'Recurring').map((e) => renderEditor(activeProvider!, e.key))}</div> : null}
-              </div>
-            ) : null}
-            <div className="flex items-center justify-between rounded-3xl border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
-              <div className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>{currentLoading ? 'Loading templates...' : `${(currentTemplates || []).length} template(s) loaded.`}</div>
-              <button type="button" onClick={() => fetchTemplates(activeProvider!)} disabled={!canRefreshTemplates} className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold" style={{ borderColor: 'var(--color-border)' }}><RefreshCw size={14} />Reload Templates</button>
+              {currentError ? <p className="text-sm text-red-600">{currentError}</p> : null}
             </div>
-            {currentError ? <p className="text-sm text-red-600">{currentError}</p> : null}
           </div>
         </div>
       </Modal>
     );
   };
 
-  if (loading) return <div className="flex min-h-[60vh] items-center justify-center"><div className="h-12 w-12 animate-spin rounded-full border-b-2" style={{ borderColor: 'var(--color-primary)' }} /></div>;
+  const sortedSupportedVariableKeys = [...(settings.supportedVariableKeys || [])].sort((a, b) =>
+    getSupportedVariableLabel(a).localeCompare(getSupportedVariableLabel(b))
+  );
 
-  return (
-    <div className="mx-auto w-full max-w-[1800px] space-y-5 px-4 py-5 sm:px-6 lg:px-8 pb-10">
-      <div className="rounded-[28px] border bg-[var(--color-surface)] p-6 shadow-sm" style={{ borderColor: 'var(--color-border)' }}>
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-          <div className="max-w-3xl">
-            <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl" style={{ backgroundColor: 'rgba(76,61,245,0.10)', color: 'var(--color-primary)' }}>
-                <Sparkles size={20} />
-              </div>
-              <div>
-                <div className="mb-2 inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ borderColor: 'rgba(76,61,245,0.14)', color: 'var(--color-primary)', backgroundColor: 'rgba(76,61,245,0.04)' }}>
-                  WhatsApp automation hub
-                </div>
-                <h1 className="text-3xl font-bold tracking-tight" style={{ color: 'var(--color-text)' }}>Integrations</h1>
-                <p className="mt-2 max-w-2xl text-sm leading-6" style={{ color: 'var(--color-textSecondary)' }}>
-                  Manage Interakt, WATI, and FiChat from one place. Provider settings stay compact on the cards, and template mapping stays inside the modal.
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:min-w-[360px]">
-            <div className="rounded-2xl border bg-[var(--color-background)] px-4 py-3" style={{ borderColor: 'var(--color-border)' }}>
-              <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Providers</p>
-              <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Interakt, WATI, FiChat</p>
-            </div>
-            <div className="rounded-2xl border bg-[var(--color-background)] px-4 py-3" style={{ borderColor: 'var(--color-border)' }}>
-              <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Mode</p>
-              <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Card-based setup</p>
-            </div>
-          </div>
+  const pageShellClass = isDark ? 'min-h-screen bg-[var(--color-background)]' : 'min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100/80';
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center bg-[var(--color-background)]">
+        <div className="text-center">
+          <div className="h-12 w-12 animate-spin rounded-full border-b-2 mx-auto" style={{ borderColor: 'var(--color-primary)' }} />
+          <p className="mt-4 text-sm font-medium" style={{ color: 'var(--color-textSecondary)' }}>Loading integrations workspace...</p>
         </div>
       </div>
+    );
+  }
 
-      <div className="grid gap-4 xl:grid-cols-3">{(['interakt', 'wati', 'fichat'] as ProviderKey[]).map(card)}</div>
+  return (
+    <div className={pageShellClass}>
+      <div className="mx-auto w-full max-w-[1800px] space-y-5 px-4 py-5 pb-10 sm:px-6 lg:px-8">
+        <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_22px_70px_rgba(15,23,42,0.08)]">
+          <div className="px-6 py-6 sm:px-8 sm:py-7">
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl" style={{ color: 'var(--color-text)' }}>Integrations</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6" style={{ color: 'var(--color-textSecondary)' }}>
+              Manage Interakt, WATI, and FiChat from one place.
+            </p>
+            <p className="mt-1 text-xs" style={{ color: 'var(--color-textSecondary)' }}>
+              Use the provider cards below to connect, save, and open setup when needed.
+            </p>
+          </div>
+        </div>
 
-      {providerForm()}
+        <div className="grid gap-4 xl:grid-cols-3">{providerOrder.map(card)}</div>
+
+        {providerForm()}
+      </div>
     </div>
   );
 };

@@ -1529,6 +1529,7 @@ router.post('/bulk-create', async (req, res) => {
           {
             ...taskData,
             assignedTo: assignedUserId,
+            taskGroupId,
             dueDate: taskDates?.[0] || taskData.dueDate
           },
           'assigned'
@@ -1777,6 +1778,9 @@ router.post('/create-scheduled', async (req, res) => {
     queueTaskWhatsAppNotification(
       {
         ...taskData,
+        taskGroupId,
+        taskId: seqRange?.start != null ? formatTaskId(taskData.companyId, seqRange.start) : undefined,
+        taskSeq: seqRange?.start ?? undefined,
         dueDate: taskDates?.[0] || taskData.dueDate
       },
       'assigned'

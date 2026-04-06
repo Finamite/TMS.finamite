@@ -23,14 +23,11 @@ export const TASK_TEMPLATE_VARIABLE_OPTIONS = [
   'task_type',
   'task_category',
   'due_date',
-  'due_date_time',
   'assignee_name',
-  'assignee_phone',
+  // 'assignee_phone',
   'assigner_name',
-  'assigner_phone',
+  // 'assigner_phone',
   'completion_remarks',
-  'company_id',
-  'event_label'
 ];
 
 const PROVIDERS = ['interakt', 'wati', 'fichat'];
@@ -84,6 +81,7 @@ export const createDefaultWhatsappSettings = () => ({
   wati: {
     apiKey: '',
     apiEndpoint: '',
+    templateLanguage: 'en',
     configs: buildDefaultTemplateConfigs()
   },
   fichat: {
@@ -154,6 +152,7 @@ export const normalizeWhatsappSettings = (input = {}) => {
     wati: {
       apiKey: normalizeString(input?.wati?.apiKey),
       apiEndpoint: normalizeString(input?.wati?.apiEndpoint),
+      templateLanguage: normalizeString(input?.wati?.templateLanguage) || defaults.wati.templateLanguage,
       configs: normalizeProviderConfigs(input?.wati?.configs, defaults.wati.configs)
     },
     fichat: {
@@ -233,20 +232,36 @@ const buildWatiApiBases = (apiEndpoint = '') => {
   if (!normalized) return [];
 
   const stripped = normalized.replace(/\/api\/(v[12]|ext\/v3)$/i, '');
-  const strippedTenant = stripped.replace(/\/\d+$/i, '');
 
   return Array.from(
     new Set(
       [
         normalized,
         stripped,
-        strippedTenant,
         `${stripped}/api/v1`,
         `${stripped}/api/v2`,
         `${stripped}/api/ext/v3`,
-        `${strippedTenant}/api/v1`,
-        `${strippedTenant}/api/v2`,
-        `${strippedTenant}/api/ext/v3`
+      ]
+        .map((item) => normalizeEndpoint(item))
+        .filter(Boolean)
+    )
+  );
+};
+
+const buildWatiTemplateSendUrls = (apiEndpoint = '') => {
+  const normalized = sanitizeWatiEndpoint(apiEndpoint);
+  if (!normalized) return [];
+
+  const stripped = normalized.replace(/\/api\/(v[12]|ext\/v3)$/i, '');
+
+  return Array.from(
+    new Set(
+      [
+        `${stripped}/api/ext/v3/messageTemplates/send`,
+        `${stripped}/api/v2/sendTemplateMessage`,
+        `${stripped}/api/v1/sendTemplateMessage`,
+        `${stripped}/api/v2/sendTemplateMessages`,
+        `${stripped}/api/v1/sendTemplateMessages`,
       ]
         .map((item) => normalizeEndpoint(item))
         .filter(Boolean)
@@ -370,26 +385,58 @@ const buildFallbackText = ({ eventType, task, assignedUser, assignedByUser }) =>
   return `${taskTypeLabel} task overdue: ${title}. Assignee: ${assigneeName}. Due: ${dueDate}.`;
 };
 
-const buildTaskVariableMap = ({ eventType, task, assignedUser, assignedByUser }) => ({
+const resolveTaskDisplayId = async (task = {}) => {
+  const directId = normalizeString(task?.taskId);
+  if (directId) return directId;
+
+  const companyId = normalizeString(task?.companyId);
+  const taskGroupId = normalizeString(task?.taskGroupId);
+  const dueDate = task?.dueDate ? new Date(task.dueDate) : null;
+  const assignedToId =
+    typeof task?.assignedTo === 'object'
+      ? normalizeString(task?.assignedTo?._id || task?.assignedTo?.id)
+      : normalizeString(task?.assignedTo);
+
+  if (companyId && taskGroupId && dueDate && !Number.isNaN(dueDate.getTime())) {
+    try {
+      const query = {
+        companyId,
+        taskGroupId,
+        dueDate
+      };
+
+      if (assignedToId) {
+        query.assignedTo = assignedToId;
+      }
+
+      const found = await Task.findOne(query)
+        .select('taskId taskSeq')
+        .sort({ sequenceNumber: 1, dueDate: 1 })
+        .lean();
+
+      if (normalizeString(found?.taskId)) {
+        return normalizeString(found.taskId);
+      }
+    } catch {
+      // Ignore lookup errors and fall through to the next fallback.
+    }
+  }
+
+  return normalizeString(task?._id || task?.id);
+};
+
+const buildTaskVariableMap = async ({ eventType, task, assignedUser, assignedByUser }) => ({
   task_title: normalizeString(task?.title),
   task_description: normalizeString(task?.description),
-  task_id: normalizeString(task?.taskId || task?._id),
+  task_id: await resolveTaskDisplayId(task),
   task_type: normalizeString(task?.taskType),
   task_category: getTaskCategoryLabel(task?.taskType),
   due_date: formatDate(task?.dueDate, false),
-  due_date_time: formatDate(task?.dueDate, true),
   assignee_name: normalizeString(assignedUser?.username),
-  assignee_phone: normalizeString(assignedUser?.phone),
+  // assignee_phone: normalizeString(assignedUser?.phone),
   assigner_name: normalizeString(assignedByUser?.username),
-  assigner_phone: normalizeString(assignedByUser?.phone),
+  // assigner_phone: normalizeString(assignedByUser?.phone),
   completion_remarks: normalizeString(task?.completionRemarks),
-  company_id: normalizeString(task?.companyId),
-  event_label:
-    eventType === 'assigned'
-      ? 'Task Assigned'
-      : eventType === 'completed'
-        ? 'Task Completed'
-        : 'Task Overdue'
 });
 
 const buildTemplateValues = (config, variableMap, fallbackText) => {
@@ -461,7 +508,7 @@ const sendWatiTemplateMessage = async ({
   parameters,
   eventKey
 }) => {
-  const urls = buildWatiApiBases(apiEndpoint).map((base) => `${base}/sendTemplateMessages`);
+  const urls = buildWatiTemplateSendUrls(apiEndpoint);
   const headersVariants = buildWatiHeaders(apiKey);
   const toDigits = String(to?.full || '').replace(/\D/g, '');
   const broadcastName = `tms_${normalizeString(eventKey).toLowerCase()}`;
@@ -679,7 +726,7 @@ export async function notifyTaskWhatsAppEvent({ task, eventType }) {
       assignedUser,
       assignedByUser
     });
-    const variableMap = buildTaskVariableMap({
+    const variableMap = await buildTaskVariableMap({
       eventType,
       task,
       assignedUser,
@@ -701,16 +748,10 @@ export async function notifyTaskWhatsAppEvent({ task, eventType }) {
             bodyValues: values
           });
         } else if (activeProvider === 'wati') {
-          const parameters =
-            (templateConfig.templateVariables || []).length > 0
-              ? templateConfig.templateVariables.map((key, index) => ({
-                  name: key,
-                  value: String(values[index] ?? '')
-                }))
-              : values.map((value, index) => ({
-                  name: String(index + 1),
-                  value: String(value ?? '')
-                }));
+          const parameters = values.map((value, index) => ({
+            name: String(index + 1),
+            value: String(value ?? '')
+          }));
 
           await sendWatiTemplateMessage({
             apiEndpoint: providerSettings.apiEndpoint,
