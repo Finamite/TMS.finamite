@@ -4,6 +4,23 @@ import User from '../models/User.js';
 import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
+const defaultCompanyPermissions = {
+  dashboard: true,
+  pendingTasks: true,
+  pendingRecurringTasks: true,
+  masterTasks: true,
+  masterRecurringTasks: true,
+  performance: true,
+  assignTask: true,
+  adminPanel: true,
+  chat: true,
+  settingspage: true,
+  integrationspage: false,
+  recyclebin: true,
+  helpsupport: true,
+  taskshift: true,
+  forapproval: true
+};
 
 // Get all companies (superadmin only)
 router.get('/', async (req, res) => {
@@ -74,7 +91,7 @@ router.post('/', async (req, res) => {
         managerLimit: limits?.managerLimit || 5,
         userLimit: limits?.userLimit || 50
       },
-      permissions: permissions || {}
+      permissions: permissions ? { ...defaultCompanyPermissions, ...permissions } : defaultCompanyPermissions
     });
 
     await company.save();
@@ -126,9 +143,14 @@ router.put('/:companyId', async (req, res) => {
     const { companyName, limits, adminDetails, permissions} = req.body;
 
     // Update company details
+    const existingCompany = await Company.findOne({ companyId }).lean();
+    const nextPermissions = permissions
+      ? { ...(existingCompany?.permissions || defaultCompanyPermissions), ...permissions }
+      : existingCompany?.permissions;
+
     const company = await Company.findOneAndUpdate(
       { companyId },
-      { companyName, limits,permissions},
+      { companyName, limits, permissions: nextPermissions },
       { new: true }
     );
 

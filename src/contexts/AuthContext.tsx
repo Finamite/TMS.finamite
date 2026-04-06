@@ -40,6 +40,7 @@ interface User {
     chat: boolean;
     recyclebin: boolean,
     settingsPage: boolean,
+    integrationspage: boolean,
     helpsupport: boolean,
     taskshift: boolean,
   };

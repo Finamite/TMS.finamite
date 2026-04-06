@@ -306,19 +306,21 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { icon: MessageCircle, label: 'Chat Support', path: '/chat', permission: cp.chat },
     { icon: Recycle, label: 'Recycle bin', path: '/recycle-bin', permission: user?.permissions?.canManageRecycle },
     { icon: Zap, label: 'Performance', path: '/performance', permission: cp.performance },
-    { icon: Plug, label: 'Integrations', path: '/integrations', permission: cp.settingspage && user?.permissions?.canManageSettings },
+    { icon: Plug, label: 'Integrations', path: '/integrations', permission: user?.permissions?.canManageSettings },
     { icon: Shield, label: 'Admin Panel', path: '/admin', permission: user?.permissions?.canManageUsers },
     { icon: Settings, label: 'Settings', path: '/settings-page', permission: user?.permissions?.canManageSettings },
     { icon: HelpCircle, label: 'Help & Support', path: '/help-support', permission: cp.helpsupport },
     { icon: Crown, label: 'SuperAdmin Panel', path: '/superadmin', requireSuperAdmin: true },
   ];
 
-  const filteredMenuItems = menuItems.filter(item => {
+  const filteredMenuItems = user?.role === 'superadmin'
+    ? menuItems.filter((item) => item.requireSuperAdmin)
+    : menuItems.filter(item => {
     if (item.requireSuperAdmin && user?.role !== 'superadmin') return false;
     if (item.permission === false) return false;
     if (item.label === 'PCM Pending' && !pcmIntegrationEnabled) return false; 
     return true;
-  });
+    });
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);

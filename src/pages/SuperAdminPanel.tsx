@@ -16,6 +16,7 @@ interface Company {
     adminPanel: boolean;
     chat: boolean;
     settingspage: boolean,
+    integrationspage: boolean,
     recyclebin: boolean,
     helpsupport: boolean,
     taskshift:boolean,
@@ -76,6 +77,27 @@ const SuperAdminPanel: React.FC = () => {
     helpsupport: true,
     taskshift: true,
     forapproval:true,
+    integrationspage: false,
+  };
+  const getCompanyPermissionLabel = (key: string) => {
+    const labels: Record<string, string> = {
+      dashboard: 'Dashboard',
+      pendingTasks: 'Pending Tasks',
+      pendingRecurringTasks: 'Pending Recurring',
+      masterTasks: 'Master Tasks',
+      masterRecurringTasks: 'Master Recurring',
+      performance: 'Performance',
+      assignTask: 'Assign Task',
+      adminPanel: 'Admin Panel',
+      chat: 'Chat',
+      settingspage: 'Settings Page',
+      integrationspage: 'Integrations Page',
+      recyclebin: 'Recycle Bin',
+      helpsupport: 'Help & Support',
+      taskshift: 'Task Shift',
+      forapproval: 'For Approval'
+    };
+    return labels[key] || key.replace(/([A-Z])/g, ' $1');
   };
   const [formData, setFormData] = useState({
     companyName: '',
@@ -305,8 +327,21 @@ const SuperAdminPanel: React.FC = () => {
       adminNewEmail: company.admin?.email || '',
       limits: company.limits,
       permissions: {
-        ...defaultPermissions,
-        ...(company.permissions || {})
+        dashboard: company.permissions?.dashboard ?? true,
+        pendingTasks: company.permissions?.pendingTasks ?? true,
+        pendingRecurringTasks: company.permissions?.pendingRecurringTasks ?? true,
+        masterTasks: company.permissions?.masterTasks ?? true,
+        masterRecurringTasks: company.permissions?.masterRecurringTasks ?? true,
+        performance: company.permissions?.performance ?? true,
+        assignTask: company.permissions?.assignTask ?? true,
+        adminPanel: company.permissions?.adminPanel ?? true,
+        chat: company.permissions?.chat ?? true,
+        settingspage: company.permissions?.settingspage ?? true,
+        recyclebin: company.permissions?.recyclebin ?? true,
+        helpsupport: company.permissions?.helpsupport ?? true,
+        taskshift: company.permissions?.taskshift ?? true,
+        forapproval: company.permissions?.forapproval ?? true,
+        integrationspage: company.permissions?.integrationspage ?? false
       }
     });
   };
@@ -347,6 +382,7 @@ const SuperAdminPanel: React.FC = () => {
         helpsupport: true,
         taskshift:true,
         forapproval:true,
+        integrationspage: false,
       }
     });
   };
@@ -615,7 +651,7 @@ const SuperAdminPanel: React.FC = () => {
                         .slice(0, showAllPermissions ? undefined : 4)
                         .map(([key, value]) => (
                           <div key={key}>
-                            <span className="font-semibold capitalize">{key}: </span>
+                            <span className="font-semibold capitalize">{getCompanyPermissionLabel(key)}: </span>
                             <span className={value ? "text-green-500" : "text-red-500"}>
                               {value ? "Yes" : "No"}
                             </span>
@@ -953,7 +989,7 @@ const SuperAdminPanel: React.FC = () => {
                             className="w-4 h-4"
                           />
                           <span className="capitalize text-sm" style={{ color: 'var(--color-text)' }}>
-                            {key.replace(/([A-Z])/g, ' $1')}
+                            {getCompanyPermissionLabel(key)}
                           </span>
                         </label>
                       ))}
@@ -1200,7 +1236,7 @@ const SuperAdminPanel: React.FC = () => {
                             className="w-4 h-4"
                           />
                           <span className="capitalize text-sm" style={{ color: 'var(--color-text)' }}>
-                            {key.replace(/([A-Z])/g, ' $1')}
+                            {getCompanyPermissionLabel(key)}
                           </span>
                         </label>
                       ))}

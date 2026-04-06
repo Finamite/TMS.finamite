@@ -9,6 +9,7 @@ import {
   Target, Activity, CheckCircle, XCircle, Timer,
   ChevronDown, Star, Zap, BarChart3,
   PieChart as PieChartIcon, Users, RotateCcw, ClipboardCheck,
+  MessageSquare,
   GitBranch
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -158,7 +159,7 @@ interface TeamPendingData {
 const Dashboard: React.FC = () => {
   const DASHBOARD_API_CACHE_TTL_MS = 60 * 1000;
   const { user } = useAuth();
-  useTheme();
+  const { isDark } = useTheme();
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [taskCounts, setTaskCounts] = useState<TaskCounts | null>(null);
   const [loading, setLoading] = useState(true);
@@ -175,6 +176,13 @@ const Dashboard: React.FC = () => {
   const [openSelector, setOpenSelector] = useState<string | null>(null);
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
   const [adminApprovalEnabled, setAdminApprovalEnabled] = useState(false);
+  const [whatsappIntegrationStatus, setWhatsappIntegrationStatus] = useState<{
+    live: boolean;
+    provider: 'interakt' | 'wati' | 'fichat' | null;
+  }>({
+    live: false,
+    provider: null
+  });
   const { enabled: pcmEnabled, settings: pcmSettings, steps: pcmSteps, error: pcmError } = usePcmIntegration();
   const pcmBillingBlocked = Boolean(pcmError && /billing|payment|trial/i.test(pcmError));
   const analyticsCacheRef = React.useRef<Map<string, { data: any; ts: number }>>(new Map());
@@ -187,6 +195,7 @@ const Dashboard: React.FC = () => {
   };
 
   const navigate = useNavigate();
+  const openIntegrationsPage = () => navigate('/integrations');
 
   const goToPage = (type: string, category: string) => {
     setOpenSelector(null);
@@ -636,6 +645,25 @@ const Dashboard: React.FC = () => {
   }, [user?.companyId]);
 
   useEffect(() => {
+    if (!user?.companyId) return;
+
+    axios
+      .get(`${address}/api/settings/whatsapp`, {
+        params: { companyId: user.companyId }
+      })
+      .then((res) => {
+        const live = res.data?.enabled === true && Boolean(res.data?.activeProvider);
+        setWhatsappIntegrationStatus({
+          live,
+          provider: live ? res.data?.activeProvider : null
+        });
+      })
+      .catch(() => {
+        setWhatsappIntegrationStatus({ live: false, provider: null });
+      });
+  }, [user?.companyId]);
+
+  useEffect(() => {
     if (!user?.companyId || !adminApprovalEnabled) return;
 
     axios
@@ -842,7 +870,7 @@ const Dashboard: React.FC = () => {
   return (
     <div className="min-h-full bg-[var(--color-background)] p-4 space-y-6 transition-all duration-300 ease-out sm:p-6 lg:p-8 [contain:layout_paint]">
       {/* Professional Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
+      <div className="relative flex flex-col gap-4 xl:flex-row xl:items-center">
         <div className="flex items-center space-x-6">
           <div className="p-3 rounded-xl shadow-xl" style={{ background: `linear-gradient(135deg,  #6a11cb 0%, #2575fc 100%)` }}>
             <BarChart3 size={20} className="text-white" />
@@ -858,7 +886,81 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4 w-full sm:w-auto"> {/* Adjusted for mobile stacking */}
+        {(user?.role === 'admin' || user?.role === 'manager') && (
+          <div
+            className="relative flex w-full items-center gap-2.5 rounded-[20px] border px-3 py-2 shadow-sm xl:absolute xl:left-1/2 xl:top-1/2 xl:w-auto xl:min-w-[420px] xl:max-w-[580px] xl:-translate-x-1/2 xl:-translate-y-1/2"
+            style={{
+              backgroundColor: isDark ? 'rgba(15, 23, 42, 0.72)' : 'rgba(236, 253, 245, 0.96)',
+              borderColor: isDark ? 'rgba(74, 222, 128, 0.30)' : 'rgba(74, 222, 128, 0.28)',
+              boxShadow: isDark ? '0 10px 30px rgba(15, 23, 42, 0.22)' : '0 10px 28px rgba(34, 197, 94, 0.10)',
+              transformOrigin: 'center'
+            }}
+          >
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute -inset-1 rounded-[26px] border animate-pulse"
+              style={{
+                borderColor: 'rgba(74, 222, 128, 0.22)',
+                opacity: 0.65
+              }}
+            />
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute -inset-2 rounded-[28px] border animate-pulse"
+              style={{
+                borderColor: 'rgba(74, 222, 128, 0.12)',
+                animationDelay: '700ms',
+                opacity: 0.35
+              }}
+            />
+            <div
+              className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border"
+              style={{
+                backgroundColor: isDark ? 'rgba(34, 197, 94, 0.16)' : 'rgba(34, 197, 94, 0.12)',
+                borderColor: isDark ? 'rgba(74, 222, 128, 0.25)' : 'rgba(74, 222, 128, 0.30)',
+                color: 'var(--color-success)',
+                boxShadow: '0 0 0 0 rgba(34, 197, 94, 0.45)'
+              }}
+            >
+              <MessageSquare size={16} />
+              <span
+                className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full animate-pulse"
+                style={{ backgroundColor: 'var(--color-success)' }}
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm font-semibold leading-5" style={{ color: 'var(--color-text)' }}>
+                  WhatsApp integration is live now
+                </p>
+                <span
+                  className="rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide mr-6 animate-pulse"
+                  style={{
+                    borderColor: 'rgba(74, 222, 128, 0.26)',
+                    backgroundColor: isDark ? 'rgba(34, 197, 94, 0.12)' : 'rgba(34, 197, 94, 0.08)',
+                    color: 'var(--color-success)'
+                  }}
+                >
+                  Live
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={openIntegrationsPage}
+              className="shrink-0 rounded-xl border px-3.5 py-1.5 text-xs font-semibold transition hover:-translate-y-0.5"
+              style={{
+                borderColor: 'rgba(74, 222, 128, 0.26)',
+                backgroundColor: isDark ? 'rgba(34, 197, 94, 0.12)' : 'rgba(255,255,255,0.9)',
+                color: 'var(--color-text)'
+              }}
+            >
+              Open Integrations
+            </button>
+          </div>
+        )}
+
+        <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4 w-full sm:w-auto xl:ml-auto"> {/* Adjusted for mobile stacking */}
           {/* View Mode Toggle */}
           <ThemeCard className="p-1 w-full sm:w-auto" variant="bordered" hover={false}> {/* Full width on mobile */}
             <div className="flex items-center justify-center"> {/* Centered buttons on mobile */}

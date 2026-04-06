@@ -44,6 +44,7 @@ const companySchema = new mongoose.Schema({
   adminPanel: { type: Boolean, default: true },
   chat: { type: Boolean, default: true},
   settingspage: { type: Boolean, default: true},
+  integrationspage: { type: Boolean, default: false},
   recyclebin: { type: Boolean, default: true},
   helpsupport: { type: Boolean, default: true},
   taskshift: {type: Boolean, default: true},

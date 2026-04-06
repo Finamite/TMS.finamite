@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
-import { ArrowRight, CheckCircle2, ChevronDown, Eye, EyeOff, Plug, RefreshCw, Save, Settings2, Shield, Sparkles, Zap } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ChevronDown, Eye, EyeOff, LockKeyhole, Plug, RefreshCw, Save, Settings2, Shield, Sparkles, Trash2, Zap } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -118,11 +118,11 @@ const Toggle = ({ checked, onChange }: { checked: boolean; onChange: (v: boolean
   </button>
 );
 
-const Modal = ({ open, onClose, title, children, footer, isDark }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode; footer: React.ReactNode; isDark: boolean }) => {
+const Modal = ({ open, onClose, title, children, footer, isDark, zIndex = 50 }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode; footer: React.ReactNode; isDark: boolean; zIndex?: number }) => {
   if (!open) return null;
   const modalTextSecondary = isDark ? 'rgba(255,255,255,0.96)' : 'var(--color-textSecondary)';
   return createPortal(
-    <div className={`fixed inset-0 z-50 p-3 backdrop-blur-sm sm:flex sm:items-center sm:justify-center ${isDark ? 'bg-slate-950/75' : 'bg-slate-950/45'}`}>
+    <div className={`fixed inset-0 p-3 backdrop-blur-sm sm:flex sm:items-center sm:justify-center ${isDark ? 'bg-slate-950/75' : 'bg-slate-950/45'}`} style={{ zIndex }}>
       <div
         className="w-[min(98vw,1600px)] overflow-hidden rounded-[32px] border shadow-[0_24px_80px_rgba(15,23,42,0.18)]"
         style={{
@@ -188,7 +188,8 @@ const IntegrationsPage: React.FC = () => {
     recurring: false
   });
   const [showSecrets, setShowSecrets] = useState({ interakt: false, wati: false, fichat: false });
-  const [showWatiEndpoint, setShowWatiEndpoint] = useState(false);
+  const [pendingClear, setPendingClear] = useState<{ provider: ProviderKey; field: 'apiKey' | 'apiEndpoint' } | null>(null);
+  const integrationsLocked = user?.company?.permissions?.integrationspage === false;
   const modalSurface = isDark ? 'rgba(26,32,44,0.92)' : 'rgba(255,255,255,0.72)';
   const modalSurfaceStrong = isDark ? 'rgba(30,41,59,0.98)' : 'rgba(255,255,255,0.82)';
   const modalSurfaceSoft = isDark ? 'rgba(30,41,59,0.82)' : 'rgba(255,255,255,0.74)';
@@ -201,6 +202,7 @@ const IntegrationsPage: React.FC = () => {
       autoClose: 4000
     });
   };
+  const notifyLocked = () => notify('warning', 'Integrations are disabled for this company.');
 
   const loadSettings = async () => {
     if (!companyId) return;
@@ -257,6 +259,10 @@ const IntegrationsPage: React.FC = () => {
   };
 
   const handleProviderToggle = (provider: ProviderKey, checked: boolean) => {
+    if (integrationsLocked) {
+      notifyLocked();
+      return;
+    }
     if (checked) {
       const issue = getProviderReadinessIssue(provider);
       if (issue) {
@@ -272,6 +278,10 @@ const IntegrationsPage: React.FC = () => {
 
   const fetchTemplates = async (p: ProviderKey) => {
     if (!companyId) return;
+    if (integrationsLocked) {
+      notifyLocked();
+      return;
+    }
 
     if (!getProviderConnectionReady(settings[p], p)) {
       setTemplateError((prev) => ({
@@ -299,6 +309,10 @@ const IntegrationsPage: React.FC = () => {
 
   const fetchTemplateBody = async (provider: ProviderKey, eventKey: EventKey, templateNameOverride?: string, languageOverride?: string) => {
     if (!companyId) return;
+    if (integrationsLocked) {
+      notifyLocked();
+      return;
+    }
 
     const nextSeq = (templateBodyRequestSeq.current[provider][eventKey] || 0) + 1;
     templateBodyRequestSeq.current[provider][eventKey] = nextSeq;
@@ -424,6 +438,10 @@ const IntegrationsPage: React.FC = () => {
 
   const connectFiChat = async () => {
     if (!companyId) return;
+    if (integrationsLocked) {
+      notifyLocked();
+      return;
+    }
 
     try {
       const res = await axios.get(`${address}/api/settings/whatsapp/fichat/connect`, {
@@ -471,6 +489,10 @@ const IntegrationsPage: React.FC = () => {
 
   const disconnectFiChat = async () => {
     if (!companyId) return;
+    if (integrationsLocked) {
+      notifyLocked();
+      return;
+    }
 
     try {
       const res = await axios.post(`${address}/api/settings/whatsapp/fichat/disconnect`, { companyId });
@@ -486,6 +508,10 @@ const IntegrationsPage: React.FC = () => {
   };
 
   const openModal = async (p: ProviderKey) => {
+    if (integrationsLocked) {
+      notifyLocked();
+      return;
+    }
     setActiveProvider(p);
     if (getProviderConnectionReady(settings[p], p)) {
       await fetchTemplates(p);
@@ -494,27 +520,21 @@ const IntegrationsPage: React.FC = () => {
       setTemplateError((prev) => ({ ...prev, [p]: '' }));
     }
   };
-  const saveSettings = async (providerOverride?: ProviderKey) => {
+  const persistSettings = async (nextSettings: SettingsData, providerToSave: ProviderKey, options?: { refreshTemplates?: boolean }) => {
     if (!companyId) return;
-    const providerToSave = providerOverride || activeProvider || settings.activeProvider;
-    const issue = getProviderReadinessIssue(providerToSave);
-    if (issue) {
-      notify('error', issue);
-      return;
-    }
     setSavingProvider(providerToSave);
     try {
-      const nextSettings = {
-        ...settings,
+      const normalizedSettings = {
+        ...nextSettings,
         wati: {
-          ...settings.wati,
-          templateLanguage: String(settings.wati.templateLanguage || 'en').trim() || 'en'
+          ...nextSettings.wati,
+          templateLanguage: String(nextSettings.wati.templateLanguage || 'en').trim() || 'en'
         },
         activeProvider: providerToSave
       };
-      const res = await axios.post(`${address}/api/settings/whatsapp`, { companyId, ...nextSettings });
+      const res = await axios.post(`${address}/api/settings/whatsapp`, { companyId, ...normalizedSettings });
       setSettings((prev) => ({ ...prev, ...(res.data?.data || {}) }));
-      if (providerToSave === 'wati') {
+      if (options?.refreshTemplates && providerToSave === 'wati' && normalizedSettings.wati.apiKey?.trim() && normalizedSettings.wati.apiEndpoint?.trim()) {
         await fetchTemplates('wati');
       }
       notify('success', 'Saved successfully.');
@@ -525,10 +545,138 @@ const IntegrationsPage: React.FC = () => {
     }
   };
 
+  const saveSettings = async (providerOverride?: ProviderKey) => {
+    if (!companyId) return;
+    if (integrationsLocked) {
+      notifyLocked();
+      return;
+    }
+    const providerToSave = providerOverride || activeProvider || settings.activeProvider;
+    const issue = getProviderReadinessIssue(providerToSave);
+    if (issue) {
+      notify('error', issue);
+      return;
+    }
+    await persistSettings(settings, providerToSave, { refreshTemplates: true });
+  };
+
+  const requestClearField = (provider: ProviderKey, field: 'apiKey' | 'apiEndpoint') => {
+    if (integrationsLocked) {
+      notifyLocked();
+      return;
+    }
+    setPendingClear({ provider, field });
+  };
+
+  const confirmClearField = async () => {
+    if (!pendingClear) return;
+    const { provider, field } = pendingClear;
+    const nextSettings: SettingsData = {
+      ...settings,
+      [provider]: {
+        ...settings[provider],
+        [field]: '',
+        ...(provider === 'wati' && field === 'apiKey' ? { apiEndpoint: '' } : {})
+      }
+    };
+    setSettings(nextSettings);
+    if (field === 'apiKey') {
+      setShowSecrets((prev) => ({ ...prev, [provider]: false }));
+    }
+    setPendingClear(null);
+    await persistSettings(nextSettings, provider, { refreshTemplates: false });
+  };
+
+  const renderClearConfirmModal = () => {
+    if (!pendingClear) return null;
+    return createPortal(
+      <div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-slate-950/60 p-3 backdrop-blur-sm">
+        <div
+          className="w-[min(92vw,520px)] overflow-hidden rounded-[32px] border shadow-[0_24px_80px_rgba(15,23,42,0.28)]"
+          style={{
+            borderColor: 'var(--color-border)',
+            backgroundColor: isDark ? 'rgba(26,32,44,0.98)' : 'var(--color-surface)'
+          }}
+        >
+          <div
+            className="flex items-center justify-between border-b px-6 py-5"
+            style={{
+              borderColor: 'var(--color-border)',
+              backgroundColor: isDark ? 'rgba(26,32,44,0.98)' : 'var(--color-surface)'
+            }}
+          >
+            <div>
+              <h3 className="text-lg font-semibold tracking-tight" style={{ color: 'var(--color-text)' }}>Are you sure?</h3>
+              <p className="text-xs" style={{ color: modalTextSecondary }}>This action removes the saved value from the form.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPendingClear(null)}
+              className="rounded-xl border px-3 py-2 text-sm shadow-sm transition hover:-translate-y-0.5"
+              style={{
+                borderColor: 'var(--color-border)',
+                backgroundColor: isDark ? 'rgba(45,55,72,0.9)' : 'var(--color-surface)',
+                color: 'var(--color-text)'
+              }}
+            >
+              Close
+            </button>
+          </div>
+
+          <div className="space-y-4 px-6 py-5">
+            <div className="flex items-start gap-3 rounded-[24px] border px-4 py-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
+              <div className="mt-0.5 rounded-2xl border p-2" style={{ borderColor: 'rgba(239,68,68,0.22)', backgroundColor: isDark ? 'rgba(127,29,29,0.22)' : 'rgba(254,226,226,0.75)', color: '#ef4444' }}>
+                <Trash2 size={16} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+                  Clear {pendingClear.field === 'apiEndpoint' ? 'API Endpoint' : 'API Key'} for {providerLabel[pendingClear.provider]}
+                </p>
+                <p className="mt-1 text-sm leading-6" style={{ color: modalTextSecondary }}>
+                  This will permanently remove the saved {pendingClear.field === 'apiEndpoint' ? 'endpoint' : 'credential'} from the form. You can add it again later, but this field will be empty now.
+                </p>
+              </div>
+            </div>
+            <p className="text-xs" style={{ color: modalTextSecondary }}>
+              This only clears the local integration setting for the current company.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 border-t px-6 py-4" style={{ borderColor: 'var(--color-border)', backgroundColor: isDark ? 'rgba(15,23,42,0.95)' : 'var(--color-background)' }}>
+            <button
+              type="button"
+              onClick={() => setPendingClear(null)}
+              className="rounded-2xl border px-4 py-2.5 text-sm font-semibold transition hover:-translate-y-0.5"
+              style={{
+                borderColor: 'var(--color-border)',
+                backgroundColor: modalSurface,
+                color: 'var(--color-text)'
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={confirmClearField}
+              className="inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5"
+              style={{
+                background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+              }}
+            >
+              <Trash2 size={14} />
+              Clear
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    );
+  };
+
   const currentTemplates = activeProvider ? templates[activeProvider] : [];
   const currentLoading = activeProvider ? templateLoading[activeProvider] : false;
   const currentError = activeProvider ? templateError[activeProvider] : '';
-  const providerOrder: ProviderKey[] = ['interakt', 'wati', 'fichat'];
+  const providerOrder: ProviderKey[] = ['fichat', 'interakt', 'wati'];
   const configuredEventCount = providerOrder.reduce((sum, provider) => (
     sum + Object.values(settings[provider].configs).filter((cfg) => cfg.enabled).length
   ), 0);
@@ -556,7 +704,7 @@ const IntegrationsPage: React.FC = () => {
         }}
       >
         {isActive ? <div className="relative h-1.5" style={{ background: 'var(--color-primary)' }} /> : <div className="h-1.5" />}
-        <div className="relative flex flex-1 flex-col p-5">
+        <div className={`relative flex flex-1 flex-col p-5 ${integrationsLocked ? 'pointer-events-none select-none opacity-60' : ''}`}>
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl border shadow-sm" style={{ borderColor: 'var(--color-border)', backgroundColor: isDark ? 'rgba(45,55,72,0.95)' : 'var(--color-background)', color: 'var(--color-primary)' }}>
@@ -569,8 +717,8 @@ const IntegrationsPage: React.FC = () => {
                 </p>
               </div>
             </div>
-            <span className="rounded-full border px-3 py-1 text-[11px] font-semibold" style={{ borderColor: 'var(--color-border)', backgroundColor: isDark ? 'rgba(45,55,72,0.95)' : 'var(--color-background)', color: 'var(--color-textSecondary)' }}>
-              {isActive ? 'Active' : isConnected ? 'Connected' : 'Not connected'}
+            <span className="rounded-full border px-3 py-1 text-[11px] font-semibold" style={{ borderColor: 'var(--color-border)', backgroundColor: isDark ? 'rgba(45,55,72,0.95)' : 'var(--color-background)', color: integrationsLocked ? 'var(--color-warning)' : 'var(--color-textSecondary)' }}>
+              {integrationsLocked ? 'Locked' : isActive ? 'Active' : isConnected ? 'Connected' : 'Not connected'}
             </span>
           </div>
 
@@ -665,18 +813,37 @@ const IntegrationsPage: React.FC = () => {
                 <div className="grid gap-3">
                   <div>
                     <label className="mb-2 block text-xs font-semibold" style={{ color: 'var(--color-textSecondary)' }}>API Key</label>
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2">
                       <input
                         type={showSecrets[p] ? 'text' : 'password'}
                         value={cfg.apiKey || ''}
                         onChange={(e) => updateProvider(p, 'apiKey', e.target.value)}
-                        className="w-full rounded-2xl border px-4 py-3 text-sm outline-none transition placeholder:text-[var(--color-textSecondary)] focus:border-[var(--color-primary)]"
+                        className="min-w-0 flex-1 rounded-2xl border px-4 py-3 text-sm outline-none transition placeholder:text-[var(--color-textSecondary)] focus:border-[var(--color-primary)]"
                         placeholder={`${providerLabel[p]} API key`}
                         style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)' }}
                       />
-                      <button type="button" onClick={() => setShowSecrets((prev) => ({ ...prev, [p]: !prev[p] }))} className="rounded-2xl border px-3 transition hover:-translate-y-0.5" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
-                        {showSecrets[p] ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setShowSecrets((prev) => ({ ...prev, [p]: !prev[p] }))}
+                          className="flex h-11 w-11 items-center justify-center rounded-2xl border shadow-sm transition hover:-translate-y-0.5 hover:bg-[var(--color-background)]"
+                          style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-textSecondary)' }}
+                          aria-label={showSecrets[p] ? 'Hide API Key' : 'Show API Key'}
+                        >
+                          {showSecrets[p] ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => requestClearField(p, 'apiKey')}
+                          disabled={!cfg.apiKey}
+                          className="flex h-11 w-11 items-center justify-center rounded-2xl border shadow-sm transition hover:-translate-y-0.5 hover:bg-[rgba(239,68,68,0.08)] disabled:cursor-not-allowed disabled:opacity-40"
+                          style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-textSecondary)' }}
+                          aria-label="Clear API Key"
+                          title="Clear API Key"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -684,24 +851,15 @@ const IntegrationsPage: React.FC = () => {
                     <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_140px]">
                       <div>
                         <label className="mb-2 block text-xs font-semibold" style={{ color: 'var(--color-textSecondary)' }}>API Endpoint</label>
-                        <div className="flex gap-2">
+                        <div className="flex items-center gap-2">
                           <input
-                            type={showWatiEndpoint ? 'text' : 'password'}
+                            type={showSecrets[p] ? 'text' : 'password'}
                             value={cfg.apiEndpoint || ''}
                             onChange={(e) => updateProvider('wati', 'apiEndpoint', e.target.value)}
-                            className="w-full rounded-2xl border px-4 py-3 text-sm outline-none transition placeholder:text-[var(--color-textSecondary)] focus:border-[var(--color-primary)]"
+                            className="min-w-0 flex-1 rounded-2xl border px-4 py-3 text-sm outline-none transition placeholder:text-[var(--color-textSecondary)] focus:border-[var(--color-primary)]"
                             placeholder="https://your-wati-host/api/v1"
                             style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)' }}
                           />
-                          <button
-                            type="button"
-                            onClick={() => setShowWatiEndpoint((prev) => !prev)}
-                            className="rounded-2xl border px-3 transition hover:-translate-y-0.5"
-                            style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}
-                            aria-label={showWatiEndpoint ? 'Hide API Endpoint' : 'Show API Endpoint'}
-                          >
-                            {showWatiEndpoint ? <EyeOff size={16} /> : <Eye size={16} />}
-                          </button>
                         </div>
                       </div>
                       <div>
@@ -802,7 +960,7 @@ const IntegrationsPage: React.FC = () => {
     return (
       <div
         key={`${p}-${k}`}
-        className="overflow-hidden rounded-[28px] border bg-[var(--color-surface)] p-4 shadow-[0_14px_40px_rgba(15,23,42,0.05)] sm:p-5"
+        className={`overflow-hidden rounded-[28px] border bg-[var(--color-surface)] p-4 shadow-[0_14px_40px_rgba(15,23,42,0.05)] sm:p-5 ${integrationsLocked ? 'pointer-events-none select-none opacity-60' : ''}`}
         style={{ borderColor: 'var(--color-border)' }}
       >
         <div className="mb-4 h-1.5 rounded-full" style={{ background: providerTheme[p].accent }} />
@@ -1002,154 +1160,171 @@ const IntegrationsPage: React.FC = () => {
     const theme = providerTheme[activeProvider];
     const canRefreshTemplates = activeProvider === 'fichat' ? Boolean(cfg.connected || cfg.accessToken) : true;
     return (
-      <Modal
-        open={!!activeProvider}
-        onClose={() => setActiveProvider(null)}
-        title={`${providerLabel[activeProvider]} Integration`}
-        isDark={isDark}
-        footer={
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-xs" style={{ color: modalTextSecondary }}>
-              <Sparkles size={14} className="inline-block align-text-bottom" /> Save the provider card first, then refresh templates to update the editor.
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() => fetchTemplates(activeProvider)}
-                disabled={currentLoading || !canRefreshTemplates}
-                className="inline-flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-semibold transition hover:-translate-y-0.5"
-                style={{ borderColor: theme.ring, backgroundColor: modalSurface, color: 'var(--color-text)' }}
-              >
-                <RefreshCw size={14} />
-                {currentLoading ? 'Loading...' : 'Refresh Templates'}
-              </button>
-              <button
-                type="button"
-                onClick={() => saveSettings(activeProvider)}
-                disabled={savingProvider === activeProvider}
-                className="inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5"
-                style={{ background: theme.accent }}
-              >
-                <Save size={14} />
-                {savingProvider === activeProvider ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-          </div>
-        }
-      >
-        <div className="space-y-5">
-          <div className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
-            <div className="space-y-4">
-              <div className="rounded-[28px] border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
-                <div className="mb-3 flex items-center justify-between">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: modalTextSecondary }}>Global</p>
-                    <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Enable WhatsApp alerts</p>
-                  </div>
-                  <Toggle checked={settings.enabled} onChange={(v) => setSettings((prev) => ({ ...prev, enabled: v }))} />
-                </div>
-                <p className="text-xs" style={{ color: modalTextSecondary }}>
-                  When this is off, no provider sends notifications even if individual templates are enabled.
-                </p>
+      <>
+        <Modal
+          open={!!activeProvider}
+          onClose={() => setActiveProvider(null)}
+          title={`${providerLabel[activeProvider]} Integration`}
+          isDark={isDark}
+          footer={
+            <div className={`flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between ${integrationsLocked ? 'pointer-events-none select-none opacity-60' : ''}`}>
+              <div className="text-xs" style={{ color: modalTextSecondary }}>
+                <Sparkles size={14} className="inline-block align-text-bottom" /> Save the provider card first, then refresh templates to update the editor.
               </div>
-
-              <div className="rounded-[28px] border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 size={16} style={{ color: theme.iconTint }} />
-                  <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Provider Snapshot</p>
-                </div>
-                <div className="mt-3 grid gap-3">
-                  <div className="rounded-2xl border px-3 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceInset }}>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: modalTextSecondary }}>Connection</p>
-                    <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-                      {settings.enabled
-                        ? (activeProvider === 'fichat'
-                            ? (settings.fichat.connected ? `FiChat connected${settings.fichat.accountName ? ` as ${settings.fichat.accountName}` : ''}` : 'FiChat not connected')
-                            : activeProvider
-                              ? `${providerLabel[activeProvider]} ready`
-                              : 'Choose a provider')
-                        : 'All alerts disabled'}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border px-3 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceInset }}>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: modalTextSecondary }}>Events active</p>
-                    <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-                      {configuredEventCount} of {EVENTS.length * providerOrder.length}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-[28px] border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
-                <div className="flex items-center gap-2">
-                  <Shield size={16} style={{ color: theme.iconTint }} />
-                  <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Supported Variables</p>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {sortedSupportedVariableKeys.map((k) => (
-                    <span
-                      key={k}
-                      className="rounded-full border px-2.5 py-1 text-[11px] font-semibold"
-                      style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface, color: modalTextSecondary }}
-                    >
-                      {getSupportedVariableLabel(k)}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              {EVENTS.filter((e) => e.section === 'One-time').length ? (
-                <div className="space-y-3 rounded-[28px] border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
-                  <button
-                    type="button"
-                    onClick={() => setExpandedSections((prev) => ({ ...prev, oneTime: !prev.oneTime }))}
-                    className="flex w-full items-start justify-between gap-4 text-left"
-                  >
-                    <div>
-                      <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>One-time Tasks</p>
-                      <p className="text-xs" style={{ color: modalTextSecondary }}>Assigned, completed, and overdue alerts.</p>
-                    </div>
-                    <ChevronDown size={16} className={`mt-0.5 shrink-0 transition-transform ${expandedSections.oneTime ? 'rotate-180' : ''}`} style={{ color: modalTextSecondary }} />
-                  </button>
-                  {expandedSections.oneTime ? <div className="space-y-3 pt-1">{EVENTS.filter((e) => e.section === 'One-time').map((e) => renderEditor(activeProvider!, e.key))}</div> : null}
-                </div>
-              ) : null}
-              {EVENTS.filter((e) => e.section === 'Recurring').length ? (
-                <div className="space-y-3 rounded-[28px] border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
-                  <button
-                    type="button"
-                    onClick={() => setExpandedSections((prev) => ({ ...prev, recurring: !prev.recurring }))}
-                    className="flex w-full items-start justify-between gap-4 text-left"
-                  >
-                    <div>
-                      <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Recurring Tasks</p>
-                      <p className="text-xs" style={{ color: modalTextSecondary }}>Assigned, completed, and overdue alerts.</p>
-                    </div>
-                    <ChevronDown size={16} className={`mt-0.5 shrink-0 transition-transform ${expandedSections.recurring ? 'rotate-180' : ''}`} style={{ color: modalTextSecondary }} />
-                  </button>
-                  {expandedSections.recurring ? <div className="space-y-3 pt-1">{EVENTS.filter((e) => e.section === 'Recurring').map((e) => renderEditor(activeProvider!, e.key))}</div> : null}
-                </div>
-              ) : null}
-              <div className="flex items-center justify-between rounded-[28px] border px-4 py-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
-                <div className="text-xs" style={{ color: modalTextSecondary }}>{currentLoading ? 'Loading templates...' : `${currentTemplates.length} template(s) loaded.`}</div>
+              <div className="flex flex-wrap gap-3">
                 <button
                   type="button"
-                  onClick={() => fetchTemplates(activeProvider!)}
-                  disabled={!canRefreshTemplates}
+                  onClick={() => fetchTemplates(activeProvider)}
+                  disabled={currentLoading || !canRefreshTemplates}
                   className="inline-flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-semibold transition hover:-translate-y-0.5"
                   style={{ borderColor: theme.ring, backgroundColor: modalSurface, color: 'var(--color-text)' }}
                 >
                   <RefreshCw size={14} />
-                  Reload Templates
+                  {currentLoading ? 'Loading...' : 'Refresh Templates'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => saveSettings(activeProvider)}
+                  disabled={savingProvider === activeProvider}
+                  className="inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5"
+                  style={{ background: theme.accent }}
+                >
+                  <Save size={14} />
+                  {savingProvider === activeProvider ? 'Saving...' : 'Save'}
                 </button>
               </div>
-              {currentError ? <p className="text-sm text-red-600">{currentError}</p> : null}
+            </div>
+          }
+        >
+          <div className={`space-y-5 ${integrationsLocked ? 'pointer-events-none select-none opacity-60' : ''}`}>
+            {integrationsLocked ? (
+              <div className="rounded-[28px] border px-4 py-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 rounded-2xl border p-2" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceInset }}>
+                    <LockKeyhole size={16} style={{ color: 'var(--color-warning)' }} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Integrations locked</p>
+                    <p className="text-xs" style={{ color: modalTextSecondary }}>
+                      Enable the Integrations Page permission in SuperAdmin to edit providers and templates.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+            <div className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
+              <div className="space-y-4">
+                <div className="rounded-[28px] border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
+                  <div className="mb-3 flex items-center justify-between">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: modalTextSecondary }}>Global</p>
+                      <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Enable WhatsApp alerts</p>
+                    </div>
+                    <Toggle checked={settings.enabled} onChange={(v) => setSettings((prev) => ({ ...prev, enabled: v }))} />
+                  </div>
+                  <p className="text-xs" style={{ color: modalTextSecondary }}>
+                    When this is off, no provider sends notifications even if individual templates are enabled.
+                  </p>
+                </div>
+
+                <div className="rounded-[28px] border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 size={16} style={{ color: theme.iconTint }} />
+                    <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Provider Snapshot</p>
+                  </div>
+                  <div className="mt-3 grid gap-3">
+                    <div className="rounded-2xl border px-3 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceInset }}>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: modalTextSecondary }}>Connection</p>
+                      <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+                        {settings.enabled
+                          ? (activeProvider === 'fichat'
+                              ? (settings.fichat.connected ? `FiChat connected${settings.fichat.accountName ? ` as ${settings.fichat.accountName}` : ''}` : 'FiChat not connected')
+                              : activeProvider
+                                ? `${providerLabel[activeProvider]} ready`
+                                : 'Choose a provider')
+                          : 'All alerts disabled'}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border px-3 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurfaceInset }}>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: modalTextSecondary }}>Events active</p>
+                      <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+                        {configuredEventCount} of {EVENTS.length * providerOrder.length}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-[28px] border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
+                  <div className="flex items-center gap-2">
+                    <Shield size={16} style={{ color: theme.iconTint }} />
+                    <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Supported Variables</p>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {sortedSupportedVariableKeys.map((k) => (
+                      <span
+                        key={k}
+                        className="rounded-full border px-2.5 py-1 text-[11px] font-semibold"
+                        style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface, color: modalTextSecondary }}
+                      >
+                        {getSupportedVariableLabel(k)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {EVENTS.filter((e) => e.section === 'One-time').length ? (
+                  <div className="space-y-3 rounded-[28px] border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedSections((prev) => ({ ...prev, oneTime: !prev.oneTime }))}
+                      className="flex w-full items-start justify-between gap-4 text-left"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>One-time Tasks</p>
+                        <p className="text-xs" style={{ color: modalTextSecondary }}>Assigned, completed, and overdue alerts.</p>
+                      </div>
+                      <ChevronDown size={16} className={`mt-0.5 shrink-0 transition-transform ${expandedSections.oneTime ? 'rotate-180' : ''}`} style={{ color: modalTextSecondary }} />
+                    </button>
+                    {expandedSections.oneTime ? <div className="space-y-3 pt-1">{EVENTS.filter((e) => e.section === 'One-time').map((e) => renderEditor(activeProvider!, e.key))}</div> : null}
+                  </div>
+                ) : null}
+                {EVENTS.filter((e) => e.section === 'Recurring').length ? (
+                  <div className="space-y-3 rounded-[28px] border p-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedSections((prev) => ({ ...prev, recurring: !prev.recurring }))}
+                      className="flex w-full items-start justify-between gap-4 text-left"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Recurring Tasks</p>
+                        <p className="text-xs" style={{ color: modalTextSecondary }}>Assigned, completed, and overdue alerts.</p>
+                      </div>
+                      <ChevronDown size={16} className={`mt-0.5 shrink-0 transition-transform ${expandedSections.recurring ? 'rotate-180' : ''}`} style={{ color: modalTextSecondary }} />
+                    </button>
+                    {expandedSections.recurring ? <div className="space-y-3 pt-1">{EVENTS.filter((e) => e.section === 'Recurring').map((e) => renderEditor(activeProvider!, e.key))}</div> : null}
+                  </div>
+                ) : null}
+                <div className="flex items-center justify-between rounded-[28px] border px-4 py-4" style={{ borderColor: 'var(--color-border)', backgroundColor: modalSurface }}>
+                  <div className="text-xs" style={{ color: modalTextSecondary }}>{currentLoading ? 'Loading templates...' : `${currentTemplates.length} template(s) loaded.`}</div>
+                  <button
+                    type="button"
+                    onClick={() => fetchTemplates(activeProvider!)}
+                    disabled={!canRefreshTemplates}
+                    className="inline-flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-semibold transition hover:-translate-y-0.5"
+                    style={{ borderColor: theme.ring, backgroundColor: modalSurface, color: 'var(--color-text)' }}
+                  >
+                    <RefreshCw size={14} />
+                    Reload Templates
+                  </button>
+                </div>
+                {currentError ? <p className="text-sm text-red-600">{currentError}</p> : null}
+              </div>
             </div>
           </div>
-        </div>
-      </Modal>
+        </Modal>
+      </>
     );
   };
 
@@ -1177,7 +1352,7 @@ const IntegrationsPage: React.FC = () => {
           <div className="px-6 py-6 sm:px-8 sm:py-7">
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl" style={{ color: 'var(--color-text)' }}>Integrations</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6" style={{ color: 'var(--color-textSecondary)' }}>
-              Manage Interakt, WATI, and FiChat from one place.
+              Manage FiChat, Interakt, and WATI from one place.
             </p>
             <p className="mt-1 text-xs" style={{ color: 'var(--color-textSecondary)' }}>
               Use the provider cards below to connect, save, and open setup when needed.
@@ -1185,9 +1360,26 @@ const IntegrationsPage: React.FC = () => {
           </div>
         </div>
 
+        {integrationsLocked && (
+          <div className="rounded-[28px] border px-5 py-4" style={{ borderColor: 'var(--color-border)', backgroundColor: isDark ? 'rgba(26,32,44,0.94)' : 'var(--color-surface)' }}>
+            <div className="flex items-start gap-3">
+              <div className="rounded-2xl border p-2" style={{ borderColor: 'var(--color-border)', backgroundColor: isDark ? 'rgba(45,55,72,0.95)' : 'var(--color-background)' }}>
+                <LockKeyhole size={16} style={{ color: 'var(--color-warning)' }} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Integrations are disabled for this company</p>
+                <p className="mt-1 text-sm" style={{ color: 'var(--color-textSecondary)' }}>
+                  Enable the Integrations Page permission in SuperAdmin to edit provider credentials, template mappings, and recipients.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid gap-4 xl:grid-cols-3">{providerOrder.map(card)}</div>
 
         {providerForm()}
+        {renderClearConfirmModal()}
       </div>
     </div>
   );

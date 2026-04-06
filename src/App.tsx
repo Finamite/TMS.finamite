@@ -186,7 +186,7 @@ function App() {
                 <Route
                   path="integrations"
                   element={
-                    <ProtectedRoute requireAdmin requirePermission="settingspage">
+                    <ProtectedRoute requireAdmin>
                       <IntegrationsPage />
                     </ProtectedRoute>
                   }
