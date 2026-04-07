@@ -843,6 +843,18 @@ const Chat: React.FC = () => {
         }
     };
 
+    const formatParticipantNames = (participants: Chat["participants"]) => {
+        const names = participants
+            .filter(p => p.userId !== currentUserId)
+            .map(p => p.username);
+
+        if (names.length <= 2) {
+            return names.join(", ");
+        }
+
+        return `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
+    };
+
     const renderMessage = (message: Message) => {
         const isOwn = message.senderId._id === user?.id;
         const isDeleted = message.isDeleted;
@@ -866,7 +878,7 @@ const Chat: React.FC = () => {
                         {!isSelectionMode && !message.isDeleted && (
                             <button
                                 onClick={() => setReplyTo(message)}
-                                className={`absolute top-2 opacity-0 group-hover:opacity-100 text-[var(--color-textSecondary)] hover:text-blue-600 transition
+                                className={`absolute top-2 opacity-0 group-hover:opacity-100 text-[var(--color-textSecondary)] hover:text-[var(--color-primary)] transition
     ${isOwn ? "-left-8" : "-right-8"}`}
                                 title="Reply"
                             >
@@ -876,32 +888,35 @@ const Chat: React.FC = () => {
 
                         <div
                             className={`rounded-2xl px-4 py-3 transition
-    ${isOwn ? 'bg-blue-600 text-white' : 'bg-[var(--color-surfacechat)] text-[var(--color-text)]'}
-    ${highlightId === message._id ? "ring-4 ring-yellow-300" : ""}
+    ${isOwn ? 'bg-[var(--color-primary)] text-white shadow-[0_12px_30px_rgba(14,165,233,0.18)]' : 'border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] shadow-[0_10px_24px_rgba(15,23,42,0.06)]'}
+    ${highlightId === message._id ? "ring-4 ring-[rgba(14,165,233,0.2)]" : ""}
     ${isDeleted ? 'opacity-50' : ''}
     ${isSelected
                                     ? isOwn
-                                        ? 'ring-2 ring-red-500'
-                                        : 'ring-2 ring-red-500'
+                                        ? 'ring-2 ring-[rgba(14,165,233,0.85)] shadow-[0_0_0_4px_rgba(14,165,233,0.16)]'
+                                        : 'ring-2 ring-[rgba(14,165,233,0.65)] bg-[rgba(14,165,233,0.08)] shadow-[0_0_0_4px_rgba(14,165,233,0.08)]'
                                     : ''}
   `}
                         >
+                            {isSelectionMode && isSelected && (
+                                <div className="absolute -top-2 -left-2 z-20">
+                                    <div className="flex h-6 w-6 items-center justify-center rounded-full border border-[rgba(14,165,233,0.25)] bg-[var(--color-surface)] text-[var(--color-primary)] shadow-[0_8px_18px_rgba(14,165,233,0.14)]">
+                                        <CheckCircle size={14} />
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Sender info for others' messages */}
                             {!isOwn && (
                                 <div className="flex items-center mb-2">
-                                    <div
-                                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold mr-2 ${message.senderInfo.role === 'admin' ? 'bg-red-500 text-white' :
-                                            message.senderInfo.role === 'manager' ? 'bg-purple-500 text-white' :
-                                                'bg-gray-500 text-white'
-                                            }`}
-                                    >
+                                    <div className="mr-2 flex h-6 w-6 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-background)] text-xs font-semibold text-[var(--color-primary)]">
                                         {message.senderInfo.username.charAt(0).toUpperCase()}
                                     </div>
                                     <div>
                                         <span className="text-xs font-medium text-[var(--color-text)]">
                                             {message.senderInfo.username}
                                         </span>
-                                        <span className="ml-2 text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+                                        <span className="ml-2 rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-2 py-0.5 text-xs text-[var(--color-textSecondary)]">
                                             {message.senderInfo.role}
                                         </span>
                                     </div>
@@ -911,20 +926,20 @@ const Chat: React.FC = () => {
                             {/* Tagged Task */}
                             {message.taggedTask && (
                                 <div className={`mb-2 p-2 rounded-lg border-l-4 ${isOwn
-                                    ? 'bg-white/20 border-white/50'
-                                    : 'bg-[var(--color-chat)] border-blue-400'
+                                    ? 'border-white/25 bg-white/10'
+                                    : 'border-[var(--color-primary)]/40 bg-[var(--color-background)]/70'
                                     }`}>
                                     <div className="flex items-center mb-1">
-                                        <Tag size={14} className="mr-1" />
-                                        <span className="text-xs font-medium">Tagged Task</span>
+                                        <Tag size={14} className="mr-1 text-[var(--color-primary)]" />
+                                        <span className={`text-xs font-medium ${isOwn ? 'text-white' : 'text-[var(--color-text)]'}`}>Tagged Task</span>
                                     </div>
-                                    <div className="text-sm font-medium mb-1">{message.taggedTask.taskTitle}</div>
-                                    <div className="text-xs opacity-80">
+                                    <div className={`mb-1 text-sm font-medium ${isOwn ? 'text-white' : 'text-[var(--color-text)]'}`}>{message.taggedTask.taskTitle}</div>
+                                    <div className={`text-xs ${isOwn ? 'text-white/80' : 'text-[var(--color-textSecondary)]'}`}>
                                         <span className="inline-flex items-center mr-2">
                                             <Clock size={10} className="mr-1" />
                                             Due: {new Date(message.taggedTask.dueDate).toLocaleDateString('en-GB')}
                                         </span>
-                                        <span className="bg-black/20 px-1 py-0.5 rounded text-xs">
+                                        <span className={`rounded px-1 py-0.5 text-xs ${isOwn ? 'bg-white/15 text-white' : 'border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-textSecondary)]'}`}>
                                             {message.taggedTask.taskType}
                                         </span>
                                     </div>
@@ -934,7 +949,7 @@ const Chat: React.FC = () => {
                             {message.replyTo && (
                                 <div
                                     className={`p-2 mb-2 rounded border-l-4 cursor-pointer
-      ${isOwn ? 'border-white bg-white/20' : 'border-blue-400 bg-blue-100'}
+      ${isOwn ? 'border-white/25 bg-white/10' : 'border-[var(--color-primary)]/40 bg-[var(--color-background)]/70'}
     `}
                                     onClick={() => {
                                         const id = message.replyTo?.messageId;
@@ -950,10 +965,10 @@ const Chat: React.FC = () => {
                                         }
                                     }}
                                 >
-                                    <div className="text-xs font-semibold opacity-80">
+                                    <div className={`text-xs font-semibold ${isOwn ? 'text-white/90' : 'text-[var(--color-text)]'}`}>
                                         {message.replyTo.senderName}
                                     </div>
-                                    <div className="text-xs truncate opacity-70">
+                                    <div className={`text-xs truncate ${isOwn ? 'text-white/75' : 'text-[var(--color-textSecondary)]'}`}>
                                         {message.replyTo.messageType === "file" ? "📎 Attachment" : message.replyTo.content}
                                     </div>
                                 </div>
@@ -981,7 +996,7 @@ const Chat: React.FC = () => {
 
                                                 const getLucideIcon = () => {
                                                     if (type.includes("pdf") || name.endsWith(".pdf"))
-                                                        return <FileText size={20} className="text-red-600" />;
+                                                        return <FileText size={20} className="text-[var(--color-danger)]" />;
 
                                                     if (
                                                         type.includes("spreadsheet") ||
@@ -990,7 +1005,7 @@ const Chat: React.FC = () => {
                                                         name.endsWith(".xls") ||
                                                         name.endsWith(".csv")
                                                     )
-                                                        return <FileSpreadsheet size={20} className="text-green-600" />;
+                                                        return <FileSpreadsheet size={20} className="text-[var(--color-success)]" />;
 
                                                     if (
                                                         type.includes("word") ||
@@ -998,13 +1013,13 @@ const Chat: React.FC = () => {
                                                         name.endsWith(".doc") ||
                                                         name.endsWith(".docx")
                                                     )
-                                                        return <FileText size={20} className="text-blue-600" />;
+                                                        return <FileText size={20} className="text-[var(--color-primary)]" />;
 
                                                     if (name.endsWith(".txt"))
-                                                        return <FileText size={20} className="text-gray-700" />;
+                                                        return <FileText size={20} className="text-[var(--color-textSecondary)]" />;
 
                                                     if (name.endsWith(".zip") || name.endsWith(".rar"))
-                                                        return <FileArchive size={20} className="text-yellow-600" />;
+                                                        return <FileArchive size={20} className="text-[var(--color-warning)]" />;
 
                                                     return <File size={20} className="text-[var(--color-textSecondary)]" />;
                                                 };
@@ -1020,15 +1035,15 @@ const Chat: React.FC = () => {
                                                             <img
                                                                 src={fileUrl}
                                                                 alt={file.originalName}
-                                                                className="w-[240px] h-[160px] object-cover rounded border cursor-pointer"
+                                                                className="h-[160px] w-[240px] cursor-pointer rounded-2xl border border-[var(--color-border)] object-cover shadow-[0_10px_24px_rgba(15,23,42,0.06)]"
                                                                 onClick={() => setShowImagePreview(fileUrl)}
                                                             />
                                                         ) : (
                                                             <div
-                                                                className={`w-[48px] h-[40px] rounded flex items-center justify-center cursor-pointer
+                                                                className={`flex h-[40px] w-[48px] cursor-pointer items-center justify-center rounded-2xl border
                                                                   ${isOwn
-                                                                        ? 'bg-white border border-white'
-                                                                        : 'bg-white border border-[var(--color-border)]'
+                                                                        ? 'border-white/20 bg-white/10'
+                                                                        : 'border-[var(--color-border)] bg-[var(--color-background)]'
                                                                     }
 `}
 
@@ -1053,7 +1068,7 @@ const Chat: React.FC = () => {
                                                             <span>{sizeKB}</span>
 
                                                             <button
-                                                                className="text-blue-300 hover:text-blue-500"
+                                                                className="text-[var(--color-primary)] hover:opacity-80"
                                                                 onClick={() => downloadFile(file.filename, file.originalName)}
                                                                 title="Download File"
                                                             >
@@ -1083,10 +1098,14 @@ const Chat: React.FC = () => {
                                     {getMessageStatus(message)}
 
                                     {/* Delete button for admin/manager */}
-                                    {isAdmin && !isDeleted && !isSelectionMode && (
+                                    {isAdmin && !isDeleted && (
                                         <button
                                             onClick={() => deleteMessage(message._id)}
-                                            className="opacity-0 group-hover:opacity-100 hover:text-red-400 p-1 rounded"
+                                            className={`rounded p-1 transition ${
+                                                isSelectionMode
+                                                    ? 'opacity-100 text-[var(--color-danger)]'
+                                                    : 'opacity-0 group-hover:opacity-100 hover:text-[var(--color-danger)]'
+                                            }`}
                                             title="Delete message"
                                         >
                                             <Trash2 size={10} />
@@ -1105,7 +1124,7 @@ const Chat: React.FC = () => {
         return (
             <div className="min-h-screen bg-[var(--color-background)] flex items-center justify-center">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
+                    <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-[var(--color-primary)] border-t-transparent"></div>
                     <p className="text-[var(--color-textSecondary)]">Loading chat...</p>
                 </div>
             </div>
@@ -1113,11 +1132,11 @@ const Chat: React.FC = () => {
     }
 
     return (
-        <div className="h-full flex flex-col bg-[var(--color-background)] text-[var(--color-text)] sm:flex-row">
+        <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--color-background)] text-[var(--color-text)] sm:flex-row">
             {/* Chat List Sidebar */}
-            <div className={`${activeChat ? "hidden sm:flex" : "flex"} w-full sm:w-80 bg-[var(--color-surface)] border-r border-[var(--color-border)] flex-col`}>
+            <div className={`${activeChat ? "hidden sm:flex" : "flex"} h-full min-h-0 w-full flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] sm:w-80 sm:shrink-0`}>
                 {/* Fixed Header */}
-                <div className="p-4 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
+                <div className="border-b border-[var(--color-border)] bg-[var(--color-surface)] p-4">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-lg font-semibold text-[var(--color-text)]">Messages</h2>
                         <button
@@ -1130,7 +1149,7 @@ const Chat: React.FC = () => {
                                     setShowUserModal(true);
                                 }
                             }}
-                            className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            className="rounded-2xl bg-[var(--color-primary)] p-2 text-white transition-colors hover:opacity-95"
                         >
                             <Plus size={16} />
                         </button>
@@ -1153,7 +1172,7 @@ const Chat: React.FC = () => {
                                         setSidebarSearch(e.target.value);
                                         setFreezeSidebarSearch(true);
                                     }}
-                                    className="w-full pl-10 pr-3 py-2 bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)]"
+                                    className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] py-2 pl-10 pr-3 text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                                 />
                                 {sidebarSearch && (
                                     <button
@@ -1161,7 +1180,7 @@ const Chat: React.FC = () => {
                                             setSidebarSearch("");
                                             setFreezeSidebarSearch(false);
                                         }}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)] hover:text-red-500"
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)] hover:text-[var(--color-danger)]"
                                     >
                                         <X size={16} />
                                     </button>
@@ -1172,7 +1191,7 @@ const Chat: React.FC = () => {
                 </div>
 
                 {/* Chat List */}
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 min-h-0 overflow-y-auto">
                     {chats
                         .filter(chat => {
                             const participantNames = chat.participants
@@ -1198,19 +1217,16 @@ const Chat: React.FC = () => {
                                         )
                                     );
                                 }}
-                                className={`p-4 border-b border-[var(--color-border)] cursor-pointer transition-colors ${(activeChatId === chat._id) ? 'bg-[var(--color-chat)] text-[var(--color-text)] border-r-2 border-r-blue-600' : ''}`}
+                                className={`cursor-pointer border-b border-[var(--color-border)] p-4 transition-colors ${activeChatId === chat._id ? 'border-r-4 border-r-[var(--color-primary)] bg-[var(--color-background)]/70' : 'hover:bg-[var(--color-background)]/70'}`}
                             >
                                 <div className="flex items-center justify-between mb-2">
                                     <div className="flex items-center">
-                                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                                            <Users size={16} className="text-blue-600" />
+                                        <div className="mr-3 flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-background)]">
+                                            <Users size={16} className="text-[var(--color-primary)]" />
                                         </div>
                                         <div>
                                             <h3 className="font-medium text-[var(--color-text)] text-sm ">
-                                                {chat.participants
-                                                    .filter(p => p.userId !== currentUserId)
-                                                    .map(p => p.username)
-                                                    .join(", ")}
+                                                {formatParticipantNames(chat.participants)}
                                             </h3>
                                             <p className="text-xs text-[var(--color-textSecondary)]">
                                                 {chat.participants.length} participants
@@ -1226,7 +1242,7 @@ const Chat: React.FC = () => {
                                 <div className="flex items-center justify-between mt-1">
                                     {/* LEFT SIDE: Last message preview */}
                                     {chat.isTyping ? (
-                                        <p className="text-sm text-blue-600 italic">Typing...</p>
+                                        <p className="text-sm italic text-[var(--color-primary)]">Typing...</p>
                                     ) : (
                                         chat.lastMessage && (
                                             <p className="text-sm text-[var(--color-textSecondary)] truncate max-w-[75%]">
@@ -1241,7 +1257,7 @@ const Chat: React.FC = () => {
 
                                     {/* RIGHT SIDE: Unread message count */}
                                     {chat.unreadCount! > 0 && chat._id !== activeChat?._id && (
-                                        <span className="bg-red-600 text-white text-xs px-2 py-1 rounded-full ml-2 shrink-0">
+                                        <span className="ml-2 shrink-0 rounded-full bg-[var(--color-danger)] px-2 py-1 text-xs text-white">
                                             {chat.unreadCount}
                                         </span>
                                     )}
@@ -1252,14 +1268,11 @@ const Chat: React.FC = () => {
             </div>
 
             {/* Main Chat Area */}
-            <div className={`flex-1 flex flex-col bg-[var(--color-background)] text-[var(--color-text)]
-    ${activeChat ? "flex" : "flex sm:flex hidden"}
-`}>
+            <div className={`flex min-w-0 h-full min-h-0 flex-1 flex-col bg-[var(--color-background)] text-[var(--color-text)] ${activeChat ? "" : "hidden sm:flex"}`}>
                 {activeChat ? (
                     <>
                         {/* Fixed Chat Header */}
-                        <div className="p-4 bg-[var(--color-surface)] border-b border-[var(--color-border)]
-    sticky top-0 z-10 flex flex-row items-center justify-between gap-3">
+                        <div className="sticky top-0 z-10 flex shrink-0 flex-row items-center justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] p-4">
 
                             {/* LEFT SECTION */}
                             <div className="flex items-center">
@@ -1270,7 +1283,7 @@ const Chat: React.FC = () => {
                                         setActiveChat(null);
                                         setActiveChatId(null);
                                     }}
-                                    className="sm:hidden mr-3 p-2 rounded-lg bg-gray-100"
+                                    className="mr-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-2 sm:hidden"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg"
                                         className="h-5 w-5 text-[var(--color-text)]"
@@ -1280,20 +1293,17 @@ const Chat: React.FC = () => {
                                 </button>
 
                                 {/* Avatar */}
-                                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                                    <Users size={18} className="text-blue-600" />
+                                <div className="mr-3 flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-background)]">
+                                    <Users size={18} className="text-[var(--color-primary)]" />
                                 </div>
 
                                 {/* Chat Info */}
                                 <div>
                                     <h3 className="font-semibold text-[var(--color-text)] text-sm sm:text-base">
-                                        {activeChat.participants
-                                            .filter(p => p.userId !== currentUserId)
-                                            .map(p => p.username)
-                                            .join(", ")}
+                                        {formatParticipantNames(activeChat.participants)}
                                     </h3>
                                     {otherTyping && (
-                                        <p className="text-sm text-blue-600 italic">
+                                        <p className="text-sm italic text-[var(--color-primary)]">
                                             Typing...
                                         </p>
                                     )}
@@ -1326,7 +1336,7 @@ const Chat: React.FC = () => {
                                                 setSearchTerm("");
                                                 searchMessages(""); // 👈 also clear results
                                             }}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)] hover:text-red-500"
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)] hover:text-[var(--color-danger)]"
                                         >
                                             <X size={16} />
                                         </button>
@@ -1336,7 +1346,7 @@ const Chat: React.FC = () => {
                                 {/* MOBILE SEARCH ICON */}
                                 <button
                                     onClick={() => setShowMobileSearch(!showMobileSearch)}
-                                    className="p-2 bg-gray-100 rounded-lg text-[var(--color-textSecondary)] hover:bg-gray-200 block sm:hidden"
+                                    className="block rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-2 text-[var(--color-textSecondary)] transition hover:bg-[var(--color-background)] sm:hidden"
                                 >
                                     <Search size={18} />
                                 </button>
@@ -1348,7 +1358,7 @@ const Chat: React.FC = () => {
                                             setIsSelectionMode(true);
                                             setSelectedMessages([]);
                                         }}
-                                        className="p-2 rounded-lg bg-gray-100 text-[var(--color-textSecondary)] hover:bg-gray-200"
+                                    className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-2 text-[var(--color-textSecondary)] transition hover:bg-[var(--color-background)]"
                                     >
                                         <CheckCircle size={18} />
                                     </button>
@@ -1361,7 +1371,7 @@ const Chat: React.FC = () => {
                                             setIsSelectionMode(false);
                                             setSelectedMessages([]);
                                         }}
-                                        className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                        className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-2 text-[var(--color-textSecondary)] transition hover:bg-[var(--color-background)]"
                                     >
                                         <X size={18} />
                                     </button>
@@ -1372,9 +1382,9 @@ const Chat: React.FC = () => {
                                     <button
                                         onClick={deleteSelectedMessages}
                                         disabled={selectedMessages.length === 0}
-                                        className={`p-2 rounded-lg ${selectedMessages.length > 0
-                                            ? 'bg-red-600 text-white hover:bg-red-700'
-                                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                        className={`rounded-2xl p-2 ${selectedMessages.length > 0
+                                            ? 'bg-[var(--color-danger)] text-red-500 hover:opacity-95'
+                                            : 'cursor-not-allowed bg-[var(--color-border)] text-[var(--color-textSecondary)]'
                                             }`}
                                     >
                                         <Trash2 size={18} />
@@ -1385,14 +1395,13 @@ const Chat: React.FC = () => {
                                 <div className="relative">
                                     <button
                                         onClick={() => setShowChatOptions(!showChatOptions)}
-                                        className="p-2 bg-gray-100 text-[var(--color-textSecondary)] hover:bg-gray-200 rounded-lg"
+                                        className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-2 text-[var(--color-textSecondary)] transition hover:bg-[var(--color-background)]"
                                     >
                                         <MoreVertical size={18} />
                                     </button>
 
                                     {showChatOptions && (
-                                        <div className="absolute right-0 mt-2 w-48 bg-[var(--color-surface)]
-                rounded-lg shadow-lg border border-gray-200 py-2 z-20">
+                                        <div className="absolute right-0 z-20 mt-2 w-48 rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)] py-2 shadow-[0_16px_44px_rgba(15,23,42,0.12)]">
 
                                             {isAdmin && (
                                                 <button
@@ -1400,7 +1409,7 @@ const Chat: React.FC = () => {
                                                         deleteChat();
                                                         setShowChatOptions(false);
                                                     }}
-                                                    className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center"
+                                                    className="flex w-full items-center px-4 py-2 text-left text-[var(--color-danger)] hover:bg-[rgba(239,68,68,0.06)]"
                                                 >
                                                     <Archive size={16} className="mr-2" /> Delete Chat
                                                 </button>
@@ -1408,7 +1417,7 @@ const Chat: React.FC = () => {
 
                                             <button
                                                 onClick={() => setShowChatOptions(false)}
-                                                className="w-full px-4 py-2 text-left text-[var(--color-textSecondary)] hover:bg-gray-50"
+                                                className="w-full px-4 py-2 text-left text-[var(--color-textSecondary)] hover:bg-[var(--color-background)]"
                                             >
                                                 Cancel
                                             </button>
@@ -1420,7 +1429,7 @@ const Chat: React.FC = () => {
 
                         {/* MOBILE SEARCH BAR BELOW HEADER */}
                         {showMobileSearch && (
-                            <div className="p-3 bg-[var(--color-surface)] border-b border-[var(--color-border)] sm:hidden sticky top-[64px] z-10">
+                            <div className="sticky top-[64px] z-10 border-b border-[var(--color-border)] bg-[var(--color-surface)] p-3 sm:hidden">
                                 <div className="relative">
                                     <Search
                                         size={16}
@@ -1434,9 +1443,7 @@ const Chat: React.FC = () => {
                                             setSearchTerm(e.target.value);
                                             searchMessages(e.target.value);
                                         }}
-                                        className="pl-9 pr-3 py-2 bg-[var(--color-background)]
-                border border-[var(--color-border)] rounded-lg w-full
-                text-sm focus:ring-2 focus:ring-[var(--color-primary)]"
+                                        className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] py-2 pl-9 pr-3 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                                     />
                                     {searchTerm && (
                                         <button
@@ -1444,7 +1451,7 @@ const Chat: React.FC = () => {
                                                 setSearchTerm("");
                                                 searchMessages(""); // 👈 also clear results
                                             }}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)] hover:text-red-500"
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)] hover:text-[var(--color-danger)]"
                                         >
                                             <X size={16} />
                                         </button>
@@ -1457,16 +1464,15 @@ const Chat: React.FC = () => {
                         {/* Messages Area */}
                         <div
                             ref={messagesContainerRef}
-                            className="overflow-y-auto p-4 pb-32 bg-[var(--color-background)]"
+                            className="flex-1 min-h-0 overflow-y-auto bg-[var(--color-background)] p-4 pb-6"
                             style={{
-                                height: "calc(100vh - 130px)",   // 🔥 fixes mobile height issue
                                 WebkitOverflowScrolling: "touch"
                             }}
                         >
                             {loadingMessages ? (
                                 <div className="flex items-center justify-center h-full">
                                     <div className="text-center">
-                                        <Loader2 className="animate-spin h-8 w-8 text-blue-600 mx-auto mb-4" />
+                                        <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-[var(--color-primary)]" />
                                         <p className="text-[var(--color-textSecondary)]">Loading messages...</p>
                                     </div>
                                 </div>
@@ -1475,10 +1481,10 @@ const Chat: React.FC = () => {
                                     {/* Search Results or Regular Messages */}
                                     {isSearching ? (
                                         <>
-                                            <div className="text-center py-4">
-                                                <div className="bg-blue-100 rounded-lg p-3 inline-block">
-                                                    <p className="text-sm text-blue-800">
-                                                        {searchResults.length} result(s) for "{searchTerm}"
+                                                <div className="py-4 text-center">
+                                                <div className="inline-block rounded-full border border-[var(--color-border)] bg-[var(--color-background)]/75 p-3">
+                                                    <p className="text-sm text-[var(--color-primary)]">
+                                            {searchResults.length} result(s) for "{searchTerm}"
                                                     </p>
                                                 </div>
                                             </div>
@@ -1487,9 +1493,9 @@ const Chat: React.FC = () => {
                                     ) : (
                                         <>
                                             {messages.length === 0 ? (
-                                                <div className="text-center py-12">
-                                                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                                        <MessageCircle size={24} className="text-blue-600" />
+                                                <div className="py-12 text-center">
+                                                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-background)]">
+                                                        <MessageCircle size={24} className="text-[var(--color-primary)]" />
                                                     </div>
                                                     <h3 className="text-lg font-semibold text-[var(--color-text)] mb-2">Start the conversation</h3>
                                                     <p className="text-[var(--color-textSecondary)]">
@@ -1511,13 +1517,13 @@ const Chat: React.FC = () => {
 
                         {/* Fixed Message Input Area */}
                         {!isSearching && (
-                            <div className="p-4 bg-[var(--color-background)] border-t border-gray-200 sticky bottom-0 z-20">
+                            <div className="sticky bottom-0 z-20 shrink-0 border-t border-[var(--color-border)] bg-[var(--color-background)] p-4">
                                 {/* File Preview */}
                                 {showFilePreview && selectedFiles && (
-                                    <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                    <div className="mb-3 rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
                                         <div className="flex items-center justify-between mb-2">
-                                            <span className="text-sm font-medium text-blue-800 flex items-center">
-                                                <Paperclip size={14} className="mr-1" />
+                                            <span className="text-sm font-medium text-[var(--color-primary)] flex items-center">
+                                                <Paperclip size={14} className="mr-1 text-[var(--color-primary)]" />
                                                 Attached Files ({selectedFiles.length})
                                             </span>
                                             <button
@@ -1526,24 +1532,24 @@ const Chat: React.FC = () => {
                                                     setShowFilePreview(false);
                                                     if (fileInputRef.current) fileInputRef.current.value = '';
                                                 }}
-                                                className="text-blue-600 hover:text-blue-800"
+                                                className="text-[var(--color-primary)] hover:opacity-90"
                                             >
                                                 <X size={14} />
                                             </button>
                                         </div>
                                         <div className="grid grid-cols-2 gap-2">
                                             {Array.from(selectedFiles).map((file, index) => (
-                                                <div key={index} className="flex items-center justify-between p-2 bg-[var(--color-surface)] rounded border border-[var(--color-border)]">
+                                                <div key={index} className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 p-2">
                                                     <div className="flex items-center">
-                                                        <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center mr-2">
-                                                            {file.type.startsWith('image/') ? (
-                                                                <Image size={12} className="text-blue-600" />
-                                                            ) : (
-                                                                <FileText size={12} className="text-blue-600" />
-                                                            )}
-                                                        </div>
-                                                        <div>
-                                                            <span className="text-xs font-medium text-gray-800 block truncate max-w-24">{file.name}</span>
+                                                            <div className="mr-2 flex h-6 w-6 items-center justify-center rounded border border-[var(--color-border)] bg-[var(--color-background)]">
+                                                                {file.type.startsWith('image/') ? (
+                                                                    <Image size={12} className="text-[var(--color-primary)]" />
+                                                                ) : (
+                                                                    <FileText size={12} className="text-[var(--color-primary)]" />
+                                                                )}
+                                                            </div>
+                                                            <div>
+                                                            <span className="block max-w-24 truncate text-xs font-medium text-[var(--color-text)]">{file.name}</span>
                                                             <span className="text-xs text-[var(--color-textSecondary)]">
                                                                 {formatFileSize(file.size)}
                                                             </span>
@@ -1551,7 +1557,7 @@ const Chat: React.FC = () => {
                                                     </div>
                                                     <button
                                                         onClick={() => removeFile(index)}
-                                                        className="text-red-500 hover:text-red-700"
+                                                        className="text-[var(--color-danger)] hover:opacity-90"
                                                     >
                                                         <X size={12} />
                                                     </button>
@@ -1563,27 +1569,27 @@ const Chat: React.FC = () => {
 
                                 {/* Tagged Task Preview */}
                                 {selectedTask && (
-                                    <div className="mb-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                                    <div className="mb-3 rounded-[24px] border border-[rgba(16,185,129,0.18)] bg-[rgba(16,185,129,0.06)] p-3">
                                         <div className="flex items-center justify-between mb-2">
                                             <span className="text-sm font-medium text-green-800 flex items-center">
-                                                <Tag size={14} className="mr-1" />
+                                                <Tag size={14} className="mr-1 text-[var(--color-success)]" />
                                                 Tagged Task:
                                             </span>
                                             <button
                                                 onClick={() => setSelectedTask(null)}
-                                                className="text-green-600 hover:text-green-800"
+                                                className="text-[var(--color-success)] hover:opacity-90"
                                             >
                                                 <X size={14} />
                                             </button>
                                         </div>
-                                        <div className="bg-white p-2 rounded border border-green-200">
+                                        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2">
                                             <div className="font-medium text-sm text-[var(--color-text)]">{selectedTask.title}</div>
                                             <div className="text-xs text-[var(--color-textSecondary)] mt-1 flex items-center space-x-3">
                                                 <span className="flex items-center">
                                                     <Calendar size={10} className="mr-1" />
                                                     Due: {new Date(selectedTask.dueDate).toLocaleDateString('en-GB')}
                                                 </span>
-                                                <span className={`px-2 py-0.5 rounded-full text-xs ${selectedTask.priority === 'high' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
+                                                <span className={`rounded-full px-2 py-0.5 text-xs ${selectedTask.priority === 'high' ? 'bg-[rgba(239,68,68,0.12)] text-[var(--color-danger)]' : 'bg-[rgba(14,165,233,0.12)] text-[var(--color-primary)]'
                                                     }`}>
                                                     {selectedTask.priority}
                                                 </span>
@@ -1594,17 +1600,17 @@ const Chat: React.FC = () => {
 
                                 {/* Reply preview above input */}
                                 {replyTo && (
-                                    <div className="mb-2 p-2 bg-blue-50 border-l-4 border-blue-500 rounded">
+                                    <div className="mb-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 p-2">
                                         <div className="flex justify-between items-start">
                                             <div>
-                                                <span className="text-xs font-bold text-blue-700">Replying to {replyTo.senderInfo.username}</span>
-                                                <div className="text-xs text-blue-800 truncate max-w-[480px]">
+                                                <span className="text-xs font-bold text-[var(--color-primary)]">Replying to {replyTo.senderInfo.username}</span>
+                                                <div className="max-w-[480px] truncate text-xs text-[var(--color-textSecondary)]">
                                                     {replyTo.messageType === "file" ? "📎 Attachment" : replyTo.content || "No text"}
                                                 </div>
                                             </div>
                                             <button
                                                 onClick={() => setReplyTo(null)}
-                                                className="ml-2 text-blue-700 font-bold"
+                                                className="ml-2 font-bold text-[var(--color-primary)]"
                                                 title="Cancel reply"
                                             >
                                                 ×
@@ -1619,7 +1625,7 @@ const Chat: React.FC = () => {
                                         {/* File Upload Button */}
                                         <button
                                             onClick={() => fileInputRef.current?.click()}
-                                            className="p-2 bg-[var(--color-chat)] text-[var(--color-text)] hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2 text-[var(--color-text)] transition-colors hover:bg-[var(--color-background)] hover:text-[var(--color-primary)]"
                                             title="Attach file (max 100KB)"
                                         >
                                             <Paperclip size={18} />
@@ -1628,7 +1634,7 @@ const Chat: React.FC = () => {
                                         {/* Tag Task Button */}
                                         <button
                                             onClick={() => setShowTaskModal(true)}
-                                            className="p-2 bg-[var(--color-chat)] text-[var(--color-text)] hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2 text-[var(--color-text)] transition-colors hover:bg-[var(--color-background)] hover:text-[var(--color-success)]"
                                             title="Tag a task"
                                         >
                                             <Tag size={18} />
@@ -1646,7 +1652,7 @@ const Chat: React.FC = () => {
                                             onKeyPress={handleKeyPress}
                                             placeholder="Type your message..."
                                             rows={1}
-                                            className="w-full px-4 py-3 bg-[var(--color-surface)] border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                                            className="w-full resize-none rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                                             style={{ minHeight: '44px', maxHeight: '120px' }}
                                         />
                                     </div>
@@ -1655,7 +1661,7 @@ const Chat: React.FC = () => {
                                     <button
                                         onClick={sendMessage}
                                         disabled={!newMessage.trim() && !selectedFiles && !selectedTask}
-                                        className="p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                        className="rounded-2xl bg-[var(--color-primary)] p-3 text-white transition-colors hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         <Send size={18} />
                                     </button>
@@ -1676,8 +1682,8 @@ const Chat: React.FC = () => {
                 ) : (
                     <div className="flex-1 flex items-center justify-center">
                         <div className="text-center">
-                            <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <MessageCircle size={32} className="text-blue-600" />
+                            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-background)]">
+                                <MessageCircle size={32} className="text-[var(--color-primary)]" />
                             </div>
                             <h3 className="text-xl font-semibold text-[var(--color-text)] mb-2">Welcome to Chat Support</h3>
                             <p className="text-[var(--color-textSecondary)] max-w-md mx-auto">
@@ -1693,9 +1699,9 @@ const Chat: React.FC = () => {
 
             {/* Task Selection Modal */}
             {showTaskModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-[var(--color-surface)] rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-                        <div className="p-4 border-b border-gray-200">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,42,0.45)] p-4 backdrop-blur-sm">
+                    <div className="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_24px_80px_rgba(15,23,42,0.18)]">
+                        <div className="border-b border-[var(--color-border)] p-4">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-lg font-semibold text-[var(--color-text)] flex items-center">
                                     <Tag size={20} className="mr-2 text-[var(--color-primary)]" />
@@ -1703,7 +1709,7 @@ const Chat: React.FC = () => {
                                 </h3>
                                 <button
                                     onClick={() => setShowTaskModal(false)}
-                                    className="text-[var(--color-textSecondary)] hover:text-[var(--color-textSecondary)]"
+                                    className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-2 text-[var(--color-textSecondary)] transition hover:text-[var(--color-primary)]"
                                 >
                                     <X size={20} />
                                 </button>
@@ -1721,8 +1727,8 @@ const Chat: React.FC = () => {
                                         placeholder="Search tasks..."
                                         value={taskSearchTerm}
                                         onChange={(e) => setTaskSearchTerm(e.target.value)}
-                                        className="w-full pl-10 pr-4 py-2 bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)]"
-                                    />
+                                    className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 pl-10 pr-4 text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                                />
                                 </div>
 
                                 {/* Filters */}
@@ -1730,7 +1736,7 @@ const Chat: React.FC = () => {
                                     <select
                                         value={taskFilter.type}
                                         onChange={(e) => setTaskFilter(prev => ({ ...prev, type: e.target.value }))}
-                                        className="p-2 bg-[var(--color-background)] border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-3 text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                                     >
                                         <option value="all">All Types</option>
                                         <option value="one-time">One-time</option>
@@ -1742,7 +1748,7 @@ const Chat: React.FC = () => {
                                     <select
                                         value={taskFilter.status}
                                         onChange={(e) => setTaskFilter(prev => ({ ...prev, status: e.target.value }))}
-                                        className="p-2 bg-[var(--color-background)] border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-3 text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                                     >
                                         <option value="all">All Status</option>
                                         <option value="pending">Pending</option>
@@ -1771,7 +1777,7 @@ const Chat: React.FC = () => {
                                                     setSelectedTask(task);
                                                     setShowTaskModal(false);
                                                 }}
-                                                className="p-3 bg-[var(--color-surface)] hover:bg-[var(--color-chat)] rounded-lg border border-gray-200 hover:border-blue-300 cursor-pointer group"
+                                                className="group cursor-pointer rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 p-3 transition hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-background)]"
                                             >
                                                 <div className="flex items-start justify-between">
                                                     <div className="flex-1">
@@ -1783,17 +1789,17 @@ const Chat: React.FC = () => {
                                                                     <Clock size={10} className="mr-1" />
                                                                     {new Date(task.dueDate).toLocaleDateString("en-IN")}
                                                                 </span>
-                                                                <span className={`px-2 py-0.5 rounded text-xs ${task.priority === 'high'
-                                                                    ? 'bg-red-100 text-red-800'
-                                                                    : 'bg-blue-100 text-blue-800'
+                                                                <span className={`rounded-full border px-2 py-0.5 text-xs ${task.priority === 'high'
+                                                                    ? 'border-[rgba(239,68,68,0.2)] bg-[rgba(239,68,68,0.12)] text-[var(--color-danger)]'
+                                                                    : 'border-[rgba(14,165,233,0.18)] bg-[rgba(14,165,233,0.12)] text-[var(--color-primary)]'
                                                                     }`}>
                                                                     {task.priority}
                                                                 </span>
-                                                                <span className="bg-gray-100 text-gray-800 px-2 py-0.5 rounded text-xs">
+                                                                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-2 py-0.5 text-xs text-[var(--color-textSecondary)]">
                                                                     {task.taskType || 'one-time'}
                                                                 </span>
                                                                 {task.isOverdue && (
-                                                                    <div className="inline-flex items-center bg-red-100 text-red-800 px-2 py-0.5 rounded text-xs">
+                                                                    <div className="inline-flex items-center rounded-full border border-[rgba(239,68,68,0.18)] bg-[rgba(239,68,68,0.12)] px-2 py-0.5 text-xs text-[var(--color-danger)]">
                                                                         <AlertCircle size={12} className="mr-1" />
                                                                         Overdue
                                                                     </div>
@@ -1816,14 +1822,14 @@ const Chat: React.FC = () => {
                         </div>
 
                         {/* Footer */}
-                        <div className="p-4 border-t border-gray-200 bg-[var(--color-background)]">
+                        <div className="border-t border-[var(--color-border)] bg-[var(--color-background)] p-4">
                             <div className="flex items-center justify-between">
                                 <p className="text-sm text-[var(--color-textSecondary)]">
                                     Showing {filteredTasks.length} of {allTasks.length} tasks
                                 </p>
                                 <button
                                     onClick={() => setShowTaskModal(false)}
-                                    className="px-4 py-2 text-sm text-[var(--color-textSecondary)] hover:text-gray-800"
+                                    className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm text-[var(--color-textSecondary)] transition hover:text-[var(--color-text)]"
                                 >
                                     Cancel
                                 </button>
@@ -1836,7 +1842,7 @@ const Chat: React.FC = () => {
             {/* Image Preview Modal */}
             {showImagePreview && (
                 <div
-                    className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4"
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,42,0.82)] p-4 backdrop-blur-md"
                     onClick={() => setShowImagePreview(null)}
                 >
                     <div
@@ -1848,11 +1854,11 @@ const Chat: React.FC = () => {
                             onError={(e) => {
                                 e.currentTarget.src = "https://via.placeholder.com/300?text=Preview+Not+Available";
                             }}
-                            className="max-w-full max-h-full object-contain rounded-lg"
+                            className="max-w-full max-h-full rounded-2xl object-contain shadow-[0_20px_60px_rgba(15,23,42,0.35)]"
                         />
                         <button
                             onClick={() => setShowImagePreview(null)}
-                            className="absolute -top-4 -right-4 bg-red-600 hover:bg-red-700 text-white rounded-full w-8 h-8 flex items-center justify-center"
+                            className="absolute -right-4 -top-4 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] shadow-[0_12px_30px_rgba(15,23,42,0.2)] transition hover:text-[var(--color-danger)]"
                         >
                             <X size={16} />
                         </button>
@@ -1861,26 +1867,26 @@ const Chat: React.FC = () => {
             )}
             {/* USER SELECTION MODAL */}
             {showUserModal && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-[var(--color-surface)] w-full max-w-md rounded-2xl shadow-xl overflow-hidden">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,42,0.45)] p-4 backdrop-blur-sm">
+                    <div className="w-full max-w-md overflow-hidden rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_24px_80px_rgba(15,23,42,0.18)]">
 
                         {/* Header */}
-                        <div className="p-4 border-b flex items-center justify-between">
+                        <div className="flex items-center justify-between border-b border-[var(--color-border)] p-4">
                             <h3 className="text-lg font-semibold text-[var(--color-text)] flex items-center">
-                                <Users size={18} className="text-blue-600 mr-2" />
+                                <Users size={18} className="mr-2 text-[var(--color-primary)]" />
                                 Start New Chat
                             </h3>
                             <button onClick={() => setShowUserModal(false)}>
-                                <X size={20} className="text-[var(--color-textSecondary)] hover:text-[var(--color-textSecondary)]" />
+                                <X size={20} className="text-[var(--color-textSecondary)] transition hover:text-[var(--color-primary)]" />
                             </button>
                         </div>
 
                         {/* Search Input */}
-                        <div className="p-4 border-b">
+                        <div className="border-b border-[var(--color-border)] p-4">
                             <div className="relative">
                                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)]" />
                                 <input
-                                    className="w-full bg-[var(--color-surface)] border border-gray-200 rounded-lg py-2 pl-10 pr-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] py-2 pl-10 pr-3 text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                                     placeholder="Search user..."
                                     value={userSearch}
                                     onChange={(e) => setUserSearch(e.target.value)}
@@ -1888,7 +1894,7 @@ const Chat: React.FC = () => {
                                 {userSearch && (
                                     <button
                                         onClick={() => setUserSearch("")}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-red-500"
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)] transition hover:text-[var(--color-danger)]"
                                     >
                                         <X size={16} />
                                     </button>
@@ -1916,20 +1922,20 @@ const Chat: React.FC = () => {
                                             startChatWithUser(u._id);
                                             setShowUserModal(false);
                                         }}
-                                        className="p-3 flex items-center justify-between bg-[var(--color-background)] hover:bg-[var(--color-chat)] border border-gray-200 hover:border-blue-400 rounded-lg cursor-pointer mb-2 transition-all"
+                                        className="mb-2 flex cursor-pointer items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 p-3 transition hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-background)]"
                                     >
                                         <div className="flex items-center">
-                                            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-semibold mr-3">
+                                            <div className="mr-3 flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(14,165,233,0.18)] bg-[rgba(14,165,233,0.12)] font-semibold text-[var(--color-primary)]">
                                                 {u.username.charAt(0).toUpperCase()}
                                             </div>
                                             <div>
                                                 <p className="font-medium text-[var(--color-text)]">{u.username}</p>
                                                 <span
                                                     className={`text-xs px-2 py-1 rounded-full ${u.role === "admin"
-                                                        ? "bg-red-100 text-red-700"
+                                                        ? "border border-[rgba(239,68,68,0.18)] bg-[rgba(239,68,68,0.12)] text-[var(--color-danger)]"
                                                         : u.role === "manager"
-                                                            ? "bg-purple-100 text-purple-700"
-                                                            : "bg-green-100 text-green-700"
+                                                            ? "border border-[rgba(14,165,233,0.18)] bg-[rgba(14,165,233,0.12)] text-[var(--color-primary)]"
+                                                            : "border border-[rgba(34,197,94,0.18)] bg-[rgba(34,197,94,0.12)] text-[var(--color-success)]"
                                                         }`}
                                                 >
                                                     {u.role}
@@ -1953,11 +1959,11 @@ const Chat: React.FC = () => {
             )}
             {/* Global Confirmation Modal */}
             {showConfirmModal && (
-                <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-[999]">
-                    <div className="bg-[var(--color-surface)] w-full max-w-md rounded-2xl shadow-xl p-6 animate-fadeIn">
+                <div className="fixed inset-0 z-[999] flex items-center justify-center bg-[rgba(15,23,42,0.45)] backdrop-blur-sm">
+                    <div className="w-full max-w-md rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-[0_24px_80px_rgba(15,23,42,0.18)] animate-fadeIn">
 
                         {/* Icon */}
-                        <div className="w-16 h-16 mx-auto mb-4 bg-red-100 text-red-600 rounded-full flex items-center justify-center">
+                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-[rgba(239,68,68,0.18)] bg-[rgba(239,68,68,0.12)] text-[var(--color-danger)]">
                             <Trash2 size={28} />
                         </div>
 
@@ -1973,7 +1979,7 @@ const Chat: React.FC = () => {
                         <div className="flex items-center justify-center space-x-3">
                             <button
                                 onClick={() => setShowConfirmModal(false)}
-                                className="px-5 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition"
+                                className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-5 py-2 text-[var(--color-textSecondary)] transition hover:text-[var(--color-text)]"
                             >
                                 Cancel
                             </button>
@@ -1983,7 +1989,7 @@ const Chat: React.FC = () => {
                                     if (confirmAction) await confirmAction();
                                     setShowConfirmModal(false);
                                 }}
-                                className="px-5 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition"
+                                className="rounded-2xl bg-[var(--color-danger)] px-5 py-2 text-white transition hover:opacity-95"
                             >
                                 Delete
                             </button>

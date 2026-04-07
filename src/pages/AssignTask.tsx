@@ -676,33 +676,33 @@ const AssignTask: React.FC = () => {
   };
 
   return (
-    <div className={`min-h-screen transition-all duration-300 ${isDark ? 'bg-gray-900' : 'bg-gradient-to-br from-blue-50 to-indigo-100'}`}>
-      <div className="max-w-7xl mx-auto p-6 space-y-8">
+    <div className="relative min-h-screen overflow-hidden bg-[var(--color-background)] px-4 py-6 transition-all duration-300 sm:px-6 lg:px-8">
+      <div className="absolute -top-24 right-0 h-80 w-80 rounded-full bg-cyan-500/10 blur-3xl" />
+      <div className="absolute left-0 top-1/3 h-96 w-96 rounded-full bg-indigo-500/10 blur-3xl" />
 
+      <div className="relative mx-auto max-w-7xl space-y-6">
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Task Forms */}
-          <div className="grid gap-8">
+          <div className="grid gap-6">
             {taskForms.map((task, index) => (
               <div key={task.id}
-                className="relative rounded-2xl shadow-xl border transition-all duration-300 hover:shadow-2xl overflow-hidden"
-                style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+                className="relative overflow-hidden rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_16px_44px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_58px_rgba(15,23,42,0.12)]">
 
                 {/* Task Header */}
-                <div className="relative p-6 border-b" style={{ borderColor: 'var(--color-border)' }}>
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5"></div>
+                <div className="relative border-b border-[var(--color-border)] px-5 py-4 sm:px-6">
+                  <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(14,165,233,0.04),rgba(59,130,246,0.02),transparent)]" />
                   <div className="relative flex items-center justify-between">
                     <div className="flex items-center space-x-4">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shadow-lg"
-                        style={{ backgroundColor: 'var(--color-primary)' }}>
-                        {index + 1}
+                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,var(--color-primary),var(--color-secondary))] font-bold text-white shadow-[0_14px_30px_rgba(14,165,233,0.28)]">
+                        {String(index + 1).padStart(2, '0')}
                       </div>
-                      <div>
-                        <h3 className="text-xl font-bold" style={{ color: 'var(--color-text)' }}>
+                      <div className="min-w-0">
+                        <h3 className="truncate text-xl font-bold tracking-tight text-[var(--color-text)]">
                           {(task.title?.length > 20
                             ? task.title.substring(0, 20) + "..."
                             : task.title) || `Task ${index + 1}`}
                         </h3>
-                        <p className="text-sm" style={{ color: 'var(--color-textSecondary)' }}>
+                        <p className="text-sm text-[var(--color-textSecondary)]">
                           {task.taskType.charAt(0).toUpperCase() + task.taskType.slice(1)} Task
                         </p>
                       </div>
@@ -712,8 +712,7 @@ const AssignTask: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => duplicateTaskForm(task.id)}
-                        className="p-2 rounded-lg transition-all duration-200 hover:scale-110"
-                        style={{ backgroundColor: 'var(--color-info)', color: 'white' }}
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 text-[var(--color-primary)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_20px_rgba(15,23,42,0.08)]"
                         title="Duplicate Task"
                       >
                         <Copy size={16} />
@@ -722,8 +721,7 @@ const AssignTask: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => removeTaskForm(task.id)}
-                          className="p-2 rounded-lg transition-all duration-200 hover:scale-110"
-                          style={{ backgroundColor: 'var(--color-error)', color: 'white' }}
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[rgba(239,68,68,0.2)] bg-[rgba(239,68,68,0.08)] text-[var(--color-error)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_20px_rgba(239,68,68,0.12)]"
                           title="Remove Task"
                         >
                           <Trash2 size={16} />
@@ -734,11 +732,11 @@ const AssignTask: React.FC = () => {
                 </div>
 
                 {/* Task Content */}
-                <div className="p-6 space-y-6">
+                <div className="space-y-6 px-5 py-5 sm:px-6">
                   {/* Basic Info */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
                     <div className="space-y-2">
-                      <label className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+                      <label className="text-sm font-semibold text-[var(--color-text)]">
                         Task Title *
                       </label>
                       <input
@@ -746,30 +744,20 @@ const AssignTask: React.FC = () => {
                         value={task.title}
                         onChange={(e) => updateTaskForm(task.id, 'title', e.target.value)}
                         required
-                        className="w-full px-3 py-2 rounded-xl border-2 transition-all duration-200"
-                        style={{
-                          borderColor: 'var(--color-border)',
-                          backgroundColor: 'var(--color-surface)',
-                          color: 'var(--color-text)'
-                        }}
+                        className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-[var(--color-text)] outline-none transition-all duration-200 placeholder:text-[var(--color-textSecondary)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary)]/10"
                         placeholder="Enter task title"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+                      <label className="text-sm font-semibold text-[var(--color-text)]">
                         Task Type *
                       </label>
                       <select
                         value={task.taskType}
                         onChange={(e) => updateTaskForm(task.id, 'taskType', e.target.value)}
                         required
-                        className="w-full px-3 py-2 rounded-xl border-2 transition-all duration-200"
-                        style={{
-                          borderColor: 'var(--color-border)',
-                          backgroundColor: 'var(--color-surface)',
-                          color: 'var(--color-text)'
-                        }}
+                        className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-[var(--color-text)] outline-none transition-all duration-200 focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary)]/10"
                       >
                         <option value="one-time">One Time</option>
 
@@ -787,33 +775,25 @@ const AssignTask: React.FC = () => {
                     </div>
 
                     <div className="lg:col-span-2 space-y-2">
-                      <label className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+                      <label className="text-sm font-semibold text-[var(--color-text)]">
                         Description
                       </label>
                       <textarea
                         value={task.description}
                         onChange={(e) => updateTaskForm(task.id, 'description', e.target.value)}
                         rows={3}
-                        className="w-full px-3 py-2 rounded-xl border-2 transition-all duration-200 resize-none"
-                        style={{
-                          borderColor: 'var(--color-border)',
-                          backgroundColor: 'var(--color-surface)',
-                          color: 'var(--color-text)'
-                        }}
+                        className="w-full resize-none rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-[var(--color-text)] outline-none transition-all duration-200 placeholder:text-[var(--color-textSecondary)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary)]/10"
                         placeholder="Enter task description"
                       />
                     </div>
                   </div>
 
                   {/* User Assignment & Priority */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
                     {/* User Assignment */}
                     {/* User Assignment */}
                     <div className="space-y-3">
-                      <label
-                        className="text-sm font-semibold flex items-center"
-                        style={{ color: "var(--color-text)" }}
-                      >
+                      <label className="flex items-center text-sm font-semibold text-[var(--color-text)]">
                         <Users className="mr-2" size={16} />
                         Assign To Users *
                       </label>
@@ -822,12 +802,7 @@ const AssignTask: React.FC = () => {
                         {/* Dropdown Open Button */}
                         <button
                           type="button"
-                          className="w-full flex justify-between items-center px-3 py-2 rounded-xl border-2 text-left transition-all duration-200"
-                          style={{
-                            borderColor: "var(--color-border)",
-                            backgroundColor: "var(--color-surface)",
-                            color: "var(--color-text)",
-                          }}
+                          className="flex w-full items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-left text-[var(--color-text)] transition-all duration-200 focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary)]/10"
                           onClick={() =>
                             setShowUserDropdown((prev) => ({
                               ...prev,
@@ -836,16 +811,13 @@ const AssignTask: React.FC = () => {
                           }
                         >
                           {task.assignedTo.length > 0 ? (
-                            <span className="text-md">
+                            <span className="text-sm font-medium">
                               {getSelectedUsers(task.id)
                                 .map((u) => u.username)
                                 .join(", ")}
                             </span>
                           ) : (
-                            <span
-                              className="text-md"
-                              style={{ color: "var(--color-textSecondary)" }}
-                            >
+                            <span className="text-sm" style={{ color: "var(--color-textSecondary)" }}>
                               Select users...
                             </span>
                           )}
@@ -860,16 +832,11 @@ const AssignTask: React.FC = () => {
                         {/* Dropdown Content */}
                         {showUserDropdown[task.id] && (
                           <div
-                            className="absolute z-10 w-full mt-2 rounded-xl shadow-2xl border-2 max-h-64 overflow-hidden"
-                            style={{
-                              borderColor: "var(--color-border)",
-                              backgroundColor: "var(--color-surface)",
-                            }}
+                            className="absolute z-10 mt-2 max-h-64 w-full overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-background)] shadow-[0_20px_50px_rgba(15,23,42,0.14)]"
                           >
                             {/* ⭐ COMBINED (Search + Select All + Clear All in one row) */}
                             <div
-                              className="flex items-center gap-3 px-3 py-2 border-b"
-                              style={{ borderColor: "var(--color-border)" }}
+                              className="flex items-center gap-3 border-b border-[var(--color-border)] px-3 py-2.5"
                             >
                               {/* Search Input */}
                               <div className="relative flex-1">
@@ -882,12 +849,7 @@ const AssignTask: React.FC = () => {
                                 <input
                                   type="text"
                                   placeholder="Search users..."
-                                  className="w-full pl-10 pr-10 py-2 rounded-lg border transition-all duration-200"
-                                  style={{
-                                    borderColor: "var(--color-border)",
-                                    backgroundColor: "var(--color-surface)",
-                                    color: "var(--color-text)",
-                                  }}
+                                  className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] py-2 pl-10 pr-10 text-[var(--color-text)] outline-none transition-all duration-200 focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary)]/10"
                                   value={userSearchTerm}
                                   onChange={(e) => setUserSearchTerm(e.target.value)}
                                 />
@@ -897,7 +859,7 @@ const AssignTask: React.FC = () => {
                                   <button
                                     type="button"
                                     onClick={() => setUserSearchTerm("")}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)] hover:text-[var(--color-error)]"
                                   >
                                     <XCircle size={16} />
                                   </button>
@@ -907,8 +869,7 @@ const AssignTask: React.FC = () => {
                               {/* Select All */}
                               <button
                                 type="button"
-                                className="flex items-center gap-1 text-sm font-medium hover:scale-105 transition whitespace-nowrap"
-                                style={{ color: "var(--color-primary)" }}
+                                className="flex items-center gap-1 whitespace-nowrap text-sm font-medium text-[var(--color-primary)] transition hover:scale-105"
                                 onClick={() => {
                                   const allUserIds = filteredUsers.map((u) => u._id);
                                   updateTaskForm(task.id, "assignedTo", allUserIds);
@@ -923,8 +884,7 @@ const AssignTask: React.FC = () => {
                               {/* Clear All */}
                               <button
                                 type="button"
-                                className="flex items-center gap-1 text-sm font-medium hover:scale-105 transition whitespace-nowrap"
-                                style={{ color: "var(--color-error)" }}
+                                className="flex items-center gap-1 whitespace-nowrap text-sm font-medium text-[var(--color-error)] transition hover:scale-105"
                                 onClick={() => {
                                   updateTaskForm(task.id, "assignedTo", []);
                                 }}
@@ -940,8 +900,7 @@ const AssignTask: React.FC = () => {
                             <div className="max-h-48 overflow-y-auto">
                               {filteredUsers.length === 0 && (
                                 <p
-                                  className="p-4 text-sm text-center"
-                                  style={{ color: "var(--color-textSecondary)" }}
+                                className="p-4 text-center text-sm text-[var(--color-textSecondary)]"
                                 >
                                   No users found.
                                 </p>
@@ -950,14 +909,12 @@ const AssignTask: React.FC = () => {
                               {filteredUsers.map((userItem) => (
                                 <label
                                   key={userItem._id}
-                                  className="flex items-center p-3 cursor-pointer transition-all duration-200 hover:bg-opacity-80"
+                                  className="flex cursor-pointer items-center px-3 py-3 transition-all duration-200 hover:bg-[var(--color-background)]"
                                   style={{
                                     backgroundColor: task.assignedTo.includes(userItem._id)
-                                      ? "var(--color-chat)"
+                                      ? "var(--color-background)"
                                       : "",
-                                    color: task.assignedTo.includes(userItem._id)
-                                      ? ""
-                                      : "var(--color-text)",
+                                    color: "var(--color-text)",
                                   }}
                                 >
                                   <input
@@ -966,11 +923,11 @@ const AssignTask: React.FC = () => {
                                     onChange={() =>
                                       handleUserSelection(task.id, userItem._id)
                                     }
-                                    className="mr-3 w-4 h-4 rounded"
+                                    className="mr-3 h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
                                   />
                                   <div className="flex flex-col">
-                                    <span className="font-medium">{userItem.username}</span>
-                                    <span className="text-xs opacity-75">
+                                    <span className="font-medium text-[var(--color-text)]">{userItem.username}</span>
+                                    <span className="text-xs text-[var(--color-textSecondary)]">
                                       {userItem.department}
                                     </span>
                                   </div>
@@ -983,15 +940,11 @@ const AssignTask: React.FC = () => {
 
                       {/* Selected User Tags */}
                       {task.assignedTo.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mt-2">
+                        <div className="mt-2 flex flex-wrap gap-2">
                           {getSelectedUsers(task.id).map((selectedUser) => (
                             <span
                               key={selectedUser._id}
-                              className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium transition-all duration-200 hover:scale-105"
-                              style={{
-                                backgroundColor: "var(--color-primary)",
-                                color: "white",
-                              }}
+                              className="inline-flex items-center rounded-full bg-[linear-gradient(135deg,var(--color-primary),var(--color-secondary))] px-3 py-1.5 text-sm font-medium text-white shadow-[0_10px_20px_rgba(14,165,233,0.2)] transition-all duration-200 hover:-translate-y-0.5"
                             >
                               {selectedUser.username}
                               <button
@@ -999,7 +952,7 @@ const AssignTask: React.FC = () => {
                                 onClick={() =>
                                   handleUserSelection(task.id, selectedUser._id)
                                 }
-                                className="ml-2 hover:bg-white hover:bg-opacity-20 rounded-full p-1"
+                                className="ml-2 rounded-full p-1 hover:bg-white/20"
                               >
                                 <X size={12} />
                               </button>
@@ -1012,19 +965,14 @@ const AssignTask: React.FC = () => {
 
                     {/* Priority */}
                     <div className="space-y-3">
-                      <label className="text-sm font-semibold flex items-center" style={{ color: 'var(--color-text)' }}>
+                      <label className="flex items-center text-sm font-semibold text-[var(--color-text)]">
                         <Clock className="mr-2" size={16} />
                         Priority
                       </label>
                       <select
                         value={task.priority}
                         onChange={(e) => updateTaskForm(task.id, 'priority', e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl border-2 transition-all duration-200 "
-                        style={{
-                          borderColor: 'var(--color-border)',
-                          backgroundColor: 'var(--color-surface)',
-                          color: 'var(--color-text)'
-                        }}
+                        className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-[var(--color-text)] outline-none transition-all duration-200 focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary)]/10"
                       >
                         <option value="normal">Normal</option>
                         <option value="high">High</option>
@@ -1043,7 +991,7 @@ const AssignTask: React.FC = () => {
                           disabled={!adminApprovalSettings.enabled}
                           className="rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
                         />
-                        <label htmlFor={`requiresApproval-${task.id}`} className="text-sm font-medium cursor-pointer select-none" style={{ color: 'var(--color-text)' }}>
+                        <label htmlFor={`requiresApproval-${task.id}`} className="cursor-pointer select-none text-sm font-medium text-[var(--color-text)]">
                           Requires Admin Approval
                           {adminApprovalSettings.enabled && !adminApprovalSettings.defaultForOneTime && (
                             <span className="text-xs text-[var(--color-textSecondary)] ml-1">(Optional)</span>
@@ -1055,14 +1003,14 @@ const AssignTask: React.FC = () => {
 
                   {/* Date Configuration */}
                   <div className="space-y-4">
-                    <h4 className="text-lg font-semibold flex items-center" style={{ color: 'var(--color-text)' }}>
+                    <h4 className="flex items-center text-lg font-semibold text-[var(--color-text)]">
                       Date Configuration
                     </h4>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       {task.taskType === 'one-time' ? (
                         <div className="space-y-2">
-                          <label className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>Due Date *</label>
+                          <label className="text-sm font-medium text-[var(--color-text)]">Due Date *</label>
                           <div className="relative">
                             <input
                               type="date"
@@ -1071,18 +1019,13 @@ const AssignTask: React.FC = () => {
                               onFocus={(e: React.FocusEvent<HTMLInputElement>) => (e.target as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
                               onChange={(e) => updateTaskForm(task.id, 'dueDate', e.target.value)}
                               required
-                              className="w-full px-3 py-2 rounded-xl border-2 transition-all duration-200 "
-                              style={{
-                                borderColor: 'var(--color-border)',
-                                backgroundColor: 'var(--color-surface)',
-                                color: 'var(--color-text)'
-                              }}
+                              className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-4 py-3 text-[var(--color-text)] outline-none transition-all duration-200 focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary)]/10"
                             />
                             <Calendar
                               size={16}
                               className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
                               style={{
-                                color: "var(--color-text)",   // 🔥 THIS FIXES DARK MODE
+                                color: "var(--color-text)",
                                 opacity: 0.9
                               }}
                             />
@@ -1091,7 +1034,7 @@ const AssignTask: React.FC = () => {
                       ) : (
                         <>
                           <div className="space-y-2">
-                            <label className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+                            <label className="text-sm font-medium text-[var(--color-text)]">
                               {task.taskType === 'yearly' || task.taskType === 'quarterly' ? 'Task Date *' : 'Start Date *'}
                             </label>
                             <div className="relative">
@@ -1102,18 +1045,13 @@ const AssignTask: React.FC = () => {
                                 onFocus={(e: React.FocusEvent<HTMLInputElement>) => (e.target as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
                                 onChange={(e) => updateTaskForm(task.id, 'startDate', e.target.value)}
                                 required
-                                className="w-full px-3 py-2 rounded-xl border-2 transition-all duration-200 "
-                                style={{
-                                  borderColor: 'var(--color-border)',
-                                  backgroundColor: 'var(--color-surface)',
-                                  color: 'var(--color-text)'
-                                }}
+                                className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-4 py-3 text-[var(--color-text)] outline-none transition-all duration-200 focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary)]/10"
                               />
                               <Calendar
                                 size={16}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
                                 style={{
-                                  color: "var(--color-text)",   // 🔥 THIS FIXES DARK MODE
+                                  color: "var(--color-text)",
                                   opacity: 0.9
                                 }}
                               />
@@ -1122,7 +1060,7 @@ const AssignTask: React.FC = () => {
 
                           {task.taskType !== 'yearly' && task.taskType !== 'quarterly' && (
                             <div className="space-y-2">
-                              <label className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+                              <label className="text-sm font-medium text-[var(--color-text)]">
                                 End Date {!task.isForever && '*'}
                               </label>
                               <div className="relative">
@@ -1134,18 +1072,16 @@ const AssignTask: React.FC = () => {
                                   onChange={(e) => updateTaskForm(task.id, 'endDate', e.target.value)}
                                   required={!task.isForever}
                                   disabled={task.isForever}
-                                  className="w-full px-3 py-2 rounded-xl border-2 transition-all duration-200 disabled:opacity-50"
+                                  className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-4 py-3 text-[var(--color-text)] outline-none transition-all duration-200 disabled:opacity-50 focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary)]/10"
                                   style={{
-                                    borderColor: 'var(--color-border)',
-                                    backgroundColor: task.isForever ? 'var(--color-border)' : 'var(--color-surface)',
-                                    color: 'var(--color-text)'
+                                    backgroundColor: task.isForever ? 'var(--color-background)' : 'var(--color-background)',
                                   }}
                                 />
                                 <Calendar
                                   size={16}
                                   className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
                                   style={{
-                                    color: "var(--color-text)",   // 🔥 THIS FIXES DARK MODE
+                                    color: "var(--color-text)",
                                     opacity: 0.9
                                   }}
                                 />
@@ -1158,7 +1094,7 @@ const AssignTask: React.FC = () => {
 
                     {/* Recurring Options */}
                     {task.taskType !== 'one-time' && (
-                      <div className="flex flex-wrap items-center gap-4 p-4 rounded-xl" style={{ backgroundColor: 'var(--color-surface)' }}>
+                      <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/60 p-4">
                         {task.taskType !== 'yearly' && task.taskType !== 'quarterly' && (
                           <label className="flex items-center cursor-pointer">
                             <input
@@ -1167,7 +1103,7 @@ const AssignTask: React.FC = () => {
                               onChange={(e) => updateTaskForm(task.id, 'isForever', e.target.checked)}
                               className="mr-2 w-4 h-4 rounded"
                             />
-                            <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+                            <span className="text-sm font-medium text-[var(--color-text)]">
                               Forever (1 year)
                             </span>
                           </label>
@@ -1181,7 +1117,7 @@ const AssignTask: React.FC = () => {
                               onChange={(e) => updateTaskForm(task.id, 'isForever', e.target.checked)}
                               className="mr-2 w-4 h-4 rounded"
                             />
-                            <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+                            <span className="text-sm font-medium text-[var(--color-text)]">
                               Create for multiple years
                             </span>
                           </label>
@@ -1195,7 +1131,7 @@ const AssignTask: React.FC = () => {
                               onChange={(e) => updateTaskForm(task.id, 'includeSunday', e.target.checked)}
                               className="mr-2 w-4 h-4 rounded"
                             />
-                            <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>Include Sunday</span>
+                            <span className="text-sm font-medium text-[var(--color-text)]">Include Sunday</span>
                           </label>
                         )}
 
@@ -1207,7 +1143,7 @@ const AssignTask: React.FC = () => {
                               onChange={(e) => setShowWeekOff(prev => ({ ...prev, [task.id]: e.target.checked }))}
                               className="mr-2 w-4 h-4 rounded"
                             />
-                            <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>Week Off</span>
+                            <span className="text-sm font-medium text-[var(--color-text)]">Week Off</span>
                           </label>
                         )}
                       </div>
@@ -1215,9 +1151,9 @@ const AssignTask: React.FC = () => {
 
                     {/* Week Off Days */}
                     {showWeekOff[task.id] && (
-                      <div className="p-4 rounded-xl border" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
-                        <h5 className="font-medium text-sm mb-3" style={{ color: 'var(--color-text)' }}>Select Week Off Days</h5>
-                        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-2">
+                      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/60 p-4">
+                        <h5 className="mb-3 text-sm font-medium text-[var(--color-text)]">Select Week Off Days</h5>
+                        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7">
                           {weekDays.map(day => (
                             <button
                               key={day.value}
@@ -1229,12 +1165,12 @@ const AssignTask: React.FC = () => {
                                   : [...currentWeekOff, day.value];
                                 updateTaskForm(task.id, 'weekOffDays', newWeekOff);
                               }}
-                              className={`p-2 rounded-lg border text-center transition-all duration-200 hover:scale-105 ${task.weekOffDays.includes(day.value)
-                                ? 'bg-red-500 border-red-500 text-white'
-                                : 'border-gray-300'
+                              className={`rounded-2xl border text-center transition-all duration-200 hover:-translate-y-0.5 ${task.weekOffDays.includes(day.value)
+                                ? 'bg-[var(--color-error)] border-[var(--color-error)] text-white'
+                                : 'border-[var(--color-border)] bg-[var(--color-background)]/70 text-[var(--color-text)]'
                                 }`}
                               style={{
-                                backgroundColor: task.weekOffDays.includes(day.value) ? 'var(--color-error)' : 'var(--color-surface)',
+                                backgroundColor: task.weekOffDays.includes(day.value) ? 'var(--color-error)' : 'var(--color-background)',
                                 borderColor: task.weekOffDays.includes(day.value) ? 'var(--color-error)' : 'var(--color-border)',
                                 color: task.weekOffDays.includes(day.value) ? 'white' : 'var(--color-text)'
                               }}
@@ -1249,20 +1185,20 @@ const AssignTask: React.FC = () => {
                     {/* Weekly Days Selection */}
                     {task.taskType === 'weekly' && (
                       <div className="space-y-3">
-                        <h5 className="font-semibold" style={{ color: 'var(--color-text)' }}>Select Weekly Days *</h5>
-                        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-2">
+                        <h5 className="font-semibold text-[var(--color-text)]">Select Weekly Days *</h5>
+                        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7">
                           {weekDays.map(day => (
                             <button
                               key={day.value}
                               type="button"
                               onClick={() => handleWeekDaySelection(task.id, day.value)}
-                              className={`p-3 rounded-lg border-2 transition-all duration-200 hover:scale-105 ${task.weeklyDays.includes(day.value)
-                                ? 'border-blue-500 bg-blue-50'
-                                : 'border-gray-300'
+                              className={`rounded-2xl border-2 px-3 py-3 transition-all duration-200 hover:-translate-y-0.5 ${task.weeklyDays.includes(day.value)
+                                ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white'
+                                : 'border-[var(--color-border)] bg-[var(--color-background)]/70 text-[var(--color-text)]'
                                 }`}
                               style={{
                                 borderColor: task.weeklyDays.includes(day.value) ? 'var(--color-primary)' : 'var(--color-border)',
-                                backgroundColor: task.weeklyDays.includes(day.value) ? 'var(--color-primary)' : 'var(--color-surface)',
+                                backgroundColor: task.weeklyDays.includes(day.value) ? 'var(--color-primary)' : 'var(--color-background)',
                                 color: task.weeklyDays.includes(day.value) ? 'white' : 'var(--color-text)'
                               }}
                             >
@@ -1276,17 +1212,12 @@ const AssignTask: React.FC = () => {
                     {/* Monthly Day Selection */}
                     {task.taskType === 'monthly' && (
                       <div className="space-y-3">
-                        <h5 className="font-semibold" style={{ color: 'var(--color-text)' }}>Day of Month *</h5>
+                        <h5 className="font-semibold text-[var(--color-text)]">Day of Month *</h5>
                         <select
                           value={task.monthlyDay}
                           onChange={(e) => updateTaskForm(task.id, 'monthlyDay', parseInt(e.target.value))}
                           required
-                          className="w-full px-3 py-2 rounded-xl border-2 transition-all duration-200 "
-                          style={{
-                            borderColor: 'var(--color-border)',
-                            backgroundColor: 'var(--color-surface)',
-                            color: 'var(--color-text)'
-                          }}
+                          className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-4 py-3 text-[var(--color-text)] outline-none transition-all duration-200 focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary)]/10"
                         >
                           {monthlyDayOptions.map(day => (
                             <option key={day} value={day}>
@@ -1300,16 +1231,11 @@ const AssignTask: React.FC = () => {
                     {/* Yearly Duration */}
                     {task.taskType === 'yearly' && task.isForever && (
                       <div className="space-y-3">
-                        <h5 className="font-semibold" style={{ color: 'var(--color-text)' }}>Number of Years</h5>
+                        <h5 className="font-semibold text-[var(--color-text)]">Number of Years</h5>
                         <select
                           value={task.yearlyDuration}
                           onChange={(e) => updateTaskForm(task.id, 'yearlyDuration', parseInt(e.target.value))}
-                          className="w-full px-3 py-2 rounded-xl border-2 transition-all duration-200"
-                          style={{
-                            borderColor: 'var(--color-border)',
-                            backgroundColor: 'var(--color-surface)',
-                            color: 'var(--color-text)'
-                          }}
+                          className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-4 py-3 text-[var(--color-text)] outline-none transition-all duration-200 focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary)]/10"
                         >
                           <option value={3}>3 years</option>
                           <option value={5}>5 years</option>
@@ -1327,7 +1253,7 @@ const AssignTask: React.FC = () => {
                   </div>
 
                   {/* Voice Recording and Attachments for Each Task */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
                     {/* Voice Recording */}
                     <VoiceRecorder
                       ref={(ref) => {
@@ -1341,9 +1267,8 @@ const AssignTask: React.FC = () => {
                     />
 
                     {/* File Attachments */}
-                    <div className="rounded-2xl shadow-xl border p-6 transition-all duration-300 hover:shadow-2xl"
-                      style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
-                      <h3 className="text-lg font-semibold mb-4 flex items-center" style={{ color: 'var(--color-text)' }}>
+                    <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[0_14px_34px_rgba(15,23,42,0.08)] transition-all duration-300 hover:shadow-[0_20px_46px_rgba(15,23,42,0.12)]">
+                      <h3 className="mb-4 flex items-center text-lg font-semibold text-[var(--color-text)]">
                         <Paperclip className="mr-2" size={18} />
                         Task Attachments (Max 10MB per file)
                       </h3>
@@ -1353,42 +1278,41 @@ const AssignTask: React.FC = () => {
                         multiple
                         accept=".jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,.pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,audio/*"
                         onChange={(e) => handleFileChange(task.id, e)}
-                        className="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-all duration-200"
+                        className="block w-full text-sm file:mr-4 file:rounded-full file:border-0 file:bg-[var(--color-primary)]/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[var(--color-primary)] hover:file:bg-[var(--color-primary)]/15 transition-all duration-200"
                       />
 
                       <div className="mt-4 space-y-2">
                         {task.attachments.map((file, fileIndex) => (
                           <div
                             key={fileIndex}
-                            className={`flex items-center justify-between p-3 rounded-xl transition-all duration-200 ${isAudioFile(file)
-                              ? 'bg-blue-50 border border-blue-200'
-                              : 'bg-gray-50'
+                            className={`flex items-center justify-between rounded-2xl border px-3 py-3 transition-all duration-200 ${isAudioFile(file)
+                              ? 'border-[var(--color-primary)]/20 bg-[var(--color-primary)]/5'
+                              : 'border-[var(--color-border)] bg-[var(--color-background)]/70'
                               }`}
                             style={{
                               backgroundColor: isAudioFile(file)
-                                ? (isDark ? 'var(--color-info)' : '#EBF8FF')
-                                : 'var(--color-surface)',
-                              borderColor: isAudioFile(file) ? 'var(--color-info)' : 'var(--color-border)'
+                                ? 'var(--color-background)'
+                                : 'var(--color-background)',
+                              borderColor: isAudioFile(file) ? 'var(--color-primary)' : 'var(--color-border)'
                             }}
                           >
-                            <span className="text-sm flex items-center" style={{ color: 'var(--color-text)' }}>
+                            <span className="flex items-center text-sm text-[var(--color-text)]">
                               {isAudioFile(file) && (
-                                <Volume2 size={16} className="mr-2 text-blue-500" />
+                                <Volume2 size={16} className="mr-2 text-[var(--color-primary)]" />
                               )}
                               {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
                             </span>
                             <button
                               type="button"
                               onClick={() => removeAttachment(task.id, fileIndex)}
-                              className="p-1 rounded-full transition-all duration-200 hover:scale-110"
-                              style={{ backgroundColor: 'var(--color-error)', color: 'white' }}
+                              className="rounded-full bg-[var(--color-error)] p-1 text-white transition-all duration-200 hover:-translate-y-0.5 hover:scale-110"
                             >
                               <X size={14} />
                             </button>
                           </div>
                         ))}
                         {task.attachments.length === 0 && (
-                          <p className="text-sm text-center py-4" style={{ color: 'var(--color-textSecondary)' }}>
+                          <p className="py-4 text-center text-sm text-[var(--color-textSecondary)]">
                             No attachments for this task
                           </p>
                         )}
@@ -1402,32 +1326,25 @@ const AssignTask: React.FC = () => {
 
           {/* Action Buttons */}
           <div
-            className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 pt-2 border-t"
-            style={{ borderColor: 'var(--color-border)' }}
+            className="flex flex-col gap-4 border-t border-[var(--color-border)] pt-4 sm:flex-row sm:items-center sm:justify-between"
           >
             {/* Reset Button (full width on mobile) */}
             <button
               type="button"
               onClick={resetAllForms}
-              className="w-full sm:w-auto px-6 py-3 rounded-xl font-medium transition-all duration-200 hover:scale-105 border-2"
-              style={{
-                borderColor: 'var(--color-border)',
-                color: 'var(--color-text)',
-                backgroundColor: 'var(--color-surface)'
-              }}
+              className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-6 py-3 font-medium text-[var(--color-text)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(15,23,42,0.08)] sm:w-auto"
             >
               Reset All
             </button>
 
             {/* Right side buttons (Add Task + Create Tasks) */}
-            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto sm:items-center">
+            <div className="flex w-full flex-col gap-4 sm:w-auto sm:flex-row sm:items-center">
 
               {/* Add Task Button (moved near Create All Tasks) */}
               <button
                 type="button"
                 onClick={addNewTaskForm}
-                className="w-full sm:w-auto flex items-center justify-center px-6 py-3 rounded-xl font-medium transition-all duration-200 hover:scale-105 shadow-lg hover:shadow-xl"
-                style={{ backgroundColor: 'var(--color-success)', color: 'white' }}
+                className="inline-flex w-full items-center justify-center rounded-2xl bg-[linear-gradient(135deg,var(--color-success),#16a34a)] px-5 py-3 font-medium text-white shadow-[0_14px_26px_rgba(34,197,94,0.22)] transition-all duration-200 hover:-translate-y-0.5 sm:w-auto"
               >
                 <Plus size={20} strokeWidth={3.5} />
               </button>
@@ -1436,8 +1353,7 @@ const AssignTask: React.FC = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-white shadow-xl transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-3"
-                style={{ backgroundColor: 'var(--color-primary)' }}
+                className="flex w-full items-center justify-center space-x-3 rounded-2xl bg-[linear-gradient(135deg,var(--color-primary),var(--color-secondary))] px-6 py-3 font-bold text-white shadow-[0_16px_30px_rgba(14,165,233,0.24)] transition-all duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
                 {loading ? (
                   <>

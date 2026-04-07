@@ -412,7 +412,7 @@ const MasterTasks: React.FC = () => {
   };
 
   const renderCardView = () => (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
       {currentTasks.map((task) => {
         const isExpanded = expandedDescriptions.has(task._id);
         const showReadMore = task.description.length > 110;
@@ -423,15 +423,15 @@ const MasterTasks: React.FC = () => {
         return (
           <div
             key={task._id}
-            className={`group rounded-[24px] border bg-[var(--color-surface)] shadow-[0_12px_36px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_48px_rgba(15,23,42,0.1)] ${
+            className={`group flex h-full flex-col rounded-[26px] border bg-[var(--color-surface)] shadow-[0_12px_36px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_48px_rgba(15,23,42,0.1)] ${
               isTaskOverdue(task.dueDate, task.status)
                 ? 'border-[var(--color-error)]/20 ring-1 ring-[var(--color-error)]/10'
                 : 'border-[var(--color-border)]'
             }`}
           >
-            <div className="p-5">
+            <div className="flex h-full flex-col p-4">
               <div className="flex items-start justify-between gap-3">
-                <div className={`text-lg font-semibold flex-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                <div className={`text-lg font-semibold flex-1 ${isDark ? 'text-white' : 'text-gray-800'}`}>
                   {expandedTitles.has(task._id) || task.title.length <= 70
                     ? task.title
                     : `${task.title.substring(0, 70)}...`}
@@ -521,110 +521,137 @@ const MasterTasks: React.FC = () => {
                 )}
               </p>
 
-              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 text-sm">
-                <div className={`flex items-center justify-between p-2 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
-                  <span className={`flex items-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Task ID:
-                  </span>
-                  <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{task.taskId || '—'}</span>
+              <div className="mt-4 grid gap-2 md:grid-cols-2">
+                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-3.5 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-textSecondary)]">Task ID</span>
+                    <span className="text-sm font-semibold text-[var(--color-text)]">{task.taskId || '—'}</span>
+                  </div>
                 </div>
-                <div className={`flex items-center justify-between p-2 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
-                  <span className={`flex items-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    <Users size={14} className="mr-2" />
-                    Assigned by:
-                  </span>
-                  <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{task.assignedBy.username}</span>
-                </div>
-                <div className={`flex items-center justify-between p-2 rounded-lg ${isDark ? 'bg-blue-900' : 'bg-blue-50'}`}>
-                  <span className={`flex items-center ${isDark ? 'text-blue-300' : 'text-gray-500'}`}>
-                    <Eye size={14} className="mr-2" />
-                    Assigned to:
-                  </span>
-                  <span className={`font-medium ${isDark ? 'text-blue-100' : 'text-blue-900'}`}>{task.assignedTo.username}</span>
-                </div>
-                <div className={`flex items-center justify-between p-2 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
-                  <span className={`flex items-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    <Paperclip size={14} className="mr-2" />
-                    Attachments:
-                  </span>
-                  {task.attachments && task.attachments.length > 0 ? (
-                    <button
-                      onClick={() => setShowAttachmentsModal({ attachments: task.attachments, type: 'task' })}
-                      className={`font-medium ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}
-                    >
-                      Click Here ({task.attachments.length})
-                    </button>
-                  ) : (
-                    <span className={`${isDark ? 'text-gray-500' : 'text-gray-400'}`}>No Attachments</span>
-                  )}
-                </div>
-                <div className={`flex items-center justify-between p-2 rounded-lg ${isTaskOverdue(task.dueDate, task.status)
-                  ? (isDark ? 'bg-red-900' : 'bg-red-50')
-                  : (isDark ? 'bg-green-900' : 'bg-green-50')
-                  }`}>
-                  <span className={`flex items-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    <Calendar size={14} className="mr-2" />
-                    Due date:
-                  </span>
-                  <span className={`font-medium ${isTaskOverdue(task.dueDate, task.status)
-                    ? (isDark ? 'text-red-100' : 'text-red-900')
-                    : (isDark ? 'text-green-100' : 'text-green-900')
-                    }`}>
-                    {task.dueDate ? new Date(task.dueDate).toLocaleDateString('en-GB', {
-                      day: '2-digit',
-                      month: 'numeric',
-                      year: 'numeric',
-                    }) : 'N/A'}
-                  </span>
-                </div>
-                <div className={`flex items-center justify-between p-2 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
-                  <span className={`flex items-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    <Calendar size={14} className="mr-2" />
-                    Created date:
-                  </span>
-                  <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    {new Date(task.createdAt).toLocaleDateString('en-GB', {
-                      day: '2-digit',
-                      month: 'numeric',
-                      year: 'numeric',
-                    })}
-                  </span>
-                </div>
-                {task.completedAt && (
-                  <div className={`sm:col-span-2 flex items-center justify-between p-2 rounded-lg ${isDark ? 'bg-purple-900' : 'bg-purple-50'}`}>
-                    <span className={`flex items-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                      Completed:
-                      {task.completionRemarks && (
-                        <button
-                          onClick={() => setShowRemarksModal(task)}
-                          className={`ml-1 ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}
-                          title="View completion remarks"
-                        >
-                          <Info size={14} />
-                        </button>
-                      )}
+                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-3.5 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-textSecondary)]">
+                      <Users size={12} className="mr-1 inline-block align-[-1px]" />
+                      Assigned by
                     </span>
-                    <span className={`font-medium ${isDark ? 'text-purple-100' : 'text-purple-900'}`}>
-                      {new Date(task.completedAt).toLocaleDateString('en-GB', {
+                    <span className="text-sm font-semibold text-[var(--color-text)]">{task.assignedBy.username}</span>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-3.5 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-textSecondary)]">
+                      <Eye size={12} className="mr-1 inline-block align-[-1px]" />
+                      Assigned to
+                    </span>
+                    <div className="text-right">
+                      <div className="text-sm font-semibold text-[var(--color-primary)]">{task.assignedTo.username}</div>
+                      <div className="mt-0.5 text-xs text-[var(--color-textSecondary)]">{task.assignedTo.email}</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-3.5 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-textSecondary)]">
+                      <Paperclip size={12} className="mr-1 inline-block align-[-1px]" />
+                      Attachments
+                    </span>
+                    {task.attachments && task.attachments.length > 0 ? (
+                      <button
+                        onClick={() => setShowAttachmentsModal({ attachments: task.attachments, type: 'task' })}
+                        className="text-sm font-semibold text-[var(--color-primary)] hover:underline"
+                      >
+                        View ({task.attachments.length})
+                      </button>
+                    ) : (
+                      <span className="text-sm font-medium text-[var(--color-textSecondary)]">No attachments</span>
+                    )}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-3.5 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-textSecondary)]">
+                      <Calendar size={12} className="mr-1 inline-block align-[-1px]" />
+                      Due date
+                    </span>
+                    <div className="text-right">
+                      <div className={`text-sm font-semibold ${
+                        isTaskOverdue(task.dueDate, task.status)
+                          ? 'text-[var(--color-error)]'
+                          : 'text-[var(--color-text)]'
+                      }`}>
+                        {task.dueDate ? new Date(task.dueDate).toLocaleDateString('en-GB', {
+                          day: '2-digit',
+                          month: 'numeric',
+                          year: 'numeric',
+                        }) : 'N/A'}
+                      </div>
+                      <div className="mt-0.5 text-xs text-[var(--color-textSecondary)]">
+                        Created: {new Date(task.createdAt).toLocaleDateString('en-GB', {
+                          day: '2-digit',
+                          month: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </div>
+                      {isTaskOverdue(task.dueDate, task.status) && (
+                        <div className="mt-0.5 text-xs font-medium text-[var(--color-error)]">Overdue</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-3.5 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-textSecondary)]">
+                      <Calendar size={12} className="mr-1 inline-block align-[-1px]" />
+                      Created date
+                    </span>
+                    <span className="text-sm font-semibold text-[var(--color-text)]">
+                      {new Date(task.createdAt).toLocaleDateString('en-GB', {
                         day: '2-digit',
                         month: 'numeric',
                         year: 'numeric',
                       })}
                     </span>
                   </div>
+                </div>
+                {task.completedAt && (
+                  <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-3.5 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-textSecondary)]">
+                        Completed
+                        {task.completionRemarks && (
+                          <button
+                            onClick={() => setShowRemarksModal(task)}
+                            className="ml-1 inline-flex align-middle text-[var(--color-primary)] hover:underline"
+                            title="View completion remarks"
+                          >
+                            <Info size={12} />
+                          </button>
+                        )}
+                      </span>
+                      <span className="text-sm font-semibold text-[var(--color-success)]">
+                        {new Date(task.completedAt).toLocaleDateString('en-GB', {
+                          day: '2-digit',
+                          month: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </span>
+                    </div>
+                  </div>
                 )}
                 {task.completionAttachments && task.completionAttachments.length > 0 && (
-                  <div className={`sm:col-span-2 flex items-center justify-between p-2 rounded-lg ${isDark ? 'bg-green-900' : 'bg-green-50'}`}>
-                    <span className={`flex items-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                      <Paperclip size={14} className="mr-2" />
-                      Completion Files:
-                    </span>
-                    <button
-                      onClick={() => setShowAttachmentsModal({ attachments: task.completionAttachments!, type: 'completion' })}
-                      className={`font-medium ${isDark ? 'text-green-400 hover:text-green-300' : 'text-green-600 hover:text-green-700'}`}
-                    >
-                      Click Here ({task.completionAttachments.length})
-                    </button>
+                  <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-3.5 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-textSecondary)]">
+                        <Paperclip size={12} className="mr-1 inline-block align-[-1px]" />
+                        Completion files
+                      </span>
+                      <button
+                        onClick={() => setShowAttachmentsModal({ attachments: task.completionAttachments!, type: 'completion' })}
+                        className="text-sm font-semibold text-[var(--color-success)] hover:underline"
+                      >
+                        View ({task.completionAttachments.length})
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -747,37 +774,34 @@ const MasterTasks: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div>
-                      <div className={`text-sm font-medium mb-1 flex items-center ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    <div className="min-w-0">
+                      <div className={`text-sm font-semibold leading-6 ${isDark ? 'text-white' : 'text-gray-800'}`}>
                         {expandedTitles.has(task._id) || task.title.length <= 150
                           ? task.title
                           : `${task.title.substring(0, 150)}...`}
                         {task.title.length > 150 && (
                           <button
                             onClick={() => toggleTitleExpansion(task._id)}
-                            className="ml-1 text-blue-500 hover:underline text-xs"
+                            className="ml-1 text-xs font-medium text-[var(--color-primary)] hover:underline"
                           >
                             {expandedTitles.has(task._id) ? 'Show Less' : 'Show More'}
                           </button>
                         )}
-                        {isTaskOverdue(task.dueDate, task.status) && (
-                          <span className="ml-2 w-2 h-2 bg-red-500 rounded-full"></span>
-                        )}
                       </div>
 
-                      <div className={`text-sm whitespace-pre-wrap break-words ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      <div className={`mt-1 text-[13px] leading-6 whitespace-pre-wrap break-words ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                         {displayedDescription}
                         {showReadMore && (
                           <button
                             onClick={() => toggleDescriptionExpansion(task._id)}
-                            className="ml-1 text-blue-500 hover:underline text-xs"
+                            className="ml-1 text-xs font-medium text-[var(--color-primary)] hover:underline"
                           >
                             {isExpanded ? 'Show Less' : 'Show More'}
                           </button>
                         )}
                       </div>
                       {task.revisionCount > 0 && (
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium mt-1 ${isDark ? 'bg-orange-700 text-orange-200 border-orange-600' : 'bg-orange-100 text-orange-800 border border-orange-200'}`}>
+                        <span className={`mt-2 inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${isDark ? 'bg-orange-700 text-orange-200 border-orange-600' : 'bg-orange-100 text-orange-800 border border-orange-200'}`}>
                           <History size={10} className="mr-1" />
                           Revised {task.revisionCount}x
                         </span>
@@ -814,14 +838,14 @@ const MasterTasks: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div>
-                        <div className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{task.assignedBy.username}</div>
+                        <div className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>{task.assignedBy.username}</div>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div>
-                        <div className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{task.assignedTo.username}</div>
+                        <div className={`text-sm  ${isDark ? 'text-white' : 'text-gray-800'}`}>{task.assignedTo.username}</div>
                         <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{task.assignedTo.email}</div>
                       </div>
                     </div>
@@ -835,13 +859,13 @@ const MasterTasks: React.FC = () => {
                         Click Here ({task.attachments.length})
                       </button>
                     ) : (
-                      <span className={`${isDark ? 'text-gray-500' : 'text-gray-400'}`}>No Attachments</span>
+                      <span className={`${isDark ? 'text-gray-500' : 'text-gray-300'}`}>No Attachments</span>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className={`text-sm font-medium ${isTaskOverdue(task.dueDate, task.status)
+                    <div className={`text-sm  ${isTaskOverdue(task.dueDate, task.status)
                       ? (isDark ? 'text-red-400' : 'text-red-600')
-                      : (isDark ? 'text-white' : 'text-gray-900')
+                      : (isDark ? 'text-white' : 'text-gray-800')
                       }`}>
                       {task.dueDate ? new Date(task.dueDate).toLocaleDateString('en-GB', {
                         day: '2-digit',
@@ -861,7 +885,7 @@ const MasterTasks: React.FC = () => {
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className={`text-sm flex items-center ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
+                    <div className={`text-sm flex items-center ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>
                       {task.completedAt ? new Date(task.completedAt).toLocaleDateString('en-GB', {
                         day: '2-digit',
                         month: 'numeric',
@@ -887,7 +911,7 @@ const MasterTasks: React.FC = () => {
                         Click Here ({task.completionAttachments.length})
                       </button>
                     ) : (
-                      <span className={`${isDark ? 'text-gray-500' : 'text-gray-400'}`}>No Files</span>
+                      <span className={`${isDark ? 'text-gray-500' : 'text-gray-300'}`}>No Files</span>
                     )}
                   </td>
                   {shouldShowActionsColumn() && (
@@ -977,7 +1001,7 @@ const MasterTasks: React.FC = () => {
       <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/90 px-6 py-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl mb-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text)]">
+            <h1 className="text-2xl font-medium tracking-tight text-[var(--color-text)]">
               Master Tasks
               {user?.permissions.canViewAllTeamTasks && (
                 <span className="ml-2 text-sm font-medium text-[var(--color-primary)]">(Admin View - All Team)</span>
@@ -1354,12 +1378,12 @@ const MasterTasks: React.FC = () => {
                           <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
                             #{index + 1}
                           </div>
-                          <span className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          <span className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>
                             Revision #{index + 1}
                           </span>
                         </div>
                         <div className="text-right">
-                          <div className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          <div className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>
                             {revision.revisedBy.username}
                           </div>
                           <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>

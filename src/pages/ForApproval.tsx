@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Check, X, Calendar, User, Clock, Paperclip, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, AlertTriangle, RefreshCw, Filter, ChevronDown, ChevronUp, FileText } from 'lucide-react';
 import axios from 'axios';
@@ -52,27 +52,25 @@ const getInitialViewPreference = (): 'card' | 'table' => {
 
 const RejectionModal: React.FC<RejectionModalProps> = ({ isOpen, onClose, onNoAction, onReassign, task, loading }) => {
     const [remarks, setRemarks] = useState('');
-    const { theme } = useTheme();
 
     if (!isOpen || !task) return null;
 
     return (
         <div
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-md"
             onClick={onClose}
         >
             <div
-                className={`${theme === 'light' ? 'bg-white' : 'bg-gray-800'} rounded-2xl p-6 w-full max-w-md shadow-2xl transform transition-all`}
+                className="w-full max-w-md rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-[0_24px_70px_rgba(15,23,42,0.22)] transition-all"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex items-start justify-between mb-4">
                     {/* LEFT: Title */}
                     <h3
-                        className={`text-xl font-semibold flex items-center max-w-[85%] ${theme === 'light' ? 'text-gray-900' : 'text-white'
-                            }`}
+                        className="flex max-w-[85%] items-center text-xl font-semibold tracking-tight text-[var(--color-text)]"
                         title={task.title}
                     >
-                        <AlertTriangle className="mr-2 text-red-500 shrink-0" size={20} />
+                        <AlertTriangle className="mr-2 shrink-0 text-[var(--color-danger)]" size={20} />
                         Reject Task:{' '}
                         {task.title.split(' ').length > 4
                             ? task.title.split(' ').slice(0, 4).join(' ') + '...'
@@ -82,10 +80,7 @@ const RejectionModal: React.FC<RejectionModalProps> = ({ isOpen, onClose, onNoAc
                     {/* RIGHT: Close Button */}
                     <button
                         onClick={onClose}
-                        className={`p-1 rounded-full transition-colors shrink-0 ${theme === 'light'
-                            ? 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
-                            : 'text-gray-400 hover:bg-gray-700 hover:text-white'
-                            }`}
+                        className="shrink-0 rounded-full p-1 text-[var(--color-textSecondary)] transition-colors hover:bg-[var(--color-background)] hover:text-[var(--color-text)]"
                         title="Close"
                     >
                         <X size={20} />
@@ -95,15 +90,7 @@ const RejectionModal: React.FC<RejectionModalProps> = ({ isOpen, onClose, onNoAc
 
                 <div className="mt-5 space-y-3 text-xs">
                     {/* No Action Required */}
-                    <div
-                        className={`
-      flex gap-3 p-3 rounded-xl border transition
-      ${theme === 'light'
-                                ? 'bg-red-50 border-red-200'
-                                : 'bg-red-900/20 border-red-700/40'
-                            }
-    `}
-                    >
+                    <div className="flex gap-3 rounded-2xl border border-[rgba(239,68,68,0.18)] bg-[rgba(239,68,68,0.06)] p-3 transition">
                         <div className="flex-shrink-0 mt-0.5">
                             <div className="w-7 h-7 rounded-full flex items-center justify-center bg-red-100">
                                 <X size={14} className="text-red-600" />
@@ -114,7 +101,7 @@ const RejectionModal: React.FC<RejectionModalProps> = ({ isOpen, onClose, onNoAc
                             <p className="font-semibold text-red-600">
                                 No Action Required
                             </p>
-                            <p className="mt-0.5 text-(--color-text) leading-relaxed">
+                            <p className="mt-0.5 leading-relaxed text-[var(--color-text)]">
                                 Rejects this task permanently and closes it.
                                 No further action will be taken.
                             </p>
@@ -122,15 +109,7 @@ const RejectionModal: React.FC<RejectionModalProps> = ({ isOpen, onClose, onNoAc
                     </div>
 
                     {/* Reassign Task */}
-                    <div
-                        className={`
-      flex gap-3 p-3 rounded-xl border transition
-      ${theme === 'light'
-                                ? 'bg-yellow-50 border-yellow-200'
-                                : 'bg-yellow-900/20 border-yellow-700/40'
-                            }
-    `}
-                    >
+                    <div className="flex gap-3 rounded-2xl border border-[rgba(245,158,11,0.18)] bg-[rgba(245,158,11,0.06)] p-3 transition">
                         <div className="flex-shrink-0 mt-0.5">
                             <div className="w-7 h-7 rounded-full flex items-center justify-center bg-yellow-100">
                                 <User size={14} className="text-yellow-600" />
@@ -151,17 +130,14 @@ const RejectionModal: React.FC<RejectionModalProps> = ({ isOpen, onClose, onNoAc
 
 
                 <div className="mb-6">
-                    <label className={`block text-sm font-medium mb-2 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>
+                    <label className="mb-2 block text-sm font-medium text-[var(--color-textSecondary)]">
                         Remarks (Required)
                     </label>
                     <textarea
                         value={remarks}
                         onChange={(e) => setRemarks(e.target.value)}
                         placeholder="Please provide a reason for rejection..."
-                        className={`w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none ${theme === 'light'
-                            ? 'border-gray-300 bg-gray-50 text-gray-900'
-                            : 'border-gray-600 bg-gray-700 text-white'
-                            }`}
+                        className="w-full resize-none rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/75 p-3 text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                         rows={4}
                         required
                     />
@@ -177,7 +153,7 @@ const RejectionModal: React.FC<RejectionModalProps> = ({ isOpen, onClose, onNoAc
                             setRemarks('');
                         }}
                         disabled={loading || !remarks.trim()}
-                        className="px-4 py-2 rounded-xl bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-colors"
+                        className="flex items-center justify-center space-x-2 rounded-2xl bg-[var(--color-danger)] px-4 py-2 text-white transition-colors hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {loading ? (
                             <RefreshCw size={16} className="animate-spin" />
@@ -196,7 +172,7 @@ const RejectionModal: React.FC<RejectionModalProps> = ({ isOpen, onClose, onNoAc
                             setRemarks('');
                         }}
                         disabled={loading || !remarks.trim()}
-                        className="px-4 py-2 rounded-xl bg-yellow-500 text-white hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-colors"
+                        className="flex items-center justify-center space-x-2 rounded-2xl bg-amber-500 px-4 py-2 text-white transition-colors hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {loading ? (
                             <RefreshCw size={16} className="animate-spin" />
@@ -325,7 +301,7 @@ const ForApproval: React.FC = () => {
                         requiresApproval: true,
                         taskType: 'one-time',
                         companyId: user?.company?.companyId,
-                        limit: 10000   // ✅ IMPORTANT
+                        limit: 10000   // âœ… IMPORTANT
                     }
                 }
             );
@@ -450,7 +426,7 @@ const ForApproval: React.FC = () => {
     };
 
     const renderCardView = () => (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-2 2xl:grid-cols-3">
             {paginatedTasks.map((task) => {
                 const descriptionIsLong = task.description.length > 150;
                 const displayDescription = showFullDescription[task._id] || !descriptionIsLong
@@ -460,16 +436,16 @@ const ForApproval: React.FC = () => {
                 return (
                     <div
                         key={task._id}
-                        className={`${theme === 'light' ? 'bg-white' : 'bg-gray-800'} rounded-xl shadow-sm border ${theme === 'light' ? 'border-gray-200 hover:border-blue-300' : 'border-gray-700 hover:border-blue-500'} hover:shadow-lg transition-all duration-300 overflow-hidden transform hover:-translate-y-1`}
+                        className="group flex h-full flex-col rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_14px_38px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_22px_56px_rgba(15,23,42,0.12)]"
                     >
-                        <div className="p-6">
+                        <div className="flex h-full flex-col p-5 sm:p-6">
                             <div className="flex items-start justify-between mb-4">
-                                <h3 className={`text-lg font-semibold pr-2 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>
+                                <h3 className="min-w-0 pr-2 text-lg font-semibold tracking-tight text-[var(--color-text)]">
                                     {showFullTitle[task._id] ? task.title : task.title.length > 70 ? `${task.title.substring(0, 70)}...` : task.title}
                                     {task.title.length > 70 && (
                                         <button
                                             onClick={() => toggleTitleVisibility(task._id)}
-                                            className="ml-1 text-xs text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                                            className="ml-1 text-xs font-medium text-[var(--color-primary)] hover:underline"
                                         >
                                             {showFullTitle[task._id] ? 'Show Less' : 'Show More'}
                                         </button>
@@ -519,34 +495,34 @@ const ForApproval: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="flex flex-wrap gap-2 mb-4">
+                            <div className="mb-4 flex flex-wrap gap-2">
                                 <PriorityBadge priority={task.priority} />
                             </div>
 
-                            <p className={`text-sm mb-4 whitespace-pre-wrap break-words ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
+                            <p className="mb-4 text-sm leading-6 whitespace-pre-wrap break-words text-[var(--color-textSecondary)]">
                                 {displayDescription}
                                 {descriptionIsLong && (
                                     <button
                                         onClick={() => toggleDescription(task._id)}
-                                        className="ml-1 text-blue-600 hover:text-blue-800 hover:underline text-xs font-medium"
+                                        className="ml-1 text-xs font-medium text-[var(--color-primary)] hover:underline"
                                     >
                                         {showFullDescription[task._id] ? 'See Less' : 'See More'}
                                     </button>
                                 )}
                             </p>
 
-                            <div className="space-y-3 text-sm">
-                                <div className={`flex justify-between items-center py-2 px-3 ${theme === 'light' ? 'bg-gray-50' : 'bg-gray-700'} rounded-lg`}>
-                                    <span className={theme === 'light' ? 'text-gray-600' : 'text-gray-400'}>Assigned by:</span>
-                                    <span className={`font-medium ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{task.assignedBy?.username || '—'}</span>
+                            <div className="mt-auto space-y-2 text-sm">
+                                <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-3.5 py-2.5">
+                                    <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-textSecondary)]">Assigned by</span>
+                                    <span className="font-semibold text-[var(--color-text)]">{task.assignedBy?.username || ''}</span>
                                 </div>
-                                <div className={`flex justify-between items-center py-2 px-3 ${theme === 'light' ? 'bg-gray-50' : 'bg-gray-700'} rounded-lg`}>
-                                    <span className={theme === 'light' ? 'text-gray-600' : 'text-gray-400'}>Assigned to:</span>
-                                    <span className={`font-medium ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{task.assignedTo.username}</span>
+                                <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-3.5 py-2.5">
+                                    <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-textSecondary)]">Assigned to</span>
+                                    <span className="font-semibold text-[var(--color-text)]">{task.assignedTo.username}</span>
                                 </div>
-                                <div className={`flex justify-between items-center py-2 px-3 ${theme === 'light' ? 'bg-blue-50' : 'bg-blue-900/30'} rounded-lg`}>
-                                    <span className={theme === 'light' ? 'text-gray-600' : 'text-gray-400'}>Due date:</span>
-                                    <span className={`font-medium ${theme === 'light' ? 'text-blue-700' : 'text-blue-400'}`}>
+                                <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-3.5 py-2.5">
+                                    <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-textSecondary)]">Due date</span>
+                                    <span className="font-semibold text-[var(--color-primary)]">
                                         {new Date(task.dueDate).toLocaleDateString('en-GB', {
                                             day: '2-digit',
                                             month: '2-digit',
@@ -555,13 +531,11 @@ const ForApproval: React.FC = () => {
                                     </span>
                                 </div>
                                 {task.completedAt && (
-                                    <div className={`flex justify-between items-center py-2 px-3 ${theme === 'light' ? 'bg-green-50' : 'bg-green-900/30'
-                                        } rounded-lg`}>
-                                        <span className={theme === 'light' ? 'text-gray-600' : 'text-gray-400'}>
-                                            Completed on:
+                                    <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-3.5 py-2.5">
+                                        <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-textSecondary)]">
+                                            Completed on
                                         </span>
-                                        <span className={`font-medium ${theme === 'light' ? 'text-green-700' : 'text-green-400'
-                                            }`}>
+                                        <span className="font-semibold text-[var(--color-success)]">
                                             {new Date(task.completedAt).toLocaleDateString('en-GB', {
                                                 day: '2-digit',
                                                 month: '2-digit',
@@ -570,64 +544,43 @@ const ForApproval: React.FC = () => {
                                         </span>
                                     </div>
                                 )}
-                                <div className={`flex justify-between items-center py-2 px-3 ${theme === 'light' ? 'bg-gray-50' : 'bg-gray-700'} rounded-lg`}>
-                                    <span className={`flex items-center ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
-                                        <Paperclip size={14} className="mr-1" />
-                                        Attachments:
+                                <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-3.5 py-2.5">
+                                    <span className="flex items-center text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-textSecondary)]">
+                                        <Paperclip size={12} className="mr-1" />
+                                        Attachments
                                     </span>
                                     {task.attachments && task.attachments.length > 0 ? (
                                         <button
                                             onClick={() => setShowAttachmentsModal(task.attachments)}
-                                            className="font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                                            className="flex items-center gap-1 font-semibold text-[var(--color-primary)] hover:underline"
                                         >
                                             <Paperclip size={12} />
                                             View ({task.attachments.length})
                                         </button>
                                     ) : (
-                                        <span className={theme === 'light' ? 'text-gray-600' : 'text-gray-400'}>—</span>
+                                        <span className="text-[var(--color-textSecondary)]">—</span>
                                     )}
                                 </div>
                                 {task.completionRemarks && (
-                                    <div
-                                        className={`flex justify-between items-start py-2 px-3 ${theme === 'light' ? 'bg-green-50' : 'bg-green-900/30'
-                                            } rounded-lg`}
-                                    >
-                                        {/* LEFT */}
-                                        <span
-                                            className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'
-                                                }`}
-                                        >
+                                    <div className="flex items-start justify-between gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-3.5 py-2.5">
+                                        <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-textSecondary)]">
                                             Completion Remarks
                                         </span>
-
-                                        {/* RIGHT */}
-                                        <span
-                                            className={`text-sm text-right max-w-[65%] ${theme === 'light' ? 'text-green-700' : 'text-green-400'
-                                                }`}
-                                        >
+                                        <span className="max-w-[65%] text-right text-sm font-medium text-[var(--color-success)]">
                                             {task.completionRemarks}
                                         </span>
                                     </div>
                                 )}
 
                                 {task.completionAttachments && task.completionAttachments.length > 0 && (
-                                    <div
-                                        className={`flex justify-between items-center py-2 px-3 ${theme === 'light' ? 'bg-blue-50' : 'bg-blue-900/30'
-                                            } rounded-lg`}
-                                    >
-                                        {/* LEFT */}
-                                        <span
-                                            className={`flex items-center text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'
-                                                }`}
-                                        >
-                                            <Paperclip size={14} className="mr-1" />
-                                            Completion Attachments
+                                    <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-3.5 py-2.5">
+                                        <span className="flex items-center text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-textSecondary)]">
+                                            <Paperclip size={12} className="mr-1" />
+                                            Completion Files
                                         </span>
-
-                                        {/* RIGHT */}
                                         <button
                                             onClick={() => setShowAttachmentsModal(task.completionAttachments ?? [])}
-                                            className="font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                                            className="flex items-center gap-1 font-semibold text-[var(--color-success)] hover:underline"
                                         >
                                             <FileText size={14} />
                                             View ({task.completionAttachments.length})
@@ -645,24 +598,24 @@ const ForApproval: React.FC = () => {
     );
 
     const renderTableView = () => (
-        <div className={`${theme === 'light' ? 'bg-white' : 'bg-gray-800'} rounded-xl shadow-sm border ${theme === 'light' ? 'border-gray-200' : 'border-gray-700'} overflow-hidden`}>
+        <div className="overflow-hidden rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_16px_44px_rgba(15,23,42,0.08)]">
             <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className={theme === 'light' ? 'bg-gray-50' : 'bg-gray-700'}>
+                <table className="min-w-full table-fixed divide-y divide-[var(--color-border)]">
+                    <thead className="bg-[var(--color-surface)]">
                         <tr>
-                            <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>Task</th>
-                            <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>Assigned By</th>
-                            <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>Assigned To</th>
-                            <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>Priority</th>
-                            <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>Due Date</th>
-                            <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>Completed On</th>
-                            <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>Attachments</th>
-                            <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>Remarks</th>
-                            <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>Completion Files</th>
-                            <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>Actions</th>
+                            <th className="px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Task</th>
+                            <th className="px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Assigned By</th>
+                            <th className="px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Assigned To</th>
+                            <th className="px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Priority</th>
+                            <th className="px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Due Date</th>
+                            <th className="px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Completed On</th>
+                            <th className="px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Attachments</th>
+                            <th className="px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Remarks</th>
+                            <th className="px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Completion Files</th>
+                            <th className="px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Actions</th>
                         </tr>
                     </thead>
-                    <tbody className={`divide-y ${theme === 'light' ? 'divide-gray-200 bg-white' : 'divide-gray-700 bg-gray-800'}`}>
+                    <tbody className="divide-y divide-[var(--color-border)] bg-[var(--color-surface)]">
                         {paginatedTasks.map((task) => {
                             const descriptionIsLong = task.description.length > 150;
                             const displayDescription = showFullDescription[task._id] || !descriptionIsLong
@@ -670,26 +623,26 @@ const ForApproval: React.FC = () => {
                                 : `${task.description.substring(0, 150)}...`;
 
                             return (
-                                <tr key={task._id} className={`${theme === 'light' ? 'hover:bg-gray-50' : 'hover:bg-gray-700'} transition-colors`}>
-                                    <td className="px-6 py-4">
-                                        <div>
-                                            <div className={`text-sm font-medium mb-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>
+                                <tr key={task._id} className="transition-colors hover:bg-[var(--color-background)]/70">
+                                    <td className="px-6 py-5 align-top">
+                                        <div className="space-y-1">
+                                            <div className="text-sm font-semibold tracking-tight text-[var(--color-text)]">
                                                 {showFullTitle[task._id] ? task.title : task.title.length > 100 ? `${task.title.substring(0, 100)}...` : task.title}
                                                 {task.title.length > 100 && (
                                                     <button
                                                         onClick={() => toggleTitleVisibility(task._id)}
-                                                        className="ml-1 text-xs text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                                                        className="ml-1 text-xs font-medium text-[var(--color-primary)] hover:underline"
                                                     >
                                                         {showFullTitle[task._id] ? 'Show Less' : 'Show More'}
                                                     </button>
                                                 )}
                                             </div>
-                                            <div className={`text-sm whitespace-pre-wrap break-words ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
+                                            <div className="text-sm leading-6 whitespace-pre-wrap break-words text-[var(--color-textSecondary)]">
                                                 {displayDescription}
                                                 {descriptionIsLong && (
                                                     <button
                                                         onClick={() => toggleDescription(task._id)}
-                                                        className="ml-1 text-blue-600 hover:text-blue-800 hover:underline text-xs font-medium"
+                                                        className="ml-1 text-xs font-medium text-[var(--color-primary)] hover:underline"
                                                     >
                                                         {showFullDescription[task._id] ? 'See Less' : 'See More'}
                                                     </button>
@@ -698,10 +651,10 @@ const ForApproval: React.FC = () => {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="flex items-center">
-                                            <User className="mr-2 text-gray-400" size={16} />
+                                        <div className="flex items-start gap-2">
+                                            <User className="mt-0.5 shrink-0 text-[var(--color-textSecondary)]" size={16} />
                                             <div>
-                                                <div className={`text-sm font-medium ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>
+                                                <div className="text-sm font-medium text-[var(--color-text)]">
                                                     {task.assignedBy?.username || '—'}
                                                 </div>
                                             </div>
@@ -711,8 +664,8 @@ const ForApproval: React.FC = () => {
                                         <div className="flex items-center">
                                             <User className="mr-2 text-[var(--color-primary)]" size={16} />
                                             <div>
-                                                <div className={`text-sm font-medium ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{task.assignedTo.username}</div>
-                                                <div className={`text-sm ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>{task.assignedTo.email}</div>
+                                                <div className="text-sm font-medium text-[var(--color-text)]">{task.assignedTo.username}</div>
+                                                <div className="text-sm text-[var(--color-textSecondary)]">{task.assignedTo.email}</div>
                                             </div>
                                         </div>
                                     </td>
@@ -722,7 +675,7 @@ const ForApproval: React.FC = () => {
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="flex items-center">
                                             <Calendar className="mr-2 text-[var(--color-primary)]" size={16} />
-                                            <span className={`text-sm ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>
+                                            <span className="text-sm font-medium text-[var(--color-text)]">
                                                 {new Date(task.dueDate).toLocaleDateString('en-GB', {
                                                     day: '2-digit',
                                                     month: '2-digit',
@@ -734,9 +687,8 @@ const ForApproval: React.FC = () => {
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         {task.completedAt ? (
                                             <div className="flex items-center">
-                                                <Calendar className="mr-2 text-green-500" size={16} />
-                                                <span className={`text-sm ${theme === 'light' ? 'text-gray-900' : 'text-white'
-                                                    }`}>
+                                                <Calendar className="mr-2 text-[var(--color-success)]" size={16} />
+                                                <span className="text-sm font-medium text-[var(--color-text)]">
                                                     {new Date(task.completedAt).toLocaleDateString('en-GB', {
                                                         day: '2-digit',
                                                         month: '2-digit',
@@ -745,9 +697,8 @@ const ForApproval: React.FC = () => {
                                                 </span>
                                             </div>
                                         ) : (
-                                            <span className={`text-sm italic ${theme === 'light' ? 'text-gray-400' : 'text-gray-500'
-                                                }`}>
-                                                —
+                                            <span className="text-sm italic text-[var(--color-textSecondary)]">
+                                                Not completed
                                             </span>
                                         )}
                                     </td>
@@ -755,7 +706,7 @@ const ForApproval: React.FC = () => {
                                         {task.attachments && task.attachments.length > 0 ? (
                                             <button
                                                 onClick={() => setShowAttachmentsModal(task.attachments)}
-                                                className="font-medium text-[var(--color-primary)] flex items-center gap-1"
+                                                className="inline-flex items-center gap-1 font-medium text-[var(--color-primary)] hover:underline"
                                             >
                                                 <Paperclip size={12} />
                                                 View ({task.attachments.length})
@@ -765,7 +716,7 @@ const ForApproval: React.FC = () => {
                                         )}
                                     </td>
                                     <td className="px-6 py-4">
-                                        <div className={`text-sm max-w-xs truncate ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
+                                        <div className="max-w-xs truncate text-sm text-[var(--color-textSecondary)]">
                                             {task.completionRemarks || 'No remarks'}
                                         </div>
                                     </td>
@@ -773,7 +724,7 @@ const ForApproval: React.FC = () => {
                                         {task.completionAttachments && task.completionAttachments.length > 0 ? (
                                             <button
                                                 onClick={() => setShowAttachmentsModal(task.completionAttachments ?? [])}
-                                                className="font-medium text-[var(--color-primary)] flex items-center gap-1"
+                                                className="inline-flex items-center gap-1 font-medium text-[var(--color-success)] hover:underline"
                                             >
                                                 <Paperclip size={12} />
                                                 View ({task.completionAttachments.length})
@@ -791,7 +742,7 @@ const ForApproval: React.FC = () => {
 
                                             return (
                                                 <div className="flex items-center gap-3">
-                                                    {/* ✅ APPROVE */}
+                                                    {/* âœ… APPROVE */}
                                                     <button
                                                         onClick={() => {
                                                             setApproveTaskId(task._id);
@@ -803,10 +754,10 @@ const ForApproval: React.FC = () => {
                                                                 ? 'You cannot approve your own task'
                                                                 : 'Approve task'
                                                         }
-                                                        className={`p-2 rounded-lg transition-colors
+                                                        className={`inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] transition-colors
                                                         ${disabled
-                                                                ? 'opacity-40 cursor-not-allowed'
-                                                                : 'text-green-600 hover:bg-green-100'
+                                                                ? 'cursor-not-allowed opacity-40'
+                                                                : 'text-[var(--color-success)] hover:bg-[rgba(16,185,129,0.08)]'
                                                             }`}
                                                     >
                                                         {approving === task._id ? (
@@ -816,7 +767,7 @@ const ForApproval: React.FC = () => {
                                                         )}
                                                     </button>
 
-                                                    {/* ❌ REJECT */}
+                                                    {/* âŒ REJECT */}
                                                     <button
                                                         onClick={() => {
                                                             setSelectedTask(task);
@@ -828,10 +779,10 @@ const ForApproval: React.FC = () => {
                                                                 ? 'You cannot reject your own task'
                                                                 : 'Reject task'
                                                         }
-                                                        className={`p-2 rounded-lg transition-colors
+                                                        className={`inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] transition-colors
                                                            ${disabled
-                                                                ? 'opacity-40 cursor-not-allowed'
-                                                                : 'text-red-600 hover:bg-red-100'
+                                                                ? 'cursor-not-allowed opacity-40'
+                                                                : 'text-[var(--color-danger)] hover:bg-[rgba(239,68,68,0.08)]'
                                                             }`}
                                                     >
                                                         <X size={16} />
@@ -851,58 +802,54 @@ const ForApproval: React.FC = () => {
 
     if (loading) {
         return (
-            <div className={`min-h-screen ${theme === 'light' ? 'bg-gray-50' : 'bg-gray-900'} flex items-center justify-center`}>
-                <div className="text-center">
-                    <RefreshCw className="animate-spin mx-auto mb-4" size={32} />
-                    <p className={theme === 'light' ? 'text-gray-600' : 'text-gray-400'}>Loading tasks for approval...</p>
+            <div className="relative min-h-screen overflow-hidden bg-[var(--color-background)] flex items-center justify-center">
+                <div className="relative z-10 text-center">
+                    <RefreshCw className="mx-auto mb-4 animate-spin text-[var(--color-primary)]" size={32} />
+                    <p className="text-sm text-[var(--color-textSecondary)]">Loading tasks for approval...</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className={`min-h-screen ${theme === 'light' ? 'bg-gray-50' : 'bg-gray-900'} p-4 md:p-6`}>
-            <div className="max-w-15xl mx-auto">
+        <div className="relative min-h-screen overflow-hidden bg-[var(--color-background)] px-4 py-6 md:px-6 lg:px-8">
+            <div className="relative z-10 mx-auto max-w-15xl">
                 {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-                    <div>
-                        <h1 className={`text-2xl md:text-3xl font-bold ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>
-                            Tasks for Approval
-                        </h1>
-                        <p className={`mt-1 text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
-                            {filteredTasks.length} of {tasks.length} task(s) found • Review and approve/reject pending one-time tasks
-                        </p>
-                    </div>
-                    {!isMobile && (
-                        <div className="mt-4 sm:mt-0">
-                            <ViewToggle view={view} onViewChange={setView} />
+                <div className="mb-6 overflow-hidden rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4 shadow-[0_16px_44px_rgba(15,23,42,0.08)] sm:px-6">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="min-w-0">
+                            <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-text)]">
+                                Tasks for Approval
+                            </h1>
+                            <p className="mt-1 text-sm text-[var(--color-textSecondary)]">
+                                {filteredTasks.length} of {tasks.length} task(s) found • Review and approve/reject pending one-time tasks
+                            </p>
                         </div>
-                    )}
+                        {!isMobile && (
+                            <div className="shrink-0 lg:pt-1">
+                                <ViewToggle view={view} onViewChange={setView} />
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Filters */}
-                <div className={`${theme === 'light' ? 'bg-white' : 'bg-gray-800'} rounded-xl shadow-sm border ${theme === 'light' ? 'border-gray-200' : 'border-gray-700'} p-4 mb-6`}>
+                <div className="mb-6 rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[0_16px_44px_rgba(15,23,42,0.08)]">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
                         <div className="relative flex-1 max-w-md">
-                            <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${theme === 'light' ? 'text-gray-400' : 'text-gray-500'}`} size={20} />
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)]" size={20} />
                             <input
                                 type="text"
                                 placeholder="Search tasks, assignees..."
                                 value={filter.search}
                                 onChange={(e) => setFilter({ ...filter, search: e.target.value })}
-                                className={`w-full pl-10 pr-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${theme === 'light'
-                                    ? 'border-gray-300 bg-white text-gray-900'
-                                    : 'border-gray-600 bg-gray-700 text-white'
-                                    }`}
+                                className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] py-2.5 pl-10 pr-4 text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                             />
                         </div>
                         <div className="flex gap-2">
                             <button
                                 onClick={() => setShowFilters(!showFilters)}
-                                className={`px-4 py-2 rounded-xl border transition-colors flex items-center gap-2 ${theme === 'light'
-                                    ? 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                                    : 'border-gray-600 text-gray-300 hover:bg-gray-700'
-                                    }`}
+                                className="flex items-center gap-2 rounded-2xl border border-[var(--color-border)] px-4 py-2 text-[var(--color-textSecondary)] transition-colors hover:bg-[var(--color-background)]"
                             >
                                 <Filter size={16} />
                                 Filters
@@ -910,10 +857,7 @@ const ForApproval: React.FC = () => {
                             </button>
                             <button
                                 onClick={fetchPendingApprovalTasks}
-                                className={`px-4 py-2 rounded-xl border transition-colors flex items-center space-x-2 ${theme === 'light'
-                                    ? 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                                    : 'border-gray-600 text-gray-300 hover:bg-gray-700'
-                                    }`}
+                                className="flex items-center space-x-2 rounded-2xl border border-[var(--color-border)] px-4 py-2 text-[var(--color-textSecondary)] transition-colors hover:bg-[var(--color-background)]"
                             >
                                 <RefreshCw size={16} />
                                 <span>Refresh</span>
@@ -922,16 +866,13 @@ const ForApproval: React.FC = () => {
                     </div>
 
                     {showFilters && (
-                        <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-lg border ${theme === 'light' ? 'bg-gray-50 border-gray-200' : 'bg-gray-700 border-gray-600'}`}>
+                        <div className="grid grid-cols-1 gap-4 rounded-[24px] border border-[var(--color-border)] bg-[var(--color-background)]/70 p-4 md:grid-cols-3">
                             <div>
-                                <label className={`block text-sm font-medium mb-1 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>Priority</label>
+                                <label className="mb-1 block text-sm font-medium text-[var(--color-textSecondary)]">Priority</label>
                                 <select
                                     value={filter.priority}
                                     onChange={(e) => setFilter({ ...filter, priority: e.target.value })}
-                                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${theme === 'light'
-                                        ? 'border-gray-300 bg-white text-gray-900'
-                                        : 'border-gray-600 bg-gray-700 text-white'
-                                        }`}
+                                    className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                                 >
                                     <option value="">All Priorities</option>
                                     <option value="urgent">Urgent</option>
@@ -941,14 +882,11 @@ const ForApproval: React.FC = () => {
                                 </select>
                             </div>
                             <div>
-                                <label className={`block text-sm font-medium mb-1 ${theme === 'light' ? 'text-gray-700' : 'text-gray-300'}`}>Assignee</label>
+                                <label className="mb-1 block text-sm font-medium text-[var(--color-textSecondary)]">Assignee</label>
                                 <select
                                     value={filter.assignee}
                                     onChange={(e) => setFilter({ ...filter, assignee: e.target.value })}
-                                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${theme === 'light'
-                                        ? 'border-gray-300 bg-white text-gray-900'
-                                        : 'border-gray-600 bg-gray-700 text-white'
-                                        }`}
+                                    className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                                 >
                                     <option value="">All Assignees</option>
                                     {Array.from(
@@ -968,10 +906,7 @@ const ForApproval: React.FC = () => {
                             <div className="flex items-end">
                                 <button
                                     onClick={resetFilters}
-                                    className={`px-4 py-2 rounded-lg transition-colors ${theme === 'light'
-                                        ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                        : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
-                                        }`}
+                                    className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-4 py-2.5 text-[var(--color-textSecondary)] transition-colors hover:bg-[var(--color-background)]"
                                 >
                                     Clear Filters
                                 </button>
@@ -982,14 +917,14 @@ const ForApproval: React.FC = () => {
 
                 {/* Content */}
                 {filteredTasks.length === 0 ? (
-                    <div className={`text-center py-16 ${theme === 'light' ? 'bg-white' : 'bg-gray-800'} rounded-xl shadow-sm border ${theme === 'light' ? 'border-gray-200' : 'border-gray-700'}`}>
-                        <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full flex items-center justify-center">
-                            <Clock size={32} className="text-blue-600" />
+                    <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] py-16 text-center shadow-[0_16px_44px_rgba(15,23,42,0.08)]">
+                        <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-[linear-gradient(135deg,rgba(14,165,233,0.14),rgba(59,130,246,0.22))]">
+                            <Clock size={32} className="text-[var(--color-primary)]" />
                         </div>
-                        <h3 className={`text-xl font-semibold mb-2 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>
+                        <h3 className="mb-2 text-xl font-semibold text-[var(--color-text)]">
                             No tasks pending approval
                         </h3>
-                        <p className={`${theme === 'light' ? 'text-gray-600' : 'text-gray-400'} mb-4`}>
+                        <p className="mb-4 text-[var(--color-textSecondary)]">
                             {tasks.length === 0
                                 ? "There are no tasks requiring approval at the moment."
                                 : "No tasks match your current filters."}
@@ -997,7 +932,7 @@ const ForApproval: React.FC = () => {
                         {tasks.length > 0 && (
                             <button
                                 onClick={resetFilters}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                className="rounded-2xl bg-[var(--color-primary)] px-4 py-2 text-white transition-colors hover:opacity-95"
                             >
                                 Clear Filters
                             </button>
@@ -1009,28 +944,25 @@ const ForApproval: React.FC = () => {
 
                         {/* Pagination */}
                         {filteredTasks.length > itemsPerPage && (
-                            <div className={`${theme === 'light' ? 'bg-white' : 'bg-gray-800'} rounded-xl shadow-sm border ${theme === 'light' ? 'border-gray-200' : 'border-gray-700'} p-4 mt-6`}>
+                            <div className="mt-6 rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[0_16px_44px_rgba(15,23,42,0.08)]">
                                 <div className="flex flex-col items-center text-center sm:flex-row sm:items-center sm:justify-between gap-4">
                                     <div className="flex items-center space-x-2">
-                                        <span className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>Show:</span>
+                                        <span className="text-sm text-[var(--color-textSecondary)]">Show:</span>
                                         <select
                                             value={itemsPerPage}
                                             onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-                                            className={`text-sm px-2 py-1 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${theme === 'light'
-                                                ? 'border-gray-300 bg-white text-gray-900'
-                                                : 'border-gray-600 bg-gray-700 text-white'
-                                                }`}
+                                            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/75 px-2 py-1 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                                         >
                                             <option value={10}>10</option>
                                             <option value={25}>25</option>
                                             <option value={50}>50</option>
                                             <option value={100}>100</option>
                                         </select>
-                                        <span className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>per page</span>
+                                        <span className="text-sm text-[var(--color-textSecondary)]">per page</span>
                                     </div>
 
                                     <div className="flex items-center">
-                                        <p className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
+                                        <p className="text-sm text-[var(--color-textSecondary)]">
                                             Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
                                             <span className="font-medium">{Math.min(endIndex, filteredTasks.length)}</span> of{' '}
                                             <span className="font-medium">{filteredTasks.length}</span> results
@@ -1041,10 +973,7 @@ const ForApproval: React.FC = () => {
                                         <button
                                             onClick={() => handlePageChange(1)}
                                             disabled={currentPage === 1}
-                                            className={`p-2 text-sm font-medium border rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${theme === 'light'
-                                                ? 'text-gray-600 bg-white border-gray-300 hover:bg-gray-50'
-                                                : 'text-gray-400 bg-gray-700 border-gray-600 hover:bg-gray-600'
-                                                }`}
+                                            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/75 text-[var(--color-textSecondary)] transition-colors hover:bg-[var(--color-background)] disabled:cursor-not-allowed disabled:opacity-50"
                                             title="First page"
                                         >
                                             <ChevronsLeft size={16} />
@@ -1053,10 +982,7 @@ const ForApproval: React.FC = () => {
                                         <button
                                             onClick={() => handlePageChange(currentPage - 1)}
                                             disabled={currentPage === 1}
-                                            className={`p-2 text-sm font-medium border rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${theme === 'light'
-                                                ? 'text-gray-600 bg-white border-gray-300 hover:bg-gray-50'
-                                                : 'text-gray-400 bg-gray-700 border-gray-600 hover:bg-gray-600'
-                                                }`}
+                                            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/75 text-[var(--color-textSecondary)] transition-colors hover:bg-[var(--color-background)] disabled:cursor-not-allowed disabled:opacity-50"
                                             title="Previous page"
                                         >
                                             <ChevronLeft size={16} />
@@ -1080,11 +1006,9 @@ const ForApproval: React.FC = () => {
                                                     <button
                                                         key={pageNumber}
                                                         onClick={() => handlePageChange(pageNumber)}
-                                                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${currentPage === pageNumber
-                                                            ? 'bg-blue-600 text-white'
-                                                            : theme === 'light'
-                                                                ? 'text-gray-600 bg-white border border-gray-300 hover:bg-gray-50'
-                                                                : 'text-gray-400 bg-gray-700 border border-gray-600 hover:bg-gray-600'
+                                                        className={`rounded-2xl border px-3 py-2 text-sm font-medium transition-colors ${currentPage === pageNumber
+                                                            ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white'
+                                                            : 'border-[var(--color-border)] bg-[var(--color-background)]/75 text-[var(--color-textSecondary)] hover:bg-[var(--color-background)]'
                                                             }`}
                                                     >
                                                         {pageNumber}
@@ -1096,10 +1020,7 @@ const ForApproval: React.FC = () => {
                                         <button
                                             onClick={() => handlePageChange(currentPage + 1)}
                                             disabled={currentPage === totalPages}
-                                            className={`p-2 text-sm font-medium border rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${theme === 'light'
-                                                ? 'text-gray-600 bg-white border-gray-300 hover:bg-gray-50'
-                                                : 'text-gray-400 bg-gray-700 border-gray-600 hover:bg-gray-600'
-                                                }`}
+                                            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/75 text-[var(--color-textSecondary)] transition-colors hover:bg-[var(--color-background)] disabled:cursor-not-allowed disabled:opacity-50"
                                             title="Next page"
                                         >
                                             <ChevronRight size={16} />
@@ -1108,10 +1029,7 @@ const ForApproval: React.FC = () => {
                                         <button
                                             onClick={() => handlePageChange(totalPages)}
                                             disabled={currentPage === totalPages}
-                                            className={`p-2 text-sm font-medium border rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${theme === 'light'
-                                                ? 'text-gray-600 bg-white border-gray-300 hover:bg-gray-50'
-                                                : 'text-gray-400 bg-gray-700 border-gray-600 hover:bg-gray-600'
-                                                }`}
+                                            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/75 text-[var(--color-textSecondary)] transition-colors hover:bg-[var(--color-background)] disabled:cursor-not-allowed disabled:opacity-50"
                                             title="Last page"
                                         >
                                             <ChevronsRight size={16} />
@@ -1140,13 +1058,13 @@ const ForApproval: React.FC = () => {
 
             {/* Attachments Modal */}
             {showAttachmentsModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-                    <div className={`rounded-xl max-w-2xl w-full shadow-2xl transform transition-all max-h-[80vh] overflow-hidden ${theme === 'light' ? 'bg-white' : 'bg-gray-800'}`}>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-md">
+                    <div className="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_24px_70px_rgba(15,23,42,0.22)]">
                         <div className="p-6">
-                            <h3 className={`text-lg font-semibold mb-4 flex items-center ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>
-                                <Paperclip size={20} className="mr-2" />
+                            <h3 className="mb-4 flex items-center text-lg font-semibold text-[var(--color-text)]">
+                                <Paperclip size={20} className="mr-2 text-[var(--color-primary)]" />
                                 Task Attachments
-                                <span className={`ml-2 text-sm font-normal ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
+                                <span className="ml-2 text-sm font-normal text-[var(--color-textSecondary)]">
                                     ({showAttachmentsModal.length} file{showAttachmentsModal.length !== 1 ? 's' : ''})
                                 </span>
                             </h3>
@@ -1154,39 +1072,36 @@ const ForApproval: React.FC = () => {
                                 <div className="max-h-96 overflow-y-auto pr-2">
                                     <div className="grid grid-cols-1 gap-3">
                                         {showAttachmentsModal.map((attachment, index) => (
-                                            <div key={index} className={`flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 rounded-lg border transition-colors ${theme === 'light'
-                                                ? 'bg-gray-50 border-gray-200 hover:border-blue-300'
-                                                : 'bg-gray-700 border-gray-600 hover:border-blue-500'
-                                                }`}>
+                                            <div key={index} className="flex flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 p-4 transition-colors sm:flex-row sm:items-center sm:justify-between">
                                                 <div className="flex items-center mb-3 sm:mb-0 sm:mr-4 flex-1 min-w-0">
                                                     {isImage(attachment.filename) ? (
                                                         <>
                                                             <img
                                                                 src={`${address}/uploads/${attachment.filename}`}
                                                                 alt={attachment.originalName}
-                                                                className={`w-16 h-16 object-cover rounded-md mr-3 border cursor-pointer hover:border-blue-500 transition-colors shadow-sm ${theme === 'light' ? 'border-gray-300' : 'border-gray-600'}`}
+                                                                className="mr-3 h-16 w-16 cursor-pointer rounded-xl border border-[var(--color-border)] object-cover shadow-sm transition-colors hover:border-[var(--color-primary)]"
                                                                 onClick={() => setSelectedImagePreview(`${address}/uploads/${attachment.filename}`)}
                                                             />
                                                             <div className="flex-1 min-w-0">
-                                                                <div className={`text-sm font-medium truncate ${theme === 'light' ? 'text-gray-900' : 'text-white'}`} title={attachment.originalName}>
+                                                                <div className="truncate text-sm font-medium text-[var(--color-text)]" title={attachment.originalName}>
                                                                     {attachment.originalName}
                                                                 </div>
-                                                                <div className={`text-xs mt-1 ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
-                                                                    Image • {(attachment.size / 1024).toFixed(1)} KB
+                                                                <div className="mt-1 text-xs text-[var(--color-textSecondary)]">
+                                                                    Image â€¢ {(attachment.size / 1024).toFixed(1)} KB
                                                                 </div>
                                                             </div>
                                                         </>
                                                     ) : (
                                                         <>
-                                                            <div className={`w-16 h-16 rounded-md mr-3 flex items-center justify-center border ${theme === 'light' ? 'bg-blue-100 border-gray-300' : 'bg-blue-900/30 border-gray-600'}`}>
-                                                                <FileText size={24} className="text-blue-600" />
+                                                            <div className="mr-3 flex h-16 w-16 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-background)]/80">
+                                                                <FileText size={24} className="text-[var(--color-primary)]" />
                                                             </div>
                                                             <div className="flex-1 min-w-0">
-                                                                <div className={`text-sm font-medium truncate ${theme === 'light' ? 'text-gray-900' : 'text-white'}`} title={attachment.originalName}>
+                                                                <div className="truncate text-sm font-medium text-[var(--color-text)]" title={attachment.originalName}>
                                                                     {attachment.originalName}
                                                                 </div>
-                                                                <div className={`text-xs mt-1 ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
-                                                                    Document • {(attachment.size / 1024).toFixed(1)} KB
+                                                                <div className="mt-1 text-xs text-[var(--color-textSecondary)]">
+                                                                    Document â€¢ {(attachment.size / 1024).toFixed(1)} KB
                                                                 </div>
                                                             </div>
                                                         </>
@@ -1196,7 +1111,7 @@ const ForApproval: React.FC = () => {
                                                     {isImage(attachment.filename) && (
                                                         <button
                                                             onClick={() => setSelectedImagePreview(`${address}/uploads/${attachment.filename}`)}
-                                                            className="px-3 py-2 text-sm font-medium text-[var(--color-primary)] hover:text-blue-800 hover:bg-blue-100 rounded-lg transition-colors flex items-center gap-1"
+                                                            className="inline-flex items-center gap-1 rounded-2xl border border-[var(--color-border)] px-3 py-2 text-sm font-medium text-[var(--color-primary)] transition-colors hover:bg-[var(--color-background)]"
                                                         >
                                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -1207,7 +1122,7 @@ const ForApproval: React.FC = () => {
                                                     )}
                                                     <button
                                                         onClick={() => downloadFile(attachment.filename, attachment.originalName)}
-                                                        className="px-3 py-2 text-sm font-medium text-[var(--color-primary)] hover:text-blue-800 hover:bg-blue-100 rounded-lg transition-colors flex items-center gap-1"
+                                                        className="inline-flex items-center gap-1 rounded-2xl border border-[var(--color-border)] px-3 py-2 text-sm font-medium text-[var(--color-primary)] transition-colors hover:bg-[var(--color-background)]"
                                                     >
                                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                                             <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -1220,18 +1135,15 @@ const ForApproval: React.FC = () => {
                                     </div>
                                 </div>
                             ) : (
-                                <div className="text-center py-8">
-                                    <Paperclip size={48} className={`mx-auto mb-3 ${theme === 'light' ? 'text-gray-400' : 'text-gray-600'}`} />
-                                    <p className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>No attachments for this task.</p>
+                                <div className="py-8 text-center">
+                                    <Paperclip size={48} className="mx-auto mb-3 text-[var(--color-textSecondary)]" />
+                                    <p className="text-sm text-[var(--color-textSecondary)]">No attachments for this task.</p>
                                 </div>
                             )}
-                            <div className={`mt-6 flex justify-end border-t pt-4 ${theme === 'light' ? 'border-gray-200' : 'border-gray-700'}`}>
+                            <div className="mt-6 flex justify-end border-t border-[var(--color-border)] pt-4">
                                 <button
                                     onClick={() => setShowAttachmentsModal(null)}
-                                    className={`py-2 px-6 rounded-lg font-medium transition-colors border ${theme === 'light'
-                                        ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                                        : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
-                                        }`}
+                                    className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/75 px-6 py-2 font-medium text-[var(--color-textSecondary)] transition-colors hover:bg-[var(--color-background)]"
                                 >
                                     Close
                                 </button>
@@ -1244,7 +1156,7 @@ const ForApproval: React.FC = () => {
             {/* Full-screen Image Preview Modal */}
             {selectedImagePreview && (
                 <div
-                    className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4"
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md"
                     onClick={() => setSelectedImagePreview(null)}
                 >
                     <div
@@ -1254,23 +1166,17 @@ const ForApproval: React.FC = () => {
                         <img
                             src={selectedImagePreview}
                             alt="Full Screen Preview"
-                            className="max-w-full max-h-[90vh] object-contain cursor-pointer rounded-lg shadow-2xl"
+                            className="max-h-[90vh] max-w-full cursor-pointer rounded-[24px] object-contain shadow-[0_24px_70px_rgba(15,23,42,0.35)]"
                             onClick={() => setSelectedImagePreview(null)}
                         />
                         <button
                             onClick={() => setSelectedImagePreview(null)}
-                            className="absolute -top-2 -right-2
-             w-7 h-7 rounded-full
-             bg-red-500 backdrop-blur-md
-             text-white text-xl
-             flex items-center justify-center
-             hover:bg-red-600
-             transition-all"
+                            className="absolute -right-2 -top-2 flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-danger)] text-white transition-all hover:opacity-95"
                             title="Close"
                         >
-                            ✕
+                            âœ•
                         </button>
-                        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-75 text-white px-4 py-2 rounded-lg text-sm">
+                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-slate-950/75 px-4 py-2 text-sm text-white">
                             Click anywhere to close
                         </div>
                     </div>
@@ -1288,19 +1194,19 @@ const ForApproval: React.FC = () => {
             />
             {showApproveConfirm && approveTaskId && (
                 <div
-                    className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm"
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-md"
                     onClick={() => setShowApproveConfirm(false)}
                 >
                     <div
-                        className={`${theme === 'light' ? 'bg-white' : 'bg-gray-800'} rounded-2xl p-6 w-full max-w-sm shadow-2xl`}
+                        className="w-full max-w-sm rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-[0_24px_70px_rgba(15,23,42,0.22)]"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <h3 className={`text-lg font-semibold mb-3 flex items-center ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>
-                            <Check className="mr-2 text-green-500" size={20} />
+                        <h3 className="mb-3 flex items-center text-lg font-semibold text-[var(--color-text)]">
+                            <Check className="mr-2 text-[var(--color-success)]" size={20} />
                             Confirm Approval
                         </h3>
 
-                        <p className={`text-sm mb-6 ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>
+                        <p className="mb-6 text-sm text-[var(--color-textSecondary)]">
                             Are you sure you want to approve this task?
                             This action will mark the task as completed.
                         </p>
@@ -1308,10 +1214,7 @@ const ForApproval: React.FC = () => {
                         <div className="flex justify-end gap-3">
                             <button
                                 onClick={() => setShowApproveConfirm(false)}
-                                className={`px-4 py-2 rounded-xl border transition-colors ${theme === 'light'
-                                    ? 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                                    : 'border-gray-600 text-gray-300 hover:bg-gray-700'
-                                    }`}
+                                className="rounded-2xl border border-[var(--color-border)] px-4 py-2 text-[var(--color-textSecondary)] transition-colors hover:bg-[var(--color-background)]"
                             >
                                 Cancel
                             </button>
@@ -1324,7 +1227,7 @@ const ForApproval: React.FC = () => {
                                     await handleApprove(approveTaskId);
                                     setApproveTaskId(null);
                                 }}
-                                className="px-4 py-2 rounded-xl bg-green-600 text-white hover:bg-green-700 transition-colors"
+                                className="rounded-2xl bg-[var(--color-success)] px-4 py-2 text-white transition-colors hover:opacity-95"
                             >
                                 Approve
                             </button>
@@ -1337,3 +1240,5 @@ const ForApproval: React.FC = () => {
 };
 
 export default ForApproval;
+
+

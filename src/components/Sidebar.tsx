@@ -289,6 +289,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     return count.toString();
   };
 
+  const renderCountBadge = (count: number, compact = false) => (
+    <span
+      className={`
+        absolute inline-flex items-center rounded-full border
+        border-[rgba(239,68,68,0.22)] bg-[rgba(255,255,255,0.96)] px-1.5 py-0.5 text-[10px] font-bold
+        leading-none text-[var(--color-error)] shadow-[0_6px_14px_rgba(239,68,68,0.10)] backdrop-blur-sm
+        ring-2 ring-[var(--color-surface)]
+        ${compact ? 'top-1.5 right-0.5' : 'top-1.5 right-2'}
+      `}
+    >
+      <span>{formatCount(count)}</span>
+    </span>
+  );
+
 
 
   const cp = (user?.company?.permissions || {}) as Record<string, boolean>;
@@ -342,18 +356,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       {/* Sidebar */}
       <div
         className={`
-          fixed inset-y-0 left-0 z-30 
-    border-r shadow-sm
-    transition-[transform,width] duration-300 ease-out
-    overflow-hidden
-    lg:static lg:inset-0
-    flex flex-col
+          fixed inset-y-0 left-0 z-30
+          flex flex-col overflow-hidden
+          border-r border-[var(--color-border)]
+          bg-[var(--color-surface)]/92 backdrop-blur-xl
+          shadow-[0_20px_60px_rgba(15,23,42,0.12)]
+          transition-[transform,width] duration-300 ease-out
+          lg:static lg:inset-0
           ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
         style={{
-          backgroundColor: "var(--color-surface)",
-          borderColor: "var(--color-border)",
-          width: isExpanded ? "224px" : "84px",
+          width: isExpanded ? "240px" : "84px",
         }}
         onMouseEnter={() => {
           if (window.innerWidth >= 1024 && isCollapsed) {
@@ -369,29 +382,33 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
         {/* Header */}
         <div
-          className="flex items-center justify-between px-4"
+          className="flex items-center justify-between px-3 py-2"
           style={{
             borderBottom: "1px solid var(--color-border)",
             minHeight: "55px",
           }}
         >
           {/* Logo */}
-          <div className="flex items-center">
-            <span
-              className={`font-bold tracking-tight overflow-hidden whitespace-nowrap transition-all duration-300 ease-out ${
-                isExpanded
-                  ? 'max-w-[100px] text-2xl opacity-100 translate-x-0'
-                  : 'max-w-0 text-xl opacity-0 -translate-x-2'
-              }`}
-              style={{ color: 'var(--color-text)' }}
-            >
-              TMS
-            </span>
+          <div className="flex items-center gap-3 min-w-0">
+            {isExpanded && (
+              <div
+                className={`overflow-hidden whitespace-nowrap transition-all duration-300 ease-out ${
+                  isExpanded ? 'max-w-[120px] opacity-100 translate-x-0' : 'max-w-0 opacity-0 -translate-x-2'
+                }`}
+              >
+                <div className="text-[17px] font-bold tracking-tight text-[var(--color-text)]">
+                  TMS
+                </div>
+                <div className="text-[11px] font-medium text-[var(--color-textSecondary)]">
+                  Workspace
+                </div>
+              </div>
+            )}
           </div>
 
           <button
             onClick={toggleCollapse}
-            className="hidden lg:flex p-2 rounded-xl border shadow-sm hover:scale-105 transition ml-1"
+            className="hidden lg:flex p-1.5 rounded-xl border shadow-sm hover:scale-105 transition ml-1 mr-2"
             style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-primary)', borderColor: 'var(--color-border)' }}
             aria-label={isExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
           >
@@ -411,16 +428,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         </div>
 
         {/* Navigation */}
-        <nav
-        className="
-    flex-1
-    overflow-y-auto
-    scrollbar-hide
-    mt-4
-    pb-24
-  "
-        >
-          <div className="px-2 space-y-2">
+        <nav className="flex-1 mt-3 overflow-y-auto scrollbar-hide pb-24">
+          <div className="px-2.5 space-y-1.5">
             {filteredMenuItems.map((item) => (
               <Tooltip
                 key={item.path}
@@ -431,11 +440,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                   to={item.path}
                   onClick={onClose}
                   className={({ isActive }) =>
-                    `group flex items-center rounded-xl px-3 py-2.5 font-medium transition-all duration-300 ease-out ${
+                    `group relative flex w-full items-center rounded-2xl px-3 py-2.5 font-medium transition-all duration-300 ease-out ${
                       isActive
-                        ? "text-white shadow-sm"
-                        : "text-[var(--color-text)] hover:-translate-y-0.5 hover:bg-[var(--color-surface)] hover:shadow-md hover:shadow-black/5 hover:text-[var(--color-primary)]"
-                    } ${isExpanded ? "text-[15px]" : "text-sm justify-center"}`
+                        ? "border border-white/20 text-white shadow-[0_16px_30px_rgba(14,165,233,0.34),inset_0_1px_0_rgba(255,255,255,0.18)] ring-1 ring-white/15"
+                        : "border border-transparent text-[var(--color-text)] hover:border-[var(--color-border)] hover:bg-[var(--color-background)]/75 hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)] hover:text-[var(--color-primary)]"
+                    } ${isExpanded ? "text-[14px]" : "text-sm justify-center"}`
                   }
                   style={({ isActive }) => ({
                     background: isActive
@@ -449,80 +458,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                   {/* ICON + RED DOT */}
                   <div className="relative flex items-center">
                     <item.icon
-                      size={isExpanded ? 19 : 16}
-                      className={`transition-all duration-300 ease-out group-hover:scale-110 group-hover:translate-x-0.5 ${
+                      size={isExpanded ? 18 : 16}
+                      className={`transition-all duration-300 ease-out group-hover:scale-110 ${
                         isExpanded ? "mr-3 shrink-0" : ""
                       }`}
                     />
 
-                    {item.label === "Pending Single" && pendingTaskCount > 0 && (
-                      <span
-                        className={`
-      absolute -top-2
-                      ${isExpanded ? "-top-1 left-2" : "-right-4"}
-      bg-red-600 text-white text-[10px]
-      rounded-full min-w-[18px] h-[18px]
-      flex items-center justify-center px-1
-    `}
-                      >
-                        {formatCount(pendingTaskCount)}
-                      </span>
-                    )}
-
-                    {item.label === "Pending Recurring" && pendingRecurringCount > 0 && (
-                      <span
-                        className={`
-      absolute -top-2
-      ${isExpanded ? "-top-1 left-2" : "-right-4"}
-      bg-red-600 text-white text-[10px]
-      rounded-full min-w-[18px] h-[18px]
-      flex items-center justify-center px-1
-    `}
-                      >
-                        {formatCount(pendingRecurringCount)}
-                      </span>
-                    )}
-
-
-                    {item.label === "Chat Support" && unreadChatsCount > 0 && (
-                      <span
-                        className={`
-      absolute -top-2
-      ${isExpanded ? "left-2" : "-right-4"}
-      bg-red-600 text-white text-[10px]
-      rounded-full min-w-[18px] h-[18px]
-      flex items-center justify-center px-1
-    `}
-                      >
-                        {formatCount(unreadChatsCount)}
-                      </span>
-                    )}
-                    {item.label === "For Approval" && approvalPendingCount > 0 && (
-                      <span
-                        className={`
-      absolute -top-2
-      ${isExpanded ? "left-2" : "-right-4"}
-      bg-red-600 text-white text-[10px]
-      rounded-full min-w-[18px] h-[18px]
-      flex items-center justify-center px-1
-    `}
-                      >
-                        {formatCount(approvalPendingCount)}
-                      </span>
-                    )}
-                    {item.label === "PCM Pending" && pcmIntegrationEnabled && pcmPendingCount > 0 && (
-                      <span
-                        className={`
-      absolute -top-2
-      ${isExpanded ? "-top-1 left-2" : "-right-4"}
-      bg-red-600 text-white text-[10px]
-      rounded-full min-w-[18px] h-[18px]
-      flex items-center justify-center px-1
-    `}
-                      >
-                        {formatCount(pcmPendingCount)}
-                      </span>
-                    )}
                   </div>
 
                   <span
@@ -534,6 +475,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                   >
                     {item.label}
                   </span>
+                  {item.label === "Pending Single" && pendingTaskCount > 0 && renderCountBadge(pendingTaskCount, !isExpanded)}
+                  {item.label === "Pending Recurring" && pendingRecurringCount > 0 && renderCountBadge(pendingRecurringCount, !isExpanded)}
+                  {item.label === "Chat Support" && unreadChatsCount > 0 && renderCountBadge(unreadChatsCount, !isExpanded)}
+                  {item.label === "For Approval" && approvalPendingCount > 0 && renderCountBadge(approvalPendingCount, !isExpanded)}
+                  {item.label === "PCM Pending" && pcmIntegrationEnabled && pcmPendingCount > 0 && renderCountBadge(pcmPendingCount, !isExpanded)}
                   </NavLink>
               </Tooltip>
             ))}
@@ -542,32 +488,22 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
         {/* User Profile */}
         <div
-          className="
-    sticky
-    bottom-0
-    left-0
-    p-4
-    border-t
-    bg-[var(--color-background)]
-  "
-          style={{ borderColor: 'var(--color-border)' }}
+          className="sticky bottom-0 left-0 border-t border-[var(--color-border)] bg-[var(--color-surface)]/95 p-3 backdrop-blur-xl"
         >
           {!isExpanded ? (
             <Tooltip content={`${user?.username} (${user?.role})`} show={true}>
               <div className="flex justify-center">
                 <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-medium transition-transform duration-300 ease-out"
-                  style={{ backgroundColor: 'var(--color-primary)' }}
+                  className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,var(--color-primary),var(--color-secondary))] text-sm font-semibold text-white shadow-[0_10px_24px_rgba(14,165,233,0.24)] transition-transform duration-300 ease-out"
                 >
                   {user?.username?.charAt(0).toUpperCase()}
                 </div>
               </div>
             </Tooltip>
           ) : (
-            <div className="flex items-center">
+            <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/75 px-3 py-2.5">
               <div
-                className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-medium transition-transform duration-300 ease-out"
-                style={{ backgroundColor: 'var(--color-primary)' }}
+                className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,var(--color-primary),var(--color-secondary))] text-sm font-semibold text-white shadow-[0_10px_24px_rgba(14,165,233,0.24)] transition-transform duration-300 ease-out"
               >
                 {user?.username?.charAt(0).toUpperCase()}
               </div>

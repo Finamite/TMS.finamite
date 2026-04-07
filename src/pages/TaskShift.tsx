@@ -334,21 +334,31 @@ const TaskShift: React.FC = () => {
 
     const getPriorityColor = (priority: string) => {
         switch (priority.toLowerCase()) {
-            case 'high': return 'bg-red-100 text-red-700';
-            case 'medium': return 'bg-yellow-100 text-yellow-700';
-            case 'low': return 'bg-green-100 text-green-700';
-            default: return 'bg-gray-100 text-gray-700';
+            case 'high':
+                return 'border border-[rgba(239,68,68,0.2)] bg-[rgba(239,68,68,0.10)] text-[var(--color-danger)]';
+            case 'medium':
+                return 'border border-[rgba(245,158,11,0.18)] bg-[rgba(245,158,11,0.10)] text-amber-600';
+            case 'low':
+                return 'border border-[rgba(16,185,129,0.18)] bg-[rgba(16,185,129,0.10)] text-emerald-600';
+            default:
+                return 'border border-[var(--color-border)] bg-[var(--color-background)]/75 text-[var(--color-textSecondary)]';
         }
     };
 
     const getTaskTypeColor = (type: string) => {
         switch (type) {
-            case 'daily': return 'bg-blue-100 text-blue-700';
-            case 'weekly': return 'bg-purple-100 text-purple-700';
-            case 'monthly': return 'bg-indigo-100 text-indigo-700';
-            case 'quarterly': return 'bg-pink-100 text-pink-700';
-            case 'yearly': return 'bg-orange-100 text-orange-700';
-            default: return 'bg-gray-100 text-gray-700';
+            case 'daily':
+                return 'border border-[rgba(14,165,233,0.18)] bg-[rgba(14,165,233,0.10)] text-sky-600';
+            case 'weekly':
+                return 'border border-[rgba(168,85,247,0.18)] bg-[rgba(168,85,247,0.10)] text-violet-600';
+            case 'monthly':
+                return 'border border-[rgba(99,102,241,0.18)] bg-[rgba(99,102,241,0.10)] text-indigo-600';
+            case 'quarterly':
+                return 'border border-[rgba(236,72,153,0.18)] bg-[rgba(236,72,153,0.10)] text-pink-600';
+            case 'yearly':
+                return 'border border-[rgba(249,115,22,0.18)] bg-[rgba(249,115,22,0.10)] text-orange-600';
+            default:
+                return 'border border-[var(--color-border)] bg-[var(--color-background)]/75 text-[var(--color-textSecondary)]';
         }
     };
 
@@ -357,12 +367,8 @@ const TaskShift: React.FC = () => {
     };
 
     const getAvatarColor = (username: string) => {
-        const colors = [
-            'bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-pink-500',
-            'bg-indigo-500', 'bg-yellow-500', 'bg-red-500', 'bg-teal-500'
-        ];
-        const index = username.charCodeAt(0) % colors.length;
-        return colors[index];
+        void username;
+        return 'bg-[var(--color-primary)]';
     };
 
     const filteredOneTimeTasks = getFilteredOneTimeTasks;
@@ -370,54 +376,51 @@ const TaskShift: React.FC = () => {
     const totalSelected = selectedTasks.size + selectedMasterTasks.size;
 
     return (
-        <div className={`min-h-screen transition-colors duration-300 'bg-[var(--color-background)]'}`}>
+        <div className="relative min-h-screen overflow-hidden bg-[var(--color-background)]">
             {/* Header */}
-            <div className="sticky top-0 z-10 bg-[var(--color-surface)] backdrop-blur-xl border-b border-gray-200">
-                <div className="px-4 sm:px-6 lg:px-8 py-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="sticky top-0 z-20 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-xl">
+                <div className="mx-auto flex max-w-15xl flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg">
-                                <Users className="w-6 h-6 text-white" />
+                            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5 shadow-[0_12px_32px_rgba(15,23,42,0.08)]">
+                                <Users className="h-6 w-6 text-[var(--color-primary)]" />
                             </div>
                             <div>
-                                <h1 className="text-2xl font-bold text-[var(--color-text)]">Task Shift</h1>
-                                <p className="text-sm text-[var(--color-text)]">Reassign & manage tasks efficiently</p>
+                                <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-text)]">Task Shift</h1>
+                                <p className="text-sm text-[var(--color-textSecondary)]">Reassign and manage tasks efficiently</p>
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-3">
-                            {/* Search */}
+                        <div className="flex flex-wrap items-center gap-3">
                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-textSecondary)]" />
                                 <input
                                     type="text"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     placeholder="Search tasks..."
-                                    className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[var(--color-background)] text-[var(--color-text)] placeholder-[var(--color-textSecondary)] transition-all duration-200"
+                                    className="w-64 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/75 py-2.5 pl-10 pr-10 text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                                 />
                                 {searchTerm && (
                                     <button
                                         onClick={() => setSearchTerm('')}
-                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)] transition-colors hover:text-[var(--color-text)]"
                                     >
-                                        <X className="w-4 h-4" />
+                                        <X className="h-4 w-4" />
                                     </button>
                                 )}
                             </div>
 
-                            {/* Filter Toggle */}
                             <button
                                 onClick={() => setShowFilters(!showFilters)}
-                                className={`p-2 rounded-lg border transition-all duration-200 relative ${showFilters
-                                    ? 'bg-blue-50 border-blue-200 text-blue-600'
-                                    : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+                                className={`relative inline-flex items-center justify-center rounded-2xl border px-3 py-2 transition-colors ${showFilters
+                                    ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
+                                    : 'border-[var(--color-border)] bg-[var(--color-background)]/75 text-[var(--color-textSecondary)] hover:bg-[var(--color-background)]'
                                     }`}
                             >
-                                <Filter className="w-5 h-5" />
-
+                                <Filter className="h-5 w-5" />
                                 {!fromUser && (
-                                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                                    <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[var(--color-danger)]" />
                                 )}
                             </button>
                         </div>
@@ -426,20 +429,19 @@ const TaskShift: React.FC = () => {
             </div>
 
             {/* Filters Panel */}
-            <div className={`transition-all duration-300 ease-in-out overflow-hidden ${showFilters ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-                }`}>
-                <div className="bg-[var(--color-surface)] border-b border-gray-200 px-4 sm:px-6 lg:px-8 py-6">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-7 gap-4">
+            <div className={`overflow-hidden transition-all duration-300 ease-in-out ${showFilters ? 'max-h-[32rem] opacity-100' : 'max-h-0 opacity-0'}`}>
+                <div className="border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-6 sm:px-6 lg:px-8">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-7">
 
                         {/* From User */}
                         <div className="flex flex-col">
-                            <label className="text-xs font-semibold text-[var(--color-text)] mb-1">
+                            <label className="mb-1 text-xs font-semibold text-[var(--color-textSecondary)]">
                                 From User <span className="text-red-500">*</span>
                             </label>
                             <select
                                 value={fromUser}
                                 onChange={(e) => setFromUser(e.target.value)}
-                                className="h-9 rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 text-sm text-[var(--color-text)] focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                className="h-9 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                             >
                                 <option value="">Select user</option>
                                 {users.map(user => (
@@ -452,7 +454,7 @@ const TaskShift: React.FC = () => {
 
                         {/* Task Category */}
                         <div className="flex flex-col">
-                            <label className="text-xs font-semibold text-gray-[var(--color-text)] mb-1">
+                            <label className="mb-1 text-xs font-semibold text-[var(--color-textSecondary)]">
                                 Task Category
                             </label>
                             <div className="flex gap-2">
@@ -460,10 +462,10 @@ const TaskShift: React.FC = () => {
                                     <button
                                         key={type}
                                         onClick={() => setTaskCategory(type)}
-                                        className={`flex-1 h-9 rounded-lg text-sm font-medium transition-all
+                                        className={`flex-1 h-9 rounded-2xl text-sm font-medium transition-all
               ${taskCategory === type
-                                                ? 'bg-blue-600 text-white shadow-sm'
-                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}
+                                                ? 'bg-[var(--color-primary)] text-white shadow-[0_12px_24px_rgba(14,165,233,0.24)]'
+                                                : 'border border-[var(--color-border)] bg-[var(--color-background)]/75 text-[var(--color-textSecondary)] hover:bg-[var(--color-background)]'}
             `}
                                     >
                                         {type === 'one-time' ? 'One-time' : 'Recurring'}
@@ -474,13 +476,13 @@ const TaskShift: React.FC = () => {
 
                         {/* Priority */}
                         <div className="flex flex-col">
-                            <label className="text-xs font-semibold text-gray-[var(--color-text)] mb-1">
+                            <label className="mb-1 text-xs font-semibold text-[var(--color-textSecondary)]">
                                 Priority
                             </label>
                             <select
                                 value={priority}
                                 onChange={(e) => setPriority(e.target.value)}
-                                className="h-9 rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 text-sm text-[var(--color-text)] focus:ring-2 focus:ring-blue-500"
+                                className="h-9 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                             >
                                 <option value="all">All</option>
                                 <option value="normal">Normal</option>
@@ -491,13 +493,13 @@ const TaskShift: React.FC = () => {
                         {/* Recurring Task Type */}
                         {taskCategory === 'recurring' && (
                             <div className="flex flex-col">
-                                <label className="text-xs font-semibold text-[var(--color-text)] mb-1">
+                                <label className="mb-1 text-xs font-semibold text-[var(--color-textSecondary)]">
                                     Recurring Type
                                 </label>
                                 <select
                                     value={taskType}
                                     onChange={(e) => setTaskType(e.target.value)}
-                                    className="h-9 rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 text-sm text-[var(--color-text)] focus:ring-2 focus:ring-blue-500"
+                                    className="h-9 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                                 >
                                     <option value="all">All</option>
                                     <option value="daily">Daily</option>
@@ -511,7 +513,7 @@ const TaskShift: React.FC = () => {
 
                         {/* Date From */}
                         <div className="flex flex-col">
-                            <label className="text-xs font-semibold text-[var(--color-text)] mb-1">
+                            <label className="mb-1 text-xs font-semibold text-[var(--color-textSecondary)]">
                                 Date From
                             </label>
                             <input
@@ -520,17 +522,13 @@ const TaskShift: React.FC = () => {
                                 value={dateFrom}
                                 onClick={() => dateFromRef.current?.showPicker()}
                                 onChange={(e) => setDateFrom(e.target.value)}
-                                className="h-9 cursor-pointer rounded-lg
-               border border-[var(--color-border)]
-               bg-[var(--color-background)]
-               px-3 text-sm text-[var(--color-text)]
-               focus:ring-2 focus:ring-blue-500"
+                                className="h-9 cursor-pointer rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                             />
                         </div>
 
                         {/* Date To */}
                         <div className="flex flex-col">
-                            <label className="text-xs font-semibold text-[var(--color-text)] mb-1">
+                            <label className="mb-1 text-xs font-semibold text-[var(--color-textSecondary)]">
                                 Date To
                             </label>
                             <input
@@ -539,11 +537,7 @@ const TaskShift: React.FC = () => {
                                 value={dateTo}
                                 onClick={() => dateToRef.current?.showPicker()}
                                 onChange={(e) => setDateTo(e.target.value)}
-                                className="h-9 cursor-pointer rounded-lg
-               border border-[var(--color-border)]
-               bg-[var(--color-background)]
-               px-3 text-sm text-[var(--color-text)]
-               focus:ring-2 focus:ring-blue-500"
+                                className="h-9 cursor-pointer rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                             />
                         </div>
 
@@ -551,7 +545,7 @@ const TaskShift: React.FC = () => {
                         <div className="flex items-end">
                             <button
                                 onClick={clearFilters}
-                                className="w-full h-9 rounded-lg border border-gray-300 bg-gray-50 text-sm font-medium text-gray-700 hover:bg-red-50 hover:text-red-600 transition flex items-center justify-center gap-2"
+                                className="flex h-9 w-full items-center justify-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/75 text-sm font-medium text-[var(--color-textSecondary)] transition hover:bg-[var(--color-background)] hover:text-[var(--color-danger)]"
                             >
                                 <X className="w-4 h-4" />
                                 Clear
@@ -563,18 +557,18 @@ const TaskShift: React.FC = () => {
             </div>
 
             {/* Main Content */}
-            <div className="px-4 sm:px-6 lg:px-8 py-6">
+            <div className="relative z-10 px-4 py-6 sm:px-6 lg:px-8">
                 {!fromUser ? (
                     <div className="text-center py-12">
-                        <div className="p-4 rounded-full bg-gray-100 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                            <UserCheck className="w-8 h-8 text-gray-400" />
+                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)]">
+                            <UserCheck className="h-8 w-8 text-[var(--color-primary)]" />
                         </div>
-                        <h3 className="text-lg font-medium text-[var(--color-text)] mb-2">
+                        <h3 className="mb-2 text-lg font-medium text-[var(--color-text)]">
                             Select a User to Get Started
                         </h3>
                         <p className="text-[var(--color-textSecondary)] flex flex-wrap items-center justify-center gap-1 text-center">
                             Click the
-                            <span className="inline-flex items-center gap-1 font-semibold text-blue-600">
+                            <span className="inline-flex items-center gap-1 font-semibold text-[var(--color-primary)]">
                                 <Filter className="w-4 h-4" />
                                 Filter
                             </span>
@@ -586,12 +580,12 @@ const TaskShift: React.FC = () => {
                 ) : (
                     <>
                         {/* Task List Header */}
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-center gap-3">
                                 <h2 className="text-lg font-semibold text-[var(--color-text)]">
                                     {taskCategory === 'one-time' ? 'One-time Tasks' : 'Recurring Tasks'}
                                 </h2>
-                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-background)]/75 px-2 py-1 text-xs font-medium text-[var(--color-textSecondary)]">
                                     {taskCategory === 'one-time' ? filteredOneTimeTasks.length : filteredMasterTasks.length}
                                 </span>
                             </div>
@@ -600,7 +594,7 @@ const TaskShift: React.FC = () => {
                                 (taskCategory === 'recurring' && filteredMasterTasks.length > 0)) && (
                                     <button
                                         onClick={handleSelectAll}
-                                        className="px-4 py-2 text-sm font-medium text-[var(--color-primary)] hover:bg-[var(--color-chat)] rounded-lg transition-colors duration-200"
+                                        className="rounded-2xl px-4 py-2 text-sm font-medium text-[var(--color-primary)] transition-colors duration-200 hover:bg-[var(--color-background)]"
                                     >
                                         {((taskCategory === 'one-time' && selectedTasks.size === filteredOneTimeTasks.length) ||
                                             (taskCategory === 'recurring' && selectedMasterTasks.size === filteredMasterTasks.length))
@@ -611,87 +605,87 @@ const TaskShift: React.FC = () => {
 
                         {/* Loading State */}
                         {loading ? (
-                            <div className="flex items-center justify-center py-12">
-                                <div className="flex items-center gap-3">
-                                    <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-                                    <span className="text-[var(--color-text)]">Loading tasks...</span>
-                                </div>
-                            </div>
+                                    <div className="flex items-center justify-center py-12">
+                                        <div className="flex items-center gap-3">
+                                            <Loader2 className="h-6 w-6 animate-spin text-[var(--color-primary)]" />
+                                            <span className="text-[var(--color-text)]">Loading tasks...</span>
+                                        </div>
+                                    </div>
                         ) : (
                             <>
                                 {/* Desktop Table View */}
                                 {!isMobile && (
-                                    <div className="bg-[var(--color-surface)] rounded-xl shadow-sm border border-[var(--color-border)] overflow-hidden mb-12">
+                                    <div className="mb-12 overflow-hidden rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_16px_44px_rgba(15,23,42,0.08)]">
                                         {taskCategory === 'one-time' ? (
                                             filteredOneTimeTasks.length === 0 ? (
-                                                <div className="text-center py-12">
-                                                    <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                                                <div className="py-12 text-center">
+                                                    <AlertCircle className="mx-auto mb-4 h-12 w-12 text-[var(--color-textSecondary)]" />
                                                     <p className="text-[var(--color-text)]">No one-time tasks found.</p>
                                                 </div>
                                             ) : (
-                                                <div className="max-h-[650px] overflow-y-auto overflow-x-auto">
-                                                    <table className="w-full">
-                                                        <thead className="sticky top-0 z-10 bg-[var(--color-background)] shadow-sm">
+                                                <div className="max-h-[650px] overflow-x-auto overflow-y-auto">
+                                                    <table className="min-w-full table-fixed divide-y divide-[var(--color-border)]">
+                                                        <thead className="sticky top-0 z-10 bg-[var(--color-surface)]">
                                                             <tr>
-                                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                                <th className="px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                                                                     <input
                                                                         type="checkbox"
                                                                         checked={selectedTasks.size === filteredOneTimeTasks.length && filteredOneTimeTasks.length > 0}
                                                                         onChange={handleSelectAll}
-                                                                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                                        className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
                                                                     />
                                                                 </th>
-                                                                <th className="px-6 py-3 text-left text-xs font-medium text-[var(--color-text)] uppercase tracking-wider">Task</th>
-                                                                <th className="px-6 py-3 text-left text-xs font-medium text-[var(--color-text)] uppercase tracking-wider">Priority</th>
-                                                                <th className="px-6 py-3 text-left text-xs font-medium text-[var(--color-text)] uppercase tracking-wider">Type</th>
-                                                                <th className="px-6 py-3 text-left text-xs font-medium text-[var(--color-text)] uppercase tracking-wider">Due Date</th>
-                                                                <th className="px-6 py-3 text-left text-xs font-medium text-[var(--color-text)] uppercase tracking-wider">Assigned To</th>
+                                                                <th className="px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Task</th>
+                                                                <th className="px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Priority</th>
+                                                                <th className="px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Type</th>
+                                                                <th className="px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Due Date</th>
+                                                                <th className="px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Assigned To</th>
                                                             </tr>
                                                         </thead>
-                                                        <tbody className="divide-y divide-[var(--color-border)]">
+                                                        <tbody className="divide-y divide-[var(--color-border)] bg-[var(--color-surface)]">
                                                             {filteredOneTimeTasks.map((task, index) => (
                                                                 <tr
                                                                     key={task._id}
                                                                     onClick={() => handleTaskSelection(task._id, !selectedTasks.has(task._id))}
-                                                                    className={`cursor-pointer transition-all duration-200 hover:bg-[var(--color-chat)] ${selectedTasks.has(task._id) ? 'bg-[var(--color-chat)] border-l-4 border-blue-500' : ''
+                                                                    className={`cursor-pointer transition-colors hover:bg-[var(--color-background)]/70 ${selectedTasks.has(task._id) ? 'bg-[var(--color-background)]/70' : ''
                                                                         }`}
                                                                     style={{ animationDelay: `${index * 50}ms` }}
                                                                 >
-                                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                                    <td className="px-6 py-5 whitespace-nowrap">
                                                                         <input
                                                                             type="checkbox"
                                                                             checked={selectedTasks.has(task._id)}
                                                                             onChange={(e) => handleTaskSelection(task._id, e.target.checked)}
-                                                                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                                            className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
                                                                         />
                                                                     </td>
-                                                                    <td className="px-6 py-4">
+                                                                    <td className="px-6 py-5">
                                                                         <div className="flex items-center gap-3">
                                                                             <div>
                                                                                 <div className="text-sm font-medium text-[var(--color-text)] truncate max-w-xs">{task.title}</div>
-                                                                                <div className="text-sm text-gray-[var(--color-textSecondary)] truncate max-w-xs">{task.description}</div>
+                                                                                <div className="text-sm text-[var(--color-textSecondary)] truncate max-w-xs">{task.description}</div>
                                                                             </div>
                                                                             {task.attachments && task.attachments.length > 0 && (
-                                                                                <Paperclip className="w-4 h-4 text-gray-400" />
+                                                                                <Paperclip className="h-4 w-4 text-[var(--color-textSecondary)]" />
                                                                             )}
                                                                         </div>
                                                                     </td>
-                                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(task.priority)}`}>
+                                                                    <td className="px-6 py-5 whitespace-nowrap">
+                                                                        <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${getPriorityColor(task.priority)}`}>
                                                                             {task.priority}
                                                                         </span>
                                                                     </td>
-                                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getTaskTypeColor(task.taskType)}`}>
+                                                                    <td className="px-6 py-5 whitespace-nowrap">
+                                                                        <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${getTaskTypeColor(task.taskType)}`}>
                                                                             {task.taskType}
                                                                         </span>
                                                                     </td>
-                                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--color-text)]">
+                                                                    <td className="px-6 py-5 whitespace-nowrap text-sm text-[var(--color-text)]">
                                                                         {new Date(task.dueDate).toLocaleDateString('en-GB')}
                                                                     </td>
-                                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                                    <td className="px-6 py-5 whitespace-nowrap">
                                                                         <div className="flex items-center gap-2">
-                                                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium text-white ${getAvatarColor(task.assignedTo.username)}`}>
+                                                                            <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium text-white ${getAvatarColor(task.assignedTo.username)}`}>
                                                                                 {getUserInitials(task.assignedTo.username)}
                                                                             </div>
                                                                             <span className="text-sm text-[var(--color-text)]">{task.assignedTo.username}</span>
@@ -706,73 +700,73 @@ const TaskShift: React.FC = () => {
                                         ) : (
                                             // Recurring tasks table
                                             filteredMasterTasks.length === 0 ? (
-                                                <div className="text-center py-12">
-                                                    <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                                                <div className="py-12 text-center">
+                                                    <AlertCircle className="mx-auto mb-4 h-12 w-12 text-[var(--color-textSecondary)]" />
                                                     <p className="text-[var(--color-text)]">No recurring tasks found.</p>
                                                 </div>
                                             ) : (
-                                                <div className="max-h-[650px] overflow-y-auto overflow-x-auto ">
-                                                    <table className="w-full">
-                                                        <thead className="sticky top-0 z-10 bg-[var(--color-background)] shadow-sm">
+                                                <div className="max-h-[650px] overflow-x-auto overflow-y-auto">
+                                                    <table className="min-w-full table-fixed divide-y divide-[var(--color-border)]">
+                                                        <thead className="sticky top-0 z-10 bg-[var(--color-surface)]">
                                                             <tr>
-                                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                                <th className="px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                                                                     <input
                                                                         type="checkbox"
                                                                         checked={selectedMasterTasks.size === filteredMasterTasks.length && filteredMasterTasks.length > 0}
                                                                         onChange={handleSelectAll}
-                                                                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                                        className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
                                                                     />
                                                                 </th>
-                                                                <th className="px-6 py-3 text-left text-xs font-medium text-[var(--color-text)] uppercase tracking-wider">Task Series</th>
-                                                                <th className="px-6 py-3 text-left text-xs font-medium text-[var(--color-text)] uppercase tracking-wider">Priority</th>
-                                                                <th className="px-6 py-3 text-left text-xs font-medium text-[var(--color-text)] uppercase tracking-wider">Type</th>
-                                                                <th className="px-6 py-3 text-left text-xs font-medium text-[var(--color-text)] uppercase tracking-wider">Progress</th>
-                                                                <th className="px-6 py-3 text-left text-xs font-medium text-[var(--color-text)] uppercase tracking-wider">Assigned To</th>
+                                                                <th className="px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Task Series</th>
+                                                                <th className="px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Priority</th>
+                                                                <th className="px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Type</th>
+                                                                <th className="px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Progress</th>
+                                                                <th className="px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Assigned To</th>
                                                             </tr>
                                                         </thead>
-                                                        <tbody className="divide-y divide-[var(--color-border)]">
+                                                        <tbody className="divide-y divide-[var(--color-border)] bg-[var(--color-surface)]">
                                                             {filteredMasterTasks.map((task, index) => (
                                                                 <tr
                                                                     key={task.taskGroupId}
                                                                     onClick={() => handleMasterTaskSelection(task.taskGroupId, !selectedMasterTasks.has(task.taskGroupId))}
-                                                                    className={`cursor-pointer transition-all duration-200 hover:bg-[var(--color-chat)] ${selectedMasterTasks.has(task.taskGroupId) ? 'bg-[var(--color-chat)] border-l-4 border-blue-500' : ''
+                                                                    className={`cursor-pointer transition-colors hover:bg-[var(--color-background)]/70 ${selectedMasterTasks.has(task.taskGroupId) ? 'bg-[var(--color-background)]/70' : ''
                                                                         }`}
                                                                     style={{ animationDelay: `${index * 50}ms` }}
                                                                 >
-                                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                                    <td className="px-6 py-5 whitespace-nowrap">
                                                                         <input
                                                                             type="checkbox"
                                                                             checked={selectedMasterTasks.has(task.taskGroupId)}
                                                                             onChange={(e) => handleMasterTaskSelection(task.taskGroupId, e.target.checked)}
-                                                                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                                            className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
                                                                         />
                                                                     </td>
-                                                                    <td className="px-6 py-4">
+                                                                    <td className="px-6 py-5">
                                                                         <div className="flex items-center gap-3">
                                                                             <div>
                                                                                 <div className="text-sm font-medium text-[var(--color-text)] truncate max-w-xs">{task.title}</div>
                                                                                 <div className="text-sm text-[var(--color-textSecondary)] truncate max-w-xs">{task.description}</div>
                                                                             </div>
                                                                             {task.attachments && task.attachments.length > 0 && (
-                                                                                <Paperclip className="w-4 h-4 text-gray-400" />
+                                                                                <Paperclip className="h-4 w-4 text-[var(--color-textSecondary)]" />
                                                                             )}
                                                                         </div>
                                                                     </td>
-                                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(task.priority)}`}>
+                                                                    <td className="px-6 py-5 whitespace-nowrap">
+                                                                        <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${getPriorityColor(task.priority)}`}>
                                                                             {task.priority}
                                                                         </span>
                                                                     </td>
-                                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getTaskTypeColor(task.taskType)}`}>
+                                                                    <td className="px-6 py-5 whitespace-nowrap">
+                                                                        <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${getTaskTypeColor(task.taskType)}`}>
                                                                             {task.taskType}
                                                                         </span>
                                                                     </td>
-                                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                                    <td className="px-6 py-5 whitespace-nowrap">
                                                                         <div className="flex items-center gap-2">
-                                                                            <div className="flex-1 bg-gray-200 rounded-full h-2">
+                                                                            <div className="flex-1 rounded-full bg-[var(--color-background)]/70 h-2">
                                                                                 <div
-                                                                                    className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                                                                                    className="h-2 rounded-full bg-[var(--color-success)] transition-all duration-300"
                                                                                     style={{ width: `${(task.completedCount / task.instanceCount) * 100}%` }}
                                                                                 />
                                                                             </div>
@@ -781,9 +775,9 @@ const TaskShift: React.FC = () => {
                                                                             </span>
                                                                         </div>
                                                                     </td>
-                                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                                    <td className="px-6 py-5 whitespace-nowrap">
                                                                         <div className="flex items-center gap-2">
-                                                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium text-white ${getAvatarColor(task.assignedTo.username)}`}>
+                                                                            <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium text-white ${getAvatarColor(task.assignedTo.username)}`}>
                                                                                 {getUserInitials(task.assignedTo.username)}
                                                                             </div>
                                                                             <span className="text-sm text-[var(--color-text)]">{task.assignedTo.username}</span>
@@ -804,8 +798,8 @@ const TaskShift: React.FC = () => {
                                     <div className="space-y-4 mb-24">
                                         {taskCategory === 'one-time' ? (
                                             filteredOneTimeTasks.length === 0 ? (
-                                                <div className="text-center py-12">
-                                                    <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                                                <div className="py-12 text-center">
+                                                    <AlertCircle className="mx-auto mb-4 h-12 w-12 text-[var(--color-textSecondary)]" />
                                                     <p className="text-[var(--color-text)]">No one-time tasks found.</p>
                                                 </div>
                                             ) : (
@@ -813,9 +807,9 @@ const TaskShift: React.FC = () => {
                                                     <div
                                                         key={task._id}
                                                         onClick={() => handleTaskSelection(task._id, !selectedTasks.has(task._id))}
-                                                        className={`bg-[var(--color-surface)] rounded-xl p-4 border transition-all duration-200 ${selectedTasks.has(task._id)
-                                                            ? 'border-blue-500 bg-[var(--color-chat)]'
-                                                            : 'border-gray-200'
+                                                        className={`rounded-[24px] border p-4 transition-all duration-200 ${selectedTasks.has(task._id)
+                                                            ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/5'
+                                                            : 'border-[var(--color-border)] bg-[var(--color-surface)]'
                                                             }`}
                                                         style={{ animationDelay: `${index * 50}ms` }}
                                                     >
@@ -824,11 +818,11 @@ const TaskShift: React.FC = () => {
                                                                 type="checkbox"
                                                                 checked={selectedTasks.has(task._id)}
                                                                 onChange={(e) => handleTaskSelection(task._id, e.target.checked)}
-                                                                className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                                className="mt-1 h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
                                                             />
                                                             <div className="flex-1 min-w-0">
-                                                                <h3 className="font-medium text-[var(--color-text)] truncate max-w-xs mb-1">{task.title}</h3>
-                                                                <p className="text-sm text-[var(--color-text)] truncate max-w-xs mb-3">{task.description}</p>
+                                                                <h3 className="mb-1 max-w-xs truncate font-medium text-[var(--color-text)]">{task.title}</h3>
+                                                                <p className="mb-3 max-w-xs truncate text-sm text-[var(--color-textSecondary)]">{task.description}</p>
 
                                                                 <div className="flex flex-wrap gap-2 mb-3">
                                                                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(task.priority)}`}>
@@ -838,7 +832,7 @@ const TaskShift: React.FC = () => {
                                                                         {task.taskType}
                                                                     </span>
                                                                     {task.attachments && task.attachments.length > 0 && (
-                                                                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-[var(--color-text)] text-[var(--color-text)]">
+                                                                        <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-background)]/75 px-2 py-1 text-xs font-medium text-[var(--color-textSecondary)]">
                                                                             <Paperclip className="w-3 h-3 inline mr-1" />
                                                                             {task.attachments.length}
                                                                         </span>
@@ -852,10 +846,10 @@ const TaskShift: React.FC = () => {
                                                                         </div>
                                                                         <span className="text-[var(--color-text)]">{task.assignedTo.username}</span>
                                                                     </div>
-                                                                    <span className="text-[var(--color-text)]">
-                                                                        Due: {new Date(task.dueDate).toLocaleDateString()}
-                                                                    </span>
-                                                                </div>
+                                                                        <span className="text-[var(--color-text)]">
+                                                                            Due: {new Date(task.dueDate).toLocaleDateString()}
+                                                                        </span>
+                                                                    </div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -864,8 +858,8 @@ const TaskShift: React.FC = () => {
                                         ) : (
                                             // Mobile recurring tasks
                                             filteredMasterTasks.length === 0 ? (
-                                                <div className="text-center py-12">
-                                                    <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                                                <div className="py-12 text-center">
+                                                    <AlertCircle className="mx-auto mb-4 h-12 w-12 text-[var(--color-textSecondary)]" />
                                                     <p className="text-[var(--color-text)]">No recurring tasks found.</p>
                                                 </div>
                                             ) : (
@@ -873,9 +867,9 @@ const TaskShift: React.FC = () => {
                                                     <div
                                                         key={task.taskGroupId}
                                                         onClick={() => handleMasterTaskSelection(task.taskGroupId, !selectedMasterTasks.has(task.taskGroupId))}
-                                                        className={`bg-[var(--color-surface)] rounded-xl p-4 border transition-all duration-200 ${selectedMasterTasks.has(task.taskGroupId)
-                                                            ? 'border-blue-500 bg-[var(--color-chat)]'
-                                                            : 'border-gray-200'
+                                                        className={`rounded-[24px] border p-4 transition-all duration-200 ${selectedMasterTasks.has(task.taskGroupId)
+                                                            ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/5'
+                                                            : 'border-[var(--color-border)] bg-[var(--color-surface)]'
                                                             }`}
                                                         style={{ animationDelay: `${index * 50}ms` }}
                                                     >
@@ -884,11 +878,11 @@ const TaskShift: React.FC = () => {
                                                                 type="checkbox"
                                                                 checked={selectedMasterTasks.has(task.taskGroupId)}
                                                                 onChange={(e) => handleMasterTaskSelection(task.taskGroupId, e.target.checked)}
-                                                                className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                                className="mt-1 h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
                                                             />
                                                             <div className="flex-1 min-w-0">
-                                                                <h3 className="font-medium text-[var(--color-text)] truncate max-w-xs mb-1">{task.title}</h3>
-                                                                <p className="text-sm text-[var(--color-text)]-400 truncate max-w-xs mb-3">{task.description}</p>
+                                                                <h3 className="mb-1 max-w-xs truncate font-medium text-[var(--color-text)]">{task.title}</h3>
+                                                                <p className="mb-3 max-w-xs truncate text-sm text-[var(--color-textSecondary)]">{task.description}</p>
 
                                                                 <div className="flex flex-wrap gap-2 mb-3">
                                                                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(task.priority)}`}>
@@ -898,7 +892,7 @@ const TaskShift: React.FC = () => {
                                                                         {task.taskType}
                                                                     </span>
                                                                     {task.attachments && task.attachments.length > 0 && (
-                                                                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-[var(--color-text)] text-[var(--color-text)]">
+                                                                        <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-background)]/75 px-2 py-1 text-xs font-medium text-[var(--color-textSecondary)]">
                                                                             <Paperclip className="w-3 h-3 inline mr-1" />
                                                                             {task.attachments.length}
                                                                         </span>
@@ -948,24 +942,21 @@ const TaskShift: React.FC = () => {
                 className={`fixed bottom-0 left-0 right-0 z-50 transition-all duration-300 ease-in-out ${showBulkPanel ? 'translate-y-0' : 'translate-y-full'
                     }`}
             >
-                <div className="bg-[var(--color-surface)] border-t border-gray-200 shadow-2xl px-4 py-4">
+                <div className="border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-4 shadow-[0_-12px_40px_rgba(15,23,42,0.12)]">
 
                     {/* ================= MOBILE ONLY ================= */}
                     <div className="sm:hidden space-y-3">
 
                         {/* Assign To */}
                         <div className="flex items-center gap-2">
-                            <label className="text-sm font-semibold text-red-500 whitespace-nowrap">
+                            <label className="whitespace-nowrap text-sm font-semibold text-[var(--color-danger)]">
                                 Assign to:
                             </label>
 
                             <select
                                 value={toUser}
                                 onChange={(e) => setToUser(e.target.value)}
-                                className="flex-1 px-3 py-2 border border-[var(--color-border)]
-                     rounded-lg focus:ring-2 focus:ring-blue-500
-                     bg-[var(--color-background)]
-                     text-[var(--color-text)] text-sm"
+                                className="flex-1 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                             >
                                 <option value="">Select user</option>
                                 {users.filter(u => u._id !== fromUser).map(user => (
@@ -979,7 +970,7 @@ const TaskShift: React.FC = () => {
                         {/* Bottom Row */}
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 text-sm">
-                                <CheckCircle2 className="w-4 h-4 text-blue-500" />
+                                <CheckCircle2 className="h-4 w-4 text-[var(--color-primary)]" />
                                 <span className="font-medium text-[var(--color-text)]">
                                     {totalSelected} task{totalSelected !== 1 ? 's' : ''} selected
                                 </span>
@@ -991,7 +982,7 @@ const TaskShift: React.FC = () => {
                                         setSelectedTasks(new Set());
                                         setSelectedMasterTasks(new Set());
                                     }}
-                                    className="px-3 py-2 text-sm font-medium text-gray-500"
+                                className="px-3 py-2 text-sm font-medium text-[var(--color-textSecondary)]"
                                 >
                                     Cancel
                                 </button>
@@ -999,10 +990,10 @@ const TaskShift: React.FC = () => {
                                 <button
                                     onClick={handleShiftTasks}
                                     disabled={!toUser || loading}
-                                    className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${!toUser || loading
-                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                        : 'bg-blue-600 text-white'
-                                        }`}
+                                className={`flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium ${!toUser || loading
+                                    ? 'cursor-not-allowed bg-[var(--color-border)] text-[var(--color-textSecondary)]'
+                                    : 'bg-[var(--color-primary)] text-white shadow-[0_12px_24px_rgba(14,165,233,0.24)]'
+                                    }`}
                                 >
                                     {loading ? (
                                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -1020,24 +1011,21 @@ const TaskShift: React.FC = () => {
 
                         <div className="flex items-center gap-4">
                             <div className="flex items-center gap-2">
-                                <CheckCircle2 className="w-5 h-5 text-blue-500" />
+                                <CheckCircle2 className="h-5 w-5 text-[var(--color-primary)]" />
                                 <span className="font-medium text-[var(--color-text)]">
                                     {totalSelected} task{totalSelected !== 1 ? 's' : ''} selected
                                 </span>
                             </div>
 
                             <div className="flex items-center gap-2">
-                                <label className="text-md font-semibold text-red-500">
+                                <label className="text-md font-semibold text-[var(--color-danger)]">
                                     Assign to:
                                 </label>
 
                                 <select
                                     value={toUser}
                                     onChange={(e) => setToUser(e.target.value)}
-                                    className="px-3 py-1 border border-[var(--color-border)]
-                       rounded-lg focus:ring-2 focus:ring-blue-500
-                       bg-[var(--color-background)]
-                       text-[var(--color-text)] text-md"
+                                    className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-1 text-md text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                                 >
                                     <option value="">Select user...</option>
                                     {users.filter(u => u._id !== fromUser).map(user => (
@@ -1055,7 +1043,7 @@ const TaskShift: React.FC = () => {
                                     setSelectedTasks(new Set());
                                     setSelectedMasterTasks(new Set());
                                 }}
-                                className="px-4 py-2 text-sm font-medium text-[var(--color-text)] hover:text-gray-800"
+                                className="px-4 py-2 text-sm font-medium text-[var(--color-textSecondary)] hover:text-[var(--color-text)]"
                             >
                                 Cancel
                             </button>
@@ -1063,9 +1051,9 @@ const TaskShift: React.FC = () => {
                             <button
                                 onClick={handleShiftTasks}
                                 disabled={!toUser || loading}
-                                className={`px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-all ${!toUser || loading
-                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                    : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
+                                className={`flex items-center gap-2 rounded-2xl px-6 py-2 font-medium transition-all ${!toUser || loading
+                                    ? 'cursor-not-allowed bg-[var(--color-border)] text-[var(--color-textSecondary)]'
+                                    : 'bg-[var(--color-primary)] text-white shadow-[0_12px_24px_rgba(14,165,233,0.24)]'
                                     }`}
                             >
                                 {loading ? (
