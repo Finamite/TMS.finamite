@@ -439,7 +439,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                   }
                   style={({ isActive }) => ({
                     background: isActive
-                      ? 'linear-gradient(135deg, #3a2ee2ff, var(--color-secondary))'
+                      ? 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))'
                       : 'transparent',
                     color: isActive ? 'white' : 'var(--color-text)'
                   })}

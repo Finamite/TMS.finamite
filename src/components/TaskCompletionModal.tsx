@@ -129,23 +129,23 @@ const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-[var(--color-background)] rounded-xl max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 p-6 border-b border-[var(--color-border)] bg-[var(--color-background)]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-2xl overflow-hidden rounded-[28px] border border-[var(--color-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.92))] shadow-2xl shadow-black/20 max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 border-b border-[var(--color-border)] bg-[var(--color-surface)]/90 px-6 py-5 backdrop-blur-xl">
           <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <div className="w-12 h-12 bg-[var(--color-success)]/20 rounded-full flex items-center justify-center mr-4">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-success)]/12 text-[var(--color-success)] ring-1 ring-[var(--color-success)]/15">
                 <CheckSquare size={24} className="text-[var(--color-success)]" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-[var(--color-text)]">Complete Task</h3>
-                <div className="max-w-md text-sm text-[var(--color-textSecondary)] leading-snug">
+                <h3 className="text-lg font-semibold tracking-tight text-[var(--color-text)]">Complete Task</h3>
+                <div className="max-w-md text-sm leading-snug text-[var(--color-textSecondary)]">
                   {showFullTitle ? taskTitle : truncatedTitle}
 
                   {taskTitle.length > limit && (
                     <button
                       onClick={() => setShowFullTitle((prev) => !prev)}
-                      className="text-[var(--color-primary)] text-xs font-medium ml-1 underline"
+                      className="ml-1 text-xs font-semibold text-[var(--color-primary)] underline decoration-[var(--color-primary)]/40 underline-offset-4"
                     >
                       {showFullTitle ? "Show Less" : "Show More"}
                     </button>
@@ -157,20 +157,19 @@ const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
             </div>
             <button
               onClick={onClose}
-              className="text-[var(--color-textSecondary)] hover:text-[var(--color-text)] transition-colors"
+              className="rounded-xl border border-[var(--color-border)] bg-[var(--color-background)]/80 p-2 text-[var(--color-textSecondary)] transition hover:border-[var(--color-primary)]/30 hover:text-[var(--color-text)]"
             >
-              <X size={24} />
+              <X size={18} />
             </button>
           </div>
         </div>
 
-        <div className="p-6">
+        <div className="px-6 py-6">
           <div className="mb-6">
-
             <div className="space-y-6">
               {/* Completion Remarks */}
               <div>
-                <label className="block text-sm font-medium text-[var(--color-text)] mb-2">
+                <label className="mb-2 block text-sm font-semibold text-[var(--color-text)]">
                   Completion Remarks {mandatoryRemarks && <span className="text-[var(--color-error)]">*</span>}
                   {!mandatoryRemarks && <span className="text-[var(--color-textSecondary)] text-xs">(Optional)</span>}
                 </label>
@@ -181,7 +180,7 @@ const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
                     if (errors.remarks) setErrors(prev => ({ ...prev, remarks: '' }));
                   }}
                   rows={4}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] transition-colors bg-[var(--color-surface)] text-[var(--color-text)] ${errors.remarks ? 'border-[var(--color-error)]' : 'border-[var(--color-border)]'
+                  className={`w-full rounded-2xl border px-4 py-3 text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary)]/10 bg-[var(--color-background)] ${errors.remarks ? 'border-[var(--color-error)]' : 'border-[var(--color-border)]'
                     }`}
                   placeholder="Add completion notes, observations, results, or any relevant details..."
                 />
@@ -193,21 +192,21 @@ const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
               {/* File Attachments */}
               {allowAttachments && (
                 <div>
-                  <label className="block text-sm font-medium text-[var(--color-text)] mb-2">
+                  <label className="mb-2 block text-sm font-semibold text-[var(--color-text)]">
                     Completion Attachments {mandatoryAttachments && <span className="text-[var(--color-error)]">*</span>}
                     {!mandatoryAttachments && <span className="text-[var(--color-textSecondary)] text-xs">(Optional)</span>}
                   </label>
 
-                  <div className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${errors.attachments ? 'border-[var(--color-error)]' : 'border-[var(--color-border)] hover:border-[var(--color-primary)]'
+                  <div className={`rounded-2xl border-2 border-dashed p-5 text-center transition-colors ${errors.attachments ? 'border-[var(--color-error)]' : 'border-[var(--color-border)] hover:border-[var(--color-primary)]/40 bg-[var(--color-background)]/60'
                     }`}>
-                    <Upload size={32} className="mx-auto text-[var(--color-textSecondary)] mb-2" />
-                    <p className="text-sm text-[var(--color-textSecondary)] mb-2">
+                    <Upload size={30} className="mx-auto mb-2 text-[var(--color-textSecondary)]" />
+                    <p className="mb-2 text-sm text-[var(--color-textSecondary)]">
                       Click to select files or drag and drop
                     </p>
-                    <p className="text-sm text-[var(--color-textSecondary)] mb-2">
+                    <p className="mb-2 text-sm text-[var(--color-textSecondary)]">
                       Supported formats: PDF, images (JPG, JPEG, PNG), documents (DOCX, XLSX), voice recordings.
                     </p>
-                    <p className="text-xs text-[var(--color-textSecondary)] mb-4">
+                    <p className="mb-4 text-xs text-[var(--color-textSecondary)]">
                       Maximum file size: 10MB per file
                     </p>
                     <input
@@ -221,7 +220,7 @@ const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
                     />
                     <label
                       htmlFor="file-upload"
-                      className="cursor-pointer bg-[var(--color-primary)] text-white px-4 py-2 rounded-lg hover:opacity-90 transition-opacity inline-flex items-center gap-2"
+                      className="inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-[var(--color-primary)] px-4 py-2.5 font-semibold text-white shadow-[0_10px_22px_rgba(14,165,233,0.20)] transition hover:-translate-y-0.5 hover:opacity-95"
                     >
                       <Paperclip size={16} />
                       Select Files
@@ -235,19 +234,19 @@ const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
                   {/* File List */}
                   {attachments.length > 0 && (
                     <div className="mt-4 space-y-2">
-                      <h4 className="text-sm font-medium text-[var(--color-text)]">
+                      <h4 className="text-sm font-semibold text-[var(--color-text)]">
                         Selected Files ({attachments.length})
                       </h4>
                       <div className="space-y-2 max-h-40 overflow-y-auto">
                         {attachments.map((file, index) => (
                           <div
                             key={index}
-                            className="flex items-center justify-between p-3 bg-[var(--color-surface)] rounded-lg border border-[var(--color-border)]"
+                            className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 p-3"
                           >
                             <div className="flex items-center space-x-3 flex-1 min-w-0">
                               <File size={20} className="text-[var(--color-primary)] flex-shrink-0" />
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-[var(--color-text)] truncate">
+                                <p className="truncate text-sm font-semibold text-[var(--color-text)]">
                                   {file.name}
                                 </p>
                                 <p className="text-xs text-[var(--color-textSecondary)]">
@@ -255,10 +254,10 @@ const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
                                 </p>
                               </div>
                             </div>
-                            <button
+                              <button
                               onClick={() => removeAttachment(index)}
                               disabled={uploading || submitting}
-                              className="p-1 text-[var(--color-error)] hover:bg-[var(--color-error)]/10 rounded transition-colors disabled:opacity-50"
+                              className="rounded-xl p-1.5 text-[var(--color-error)] transition-colors hover:bg-[var(--color-error)]/10 disabled:opacity-50"
                             >
                               <X size={16} />
                             </button>
@@ -272,15 +271,15 @@ const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
             </div>
           </div>
 
-          <div className="flex space-x-3 pt-4 border-t border-[var(--color-border)]">
+          <div className="flex gap-3 border-t border-[var(--color-border)] pt-4">
             <button
               onClick={handleCompleteTask}
               disabled={submitting || uploading}
-              className="flex-1 py-3 px-4 bg-[var(--color-success)] hover:opacity-90 text-white rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--color-success)] px-4 py-3 font-semibold text-white shadow-[0_12px_24px_rgba(16,185,129,0.18)] transition hover:-translate-y-0.5 hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {submitting || uploading ? (
                 <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
                   {uploading ? 'Uploading...' : 'Completing...'}
                 </>
               ) : (
@@ -293,7 +292,7 @@ const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
             <button
               onClick={onClose}
               disabled={submitting || uploading}
-              className="flex-1 py-3 px-4 bg-[var(--color-surface)] hover:bg-[var(--color-border)] text-[var(--color-text)] rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 font-semibold text-[var(--color-text)] transition hover:border-[var(--color-primary)]/30 hover:bg-[var(--color-background)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               Cancel
             </button>

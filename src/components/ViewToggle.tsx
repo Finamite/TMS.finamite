@@ -4,30 +4,43 @@ import { Grid, List } from 'lucide-react';
 interface ViewToggleProps {
   view: 'card' | 'table';
   onViewChange: (view: 'card' | 'table') => void;
+  activeShadowClassName?: string;
 }
 
-const ViewToggle: React.FC<ViewToggleProps> = ({ view, onViewChange }) => {
+const ViewToggle: React.FC<ViewToggleProps> = ({
+  view,
+  onViewChange,
+  activeShadowClassName = 'shadow-[0_8px_18px_rgba(14,165,233,0.28)]'
+}) => {
   return (
-    <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
+    <div className="relative inline-grid grid-cols-2 items-center rounded-full border border-[var(--color-border)]/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(248,250,252,0.86))] p-0.5 shadow-[0_8px_20px_rgba(15,23,42,0.05)] backdrop-blur-xl">
+      <span
+        aria-hidden="true"
+        className={`absolute inset-y-0.5 left-0.5 w-[calc(50%-0.25rem)] rounded-full bg-[var(--color-primary)] ${activeShadowClassName} transition-transform duration-300 ease-out ${
+          view === 'table' ? 'translate-x-full' : 'translate-x-0'
+        }`}
+      />
       <button
         onClick={() => onViewChange('card')}
-        className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-  view === 'card'
-    ? 'bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm'
-    : 'text-gray-600 hover:text-gray-900'
-}`}
+        className={`relative z-10 flex h-9 items-center justify-center gap-1.5 rounded-full px-3 text-[13px] font-semibold tracking-tight transition-all duration-300 ${
+          view === 'card'
+            ? 'text-white'
+            : 'text-[var(--color-textSecondary)] hover:text-[var(--color-text)]'
+        }`}
       >
-        <Grid size={12} />
+        <Grid size={12} strokeWidth={2} />
+        <span className="hidden sm:inline">Cards</span>
       </button>
       <button
         onClick={() => onViewChange('table')}
-        className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+        className={`relative z-10 flex h-9 items-center justify-center gap-1.5 rounded-full px-3 text-[13px] font-semibold tracking-tight transition-all duration-300 ${
           view === 'table'
-            ? 'bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm'
-            : 'text-gray-600 hover:text-gray-900'
+            ? 'text-white'
+            : 'text-[var(--color-textSecondary)] hover:text-[var(--color-text)]'
         }`}
       >
-        <List size={12} />
+        <List size={12} strokeWidth={2} />
+        <span className="hidden sm:inline">Table</span>
       </button>
     </div>
   );

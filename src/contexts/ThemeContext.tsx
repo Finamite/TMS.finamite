@@ -8,6 +8,17 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+const hexToRgb = (hex: string) => {
+  const normalized = hex.replace('#', '').trim();
+  if (normalized.length !== 6) return null;
+
+  const value = parseInt(normalized, 16);
+  const r = (value >> 16) & 255;
+  const g = (value >> 8) & 255;
+  const b = value & 255;
+  return `${r}, ${g}, ${b}`;
+};
+
 export const useTheme = () => {
   const context = useContext(ThemeContext);
   if (context === undefined) {
@@ -20,7 +31,7 @@ const themes = {
   light: {
     name: 'Light',
     colors: {
-      primary: '#3a2ee2ff',
+      primary: '#0ea5e9',
       secondary: '#00A3FF',
       accent: '#FF6B35',
       success: '#00C851',
@@ -43,7 +54,7 @@ const themes = {
   dark: {
     name: 'Dark',
     colors: {
-      primary: '#74acecff',
+      primary: '#38bdf8',
       secondary: '#66B3FF',
       accent: '#FF8A65',
       success: '#4CAF50',
@@ -86,6 +97,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     Object.entries(themeConfig.colors).forEach(([key, value]) => {
       root.style.setProperty(`--color-${key}`, value);
     });
+
+    const primaryRgb = hexToRgb(themeConfig.colors.primary);
+    if (primaryRgb) {
+      root.style.setProperty('--color-primary-rgb', primaryRgb);
+    }
 
     // Apply dark class for better Tailwind integration
     if (themeName === 'dark') {

@@ -646,7 +646,7 @@ const Performance: React.FC = () => {
                   setSelectedMonth(new Date());
                   setShowDateFilter(false);
                 }}
-                className={`px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-200 flex-1 sm:flex-none ${viewMode === 'current' ? 'bg-[#3a2ee2ff] text-white shadow-md' : 'text-[var(--color-textSecondary)] hover:text-[var(--color-text)]'}`}
+                className={`px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-200 flex-1 sm:flex-none ${viewMode === 'current' ? 'bg-[var(--color-primary)] text-white shadow-md' : 'text-[var(--color-textSecondary)] hover:text-[var(--color-text)]'}`}
               >
                 Current Month
               </button>
@@ -655,7 +655,7 @@ const Performance: React.FC = () => {
                   setViewMode('custom');
                   setShowDateFilter(false);
                 }}
-                className={`px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-200 flex-1 sm:flex-none ${viewMode === 'custom' ? 'bg-[#3a2ee2ff] text-white shadow-md' : 'text-[var(--color-textSecondary)] hover:text-[var(--color-text)]'}`}
+                className={`px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-200 flex-1 sm:flex-none ${viewMode === 'custom' ? 'bg-[var(--color-primary)] text-white shadow-md' : 'text-[var(--color-textSecondary)] hover:text-[var(--color-text)]'}`}
               >
                 Date Range
               </button>
@@ -664,7 +664,7 @@ const Performance: React.FC = () => {
                   setViewMode('all-time');
                   setShowDateFilter(false);
                 }}
-                className={`px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-200 flex-1 sm:flex-none ${viewMode === 'all-time' ? 'bg-[#3a2ee2ff] text-white shadow-md' : 'text-[var(--color-textSecondary)] hover:text-[var(--color-text)]'}`}
+                className={`px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-200 flex-1 sm:flex-none ${viewMode === 'all-time' ? 'bg-[var(--color-primary)] text-white shadow-md' : 'text-[var(--color-textSecondary)] hover:text-[var(--color-text)]'}`}
               >
                 All Time
               </button>
@@ -769,7 +769,7 @@ const Performance: React.FC = () => {
                               setShowMonthFilter(false);
                             }}
                             className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-200 
-  ${isSelected ? 'selected-month bg-[#3a2ee2ff] text-white shadow-lg'
+  ${isSelected ? 'selected-month bg-[var(--color-primary)] text-white shadow-lg'
                                 : 'hover:bg-[var(--color-border)] text-[var(--color-text)]'}`}
                           >
                             <div className="flex items-center justify-between">

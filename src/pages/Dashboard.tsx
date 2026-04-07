@@ -1286,7 +1286,7 @@ const Dashboard: React.FC = () => {
                   Last {Math.min(dashboardData.recentActivity?.slice(0, 10).length || 0, 10)}
                 </div>
               </div>
-              <div className="mt-5 max-h-[380px] space-y-3 overflow-y-auto pr-1">
+              <div className="mt-5 h-[405px] space-y-3 overflow-y-auto pr-1">
                 {dashboardData?.recentActivity?.slice(0, 10).length ? (
                   dashboardData.recentActivity.slice(0, 10).map((activity) => (
                     <div key={activity._id} className="rounded-[22px] border border-[var(--color-border)] px-4 py-4 transition hover:border-[var(--color-primary)]/30">
@@ -1354,7 +1354,7 @@ const Dashboard: React.FC = () => {
 
           <div className="space-y-6">
             {(user?.role === 'admin' || user?.role === 'manager') && (
-              <section className="rounded-[28px] border p-5 sm:p-6" style={cardStyle}>
+              <section className="flex h-[360px] flex-col rounded-[28px] border p-5 sm:p-6" style={cardStyle}>
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
                     <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] px-3 py-1 text-xs font-semibold text-[var(--color-textSecondary)]">
@@ -1380,7 +1380,7 @@ const Dashboard: React.FC = () => {
 
                     {showTeamMemberFilter && (
                       <div className="absolute right-0 top-full z-20 mt-2 w-[280px] overflow-hidden rounded-[22px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl">
-                        <div className="max-h-72 overflow-y-auto p-2">
+                        <div className="h-72 overflow-y-auto p-2">
                           <button
                             type="button"
                             onClick={() => {
@@ -1450,7 +1450,7 @@ const Dashboard: React.FC = () => {
                   </div>
                 )}
 
-                <div className="mt-5 space-y-3">
+                <div className="mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
                   {topTeamMembers.length > 0 ? (
                     topTeamMembers.map((member) => {
                       const barWidth = Math.max(member.totalPerformanceRate, 8);
