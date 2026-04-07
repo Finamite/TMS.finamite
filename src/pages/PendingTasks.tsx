@@ -6,6 +6,7 @@ import ViewToggle from '../components/ViewToggle';
 import PriorityBadge from '../components/PriorityBadge';
 import TaskCompletionModal from '../components/TaskCompletionModal';
 import { useTaskSettings } from '../hooks/useTaskSettings';
+import { useTheme } from '../contexts/ThemeContext';
 import { address } from '../../utils/ipAddress';
 import { useLocation } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
@@ -84,6 +85,7 @@ const getInitialViewPreference = (): 'table' | 'card' => {
 
 const PendingTasks: React.FC = () => {
   const { user } = useAuth();
+  const { isDark } = useTheme();
   const { settings: taskSettings, loading: settingsLoading } = useTaskSettings();
   const isMobile = useIsMobile();
   const [allTasks, setAllTasks] = useState<Task[]>([]);
@@ -660,7 +662,11 @@ const PendingTasks: React.FC = () => {
           return (
             <article
               key={task._id}
-              className={`group relative overflow-hidden rounded-[24px] border border-[var(--color-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(248,250,252,0.88))] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--color-primary)]/25 hover:shadow-[0_18px_40px_rgba(15,23,42,0.10)] ${
+              className={`group relative overflow-hidden rounded-[24px] border border-[var(--color-border)] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--color-primary)]/25 hover:shadow-[0_18px_40px_rgba(15,23,42,0.10)] ${
+                isDark
+                  ? 'bg-[linear-gradient(180deg,rgba(30,41,59,0.98),rgba(15,23,42,0.94))] shadow-[0_16px_38px_rgba(0,0,0,0.28)]'
+                  : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(248,250,252,0.88))]'
+              } ${
                 isTaskOverdue
                   ? 'ring-1 ring-[var(--color-error)]/25'
                   : isTaskDueToday
@@ -674,7 +680,7 @@ const PendingTasks: React.FC = () => {
                   <div className="flex flex-wrap items-center gap-1.5">
                     <PriorityBadge priority={task.priority} />
                     {task.status === 'in-progress' && (
-                      <span className="inline-flex items-center rounded-full border border-blue-500/20 bg-blue-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-600">
+                      <span className="inline-flex items-center rounded-full border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary)]">
                         In progress
                       </span>
                     )}
@@ -951,7 +957,7 @@ const PendingTasks: React.FC = () => {
                         </div>
                         <div className="mt-3 flex flex-wrap items-center gap-2">
                           {task.status === 'in-progress' && (
-                            <span className="inline-flex items-center rounded-full border border-blue-500/20 bg-blue-500/12 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-600">
+                            <span className="inline-flex items-center rounded-full border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary)]">
                               In progress
                             </span>
                           )}
@@ -1217,7 +1223,7 @@ const PendingTasks: React.FC = () => {
                         </div>
                         <div className="mt-3 flex flex-wrap items-center gap-2">
                           {task.status === 'in-progress' && (
-                            <span className="inline-flex items-center rounded-full border border-blue-500/20 bg-blue-500/12 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-600">
+                            <span className="inline-flex items-center rounded-full border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary)]">
                               In progress
                             </span>
                           )}
@@ -1373,7 +1379,7 @@ const PendingTasks: React.FC = () => {
               <select
                 value={filter.status}
                 onChange={(e) => setFilter({ ...filter, status: e.target.value })}
-                className="min-w-[140px] rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/85 px-3 py-2 text-sm font-semibold text-[var(--color-text)] shadow-sm outline-none transition focus:border-[var(--color-primary)]"
+                className="min-w-[140px] appearance-none rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/90 px-3 py-2 text-sm font-semibold text-[var(--color-text)] shadow-sm outline-none transition focus:border-[var(--color-primary)] dark:bg-[var(--color-surface)] dark:text-[var(--color-text)]"
               >
                 <option value="">All status</option>
                 <option value="pending">Pending</option>
@@ -1383,7 +1389,7 @@ const PendingTasks: React.FC = () => {
 
               <button
                 onClick={fetchTasks}
-                className="inline-flex items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/85 px-3 py-2 text-sm font-semibold text-[var(--color-text)] shadow-sm transition hover:border-[var(--color-primary)]/30 hover:text-[var(--color-primary)]"
+                className="inline-flex items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/85 px-3 py-2 text-sm font-semibold text-[var(--color-text)] shadow-sm transition hover:border-[var(--color-primary)]/30 hover:text-[var(--color-primary)] dark:bg-[var(--color-surface)]/90 dark:text-[var(--color-text)]"
               >
                 <RefreshCcw size={16} />
                 Refresh
@@ -1393,7 +1399,7 @@ const PendingTasks: React.FC = () => {
                 className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm font-semibold shadow-sm transition ${
                   showFilters
                     ? 'border-[var(--color-primary)]/30 bg-[var(--color-primary)] text-white'
-                    : 'border-[var(--color-border)] bg-[var(--color-background)]/85 text-[var(--color-text)] hover:border-[var(--color-primary)]/30 hover:text-[var(--color-primary)]'
+                    : 'border-[var(--color-border)] bg-[var(--color-background)]/85 text-[var(--color-text)] hover:border-[var(--color-primary)]/30 hover:text-[var(--color-primary)] dark:bg-[var(--color-surface)]/90 dark:text-[var(--color-text)]'
                 }`}
                 title="Filters"
               >
