@@ -310,17 +310,17 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
 
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-        <div className="bg-[--color-surface] rounded-xl max-w-4xl w-full max-h-[90vh] shadow-2xl transform transition-all overflow-hidden">
-          <div className="p-6 border-b border-[--color-border]">
-            <h3 className="text-xl font-semibold flex items-center text-[--color-text]">
-              <Edit size={24} className="mr-3" />
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+        <div className="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl">
+          <div className="flex items-center justify-between gap-4 border-b border-[var(--color-border)] p-5">
+            <h3 className="flex items-center text-lg font-semibold text-[var(--color-text)]">
+              <Edit size={22} className="mr-3 text-[var(--color-primary)]" />
               Edit Master Task: {editingMasterTask.title}
             </h3>
           </div>
 
-          <div className="p-6 max-h-[65vh] overflow-y-auto">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="max-h-[68vh] overflow-y-auto p-5">
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
               {/* Title */}
               <div>
                 <label className="block text-sm font-medium text-[--color-text] mb-2">
@@ -332,7 +332,7 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
                   onChange={(e) =>
                     setEditFormData({ ...editFormData, title: e.target.value })
                   }
-                  className="w-full px-4 py-3 border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] bg-[--color-background] text-[--color-text]"
+                  className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-[var(--color-text)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]"
                   placeholder="Enter task title"
                 />
               </div>
@@ -345,7 +345,7 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
                 <select
                   value={editFormData.taskType || ""}
                   disabled
-                  className="w-full px-4 py-3 border border-[--color-border] rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed"
+                  className="w-full cursor-not-allowed rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-[var(--color-textSecondary)] opacity-70"
                 >
                   <option value="">Select Type</option>
                   <option value="daily">Daily</option>
@@ -366,7 +366,7 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
                   onChange={(e) =>
                     setEditFormData({ ...editFormData, priority: e.target.value })
                   }
-                  className="w-full px-4 py-3 border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] bg-[--color-background] text-[--color-text]"
+                  className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-[var(--color-text)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]"
                 >
                   <option value="">Select Priority</option>
                   <option value="normal">Normal</option>
@@ -388,7 +388,7 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
                         assignedTo: e.target.value
                       })
                     }
-                    className="w-full px-4 py-3 border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] bg-[--color-background] text-[--color-text]"
+                    className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-[var(--color-text)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]"
                   >
                     <option value="">Select User</option>
                     {users.map((user) => (
@@ -409,7 +409,7 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
                   type="date"
                   value={editFormData.startDate?.split("T")[0] || ""}
                   disabled
-                  className="w-full px-4 py-3 border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] bg-[--color-background] text-[--color-text] disabled:opacity-50"
+                  className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-[var(--color-text)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)] disabled:opacity-50"
                 />
               </div>
 
@@ -450,7 +450,7 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
 
                     setEditFormData({ ...editFormData, endDate: picked });
                   }}
-                  className={`w-full px-4 py-3 border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] bg-[--color-background] text-[--color-text]
+                  className={`w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-[var(--color-text)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]
                     ${!endRecurrenceEarly ? "opacity-50 cursor-not-allowed" : ""}`}
                 />
 
@@ -463,13 +463,13 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
 
               {/* End recurrence early toggle */}
               {isAdmin && (
-                <div className="md:col-span-2 mt-4 rounded-2xl border-2 border-yellow-600/70 bg-yellow-50/80 dark:border-yellow-400/40 dark:bg-yellow-500/10 p-4">
+                <div className="md:col-span-2 mt-4 rounded-3xl border border-[var(--color-warning)]/25 bg-[var(--color-warning)]/10 p-4">
                   <div className="flex items-center justify-between gap-4">
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-[--color-text]">
+                      <p className="text-sm font-semibold text-[var(--color-text)]">
                         End recurring task early
                       </p>
-                      <p className="text-xs text-[--color-muted] mt-0.5">
+                      <p className="mt-0.5 text-xs text-[var(--color-textSecondary)]">
                         Stop generating future tasks after a selected date
                       </p>
                     </div>
@@ -496,19 +496,19 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
 
                         if (next) setShowEndEarlyNotice(true);
                       }}
-                      className={`relative inline-flex h-7 w-12 items-center rounded-full transition border-2
+                      className={`relative inline-flex h-7 w-12 items-center rounded-full border-2 transition
           ${endRecurrenceEarly
-                          ? "bg-[--color-primary] border-[--color-primary]"
-                          : "bg-gray-200 border-gray-500"
+                          ? "border-[var(--color-primary)] bg-[var(--color-primary)]"
+                          : "border-[var(--color-border)] bg-[var(--color-background)]"
                         }
           ${isSaving ? "opacity-50 cursor-not-allowed" : "hover:opacity-90"}`}
                       title="End recurring task early"
                     >
                       <span
-                        className={`inline-block h-5 w-5 transform rounded-full transition shadow-sm border-2
+                        className={`inline-block h-5 w-5 transform rounded-full border-2 shadow-sm transition
             ${endRecurrenceEarly
-                            ? "translate-x-6 bg-white border-white"
-                            : "translate-x-1 bg-white border-gray-500"
+                            ? "translate-x-6 border-white bg-white"
+                            : "translate-x-1 border-[var(--color-border)] bg-white"
                           }`}
                       />
                     </button>
@@ -537,14 +537,14 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
               </div>
 
               {/* Forever & Sunday */}
-              <div className="md:col-span-2">
-                <div className="flex items-center space-x-6 mb-4">
+                <div className="md:col-span-2">
+                <div className="mb-4 flex items-center space-x-6">
                   <label className="flex items-center">
                     <input
                       type="checkbox"
                       checked={editFormData.isForever || false}
                       disabled
-                      className="w-4 h-4 text-[--color-primary] border-[--color-border] rounded focus:ring-[--color-primary]"
+                      className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
                     />
                     <span className="ml-2 text-sm font-medium text-[--color-text]">
                       Forever Task
@@ -556,7 +556,7 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
                       type="checkbox"
                       checked={editFormData.includeSunday ?? true}
                       disabled
-                      className="w-4 h-4 text-[--color-primary] border-[--color-border] rounded focus:ring-[--color-primary]"
+                      className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
                     />
                     <span className="ml-2 text-sm font-medium text-[--color-text]">
                       Include Sunday
@@ -570,7 +570,7 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
                 <label className="block text-sm font-medium text-[--color-text] mb-3">
                   Week Off Days
                 </label>
-                <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-2">
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7">
                   {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, i) => {
                     const currentWeekOffDays = editFormData.weekOffDays || [];
                     const isSelected = currentWeekOffDays.includes(i);
@@ -589,9 +589,9 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
                             weekOffDays: newDays
                           });
                         }}
-                        className={`px-4 py-3 rounded-lg font-medium text-sm transition-all duration-200 border-2 ${isSelected
-                          ? "bg-[--color-primary] border-[--color-primary] text-white shadow-md transform scale-105"
-                          : "bg-[--color-background] border-[--color-border] text-[--color-text] hover:border-[--color-primary] hover:shadow-sm"
+                        className={`rounded-2xl border-2 px-4 py-3 text-sm font-medium transition-all duration-200 ${isSelected
+                          ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-white shadow-md scale-105"
+                          : "border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)] hover:border-[var(--color-primary)] hover:shadow-sm"
                           }`}
                       >
                         {day}
@@ -609,10 +609,10 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
                 </label>
                 
                 {/* Upload Area */}
-                <div className="border-2 border-dashed border-[--color-border] rounded-lg p-4 mb-4 hover:border-[--color-primary] transition-colors">
+                <div className="mb-4 rounded-3xl border-2 border-dashed border-[var(--color-border)] p-4 transition-colors hover:border-[var(--color-primary)]">
                   <div className="text-center">
-                    <Upload size={32} className="mx-auto text-[--color-textSecondary] mb-2" />
-                    <p className="text-sm text-[--color-textSecondary] mb-2">
+                    <Upload size={32} className="mx-auto mb-2 text-[var(--color-textSecondary)]" />
+                    <p className="mb-2 text-sm text-[var(--color-textSecondary)]">
                       Drop files here or click to upload
                     </p>
                     <input
@@ -626,10 +626,10 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
                     />
                     <label
                       htmlFor="file-upload"
-                      className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg cursor-pointer transition-colors ${
+                      className={`inline-flex items-center rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                         isUploading
-                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                          : 'bg-[--color-primary] text-white hover:bg-[--color-primary]'
+                          ? 'cursor-not-allowed bg-[var(--color-border)] text-[var(--color-textSecondary)]'
+                          : 'bg-[var(--color-primary)] text-white hover:opacity-90'
                       }`}
                     >
                       <Upload size={16} className="mr-2" />
@@ -640,9 +640,9 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
                   {/* Upload Progress */}
                   {isUploading && (
                     <div className="mt-3">
-                      <div className="bg-gray-200 rounded-full h-2">
+                      <div className="h-2 rounded-full bg-[var(--color-border)]">
                         <div
-                          className="bg-[--color-primary] h-2 rounded-full transition-all duration-300"
+                          className="h-2 rounded-full bg-[var(--color-primary)] transition-all duration-300"
                           style={{ width: `${uploadProgress}%` }}
                         ></div>
                       </div>
@@ -656,14 +656,14 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
                 {/* Attachments List */}
                 {attachments.length > 0 && (
                   <div className="space-y-3">
-                    <h4 className="text-sm font-medium text-[--color-text]">
+                    <h4 className="text-sm font-medium text-[var(--color-text)]">
                       Current Attachments ({attachments.length})
                     </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-48 overflow-y-auto">
                       {attachments.map((attachment, index) => (
                         <div
                           key={index}
-                          className="border border-[--color-border] rounded-lg p-3 bg-[--color-surface] hover:shadow-sm transition-shadow"
+                          className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 transition-shadow hover:shadow-sm"
                         >
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex items-center space-x-2 flex-1 min-w-0">
@@ -729,7 +729,7 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
                 )}
 
                 {attachments.length === 0 && (
-                  <div className="text-center py-4 text-sm text-[--color-textSecondary] bg-[--color-surface] rounded-lg border border-[--color-border]">
+                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] py-4 text-center text-sm text-[var(--color-textSecondary)]">
                     No attachments added yet
                   </div>
                 )}
@@ -738,10 +738,10 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
           </div>
 
           {/* Footer buttons */}
-          <div className="p-6 border-t border-[--color-border] flex justify-end space-x-3">
+          <div className="flex justify-end gap-3 border-t border-[var(--color-border)] p-5">
             <button
               onClick={onCancel}
-              className="px-6 py-3 text-sm font-medium text-[--color-text] bg-[--color-surface] border border-[--color-border] rounded-lg hover:bg-[--color-background] transition-colors"
+              className="inline-flex items-center rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-5 py-2.5 text-sm font-semibold text-[var(--color-text)] transition hover:border-[var(--color-primary)]/25 hover:text-[var(--color-primary)]"
             >
               <X size={16} className="inline mr-2" />
               Cancel
@@ -756,12 +756,12 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
                 !editFormData.priority ||
                 (endRecurrenceEarly && !editFormData.endedEarlyReason?.trim())
               }
-              className={`px-6 py-3 text-sm font-medium text-white bg-[--color-primary] rounded-lg transition-colors ${isSaving ||
+              className={`inline-flex items-center rounded-full px-5 py-2.5 text-sm font-semibold text-white transition ${isSaving ||
                 !editFormData.title ||
                 !editFormData.taskType ||
                 !editFormData.priority
-                ? "opacity-60 cursor-not-allowed"
-                : "hover:bg-[--color-primary] hover:scale-105"
+                ? "cursor-not-allowed bg-[var(--color-primary)] opacity-60"
+                : "bg-[var(--color-primary)] hover:opacity-90"
                 }`}
             >
               <Save size={16} className="inline mr-2" />

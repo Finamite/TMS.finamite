@@ -146,6 +146,7 @@ const MasterTasks: React.FC = () => {
   const [showApproveInfoModal, setShowApproveInfoModal] = useState<Task | null>(null);
   const dateFromRef = useRef<HTMLInputElement>(null);
   const dateToRef = useRef<HTMLInputElement>(null);
+  const [tableHasScrolled, setTableHasScrolled] = useState(false);
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredTasks.length / itemsPerPage);
@@ -178,6 +179,22 @@ const MasterTasks: React.FC = () => {
       fetchUsers();
     }
   }, [user]);
+
+  useEffect(() => {
+    const scrollEl = document.querySelector('main');
+    if (!(scrollEl instanceof HTMLElement) || view === 'card') {
+      setTableHasScrolled(false);
+      return;
+    }
+
+    const updateScrolledState = () => {
+      setTableHasScrolled(scrollEl.scrollTop > 8);
+    };
+
+    updateScrolledState();
+    scrollEl.addEventListener('scroll', updateScrolledState, { passive: true });
+    return () => scrollEl.removeEventListener('scroll', updateScrolledState);
+  }, [view, filteredTasks.length]);
 
   // Apply filters whenever filter state or allTasks changes
   useEffect(() => {
@@ -395,25 +412,25 @@ const MasterTasks: React.FC = () => {
   };
 
   const renderCardView = () => (
-    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
       {currentTasks.map((task) => {
         const isExpanded = expandedDescriptions.has(task._id);
-        const showReadMore = task.description.length > 150;
+        const showReadMore = task.description.length > 110;
         const displayedDescription = isExpanded || !showReadMore
           ? task.description
-          : `${task.description.substring(0, 150)}...`;
+          : `${task.description.substring(0, 110)}...`;
 
         return (
           <div
             key={task._id}
-            className={`rounded-xl shadow-sm border hover:shadow-lg transition-all duration-300 overflow-hidden transform hover:-translate-y-1 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-              } ${isTaskOverdue(task.dueDate, task.status)
-                ? (isDark ? 'border-red-600 ring-1 ring-red-400' : 'border-red-300 ring-1 ring-red-100')
-                : ''
-              }`}
+            className={`group rounded-[24px] border bg-[var(--color-surface)] shadow-[0_12px_36px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_48px_rgba(15,23,42,0.1)] ${
+              isTaskOverdue(task.dueDate, task.status)
+                ? 'border-[var(--color-error)]/20 ring-1 ring-[var(--color-error)]/10'
+                : 'border-[var(--color-border)]'
+            }`}
           >
-            <div className="p-6">
-              <div className="flex items-start justify-between mb-4">
+            <div className="p-5">
+              <div className="flex items-start justify-between gap-3">
                 <div className={`text-lg font-semibold flex-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   {expandedTitles.has(task._id) || task.title.length <= 70
                     ? task.title
@@ -427,38 +444,38 @@ const MasterTasks: React.FC = () => {
                     </button>
                   )}
                 </div>
-                <div className="flex space-x-1 ml-2 opacity-80 hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-1.5 opacity-80 hover:opacity-100 transition-opacity">
                   {task.revisionCount > 0 && (
                     <button
                       onClick={() => viewRevisionHistory(task)}
-                      className={`p-2 rounded-lg transition-colors ${isDark ? 'text-blue-400 hover:bg-blue-900' : 'text-blue-600 hover:bg-blue-50'}`}
+                      className={`inline-flex h-8 w-8 items-center justify-center rounded-2xl transition-colors ${isDark ? 'text-blue-400 hover:bg-blue-900' : 'text-blue-600 hover:bg-blue-50'}`}
                       title="View revision history"
                     >
-                      <History size={16} />
+                      <History size={14} />
                     </button>
                   )}
                   {task.status !== 'completed' && user?.permissions.canEditTasks && (
                     <button
                       onClick={() => setEditingTask(task)}
-                      className={`p-2 rounded-lg transition-colors ${isDark ? 'text-green-400 hover:bg-green-900' : 'text-green-600 hover:bg-green-50'}`}
+                      className={`inline-flex h-8 w-8 items-center justify-center rounded-2xl transition-colors ${isDark ? 'text-green-400 hover:bg-green-900' : 'text-green-600 hover:bg-green-50'}`}
                       title="Edit task"
                     >
-                      <Edit3 size={16} />
+                      <Edit3 size={14} />
                     </button>
                   )}
                   {user?.permissions.canDeleteTasks && (
                     <button
                       onClick={() => handleDeleteTask(task._id)}
-                      className={`p-2 rounded-lg transition-colors ${isDark ? 'text-red-400 hover:bg-red-900' : 'text-red-600 hover:bg-red-50'}`}
+                      className={`inline-flex h-8 w-8 items-center justify-center rounded-2xl transition-colors ${isDark ? 'text-red-400 hover:bg-red-900' : 'text-red-600 hover:bg-red-50'}`}
                       title="Delete task"
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={14} />
                     </button>
                   )}
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2 mb-4">
+              <div className="mt-3 flex flex-wrap gap-2">
                 <StatusBadge status={task.status} />
                 {task.status === 'rejected' && (
                   <button
@@ -492,7 +509,7 @@ const MasterTasks: React.FC = () => {
                 )}
               </div>
 
-              <p className={`text-sm mb-4 whitespace-pre-wrap break-words ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              <p className={`mt-3 text-sm leading-6 whitespace-pre-wrap break-words ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                 {displayedDescription}
                 {showReadMore && (
                   <button
@@ -504,7 +521,7 @@ const MasterTasks: React.FC = () => {
                 )}
               </p>
 
-              <div className="space-y-3 text-sm">
+              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 text-sm">
                 <div className={`flex items-center justify-between p-2 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
                   <span className={`flex items-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                     Task ID:
@@ -574,7 +591,7 @@ const MasterTasks: React.FC = () => {
                   </span>
                 </div>
                 {task.completedAt && (
-                  <div className={`flex items-center justify-between p-2 rounded-lg ${isDark ? 'bg-purple-900' : 'bg-purple-50'}`}>
+                  <div className={`sm:col-span-2 flex items-center justify-between p-2 rounded-lg ${isDark ? 'bg-purple-900' : 'bg-purple-50'}`}>
                     <span className={`flex items-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                       Completed:
                       {task.completionRemarks && (
@@ -597,7 +614,7 @@ const MasterTasks: React.FC = () => {
                   </div>
                 )}
                 {task.completionAttachments && task.completionAttachments.length > 0 && (
-                  <div className={`flex items-center justify-between p-2 rounded-lg ${isDark ? 'bg-green-900' : 'bg-green-50'}`}>
+                  <div className={`sm:col-span-2 flex items-center justify-between p-2 rounded-lg ${isDark ? 'bg-green-900' : 'bg-green-50'}`}>
                     <span className={`flex items-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                       <Paperclip size={14} className="mr-2" />
                       Completion Files:
@@ -619,73 +636,99 @@ const MasterTasks: React.FC = () => {
   );
 
   const renderTableView = () => (
-    <div className={`rounded-xl shadow-sm border overflow-hidden ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className={`${isDark ? 'bg-gray-700' : 'bg-gradient-to-r from-gray-50 to-gray-100'}`}>
-            <tr>
-              <th className={`px-6 py-4 text-left text-xs font-medium uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-500'}`}>
-                Task ID
-              </th>
-              <th className={`px-6 py-4 text-left text-xs font-medium uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-500'}`}>
-                <button
-                  onClick={() => handleSort('created')}
-                  className={`flex items-center space-x-1 transition-colors ${isDark ? 'hover:text-white' : 'hover:text-gray-700'}`}
-                >
-                  <span>TASK</span>
-                  {getSortIcon('created')}
-                </button>
-              </th>
-              <th className={`px-6 py-4 text-left text-xs font-medium uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-500'}`}>
-                <button
-                  onClick={() => handleSort('status')}
-                  className={`flex items-center space-x-1 transition-colors ${isDark ? 'hover:text-white' : 'hover:text-gray-700'}`}
-                >
-                  <span>STATUS</span>
-                  {getSortIcon('status')}
-                </button>
-              </th>
-              <th className={`px-6 py-4 text-left text-xs font-medium uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-500'}`}>
-                <button
-                  onClick={() => handleSort('priority')}
-                  className={`flex items-center space-x-1 transition-colors ${isDark ? 'hover:text-white' : 'hover:text-gray-700'}`}
-                >
-                  <span>PRIORITY</span>
-                  {getSortIcon('priority')}
-                </button>
-              </th>
-              <th className={`px-6 py-4 text-left text-xs font-medium uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-500'}`}>
-                Assigned By
-              </th>
-              <th className={`px-6 py-4 text-left text-xs font-medium uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-500'}`}>
-                Assigned To
-              </th>
-              <th className={`px-6 py-4 text-left text-xs font-medium uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-500'}`}>
-                Task Attachments
-              </th>
-              <th className={`px-6 py-4 text-left text-xs font-medium uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-500'}`}>
-                <button
-                  onClick={() => handleSort('dueDate')}
-                  className={`flex items-center space-x-1 transition-colors ${isDark ? 'hover:text-white' : 'hover:text-gray-700'}`}
-                >
-                  <span>DUE DATE</span>
-                  {getSortIcon('dueDate')}
-                </button>
-              </th>
-              <th className={`px-6 py-4 text-left text-xs font-medium uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-500'}`}>
-                Completed Date
-              </th>
-              <th className={`px-6 py-4 text-left text-xs font-medium uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-500'}`}>
-                Completion Files
-              </th>
-              {shouldShowActionsColumn() && (
-                <th className={`px-6 py-4 text-left text-xs font-medium uppercase tracking-wider ${isDark ? 'text-gray-300' : 'text-gray-500'}`}>
-                  Actions
+    <div className="space-y-6 mt-4">
+      <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+        <div
+          className={`sticky top-3 z-40 mx-3 mt-3 overflow-hidden rounded-[22px] transition-[box-shadow,background-color,border-color,transform] duration-300 ease-out ${
+            tableHasScrolled
+              ? 'bg-[var(--color-surface)] shadow-[0_18px_36px_rgba(15,23,42,0.14)] border border-[var(--color-border)] backdrop-blur-md'
+              : 'bg-[var(--color-surface)]'
+          }`}
+        >
+          <table className="min-w-full table-fixed">
+            <colgroup>
+              <col className="w-[8%]" />
+              <col className="w-[26%]" />
+              <col className="w-[10%]" />
+              <col className="w-[10%]" />
+              <col className="w-[10%]" />
+              <col className="w-[10%]" />
+              <col className="w-[10%]" />
+              <col className="w-[9%]" />
+              <col className="w-[9%]" />
+              <col className="w-[9%]" />
+              {shouldShowActionsColumn() && <col className="w-[9%]" />}
+            </colgroup>
+            <thead>
+              <tr>
+                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                  Task ID
                 </th>
-              )}
-            </tr>
-          </thead>
-          <tbody className={`${isDark ? 'bg-gray-800 divide-gray-700' : 'bg-white divide-gray-200'}`}>
+                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                  <button onClick={() => handleSort('created')} className="flex items-center gap-1 transition-colors hover:text-[var(--color-primary)]">
+                    <span>TASK</span>
+                    {getSortIcon('created')}
+                  </button>
+                </th>
+                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                  <button onClick={() => handleSort('status')} className="flex items-center gap-1 transition-colors hover:text-[var(--color-primary)]">
+                    <span>STATUS</span>
+                    {getSortIcon('status')}
+                  </button>
+                </th>
+                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                  <button onClick={() => handleSort('priority')} className="flex items-center gap-1 transition-colors hover:text-[var(--color-primary)]">
+                    <span>PRIORITY</span>
+                    {getSortIcon('priority')}
+                  </button>
+                </th>
+                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                  Assigned By
+                </th>
+                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                  Assigned To
+                </th>
+                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                  Task Attachments
+                </th>
+                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                  <button onClick={() => handleSort('dueDate')} className="flex items-center gap-1 transition-colors hover:text-[var(--color-primary)]">
+                    <span>DUE DATE</span>
+                    {getSortIcon('dueDate')}
+                  </button>
+                </th>
+                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                  Completed Date
+                </th>
+                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                  Completion Files
+                </th>
+                {shouldShowActionsColumn() && (
+                  <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                    Actions
+                  </th>
+                )}
+              </tr>
+            </thead>
+          </table>
+        </div>
+
+        <div className="mx-3 mb-3 overflow-x-auto rounded-b-[28px]">
+          <table className="min-w-full table-fixed divide-y divide-[var(--color-border)]">
+            <colgroup>
+              <col className="w-[8%]" />
+              <col className="w-[26%]" />
+              <col className="w-[10%]" />
+              <col className="w-[10%]" />
+              <col className="w-[10%]" />
+              <col className="w-[10%]" />
+              <col className="w-[10%]" />
+              <col className="w-[9%]" />
+              <col className="w-[9%]" />
+              <col className="w-[9%]" />
+              {shouldShowActionsColumn() && <col className="w-[9%]" />}
+            </colgroup>
+            <tbody className="divide-y divide-[var(--color-border)] bg-[var(--color-surface)]">
             {currentTasks.map((task, index) => {
               const isExpanded = expandedDescriptions.has(task._id);
               const showReadMore = task.description.length > 100;
@@ -696,13 +739,7 @@ const MasterTasks: React.FC = () => {
               return (
                 <tr
                   key={task._id}
-                  className={`${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} transition-colors ${index % 2 === 0
-                    ? (isDark ? 'bg-gray-800' : 'bg-white')
-                    : (isDark ? 'bg-gray-900' : 'bg-gray-25')
-                    } ${isTaskOverdue(task.dueDate, task.status)
-                      ? (isDark ? '' : 'bg-red-25 hover:bg-red-50')
-                      : ''
-                    }`}
+                  className={`transition-colors hover:bg-[var(--color-background)]/70 ${isTaskOverdue(task.dueDate, task.status) ? 'bg-[var(--color-error)]/5' : ''}`}
                 >
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <div className={`${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
@@ -887,8 +924,9 @@ const MasterTasks: React.FC = () => {
                 </tr>
               );
             })}
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -936,35 +974,39 @@ const MasterTasks: React.FC = () => {
   return (
     <div className="min-h-full bg-[var(--color-background)] p-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
-        <div>
-          <h1 className="text-xl font-bold text-[--color-text]">
-            Master Tasks
-            {user?.permissions.canViewAllTeamTasks && <span className="text-xs font-normal text-[--color-primary] ml-2">(Admin View - All Team)</span>}
-          </h1>
-          <p className="mt-1 text-xs text-[--color-textSecondary]">
-            {filteredTasks.length} of {allTasks.length} task(s) found
-            {user?.permissions.canViewAllTeamTasks ? ' (All team members)' : ' (Your tasks)'}
-          </p>
-        </div>
-        <div className="flex items-center mt-4 sm:mt-0">
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="px-4 py-2 text-sm font-medium text-[--color-textSecondary] bg-[--color-surface] hover:bg-[--color-border] rounded-lg transition-colors flex items-center mr-4"
-            title={showFilters ? "Hide Filters" : "Show Filters"}
-          >
-            <Filter size={16} className="inline mr-2" />
-            {showFilters ? "Hide Filters" : "Show Filters"}
-          </button>
-          <div className="hidden sm:block">
-            <ViewToggle view={view} onViewChange={setView} />
+      <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/90 px-6 py-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl mb-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text)]">
+              Master Tasks
+              {user?.permissions.canViewAllTeamTasks && (
+                <span className="ml-2 text-sm font-medium text-[var(--color-primary)]">(Admin View - All Team)</span>
+              )}
+            </h1>
+            <p className="mt-1 text-sm text-[var(--color-textSecondary)]">
+              {filteredTasks.length} of {allTasks.length} task(s) found
+              {user?.permissions.canViewAllTeamTasks ? ' (All team members)' : ' (Your tasks)'}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm font-medium text-[var(--color-textSecondary)] shadow-[0_8px_18px_rgba(15,23,42,0.05)] transition hover:border-[var(--color-primary)]/25 hover:text-[var(--color-text)]"
+              title={showFilters ? "Hide Filters" : "Show Filters"}
+            >
+              <Filter size={16} />
+              {showFilters ? "Hide Filters" : "Show Filters"}
+            </button>
+            <div className="hidden sm:block">
+              <ViewToggle view={view} onViewChange={setView} />
+            </div>
           </div>
         </div>
       </div>
 
       {/* Filters */}
       {showFilters && (
-        <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] p-4 mb-2">
+        <div className="mt-4 rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/90 p-5 shadow-[0_14px_36px_rgba(15,23,42,0.06)] backdrop-blur-xl">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
             {/* Date From */}
             <div>
@@ -1159,27 +1201,27 @@ const MasterTasks: React.FC = () => {
 
           {/* Enhanced Pagination */}
           {totalPages > 1 && (
-            <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] p-4 mt-2">
-              <div className="flex flex-col items-center text-center sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="mt-4 rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/90 p-4 shadow-[0_14px_36px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+              <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:items-center sm:justify-between">
                 {/* Items per page selector */}
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-[--color-textSecondary]">Show:</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-[var(--color-textSecondary)]">Show:</span>
                   <select
                     value={itemsPerPage}
                     onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-                    className="text-sm px-2 py-1 border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] bg-[--color-surface] text-[--color-text]"
+                    className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                   >
                     <option value={10}>10</option>
                     <option value={25}>25</option>
                     <option value={50}>50</option>
                     <option value={100}>100</option>
                   </select>
-                  <span className="text-sm text-[--color-textSecondary]">per page</span>
+                  <span className="text-sm text-[var(--color-textSecondary)]">per page</span>
                 </div>
 
                 {/* Page info */}
                 <div className="flex items-center">
-                  <p className="text-sm text-[--color-textSecondary]">
+                  <p className="text-sm text-[var(--color-textSecondary)]">
                     Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
                     <span className="font-medium">{Math.min(endIndex, filteredTasks.length)}</span> of{' '}
                     <span className="font-medium">{filteredTasks.length}</span> results
@@ -1187,12 +1229,12 @@ const MasterTasks: React.FC = () => {
                 </div>
 
                 {/* Pagination controls */}
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center gap-1">
                   {/* First page */}
                   <button
                     onClick={() => handlePageChange(1)}
                     disabled={currentPage === 1}
-                    className="p-2 text-sm font-medium text-[--color-textSecondary] bg-[--color-surface] border border-[--color-border] rounded-lg hover:bg-[--color-border] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-textSecondary)] transition hover:border-[var(--color-primary)]/25 hover:text-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-50"
                     title="First page"
                   >
                     <ChevronsLeft size={16} />
@@ -1202,14 +1244,14 @@ const MasterTasks: React.FC = () => {
                   <button
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
-                    className="p-2 text-sm font-medium text-[--color-textSecondary] bg-[--color-surface] border border-[--color-border] rounded-lg hover:bg-[--color-border] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-textSecondary)] transition hover:border-[var(--color-primary)]/25 hover:text-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-50"
                     title="Previous page"
                   >
                     <ChevronLeft size={16} />
                   </button>
 
                   {/* Page numbers */}
-                  <div className="flex items-center space-x-1">
+                  <div className="flex items-center gap-1">
                     {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
                       let pageNumber;
 
@@ -1227,10 +1269,11 @@ const MasterTasks: React.FC = () => {
                         <button
                           key={pageNumber}
                           onClick={() => handlePageChange(pageNumber)}
-                          className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${currentPage === pageNumber
-                            ? 'bg-[--color-primary] text-white'
-                            : 'text-[--color-textSecondary] bg-[--color-surface] border border-[--color-border] hover:bg-[--color-border]'
-                            }`}
+                          className={`inline-flex h-9 min-w-9 items-center justify-center rounded-full px-3 text-sm font-medium transition ${
+                            currentPage === pageNumber
+                              ? 'bg-[var(--color-primary)] text-white shadow-[0_10px_20px_rgba(59,130,246,0.25)]'
+                              : 'border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-textSecondary)] hover:border-[var(--color-primary)]/25 hover:text-[var(--color-primary)]'
+                          }`}
                         >
                           {pageNumber}
                         </button>
@@ -1242,7 +1285,7 @@ const MasterTasks: React.FC = () => {
                   <button
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
-                    className="p-2 text-sm font-medium text-[--color-textSecondary] bg-[--color-surface] border border-[--color-border] rounded-lg hover:bg-[--color-border] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-textSecondary)] transition hover:border-[var(--color-primary)]/25 hover:text-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-50"
                     title="Next page"
                   >
                     <ChevronRight size={16} />
@@ -1252,7 +1295,7 @@ const MasterTasks: React.FC = () => {
                   <button
                     onClick={() => handlePageChange(totalPages)}
                     disabled={currentPage === totalPages}
-                    className="p-2 text-sm font-medium text-[--color-textSecondary] bg-[--color-surface] border border-[--color-border] rounded-lg hover:bg-[--color-border] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-textSecondary)] transition hover:border-[var(--color-primary)]/25 hover:text-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-50"
                     title="Last page"
                   >
                     <ChevronsRight size={16} />

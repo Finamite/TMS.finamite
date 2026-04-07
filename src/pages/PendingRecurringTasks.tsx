@@ -1,13 +1,15 @@
 // PendingRecurringTasks.tsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { RefreshCw, Clock, CheckSquare, Filter, Search, ChevronDown, ChevronUp, AlertCircle, CalendarDays, Paperclip, FileText, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { RefreshCw, CheckSquare, Filter, Search, ChevronDown, ChevronUp, CalendarDays, Paperclip, FileText, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import axios from 'axios';
 import ViewToggle from '../components/ViewToggle';
 import PriorityBadge from '../components/PriorityBadge';
+import StatusBadge from '../components/StatusBadge';
 import TaskTypeBadge from '../components/TaskTypeBadge';
 import TaskCompletionModal from '../components/TaskCompletionModal';
 import { useTaskSettings } from '../hooks/useTaskSettings';
+import { useTheme } from '../contexts/ThemeContext';
 import { address } from '../../utils/ipAddress';
 import { useLocation } from 'react-router-dom';
 
@@ -102,6 +104,7 @@ const getInitialViewPreference = (): 'card' | 'table' => {
 
 const PendingRecurringTasks: React.FC = () => {
   const { user } = useAuth();
+  const { isDark } = useTheme();
   const { settings: taskSettings, loading: settingsLoading } = useTaskSettings();
 
   const [allTasks, setAllTasks] = useState<Task[]>([]);
@@ -128,6 +131,7 @@ const PendingRecurringTasks: React.FC = () => {
   const [showFullDescription, setShowFullDescription] = useState<{ [key: string]: boolean }>({});
   const [showFullTitle, setShowFullTitle] = useState<{ [key: string]: boolean }>({});
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [tableHasScrolled, setTableHasScrolled] = useState(false);
   const cacheRef = useRef<Map<string, PendingRecurringTasksResponse>>(new Map());
   const location = useLocation();
 
@@ -181,13 +185,41 @@ const PendingRecurringTasks: React.FC = () => {
       [taskId]: !prevState[taskId]
     }));
   };
+  const getTaskDueStatus = (task: Task) => {
+    if (isOverdue(task.dueDate)) return 'overdue';
+    const daysUntilDue = getDaysUntilDue(task.dueDate);
+    if (daysUntilDue <= 0) return 'due today';
+    if (daysUntilDue === 1) return 'due tomorrow';
+    return task.taskType === 'daily' ? 'daily' : 'cyclic';
+  };
   const totalPages = Math.max(1, Math.ceil(totalTasks / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + allTasks.length;
   const currentTasks = allTasks;
+  const truncateText = (text: string, maxLength: number) => {
+    if (text.length <= maxLength) return text;
+    return `${text.substring(0, maxLength)}...`;
+  };
   useEffect(() => {
     localStorage.setItem('taskViewPreference', view);
   }, [view]);
+
+  useEffect(() => {
+    const scrollEl = document.querySelector('main');
+    if (!(scrollEl instanceof HTMLElement) || view === 'card') {
+      setTableHasScrolled(false);
+      return;
+    }
+
+    const updateScrolledState = () => {
+      setTableHasScrolled(scrollEl.scrollTop > 8);
+    };
+
+    updateScrolledState();
+    scrollEl.addEventListener('scroll', updateScrolledState, { passive: true });
+    return () => scrollEl.removeEventListener('scroll', updateScrolledState);
+  }, [view, activeSection, currentTasks.length]);
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setDebouncedSearch(filter.search.trim());
@@ -324,6 +356,10 @@ const PendingRecurringTasks: React.FC = () => {
     applyPayload,
     prefetchSection
   ]);
+  const handleRefresh = useCallback(() => {
+    cacheRef.current.clear();
+    void fetchTasks();
+  }, [fetchTasks]);
   const fetchUsers = useCallback(async () => {
     try {
       if (!user?.company?.companyId) return;
@@ -396,95 +432,91 @@ const PendingRecurringTasks: React.FC = () => {
   };
 
   const renderCardView = () => (
-    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {currentTasks.map((task) => {
         const daysUntilDue = getDaysUntilDue(task.dueDate);
         const overdue = isOverdue(task.dueDate);
-        const descriptionIsLong = task.description.length > 150; // Define a threshold for "long" description
+        const descriptionIsLong = task.description.length > 145;
         const displayDescription = showFullDescription[task._id] || !descriptionIsLong
           ? task.description
-          : `${task.description.substring(0, 150)}...`;
+          : truncateText(task.description, 145);
 
         return (
           <div
             key={task._id}
-            className={`bg-[var(--color-background)] rounded-xl shadow-sm border hover:shadow-lg transition-all duration-300 overflow-hidden transform hover:-translate-y-1 ${overdue
-              ? 'border-l-4 border-l-[var(--color-error)] bg-gradient-to-r from-[var(--color-error)]/10 to-[var(--color-background)]'
-              : daysUntilDue <= 1
-                ? 'border-l-4 border-l-[var(--color-warning)] bg-gradient-to-r from-[var(--color-warning)]/10 to-[var(--color-background)]'
-                : 'border-[var(--color-border)] hover:border-[var(--color-primary)]/50'
-              }`}
+            className={`group relative overflow-hidden rounded-[24px] border border-[var(--color-border)] shadow-[0_12px_30px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--color-primary)]/25 hover:shadow-[0_18px_40px_rgba(15,23,42,0.10)] ${
+              isDark
+                ? 'bg-[linear-gradient(180deg,rgba(30,41,59,0.98),rgba(15,23,42,0.94))] shadow-[0_16px_38px_rgba(0,0,0,0.28)]'
+                : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(248,250,252,0.88))]'
+            } ${
+              overdue
+                ? 'ring-1 ring-[var(--color-error)]/25'
+                : daysUntilDue <= 1
+                  ? 'ring-1 ring-[var(--color-warning)]/25'
+                  : ''
+            }`}
           >
-            <div className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <h3 className="text-lg font-semibold text-[var(--color-text)] pr-2">
-                  {showFullTitle[task._id] ? task.title : task.title.length > 70 ? `${task.title.substring(0, 70)}...` : task.title}
-                  {task.title.length > 70 && (
-                    <button
-                      onClick={() => toggleTitleVisibility(task._id)}
-                      className="ml-1 text-xs text-[var(--color-primary)] hover:underline font-medium"
-                    >
-                      {showFullTitle[task._id] ? 'Show Less' : 'Show More'}
-                    </button>
-                  )}
-                </h3>
+            <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-[var(--color-primary)] via-cyan-500 to-emerald-500 opacity-80" />
+            <div className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <TaskTypeBadge taskType={task.taskType} />
+                    <PriorityBadge priority={task.priority} />
+                    <StatusBadge status={getTaskDueStatus(task)} />
+                    <span className="inline-flex items-center rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-textSecondary)]">
+                      ID {task.taskId || '-'}
+                    </span>
+                  </div>
+                  <h3 className="mt-3 text-[1rem] font-semibold leading-snug text-[var(--color-text)] transition-colors group-hover:text-[var(--color-primary)]">
+                    {showFullTitle[task._id] ? task.title : truncateText(task.title, 64)}
+                    {task.title.length > 64 && (
+                      <button
+                        onClick={() => toggleTitleVisibility(task._id)}
+                        className="ml-2 text-[11px] font-semibold text-[var(--color-primary)] hover:underline"
+                      >
+                        Show {showFullTitle[task._id] ? 'less' : 'more'}
+                      </button>
+                    )}
+                  </h3>
+                </div>
                 <button
                   onClick={() => setShowCompleteModal(task._id)}
-                  className="p-2 text-[var(--color-success)] hover:bg-[var(--color-success)]/10 rounded-lg transition-colors flex-shrink-0 hover:scale-110"
+                  className="inline-flex shrink-0 items-center justify-center rounded-2xl border border-[var(--color-success)]/20 bg-[var(--color-success)]/10 p-3 text-[var(--color-success)] transition hover:-translate-y-0.5 hover:border-[var(--color-success)]/30 hover:bg-[var(--color-success)]/15"
                   title="Complete task"
                 >
                   <CheckSquare size={18} />
                 </button>
-              </div>
-              <div className="flex flex-wrap gap-2 mb-4">
-                <TaskTypeBadge taskType={task.taskType} />
-                <PriorityBadge priority={task.priority} />
-                {overdue ? (
-                  <span className="px-3 py-1 text-xs font-semibold rounded-full bg-[var(--color-error)]/20 text-[var(--color-error)] animate-pulse">
-                    <AlertCircle size={12} className="inline mr-1" />
-                    {getDaysOverdue(task.dueDate)} days overdue
-                  </span>
-                ) : daysUntilDue <= 0 ? ( // Due today or already passed today
-                  <span className="px-3 py-1 text-xs font-semibold rounded-full bg-[var(--color-warning)]/20 text-[var(--color-warning)]">
-                    <Clock size={12} className="inline mr-1" />
-                    Due today
-                  </span>
-                ) : daysUntilDue === 1 ? (
-                  <span className="px-3 py-1 text-xs font-semibold rounded-full bg-[var(--color-warning)]/20 text-[var(--color-warning)]">
-                    <Clock size={12} className="inline mr-1" />
-                    Due tomorrow
-                  </span>
-                ) : null}
               </div>
               <p className="text-[var(--color-textSecondary)] text-sm mb-4 whitespace-pre-wrap break-words">
                 {displayDescription}
                 {descriptionIsLong && (
                   <button
                     onClick={() => toggleDescription(task._id)}
-                    className="ml-1 text-[var(--color-primary)] hover:underline text-xs font-medium"
+                    className="ml-2 text-[11px] font-semibold text-[var(--color-primary)] hover:underline"
                   >
-                    {showFullDescription[task._id] ? 'See Less' : 'See More'}
+                    {showFullDescription[task._id] ? 'See less' : 'See more'}
                   </button>
                 )}
               </p>
               <div className="space-y-3 text-sm">
-                <div className="flex justify-between items-center py-2 px-3 bg-[var(--color-surface)] rounded-lg">
+                <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
                   <span className="text-[var(--color-textSecondary)]">Task ID:</span>
-                  <span className="font-medium text-[var(--color-text)]">{task.taskId || '—'}</span>
+                  <span className="font-semibold text-[var(--color-text)]">{task.taskId || '-'}</span>
                 </div>
-                <div className="flex justify-between items-center py-2 px-3 bg-[var(--color-surface)] rounded-lg">
+                <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
                   <span className="text-[var(--color-textSecondary)]">Assigned by:</span>
-                  <span className="font-medium text-[var(--color-text)]">{task.assignedBy.username}</span>
+                  <span className="font-semibold text-[var(--color-text)]">{task.assignedBy.username}</span>
                 </div>
                 {isAdmin && (
-                  <div className="flex justify-between items-center py-2 px-3 bg-[var(--color-primary)]/10 rounded-lg">
+                  <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-primary)]/5 px-3 py-2">
                     <span className="text-[var(--color-textSecondary)]">Assigned to:</span>
-                    <span className="font-medium text-[var(--color-primary)]">{task.assignedTo.username}</span>
+                    <span className="font-semibold text-[var(--color-primary)]">{task.assignedTo.username}</span>
                   </div>
                 )}
-                <div className="flex justify-between items-center py-2 px-3 bg-[var(--color-accent)]/10 rounded-lg">
+                <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-accent)]/5 px-3 py-2">
                   <span className="text-[var(--color-textSecondary)]">Due date:</span>
-                  <span className="font-medium text-[var(--color-accent)]">
+                  <span className="font-semibold text-[var(--color-accent)]">
                     {new Date(task.dueDate).toLocaleDateString('en-GB', {
                       day: '2-digit',
                       month: 'numeric',
@@ -493,9 +525,9 @@ const PendingRecurringTasks: React.FC = () => {
                   </span>
                 </div>
                 {task.lastCompletedDate && (
-                  <div className="flex justify-between items-center py-2 px-3 bg-[var(--color-success)]/10 rounded-lg">
+                  <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-success)]/5 px-3 py-2">
                     <span className="text-[var(--color-textSecondary)]">Last completed:</span>
-                    <span className="font-medium text-[var(--color-success)]">
+                    <span className="font-semibold text-[var(--color-success)]">
                       {new Date(task.lastCompletedDate).toLocaleDateString('en-GB', {
                         day: '2-digit',
                         month: 'numeric',
@@ -505,21 +537,20 @@ const PendingRecurringTasks: React.FC = () => {
                   </div>
                 )}
                 {/* Attachments in Card View */}
-                <div className="flex items-center justify-between p-2 rounded-lg bg-[var(--color-surface)]">
-                  <span className="flex items-center text-[var(--color-textSecondary)]">
-                    <Paperclip size={14} className="mr-1" />
-                    Attachments:
+                <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
+                  <span className="flex items-center gap-1 text-[var(--color-textSecondary)]">
+                    <Paperclip size={14} />
+                    Attachments
                   </span>
                   {task.attachments && task.attachments.length > 0 ? (
                     <button
                       onClick={() => setShowAttachmentsModal(task.attachments)}
-                      className="font-medium text-[var(--color-primary)] hover:text-[var(--color-primary)]/80 flex items-center gap-1"
+                      className="font-semibold text-[var(--color-primary)] hover:underline"
                     >
-                      <Paperclip size={12} />
                       View ({task.attachments.length})
                     </button>
                   ) : (
-                    <span className="text-[var(--color-textSecondary)]">No Attachments</span>
+                    <span className="text-[var(--color-textSecondary)]">No attachments</span>
                   )}
                 </div>
               </div>
@@ -531,142 +562,208 @@ const PendingRecurringTasks: React.FC = () => {
   );
 
   const renderTableView = () => (
-    <div className="bg-[var(--color-background)] rounded-xl shadow-sm border border-[var(--color-border)] overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-[var(--color-border)]">
-          <thead className="bg-[var(--color-surface)]">
-            <tr>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-[var(--color-textSecondary)] uppercase tracking-wider">Task ID</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-[var(--color-textSecondary)] uppercase tracking-wider">Task</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-[var(--color-textSecondary)] uppercase tracking-wider">Type</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-[var(--color-textSecondary)] uppercase tracking-wider">Priority</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-[var(--color-textSecondary)] uppercase tracking-wider">Assigned By</th>
-              {isAdmin && <th className="px-6 py-4 text-left text-xs font-semibold text-[var(--color-textSecondary)] uppercase tracking-wider">Assigned To</th>}
-              {/* Attachments Header */}
-              <th className="px-6 py-4 text-left text-xs font-semibold text-[var(--color-textSecondary)] uppercase tracking-wider">Attachments</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-[var(--color-textSecondary)] uppercase tracking-wider">Due Date</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-[var(--color-textSecondary)] uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-[var(--color-background)] divide-y divide-[var(--color-border)]">
-            {currentTasks.map((task) => {
-              const overdue = isOverdue(task.dueDate);
-              const daysUntilDue = getDaysUntilDue(task.dueDate);
-              const descriptionIsLong = task.description.length > 150; // Define a threshold for "long" description
-              const displayDescription = showFullDescription[task._id] || !descriptionIsLong
-                ? task.description
-                : `${task.description.substring(0, 150)}...`;
+    <div className="space-y-6">
+      <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+        <div
+          className={`sticky top-3 z-40 mx-3 mt-3 overflow-hidden rounded-[22px] transition-[box-shadow,background-color,border-color,transform] duration-300 ease-out ${
+            tableHasScrolled
+              ? 'bg-[var(--color-surface)] shadow-[0_18px_36px_rgba(15,23,42,0.14)] border border-[var(--color-border)] backdrop-blur-md'
+              : 'bg-[var(--color-surface)]'
+          }`}
+        >
+          <table className="min-w-full table-fixed">
+            <colgroup>
+              <col className="w-[8%]" />
+              <col className="w-[28%]" />
+              <col className="w-[10%]" />
+              <col className="w-[12%]" />
+              <col className="w-[14%]" />
+              {isAdmin && <col className="w-[14%]" />}
+              <col className="w-[12%]" />
+              <col className="w-[10%]" />
+              <col className="w-[6%]" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${
+                  tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''
+                }`}>
+                  Task ID
+                </th>
+                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${
+                  tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''
+                }`}>
+                  Task
+                </th>
+                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${
+                  tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''
+                }`}>
+                  Type
+                </th>
+                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${
+                  tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''
+                }`}>
+                  Priority
+                </th>
+                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${
+                  tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''
+                }`}>
+                  Assigned By
+                </th>
+                {isAdmin && (
+                  <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${
+                    tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''
+                  }`}>
+                    Assigned To
+                  </th>
+                )}
+                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${
+                  tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''
+                }`}>
+                  Attachments
+                </th>
+                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${
+                  tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''
+                }`}>
+                  Due Date
+                </th>
+                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${
+                  tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''
+                }`}>
+                  Actions
+                </th>
+              </tr>
+            </thead>
+          </table>
+        </div>
 
-              return (
-                <tr
-                  key={task._id}
-                  className={`hover:bg-[var(--color-surface)] transition-colors ${overdue ? 'bg-[var(--color-error)]/10 hover:bg-[var(--color-error)]/20'
-                    : daysUntilDue <= 0 ? 'bg-[var(--color-warning)]/10 hover:bg-[var(--color-warning)]/20' // Due today
-                      : ''
-                    }`}
-                >
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--color-text)]">
-                    {task.taskId || '—'}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div>
-                      <div className="text-sm font-medium text-[var(--color-text)] mb-1">
-                        {showFullTitle[task._id] ? task.title : task.title.length > 150 ? `${task.title.substring(0, 150)}...` : task.title}
-                        {task.title.length > 150 && (
-                          <button
-                            onClick={() => toggleTitleVisibility(task._id)}
-                            className="ml-1 text-xs text-[var(--color-primary)] hover:underline font-medium"
-                          >
-                            {showFullTitle[task._id] ? 'Show Less' : 'Show More'}
-                          </button>
-                        )}
+        <div className="mx-3 mb-3 overflow-x-auto rounded-b-[28px]">
+          <table className="min-w-full table-fixed divide-y divide-[var(--color-border)]">
+            <colgroup>
+              <col className="w-[8%]" />
+              <col className="w-[28%]" />
+              <col className="w-[10%]" />
+              <col className="w-[12%]" />
+              <col className="w-[14%]" />
+              {isAdmin && <col className="w-[14%]" />}
+              <col className="w-[12%]" />
+              <col className="w-[10%]" />
+              <col className="w-[6%]" />
+            </colgroup>
+            <tbody className="divide-y divide-[var(--color-border)] bg-[var(--color-surface)]">
+              {currentTasks.map((task) => {
+                const overdue = isOverdue(task.dueDate);
+                const daysUntilDue = getDaysUntilDue(task.dueDate);
+                const descriptionIsLong = task.description.length > 145;
+                const displayDescription = showFullDescription[task._id] || !descriptionIsLong
+                  ? task.description
+                  : truncateText(task.description, 145);
+
+                return (
+                  <tr
+                    key={task._id}
+                    className={`transition-colors hover:bg-[var(--color-surface)] ${overdue ? 'bg-[var(--color-error)]/5 hover:bg-[var(--color-error)]/10'
+                      : daysUntilDue <= 0 ? 'bg-[var(--color-warning)]/10 hover:bg-[var(--color-warning)]/20'
+                        : ''
+                      }`}
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--color-text)]">
+                      {task.taskId || '-'}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div>
+                        <div className="text-sm font-semibold text-[var(--color-text)] mb-1">
+                          {showFullTitle[task._id] ? task.title : truncateText(task.title, 64)}
+                          {task.title.length > 64 && (
+                            <button
+                              onClick={() => toggleTitleVisibility(task._id)}
+                              className="ml-2 text-[11px] font-semibold text-[var(--color-primary)] hover:underline"
+                            >
+                              {showFullTitle[task._id] ? 'Show less' : 'Show more'}
+                            </button>
+                          )}
+                        </div>
+                        <div className="text-sm text-[var(--color-textSecondary)] whitespace-pre-wrap break-words">
+                          {displayDescription}
+                          {descriptionIsLong && (
+                            <button
+                              onClick={() => toggleDescription(task._id)}
+                              className="ml-2 text-[11px] font-semibold text-[var(--color-primary)] hover:underline"
+                            >
+                              {showFullDescription[task._id] ? 'See less' : 'See more'}
+                            </button>
+                          )}
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {overdue && <StatusBadge status="overdue" />}
+                          {!overdue && daysUntilDue <= 0 && <StatusBadge status="due today" />}
+                          {!overdue && daysUntilDue === 1 && <StatusBadge status="due tomorrow" />}
+                        </div>
                       </div>
-                      <div className="text-sm text-[var(--color-textSecondary)] whitespace-pre-wrap break-words">
-                        {displayDescription}
-                        {descriptionIsLong && (
-                          <button
-                            onClick={() => toggleDescription(task._id)}
-                            className="ml-1 text-[var(--color-primary)] hover:underline text-xs font-medium"
-                          >
-                            {showFullDescription[task._id] ? 'See Less' : 'See More'}
-                          </button>
-                        )}
-                      </div>
-                      {overdue && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[var(--color-error)]/20 text-[var(--color-error)] mt-1">
-                          <AlertCircle size={12} className="mr-1" />
-                          {getDaysOverdue(task.dueDate)} days overdue
-                        </span>
-                      )}
-                      {!overdue && daysUntilDue <= 0 && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[var(--color-warning)]/20 text-[var(--color-warning)] mt-1">
-                          <Clock size={12} className="mr-1" />
-                          Due today
-                        </span>
-                      )}
-                      {!overdue && daysUntilDue === 1 && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[var(--color-warning)]/20 text-[var(--color-warning)] mt-1">
-                          <Clock size={12} className="mr-1" />
-                          Due tomorrow
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap"><TaskTypeBadge taskType={task.taskType} /></td>
-                  <td className="px-6 py-4 whitespace-nowrap"><PriorityBadge priority={task.priority} /></td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap"><TaskTypeBadge taskType={task.taskType} /></td>
+                    <td className="px-6 py-4 whitespace-nowrap"><PriorityBadge priority={task.priority} /></td>
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-semibold text-[var(--color-text)]">{task.assignedBy.username}</div>
                     </td>
-                  {isAdmin && (
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-[var(--color-text)]">{task.assignedTo.username}</div>
-                      <div className="text-sm text-[var(--color-textSecondary)]">{task.assignedTo.email}</div>
-                    </td>
-                  )}
-                  {/* Attachments in Table View */}
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {task.attachments && task.attachments.length > 0 ? (
-                      <button
-                        onClick={() => setShowAttachmentsModal(task.attachments)}
-                        className="font-medium text-[var(--color-primary)] hover:text-[var(--color-primary)]/80 flex items-center gap-1"
-                      >
-                        <Paperclip size={12} />
-                        View ({task.attachments.length})
-                      </button>
-                    ) : (
-                      <span className="text-[var(--color-textSecondary)]">No Attachments</span>
+                    {isAdmin && (
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-[var(--color-text)]">{task.assignedTo.username}</div>
+                        <div className="text-sm text-[var(--color-textSecondary)]">{task.assignedTo.email}</div>
+                      </td>
                     )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-[var(--color-text)]">{new Date(task.dueDate).toLocaleDateString('en-GB', {
-                      day: '2-digit',
-                      month: 'numeric',
-                      year: 'numeric',
-                    })}</div>
-                    {task.lastCompletedDate && (
-                      <div className="text-xs text-[var(--color-textSecondary)]">
-                        Last: {new Date(task.lastCompletedDate).toLocaleDateString('en-GB', {
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {task.attachments && task.attachments.length > 0 ? (
+                        <button
+                          onClick={() => setShowAttachmentsModal(task.attachments)}
+                          className="font-semibold text-[var(--color-primary)] hover:underline"
+                        >
+                          View ({task.attachments.length})
+                        </button>
+                      ) : (
+                        <span className="text-[var(--color-textSecondary)]">No attachments</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className={`text-sm font-semibold ${overdue ? 'text-[var(--color-error)]' : daysUntilDue <= 0 ? 'text-[var(--color-warning)]' : 'text-[var(--color-text)]'}`}>
+                        {new Date(task.dueDate).toLocaleDateString('en-GB', {
                           day: '2-digit',
                           month: 'numeric',
                           year: 'numeric',
                         })}
                       </div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button
-                      onClick={() => setShowCompleteModal(task._id)}
-                      className="text-[var(--color-success)] hover:opacity-80 transition-all hover:scale-110"
-                      title="Complete task"
-                    >
-                      <CheckSquare size={18} />
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                      <div className="text-xs text-[var(--color-textSecondary)]">
+                        Created: {new Date(task.createdAt).toLocaleDateString('en-GB', {
+                          day: '2-digit',
+                          month: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </div>
+                      {task.lastCompletedDate && (
+                        <div className="text-xs text-[var(--color-textSecondary)]">
+                          Last: {new Date(task.lastCompletedDate).toLocaleDateString('en-GB', {
+                            day: '2-digit',
+                            month: 'numeric',
+                            year: 'numeric',
+                          })}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <button
+                        onClick={() => setShowCompleteModal(task._id)}
+                        className="inline-flex items-center justify-center rounded-2xl border border-[var(--color-success)]/20 bg-[var(--color-success)]/10 p-2.5 text-[var(--color-success)] transition hover:-translate-y-0.5 hover:border-[var(--color-success)]/30 hover:bg-[var(--color-success)]/15"
+                        title="Complete task"
+                      >
+                        <CheckSquare size={18} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -684,60 +781,81 @@ const PendingRecurringTasks: React.FC = () => {
   const completingTask = getTaskToComplete();
 
   return (
-    <div className="min-h-full bg-[var(--color-background)] p-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-[--color-text]">
-            {isAdmin ? 'Team Pending Tasks' : 'My Pending Tasks'}
-          </h1>
-          <p className="mt-0 text-xs text-[var(--color-textSecondary)]">
-            {currentTasks.length} of {totalTasks} task(s) found
-            {isAdmin ? ' (All team members)' : ' (Your tasks)'}
-          </p>
+    <div className="min-h-full bg-[var(--color-background)] p-4 sm:p-6">
+      <section className="rounded-[22px] border border-[var(--color-border)] bg-[var(--color-surface)]/90 px-4 py-4 shadow-sm backdrop-blur-xl sm:px-5 mb-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-xl font-semibold tracking-tight text-[var(--color-text)] sm:text-[1.65rem]">
+              {isAdmin ? 'Team Pending Recurring Tasks' : 'My Pending Recurring Tasks'}
+            </h1>
+            <p className="mt-1 truncate text-xs text-[var(--color-textSecondary)]">
+              {totalTasks} tasks found
+              {activeSection === 'daily' ? ' for today' : ' in the next 5 days'}
+              {isAdmin ? ' (All team members)' : ' (Your tasks)'}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
+            <button
+              onClick={handleRefresh}
+              className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:border-[var(--color-primary)]/25 hover:text-[var(--color-primary)]"
+            >
+              <RefreshCw size={14} />
+              Refresh
+            </button>
+            <ViewToggle view={view} onViewChange={setView} />
+          </div>
         </div>
-        <div className="hidden sm:block">
-          <ViewToggle view={view} onViewChange={setView} />
-        </div>
-      </div>
 
-      <div className="bg-[var(--color-surface)] rounded-xl shadow-sm border border-[var(--color-border)] p-2 mt-2 mb-2">
-        <div className="flex flex-wrap gap-2 mb-1 items-center">
-          <div className="flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="relative inline-grid grid-cols-2 items-center self-start rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] p-0.5 shadow-[0_6px_16px_rgba(15,23,42,0.05)] backdrop-blur-xl">
+            <span
+              aria-hidden="true"
+              className={`absolute inset-y-0.5 left-0.5 w-[calc(50%-0.25rem)] rounded-full bg-[var(--color-primary)] shadow-[0_6px_14px_rgba(14,165,233,0.24)] transition-transform duration-300 ease-out ${
+                activeSection === 'cyclic' ? 'translate-x-full' : 'translate-x-0'
+              }`}
+            />
             <button
               onClick={() => {
                 setActiveSection('daily');
                 setCurrentPage(1);
               }}
-              className={`px-4 py-1 rounded-lg font-semibold transition-all duration-200 flex items-center gap-2 text-xs ${activeSection === 'daily'
-                ? 'bg-[var(--color-primary)] text-white shadow-md'
-                : 'bg-[var(--color-background)] text-[var(--color-textSecondary)] hover:bg-[var(--color-border)]'
-                }`}
+              className={`relative z-10 flex h-8 items-center justify-center gap-1.5 rounded-full px-3 text-[12px] font-semibold transition-colors duration-300 ${
+                activeSection === 'daily'
+                  ? 'text-white'
+                  : 'text-text'
+              }`}
             >
-              <CalendarDays size={10} />
-              Daily Tasks
+              <CalendarDays size={12} />
+              <span>Daily</span>
               {dailyTasksCount > 0 && (
-                <span className={`px-1 py-1 rounded-full text-xs font-bold ${activeSection === 'daily' ? 'bg-[var(--color-background)] text-[var(--color-primary)]' : 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
-                  }`}>
+                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${
+                  activeSection === 'daily'
+                    ? 'bg-white/15 text-white'
+                    : 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
+                }`}>
                   {dailyTasksCount}
                 </span>
               )}
             </button>
-
             <button
               onClick={() => {
                 setActiveSection('cyclic');
                 setCurrentPage(1);
               }}
-              className={`px-4 py-1 rounded-lg font-semibold transition-all duration-200 flex items-center gap-2 text-xs ${activeSection === 'cyclic'
-                ? 'bg-[var(--color-accent)] text-white shadow-md'
-                : 'bg-[var(--color-background)] text-[var(--color-textSecondary)] hover:bg-[var(--color-border)]'
-                }`}
+              className={`relative z-10 flex h-8 items-center justify-center gap-1.5 rounded-full px-3 text-[12px] font-semibold transition-colors duration-300 ${
+                activeSection === 'cyclic'
+                  ? 'text-white'
+                  : 'text-text'
+              }`}
             >
-              <RefreshCw size={10} />
-              Cyclic Tasks
+              <RefreshCw size={12} />
+              <span>Cyclic</span>
               {cyclicTasksCount > 0 && (
-                <span className={`px-2 py-1 rounded-full text-xs font-bold ${activeSection === 'cyclic' ? 'bg-white text-[var(--color-accent)]' : 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
-                  }`}>
+                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${
+                  activeSection === 'cyclic'
+                    ? 'bg-white/15 text-white'
+                    : 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
+                }`}>
                   {cyclicTasksCount}
                 </span>
               )}
@@ -746,16 +864,16 @@ const PendingRecurringTasks: React.FC = () => {
 
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="ml-auto px-4 py-2 bg-[var(--color-surface)] hover:bg-[var(--color-border)] rounded-lg transition-colors text-sm font-medium text-[var(--color-text)] flex items-center gap-2"
+            className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:border-[var(--color-primary)]/25 hover:text-[var(--color-primary)]"
           >
-            <Filter size={12} />
+            <Filter size={14} />
             {showFilters ? 'Hide Filters' : 'Show Filters'}
-            {showFilters ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+            {showFilters ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           </button>
         </div>
 
         {showFilters && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 p-4 bg-[var(--color-background)] rounded-lg border border-[var(--color-border)]">
+          <div className="mt-4 grid grid-cols-1 gap-4 rounded-[20px] border border-[var(--color-border)] bg-[var(--color-background)] p-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
             <div>
               <label className="block text-sm font-medium text-[var(--color-text)] mb-1">Task Type</label>
               <select
@@ -834,27 +952,27 @@ const PendingRecurringTasks: React.FC = () => {
               </div>
             </div>
             <div className="flex items-end">
-              <button onClick={resetFilters} className="px-2 py-2 text-sm font-medium text-[var(--color-text)] bg-[var(--color-surface)] hover:bg-[var(--color-border)] rounded-lg transition-colors">
+              <button onClick={resetFilters} className="inline-flex items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:border-[var(--color-primary)]/25 hover:text-[var(--color-primary)]">
                 Clear Filters
               </button>
             </div>
           </div>
         )}
-      </div>
+      </section>
 
       {totalTasks === 0 ? (
-        <div className="text-center py-16 bg-[var(--color-background)] rounded-xl shadow-sm border border-[var(--color-border)]">
-          <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-[var(--color-primary)]/20 to-[var(--color-accent)]/20 rounded-full flex items-center justify-center">
+        <div className="mt-4 rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 px-6 py-16 text-center shadow-lg shadow-black/5 backdrop-blur-xl">
+          <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-[var(--color-primary)]/20 to-[var(--color-accent)]/20">
             {activeSection === 'daily' ? (
               <CalendarDays size={32} className="text-[var(--color-primary)]" />
             ) : (
               <RefreshCw size={32} className="text-[var(--color-accent)]" />
             )}
           </div>
-          <h3 className="text-xl font-semibold text-[var(--color-text)] mb-2">
+          <h3 className="mb-2 text-xl font-semibold text-[var(--color-text)]">
             No {activeSection === 'daily' ? 'daily tasks for today' : 'pending cyclic tasks'}
           </h3>
-          <p className="text-[var(--color-textSecondary)] mb-4">
+          <p className="mb-4 text-[var(--color-textSecondary)]">
             {activeSection === 'daily'
               ? "Great job! You don't have any daily tasks due today."
               : "No cyclic tasks are pending or due within the next 5 days."
@@ -868,57 +986,50 @@ const PendingRecurringTasks: React.FC = () => {
 
           {/* Enhanced Pagination */}
           {totalPages > 1 && (
-            <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] p-4 mt-2">
-              <div className="flex flex-col items-center text-center sm:flex-row sm:items-center sm:justify-between gap-4">
-                {/* Items per page selector */}
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-[--color-textSecondary]">Show:</span>
+            <div className="mt-4 rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-lg shadow-black/5 backdrop-blur-xl">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm text-[var(--color-textSecondary)]">
+                    <span className="font-semibold text-[var(--color-text)]">Show</span>
                   <select
                     value={itemsPerPage}
                     onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-                    className="text-sm px-2 py-1 border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] bg-[--color-surface] text-[--color-text]"
+                      className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)]"
                   >
                     <option value={10}>10</option>
                     <option value={25}>25</option>
                     <option value={50}>50</option>
                     <option value={100}>100</option>
                   </select>
-                  <span className="text-sm text-[--color-textSecondary]">per page</span>
+                    <span>per page</span>
+                  </div>
+                  <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2 text-sm text-[var(--color-textSecondary)]">
+                    Showing <span className="font-semibold text-[var(--color-text)]">{totalTasks === 0 ? 0 : startIndex + 1}</span> to{' '}
+                    <span className="font-semibold text-[var(--color-text)]">{Math.min(endIndex, totalTasks)}</span> of{' '}
+                    <span className="font-semibold text-[var(--color-text)]">{totalTasks}</span> results
+                  </div>
                 </div>
 
-                {/* Page info */}
-                <div className="flex items-center">
-                  <p className="text-sm text-[--color-textSecondary]">
-                    Showing <span className="font-medium">{totalTasks === 0 ? 0 : startIndex + 1}</span> to{' '}
-                    <span className="font-medium">{Math.min(endIndex, totalTasks)}</span> of{' '}
-                    <span className="font-medium">{totalTasks}</span> results
-                  </p>
-                </div>
-
-                {/* Pagination controls */}
-                <div className="flex items-center space-x-1">
-                  {/* First page */}
+                <div className="flex items-center gap-2">
                   <button
                     onClick={() => handlePageChange(1)}
                     disabled={currentPage === 1}
-                    className="p-2 text-sm font-medium text-[--color-textSecondary] bg-[--color-surface] border border-[--color-border] rounded-lg hover:bg-[--color-border] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-textSecondary)] transition hover:border-[var(--color-primary)]/30 hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
                     title="First page"
                   >
                     <ChevronsLeft size={16} />
                   </button>
 
-                  {/* Previous page */}
                   <button
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
-                    className="p-2 text-sm font-medium text-[--color-textSecondary] bg-[--color-surface] border border-[--color-border] rounded-lg hover:bg-[--color-border] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-textSecondary)] transition hover:border-[var(--color-primary)]/30 hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
                     title="Previous page"
                   >
                     <ChevronLeft size={16} />
                   </button>
 
-                  {/* Page numbers */}
-                  <div className="flex items-center space-x-1">
+                  <div className="flex items-center gap-2">
                     {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
                       let pageNumber;
 
@@ -936,9 +1047,9 @@ const PendingRecurringTasks: React.FC = () => {
                         <button
                           key={pageNumber}
                           onClick={() => handlePageChange(pageNumber)}
-                          className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${currentPage === pageNumber
-                            ? 'bg-[--color-primary] text-white'
-                            : 'text-[--color-textSecondary] bg-[--color-surface] border border-[--color-border] hover:bg-[--color-border]'
+                          className={`inline-flex h-10 min-w-10 items-center justify-center rounded-xl border px-3 text-sm font-semibold transition ${currentPage === pageNumber
+                            ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white shadow-md'
+                            : 'border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-textSecondary)] hover:border-[var(--color-primary)]/30 hover:text-[var(--color-text)]'
                             }`}
                         >
                           {pageNumber}
@@ -947,21 +1058,19 @@ const PendingRecurringTasks: React.FC = () => {
                     })}
                   </div>
 
-                  {/* Next page */}
                   <button
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
-                    className="p-2 text-sm font-medium text-[--color-textSecondary] bg-[--color-surface] border border-[--color-border] rounded-lg hover:bg-[--color-border] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-textSecondary)] transition hover:border-[var(--color-primary)]/30 hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
                     title="Next page"
                   >
                     <ChevronRight size={16} />
                   </button>
 
-                  {/* Last page */}
                   <button
                     onClick={() => handlePageChange(totalPages)}
                     disabled={currentPage === totalPages}
-                    className="p-2 text-sm font-medium text-[--color-textSecondary] bg-[--color-surface] border border-[--color-border] rounded-lg hover:bg-[--color-border] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-textSecondary)] transition hover:border-[var(--color-primary)]/30 hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
                     title="Last page"
                   >
                     <ChevronsRight size={16} />
@@ -1001,10 +1110,10 @@ const PendingRecurringTasks: React.FC = () => {
 
       {/* Attachments Modal */}
       {showAttachmentsModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="rounded-xl max-w-2xl w-full shadow-2xl transform transition-all bg-[var(--color-surface)] max-h-[80vh] overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl">
             <div className="p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center text-[var(--color-text)]">
+              <h3 className="mb-4 flex items-center text-lg font-semibold text-[var(--color-text)]">
                 <Paperclip size={20} className="mr-2" />
                 Task Attachments
                 <span className="ml-2 text-sm font-normal text-[var(--color-textSecondary)]">
@@ -1087,7 +1196,7 @@ const PendingRecurringTasks: React.FC = () => {
               <div className="mt-6 flex justify-end border-t border-[var(--color-border)] pt-4">
                 <button
                   onClick={() => setShowAttachmentsModal(null)}
-                  className="py-2 px-6 rounded-lg font-medium transition-colors hover:bg-[var(--color-background)] bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text)] hover:border-[var(--color-primary)]/50"
+                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-2 font-medium text-[var(--color-text)] transition-colors hover:border-[var(--color-primary)]/50 hover:bg-[var(--color-background)]"
                 >
                   Close
                 </button>
@@ -1100,27 +1209,27 @@ const PendingRecurringTasks: React.FC = () => {
       {/* Full-screen Image Preview Modal */}
       {selectedImagePreview && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4"
-          onClick={() => setSelectedImagePreview(null)} // Close on click outside
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+          onClick={() => setSelectedImagePreview(null)}
         >
           <div
             className="relative"
-            onClick={(e) => e.stopPropagation()} // Prevent modal from closing when clicking on the image
+            onClick={(e) => e.stopPropagation()}
           >
             <img
               src={selectedImagePreview}
               alt="Full Screen Preview"
-              className="max-w-full max-h-[90vh] object-contain cursor-pointer rounded-lg shadow-2xl" // Adjusted styling for full screen
-              onClick={() => setSelectedImagePreview(null)} // Close on image click
+              className="max-h-[90vh] max-w-full cursor-pointer rounded-lg object-contain shadow-2xl"
+              onClick={() => setSelectedImagePreview(null)}
             />
             <button
               onClick={() => setSelectedImagePreview(null)}
-              className="absolute -top-2 -right-2 text-white text-2xl bg-red-500 hover:bg-red-600 rounded-full w-8 h-8 flex items-center justify-center transition-colors shadow-lg"
+              className="absolute -right-2 -top-2 flex h-8 w-8 items-center justify-center rounded-full bg-red-500 text-2xl text-white shadow-lg transition-colors hover:bg-red-600"
               title="Close"
             >
               &times;
             </button>
-            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-75 text-white px-4 py-2 rounded-lg text-sm">
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-lg bg-black/75 px-4 py-2 text-sm text-white">
               Click anywhere to close
             </div>
           </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { RotateCcw, Calendar, Filter, Search, Trash2, Users, Paperclip, FileText, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CreditCard as Edit, Info, Download, ExternalLink, Settings, Loader, AlertTriangle, XCircle, CreditCard as Edit3, RefreshCw, X } from 'lucide-react';
+import { RotateCcw, Calendar, Filter, Search, Trash2, Users, Paperclip, FileText, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CreditCard as Edit, Info, Download, ExternalLink, Settings, Loader, AlertTriangle, XCircle, CreditCard as Edit3, RefreshCw, X, CheckCircle2, Clock3 } from 'lucide-react';
 import axios from 'axios';
 import ViewToggle from '../components/ViewToggle';
 import StatusBadge from '../components/StatusBadge';
@@ -365,6 +365,7 @@ const MasterRecurringTasks: React.FC = () => {
 
 
   const [showFilters, setShowFilters] = useState(false);
+  const [tableHasScrolled, setTableHasScrolled] = useState(false);
   const [showAttachmentsModal, setShowAttachmentsModal] = useState<{ attachments: Attachment[], type: 'task' | 'completion' } | null>(null);
   const [selectedImagePreview, setSelectedImagePreview] = useState<string | null>(null);
   const [showRemarksModal, setShowRemarksModal] = useState<Task | null>(null);
@@ -399,6 +400,19 @@ const MasterRecurringTasks: React.FC = () => {
   const canEditRecurringTaskSchedules = user?.permissions?.canEditRecurringTaskSchedules || false;
   const canDeleteTasks = user?.permissions?.canDeleteTasks || false;
   const hasMasterTaskActions = canEditRecurringTaskSchedules || canDeleteTasks;
+
+  useEffect(() => {
+    const scrollEl = document.querySelector('main');
+    if (!(scrollEl instanceof HTMLElement)) {
+      setTableHasScrolled(false);
+      return;
+    }
+
+    const updateScrolledState = () => setTableHasScrolled(scrollEl.scrollTop > 8);
+    updateScrolledState();
+    scrollEl.addEventListener('scroll', updateScrolledState, { passive: true });
+    return () => scrollEl.removeEventListener('scroll', updateScrolledState);
+  }, [view, isEditMode, currentPage, itemsPerPage, masterTasks.length, individualTasks.length]);
 
   // ⚡ LIGHTNING FAST: Ultra-optimized edit mode data fetching
   const fetchMasterTasksUltraFast = useCallback(async (useCache: boolean = true) => {
@@ -1188,47 +1202,56 @@ const MasterRecurringTasks: React.FC = () => {
         const isSelected = selectedTasks.has(masterTask.taskGroupId);
         handleTaskSelection(masterTask.taskGroupId, !isSelected);
       }}
-      className={`cursor-pointer bg-[--color-background] rounded-xl shadow-sm border transition-all duration-200 overflow-hidden ${isSelectionMode && masterTask.parentTaskInfo?.isForever
-        ? selectedTasks.has(masterTask.taskGroupId)
-          ? 'border-blue-400 bg-[--color-surface] shadow-lg'
-          : 'border-[--color-border] hover:border-blue-300'
-        : 'border-[--color-border] hover:shadow-md'
-        }`}
+      className={`group relative overflow-hidden rounded-[24px] border transition-all duration-300 ${
+        isSelectionMode && masterTask.parentTaskInfo?.isForever
+          ? selectedTasks.has(masterTask.taskGroupId)
+            ? 'border-[var(--color-primary)]/35 bg-[var(--color-primary)]/5 shadow-[0_18px_40px_rgba(14,165,233,0.14)]'
+            : 'border-[var(--color-border)] hover:border-[var(--color-primary)]/25'
+          : 'border-[var(--color-border)] shadow-[0_12px_30px_rgba(15,23,42,0.06)] hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.10)]'
+      } bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(248,250,252,0.90))] backdrop-blur-xl`}
     >
-      <div className="p-6">
-        {/* Selection checkbox for forever tasks */}
+      <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-[var(--color-primary)] via-cyan-500 to-emerald-500 opacity-80" />
+      <div className="p-5">
         {isSelectionMode && masterTask.parentTaskInfo?.isForever && (
-          <div className="flex items-center mb-4">
+          <div className="mb-4 flex items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
             <input
               type="checkbox"
               checked={selectedTasks.has(masterTask.taskGroupId)}
               onChange={(e) => handleTaskSelection(masterTask.taskGroupId, e.target.checked)}
-              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+              className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
             />
-            <label className="ml-2 text-sm font-medium text-blue-600">
+            <label className="text-sm font-semibold text-[var(--color-primary)]">
               Select for reassign
             </label>
           </div>
         )}
 
-        <div className="flex items-start justify-between mb-4">
-          <div className="text-lg font-semibold text-gray-900 mb-2">
-            <ReadMore text={masterTask.title} maxLength={60} />
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <TaskTypeBadge taskType={masterTask.taskType} />
+              <PriorityBadge priority={masterTask.priority} />
+              {masterTask.parentTaskInfo?.isForever && (
+                <span className="inline-flex items-center rounded-full border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary)]">
+                  Forever
+                </span>
+              )}
+              {masterTask.endedEarly && (
+                <span className="inline-flex items-center rounded-full border border-[var(--color-warning)]/20 bg-[var(--color-warning)]/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-warning)]">
+                  Ended Early
+                </span>
+              )}
+            </div>
+            <div className="mt-3">
+              <div className="text-[1rem] font-semibold leading-snug text-[var(--color-text)] transition-colors group-hover:text-[var(--color-primary)]">
+                <ReadMore text={masterTask.title} maxLength={60} />
+              </div>
+            </div>
           </div>
-
-          {masterTask.endedEarly && (
-            <span className="inline-flex items-center gap-0.5 rounded-full bg-orange-50 border border-orange-200 px-1.5 py-[1px] text-[10px] font-semibold text-orange-700 leading-none">
-              <span className="text-[11px] leading-none">⏱️</span>
-              Ended Early
-            </span>
-          )}
-
-
           {hasMasterTaskActions && (
-            <div className="flex items-center space-x-2 ml-2">
+            <div className="flex shrink-0 items-center gap-2">
               {canEditRecurringTaskSchedules && (
-
-                <><button
+                <button
                   type="button"
                   onClick={() => {
                     setSelectedActivityGroupId(masterTask.taskGroupId);
@@ -1236,98 +1259,78 @@ const MasterRecurringTasks: React.FC = () => {
                     setShowActivityModal(true);
                     fetchTaskActivities(masterTask.taskGroupId);
                   }}
-                  className="h-7 w-7 inline-flex items-center justify-center rounded-xl border border-[--color-border] bg-[--color-surface] text-[--color-text] hover:bg-[--color-primary]/10 hover:text-[--color-primary] transition"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-textSecondary)] transition hover:border-[var(--color-primary)]/25 hover:bg-[var(--color-primary)]/10 hover:text-[var(--color-primary)]"
                   title="View activity logs"
                 >
                   <Info size={16} />
-                </button><button
+                </button>
+              )}
+              {canEditRecurringTaskSchedules && (
+                <button
                   onClick={() => handleEditMasterTask(masterTask)}
-                  className="p-2 text-[--color-primary] hover:bg-blue-500 hover:text-white rounded-lg transition-colors"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/10 text-[var(--color-primary)] transition hover:border-[var(--color-primary)]/30 hover:bg-[var(--color-primary)]/15"
                   title="Edit master task"
                 >
-                    <Edit size={16} />
-                  </button></>
+                  <Edit size={16} />
+                </button>
               )}
               {canDeleteTasks && (
                 <button
                   onClick={() => handleDeleteMasterTask(masterTask)}
-                  className="flex items-center gap-1 p-2 text-[--color-error] hover:bg-[--color-error] hover:text-white hover:scale-105 rounded-lg transition-all duration-150 ease-in-out"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-[var(--color-error)]/20 bg-[var(--color-error)]/10 text-[var(--color-error)] transition hover:border-[var(--color-error)]/30 hover:bg-[var(--color-error)]/15"
                   title="Move to recycle bin"
                 >
                   <Trash2 size={16} />
                 </button>
               )}
               <button
-                className="p-2 text-[--color-success] hover:bg-[--color-success] hover:text-white hover:scale-105 rounded-lg transition-all duration-150 ease-in-out"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-[var(--color-success)]/20 bg-[var(--color-success)]/10 text-[var(--color-success)] transition hover:border-[var(--color-success)]/30 hover:bg-[var(--color-success)]/15"
                 onClick={() => openReassignModal(masterTask)}
               >
-                <RotateCcw size={18} />
+                <RotateCcw size={16} />
               </button>
-
             </div>
           )}
         </div>
 
-        {/* Selection indicator for non-forever tasks */}
         {isSelectionMode && !masterTask.parentTaskInfo?.isForever && (
-          <div className="mb-4 p-2 bg-[--color-cardcolor] rounded-lg">
-            <span className="text-xs text-red-500">
-              Not available for reassign (not a forever task)
-            </span>
+          <div className="mt-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-xs font-medium text-[var(--color-error)]">
+            Not available for reassign
           </div>
         )}
 
-        <div className="flex flex-wrap gap-2 mb-4">
-          <TaskTypeBadge taskType={masterTask.taskType} />
-          <PriorityBadge priority={masterTask.priority} />
-          <span className="px-2 py-1 text-xs font-medium rounded-full bg-[--color-info-light] text-[--color-info]">
-            {masterTask.instanceCount} instances
-          </span>
-          <span className="px-2 py-1 text-xs font-medium rounded-full bg-[--color-success-light] text-[--color-success]">
-            {masterTask.completedCount} completed
-          </span>
-          <span className="px-2 py-1 text-xs font-medium rounded-full bg-[--color-warning-light] text-[--color-warning]">
-            {masterTask.pendingCount} pending
-          </span>
-          {masterTask.parentTaskInfo?.isForever && (
-            <span className="px-2 py-1 text-xs font-medium rounded-full bg-[--color-primary-light] text-[--color-primary]">
-              FOREVER
-            </span>
-          )}
-        </div>
-
-        <ReadMore text={masterTask.description} maxLength={descriptionMaxLength} />
-
-        <div className="space-y-2 text-sm text-[--color-textSecondary]">
-          <div className="flex justify-between">
-            <span>Assigned by:</span>
-            <span className="font-medium">{masterTask.assignedBy.username}</span>
+        <div className="mt-4 grid gap-3 text-sm">
+          <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
+            <span className="text-[var(--color-textSecondary)]">Instances</span>
+            <span className="font-semibold text-[var(--color-text)]">{masterTask.instanceCount}</span>
           </div>
-          {isAdmin && (
-            <div className="flex justify-between">
-              <span>Assigned to:</span>
-              <span className="font-medium">{masterTask.assignedTo.username}</span>
-            </div>
-          )}
-          <div className="flex justify-between">
-            <span className="flex items-center">
-              <Paperclip size={14} className="mr-1" />
-              Attachments:
+          <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-success)]/5 px-3 py-2">
+            <span className="text-[var(--color-textSecondary)]">Completed</span>
+            <span className="font-semibold text-[var(--color-success)]">{masterTask.completedCount}</span>
+          </div>
+          <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-warning)]/5 px-3 py-2">
+            <span className="text-[var(--color-textSecondary)]">Pending</span>
+            <span className="font-semibold text-[var(--color-warning)]">{masterTask.pendingCount}</span>
+          </div>
+          <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
+            <span className="flex items-center gap-1 text-[var(--color-textSecondary)]">
+              <Paperclip size={14} />
+              Attachments
             </span>
             {masterTask.attachments && masterTask.attachments.length > 0 ? (
               <button
                 onClick={() => setShowAttachmentsModal({ attachments: masterTask.attachments, type: 'task' })}
-                className="font-medium text-[--color-primary] hover:text-[--color-primary]"
+                className="font-semibold text-[var(--color-primary)] hover:underline"
               >
-                Click Here ({masterTask.attachments.length})
+                View ({masterTask.attachments.length})
               </button>
             ) : (
-              <span>No Attachments</span>
+              <span className="text-[var(--color-textSecondary)]">No attachments</span>
             )}
           </div>
-          <div className="flex justify-between">
-            <span>Date range:</span>
-            <span className="font-medium">
+          <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
+            <span className="text-[var(--color-textSecondary)]">Date range</span>
+            <span className="font-semibold text-[var(--color-text)]">
               {new Date(masterTask.dateRange.start).toLocaleDateString('en-GB', {
                 day: '2-digit',
                 month: 'numeric',
@@ -1341,28 +1344,22 @@ const MasterRecurringTasks: React.FC = () => {
           </div>
           {masterTask.parentTaskInfo && (
             <>
-              <div className="flex justify-between">
-                <span>Include Sunday:</span>
-                <span className="font-medium">
+              <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
+                <span className="text-[var(--color-textSecondary)]">Include Sunday</span>
+                <span className="font-semibold text-[var(--color-text)]">
                   {masterTask.parentTaskInfo.includeSunday ? 'Yes' : 'No'}
                 </span>
               </div>
-              {resolveWeekOffDays(
-                masterTask.weekOffDays,
-                masterTask.parentTaskInfo?.weekOffDays
-              ).length > 0 && (
-                <div className="flex justify-between">
-                  <span>Week Off:</span>
-                  <span className="font-medium">
-                    {resolveWeekOffDays(
-                      masterTask.weekOffDays,
-                      masterTask.parentTaskInfo?.weekOffDays
-                    )
+              {resolveWeekOffDays(masterTask.weekOffDays, masterTask.parentTaskInfo?.weekOffDays).length > 0 && (
+                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
+                  <span className="text-[var(--color-textSecondary)]">Week Off</span>
+                  <p className="mt-1 font-semibold text-[var(--color-text)]">
+                    {resolveWeekOffDays(masterTask.weekOffDays, masterTask.parentTaskInfo?.weekOffDays)
                       .map((d: number) =>
                         ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d]
                       )
                       .join(', ')}
-                  </span>
+                  </p>
                 </div>
               )}
             </>
@@ -1523,6 +1520,158 @@ const MasterRecurringTasks: React.FC = () => {
 
   TaskCard.displayName = 'TaskCard';
 
+  const ModernTaskCard = memo<{ task: Task }>(({ task }) => (
+    <div className="group relative overflow-hidden rounded-[24px] border border-[var(--color-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(248,250,252,0.90))] shadow-[0_12px_30px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.10)]">
+      <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-[var(--color-primary)] via-cyan-500 to-emerald-500 opacity-80" />
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <TaskTypeBadge taskType={task.taskType} />
+              <StatusBadge status={task.status} />
+              <PriorityBadge priority={task.priority} />
+              {task.parentTaskInfo?.isForever && (
+                <span className="inline-flex items-center rounded-full border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary)]">
+                  Forever
+                </span>
+              )}
+            </div>
+            <div className="mt-3 text-[1rem] font-semibold leading-snug text-[var(--color-text)] transition-colors group-hover:text-[var(--color-primary)]">
+              <ReadMore text={task.title} maxLength={70} />
+            </div>
+          </div>
+          {canDeleteTasks && (
+            <button
+              onClick={() => handleDeleteTask(task._id)}
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[var(--color-error)]/20 bg-[var(--color-error)]/10 text-[var(--color-error)] transition hover:border-[var(--color-error)]/30 hover:bg-[var(--color-error)]/15"
+              title="Delete task"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
+        </div>
+
+        <p className="mt-3 text-sm leading-6 text-[var(--color-textSecondary)] whitespace-pre-wrap break-words">
+          <ReadMore text={task.description} maxLength={descriptionMaxLength} />
+        </p>
+
+        <div className="mt-4 grid gap-3 text-sm">
+          <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
+            <span className="text-[var(--color-textSecondary)]">Task ID</span>
+            <span className="font-semibold text-[var(--color-text)]">{task.taskId || '—'}</span>
+          </div>
+          <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
+            <span className="text-[var(--color-textSecondary)]">Assigned by</span>
+            <span className="font-semibold text-[var(--color-text)]">{task.assignedBy.username}</span>
+          </div>
+          {isAdmin && (
+            <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-primary)]/5 px-3 py-2">
+              <span className="text-[var(--color-textSecondary)]">Assigned to</span>
+              <span className="font-semibold text-[var(--color-primary)]">{task.assignedTo.username}</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
+            <span className="flex items-center gap-1 text-[var(--color-textSecondary)]">
+              <Paperclip size={14} />
+              Task attachments
+            </span>
+            {task.attachments && task.attachments.length > 0 ? (
+              <button
+                onClick={() => setShowAttachmentsModal({ attachments: task.attachments, type: 'task' })}
+                className="font-semibold text-[var(--color-primary)] hover:underline"
+              >
+                View ({task.attachments.length})
+              </button>
+            ) : (
+              <span className="text-[var(--color-textSecondary)]">No attachments</span>
+            )}
+          </div>
+          <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
+            <span className="text-[var(--color-textSecondary)]">Due date</span>
+            <span className="font-semibold text-[var(--color-text)]">
+              {new Date(task.dueDate).toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: 'numeric',
+                year: 'numeric',
+              })}
+            </span>
+          </div>
+          {task.completedAt && (
+            <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-success)]/5 px-3 py-2">
+              <span className="flex items-center gap-1 text-[var(--color-textSecondary)]">
+                Completed
+                {task.completionRemarks && (
+                  <button
+                    onClick={() => setShowRemarksModal(task)}
+                    className="text-[var(--color-primary)] hover:text-[var(--color-primary)]"
+                    title="View completion remarks"
+                  >
+                    <Info size={14} />
+                  </button>
+                )}
+              </span>
+              <span className="font-semibold text-[var(--color-success)]">
+                {new Date(task.completedAt).toLocaleDateString('en-GB', {
+                  day: '2-digit',
+                  month: 'numeric',
+                  year: 'numeric',
+                })}
+              </span>
+            </div>
+          )}
+          {task.completionAttachments && task.completionAttachments.length > 0 && (
+            <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
+              <span className="flex items-center gap-1 text-[var(--color-textSecondary)]">
+                <Paperclip size={14} />
+                Completion files
+              </span>
+              <button
+                onClick={() => setShowAttachmentsModal({ attachments: task.completionAttachments!, type: 'completion' })}
+                className="font-semibold text-[var(--color-success)] hover:underline"
+              >
+                View ({task.completionAttachments.length})
+              </button>
+            </div>
+          )}
+          {task.lastCompletedDate && (
+            <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
+              <span className="text-[var(--color-textSecondary)]">Last completed</span>
+              <span className="font-semibold text-[var(--color-text)]">
+                {new Date(task.lastCompletedDate).toLocaleDateString('en-GB', {
+                  day: '2-digit',
+                  month: 'numeric',
+                  year: 'numeric',
+                })}
+              </span>
+            </div>
+          )}
+          {task.parentTaskInfo && (
+            <>
+              <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
+                <span className="text-[var(--color-textSecondary)]">Include Sunday</span>
+                <span className="font-semibold text-[var(--color-text)]">{task.parentTaskInfo.includeSunday ? 'Yes' : 'No'}</span>
+              </div>
+              {resolveWeekOffDays(task.weekOffDays, task.parentTaskInfo.weekOffDays).length > 0 && (
+                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
+                  <span className="text-[var(--color-textSecondary)]">Week Off</span>
+                  <p className="mt-1 font-semibold text-[var(--color-text)]">
+                    {resolveWeekOffDays(task.weekOffDays, task.parentTaskInfo.weekOffDays)
+                      .map((d: number) =>
+                        ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d]
+                      )
+                      .join(', ')}
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  ));
+
+  ModernTaskCard.displayName = 'ModernTaskCard';
+
   // Render functions
   const renderMasterTaskCardView = () => (
     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -1533,234 +1682,241 @@ const MasterRecurringTasks: React.FC = () => {
   );
 
   const renderMasterTaskTableView = () => (
-    <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-[--color-border]">
-          <thead className="bg-[--color-surface]">
-            <tr>
-              {isSelectionMode && (
-                <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
-                  Select
-                </th>
-              )}
-              <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
-                Master Task
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
-                Type
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
-                Priority
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
-                Instances
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
-                Assigned By
-              </th>
-              {isAdmin && (
-                <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
-                  Assigned To
-                </th>
-              )}
-              <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
-                Task Attachments
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
-                Date Range
-              </th>
-              {hasMasterTaskActions && (
-                <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
-                  Actions
-                </th>
-              )}
-            </tr>
-          </thead>
-          <tbody className="bg-[--color-background] divide-y divide-[--color-border]">
-            {masterTasks.map((masterTask: MasterTask) => (
-              <tr
-                onClick={() => {
-                  if (!isSelectionMode) return;
-                  if (!masterTask.parentTaskInfo?.isForever) return;
-
-                  const isSelected = selectedTasks.has(masterTask.taskGroupId);
-                  handleTaskSelection(masterTask.taskGroupId, !isSelected);
-                }}
-                className={`cursor-pointer transition-colors ${isSelectionMode && masterTask.parentTaskInfo?.isForever
-                  ? selectedTasks.has(masterTask.taskGroupId)
-                    ? 'bg-[--color-chat] hover:bg-[--color-surfacechat]'
-                    : 'hover:bg-[--color-surface]'
-                  : 'hover:bg-[--color-surface]'
-                  }`}
-              >
+    <div className="space-y-6 mt-4">
+      <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/85 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+        <div
+          className={`sticky top-3 z-40 mx-3 mt-3 overflow-hidden rounded-[22px] transition-[box-shadow,background-color,border-color,transform] duration-300 ease-out ${
+            tableHasScrolled
+              ? 'bg-[var(--color-surface)] shadow-[0_18px_36px_rgba(15,23,42,0.14)] border border-[var(--color-border)] backdrop-blur-md'
+              : 'bg-[var(--color-surface)]'
+          }`}
+        >
+          <table className="min-w-full table-fixed">
+            <colgroup>
+              {isSelectionMode && <col className="w-[4%]" />}
+              <col className={isSelectionMode ? 'w-[22%]' : 'w-[26%]'} />
+              <col className="w-[8%]" />
+              <col className="w-[8%]" />
+              <col className="w-[13%]" />
+              <col className="w-[10%]" />
+              {isAdmin && <col className="w-[10%]" />}
+              <col className="w-[8%]" />
+              <col className="w-[8%]" />
+              {hasMasterTaskActions && <col className="w-[9%]" />}
+            </colgroup>
+            <thead>
+              <tr>
                 {isSelectionMode && (
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {masterTask.parentTaskInfo?.isForever ? (
-                      <input
-                        type="checkbox"
-                        checked={selectedTasks.has(masterTask.taskGroupId)}
-                        onChange={(e) => handleTaskSelection(masterTask.taskGroupId, e.target.checked)}
-                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                      />
-                    ) : (
-                      <span className="text-xs text-gray-400">N/A</span>
-                    )}
-                  </td>
+                  <th className={`bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                    Select
+                  </th>
                 )}
-                <td className="px-6 py-4">
-                  <div>
-                    <div className="text-sm font-medium text-[--color-text] mb-1">
-                      <ReadMore text={masterTask.title} maxLength={80} />
-                    </div>
-                    {masterTask.endedEarly && (
-                      <span className="inline-flex items-center gap-0.5 rounded-full bg-orange-50 border border-orange-200 px-1.5 py-[1px] text-[10px] font-semibold text-orange-700 leading-none">
-                        <span className="text-[11px] leading-none">⏱️</span>
-                        Ended Early
-                      </span>
-                    )}
+                <th className={`bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                  Master Task
+                </th>
+                <th className={`bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                  Type
+                </th>
+                <th className={`bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                  Priority
+                </th>
+                <th className={`bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                  Instances
+                </th>
+                <th className={`bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                  Assigned By
+                </th>
+                {isAdmin && (
+                  <th className={`bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                    Assigned To
+                  </th>
+                )}
+                <th className={`bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                  Attachments
+                </th>
+                <th className={`bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                  Date Range
+                </th>
+                {hasMasterTaskActions && (
+                  <th className={`bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                    Actions
+                  </th>
+                )}
+              </tr>
+            </thead>
+          </table>
+        </div>
 
-                    {isSelectionMode && !masterTask.parentTaskInfo?.isForever && (
-                      <div className="mt-1 text-xs text-red-500 font-medium">
-                        Not available for reassign (not a forever task)
+        <div className="mx-3 mb-3 overflow-x-auto rounded-b-[28px]">
+          <table className="min-w-full table-fixed divide-y divide-[var(--color-border)]">
+            <colgroup>
+              {isSelectionMode && <col className="w-[4%]" />}
+              <col className={isSelectionMode ? 'w-[22%]' : 'w-[26%]'} />
+              <col className="w-[8%]" />
+              <col className="w-[8%]" />
+              <col className="w-[13%]" />
+              <col className="w-[10%]" />
+              {isAdmin && <col className="w-[10%]" />}
+              <col className="w-[8%]" />
+              <col className="w-[8%]" />
+              {hasMasterTaskActions && <col className="w-[9%]" />}
+            </colgroup>
+            <tbody className="divide-y divide-[var(--color-border)] bg-[var(--color-surface)]">
+              {masterTasks.map((masterTask: MasterTask) => (
+                <tr
+                  key={masterTask.taskGroupId}
+                  onClick={() => {
+                    if (!isSelectionMode) return;
+                    if (!masterTask.parentTaskInfo?.isForever) return;
+
+                    const isSelected = selectedTasks.has(masterTask.taskGroupId);
+                    handleTaskSelection(masterTask.taskGroupId, !isSelected);
+                  }}
+                  className={`transition-colors ${
+                    isSelectionMode && masterTask.parentTaskInfo?.isForever
+                      ? selectedTasks.has(masterTask.taskGroupId)
+                        ? 'bg-[var(--color-primary)]/5 hover:bg-[var(--color-primary)]/10'
+                        : 'hover:bg-[var(--color-background)]/70'
+                      : 'hover:bg-[var(--color-background)]/70'
+                  }`}
+                >
+                  {isSelectionMode && (
+                    <td className="px-5 py-4 whitespace-nowrap text-sm text-[var(--color-textSecondary)]">
+                      {masterTask.parentTaskInfo?.isForever ? (
+                        <input
+                          type="checkbox"
+                          checked={selectedTasks.has(masterTask.taskGroupId)}
+                          onChange={(e) => handleTaskSelection(masterTask.taskGroupId, e.target.checked)}
+                          className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
+                        />
+                      ) : (
+                        <span className="text-xs text-[var(--color-textSecondary)]">N/A</span>
+                      )}
+                    </td>
+                  )}
+                  <td className="px-5 py-4">
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-[var(--color-text)] mb-1">
+                        <ReadMore text={masterTask.title} maxLength={80} />
                       </div>
-                    )}
-                    <ReadMore text={masterTask.description} maxLength={descriptionMaxLength} />
-                    <div className="flex items-center mt-2 space-x-2">
-                      {masterTask.parentTaskInfo?.isForever && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[--color-primary-light] text-[--color-primary]">
-                          FOREVER
+                      {masterTask.endedEarly && (
+                        <span className="inline-flex items-center rounded-full border border-[var(--color-warning)]/20 bg-[var(--color-warning)]/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-warning)]">
+                          Ended Early
                         </span>
                       )}
-                      {masterTask.parentTaskInfo && (
-                        <div className="flex flex-col space-y-1 text-xs text-[--color-textSecondary]">
-                          <span>
-                            Sunday: {masterTask.parentTaskInfo.includeSunday ? 'Yes' : 'No'}
-                          </span>
-                          {resolveWeekOffDays(
-                            masterTask.weekOffDays,
-                            masterTask.parentTaskInfo.weekOffDays
-                          ).length > 0 && (
-                            <span>
-                              Week Off:{' '}
-                              {resolveWeekOffDays(
-                                masterTask.weekOffDays,
-                                masterTask.parentTaskInfo.weekOffDays
-                              )
-                                .map((d: number) =>
-                                  ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d]
-                                )
-                                .join(', ')}
-                            </span>
-                          )}
+                      {isSelectionMode && !masterTask.parentTaskInfo?.isForever && (
+                        <div className="mt-2 text-xs font-medium text-[var(--color-error)]">
+                          Not available for reassign
                         </div>
                       )}
                     </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <TaskTypeBadge taskType={masterTask.taskType} />
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <PriorityBadge priority={masterTask.priority} />
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-[--color-text]">
-                    Total: {masterTask.instanceCount}
-                  </div>
-                  <div className="text-xs text-[--color-success]">
-                    Completed: {masterTask.completedCount}
-                  </div>
-                  <div className="text-xs text-[--color-warning]">
-                    Pending: {masterTask.pendingCount}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-semibold text-[--color-text]">{masterTask.assignedBy.username}</div>
-                </td>
-                {isAdmin && (
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-[--color-text]">{masterTask.assignedTo.username}</div>
-                    <div className="text-sm text-[--color-textSecondary]">{masterTask.assignedTo.email}</div>
                   </td>
-                )}
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  {masterTask.attachments && masterTask.attachments.length > 0 ? (
-                    <button
-                      onClick={() => setShowAttachmentsModal({ attachments: masterTask.attachments, type: 'task' })}
-                      className="font-medium text-[--color-primary] hover:text-[--color-primary]"
-                    >
-                      Click Here ({masterTask.attachments.length})
-                    </button>
-                  ) : (
-                    <span className="text-[--color-textSecondary]">No Attachments</span>
-                  )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-[--color-text]">
-                    {new Date(masterTask.dateRange.start).toLocaleDateString('en-GB', {
-                      day: '2-digit',
-                      month: 'numeric',
-                      year: 'numeric',
-                    })}
-                  </div>
-                  <div className="text-xs text-[--color-textSecondary]">
-                    to {new Date(masterTask.dateRange.end).toLocaleDateString('en-GB', {
-                      day: '2-digit',
-                      month: 'numeric',
-                      year: 'numeric',
-                    })}
-                  </div>
-                </td>
-                {hasMasterTaskActions && (
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center space-x-2">
-                      {canEditRecurringTaskSchedules && (
-                        <button
-                          onClick={() => handleEditMasterTask(masterTask)}
-                          className="p-2 text-[--color-primary] hover:bg-[--color-primary] hover:text-white rounded-lg transition-colors"
-                          title="Edit master task"
-                        >
-                          <Edit size={16} />
-                        </button>
-                      )}
-                      {canDeleteTasks && (
-                        <button
-                          onClick={() => handleDeleteMasterTask(masterTask)}
-                          className="p-2 text-[--color-error] hover:bg-[--color-error] hover:text-white hover:scale-105 rounded-lg transition-all duration-150 ease-in-out"
-                          title="Move to recycle bin"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      )}
-                      <button
-                        className="p-2 text-[--color-success] hover:bg-[--color-success] hover:text-white hover:scale-105 rounded-lg transition-all duration-150 ease-in-out"
-                        onClick={() => openReassignModal(masterTask)}
-                        title="Reassign Tasks"
-                      >
-                        <RotateCcw size={18} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedActivityGroupId(masterTask.taskGroupId);
-                          setSelectedActivityTaskTitle(masterTask.title);
-                          setShowActivityModal(true);
-                          fetchTaskActivities(masterTask.taskGroupId);
-                        }}
-                        className="h-9 w-9 inline-flex items-center justify-center rounded-xl border border-[--color-border] bg-[--color-surface] text-[--color-text] hover:bg-[--color-primary]/10 hover:text-[--color-primary] transition"
-                        title="View activity logs"
-                      >
-                        <Info size={16} />
-                      </button>
-
-
+                  <td className="px-5 py-4 whitespace-nowrap">
+                    <TaskTypeBadge taskType={masterTask.taskType} />
+                  </td>
+                  <td className="px-5 py-4 whitespace-nowrap">
+                    <PriorityBadge priority={masterTask.priority} />
+                  </td>
+                  <td className="px-5 py-4 whitespace-nowrap">
+                    <div className="inline-flex flex-nowrap items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-background)]/80 px-2.5 py-1.5 text-[10px] shadow-[0_6px_14px_rgba(15,23,42,0.03)]">
+                      <span className="text-sm font-semibold leading-none text-[var(--color-text)]">{masterTask.instanceCount}</span>
+                      <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-textSecondary)]">Total</span>
+                      <span className="inline-flex items-center rounded-full border border-[var(--color-success)]/20 bg-[var(--color-success)]/10 px-1.5 py-0.5 font-semibold uppercase tracking-[0.08em] text-[var(--color-success)]">
+                        <CheckCircle2 size={11} className="mr-1" />
+                        {masterTask.completedCount ?? 0}
+                      </span>
+                      <span className="inline-flex items-center rounded-full border border-[var(--color-warning)]/20 bg-[var(--color-warning)]/10 px-1.5 py-0.5 font-semibold uppercase tracking-[0.08em] text-[var(--color-warning)]">
+                        <Clock3 size={11} className="mr-1" />
+                        {masterTask.pendingCount ?? 0}
+                      </span>
                     </div>
                   </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  <td className="px-5 py-4 whitespace-nowrap">
+                    <div className="text-sm font-semibold text-[var(--color-text)]">{masterTask.assignedBy.username}</div>
+                  </td>
+                  {isAdmin && (
+                    <td className="px-5 py-4 whitespace-nowrap">
+                      <div className="text-sm text-[var(--color-text)]">{masterTask.assignedTo.username}</div>
+                      <div className="text-sm text-[var(--color-textSecondary)]">{masterTask.assignedTo.email}</div>
+                    </td>
+                  )}
+                  <td className="px-5 py-4 whitespace-nowrap text-sm">
+                    {masterTask.attachments && masterTask.attachments.length > 0 ? (
+                      <button
+                        onClick={() => setShowAttachmentsModal({ attachments: masterTask.attachments, type: 'task' })}
+                        className="font-semibold text-[var(--color-primary)] hover:underline"
+                      >
+                        View ({masterTask.attachments.length})
+                      </button>
+                    ) : (
+                      <span className="text-[var(--color-textSecondary)]">No attachments</span>
+                    )}
+                  </td>
+                  <td className="px-5 py-4 whitespace-nowrap">
+                    <div className="text-sm font-semibold text-[var(--color-text)]">
+                      {new Date(masterTask.dateRange.start).toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </div>
+                    <div className="text-xs text-[var(--color-textSecondary)]">
+                      to {new Date(masterTask.dateRange.end).toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </div>
+                  </td>
+                  {hasMasterTaskActions && (
+                    <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {canEditRecurringTaskSchedules && (
+                          <button
+                            onClick={() => handleEditMasterTask(masterTask)}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-2xl border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/10 text-[var(--color-primary)] transition hover:border-[var(--color-primary)]/30 hover:bg-[var(--color-primary)]/15"
+                            title="Edit master task"
+                          >
+                            <Edit size={14} />
+                          </button>
+                        )}
+                        {canDeleteTasks && (
+                          <button
+                            onClick={() => handleDeleteMasterTask(masterTask)}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-2xl border border-[var(--color-error)]/20 bg-[var(--color-error)]/10 text-[var(--color-error)] transition hover:border-[var(--color-error)]/30 hover:bg-[var(--color-error)]/15"
+                            title="Move to recycle bin"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                        <button
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-2xl border border-[var(--color-success)]/20 bg-[var(--color-success)]/10 text-[var(--color-success)] transition hover:border-[var(--color-success)]/30 hover:bg-[var(--color-success)]/15"
+                          onClick={() => openReassignModal(masterTask)}
+                          title="Reassign Tasks"
+                        >
+                          <RotateCcw size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedActivityGroupId(masterTask.taskGroupId);
+                            setSelectedActivityTaskTitle(masterTask.title);
+                            setShowActivityModal(true);
+                            fetchTaskActivities(masterTask.taskGroupId);
+                          }}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-textSecondary)] transition hover:border-[var(--color-primary)]/25 hover:bg-[var(--color-primary)]/10 hover:text-[var(--color-primary)]"
+                          title="View activity logs"
+                        >
+                          <Info size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -1768,189 +1924,163 @@ const MasterRecurringTasks: React.FC = () => {
   const renderCardView = () => (
     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
       {individualTasks.map((task: Task) => (
-        <TaskCard key={task._id} task={task} />
+        <ModernTaskCard key={task._id} task={task} />
       ))}
     </div>
   );
 
-  const renderTableView = () => (
-    <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-[--color-border]">
-          <thead className="bg-[--color-surface]">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
-                Task ID
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
-                Task
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
-                Type
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
-                Priority
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
-                Assigned By
-              </th>
-              {isAdmin && (
-                <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
-                  Assigned To
-                </th>
-              )}
-              <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
-                Task Attachments
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
-                Due Date
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
-                Completed Date
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
-                Completion Files
-              </th>
-              {canDeleteTasks && (
-                <th className="px-6 py-3 text-left text-xs font-medium text-[--color-textSecondary] uppercase tracking-wider">
-                  Actions
-                </th>
-              )}
-            </tr>
-          </thead>
-          <tbody className="bg-[--color-background] divide-y divide-[--color-border]">
-            {individualTasks.map((task: Task) => (
-              <tr key={task._id} className="hover:bg-[--color-surface] transition-colors">
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-[--color-text]">
-                  {task.taskId || '—'}
-                </td>
-                <td className="px-6 py-4">
-                  <div>
-                    <div className="text-sm font-medium text-[--color-text] mb-1">
-                      <ReadMore text={task.title} maxLength={70} />
+
+  const renderTableViewV2 = () => (
+    <div className="space-y-6 mt-4">
+      <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+        <div
+          className={`sticky top-3 z-40 mx-3 mt-3 overflow-hidden rounded-[22px] transition-[box-shadow,background-color,border-color,transform] duration-300 ease-out ${
+            tableHasScrolled
+              ? 'bg-[var(--color-surface)] shadow-[0_18px_36px_rgba(15,23,42,0.14)] border border-[var(--color-border)] backdrop-blur-md'
+              : 'bg-[var(--color-surface)]'
+          }`}
+        >
+          <table className="min-w-full table-fixed">
+            <colgroup>
+              <col className="w-[8%]" />
+              <col className="w-[28%]" />
+              <col className="w-[10%]" />
+              <col className="w-[10%]" />
+              <col className="w-[10%]" />
+              <col className="w-[12%]" />
+              {isAdmin && <col className="w-[12%]" />}
+              <col className="w-[12%]" />
+              <col className="w-[10%]" />
+              <col className="w-[10%]" />
+              <col className="w-[12%]" />
+              {canDeleteTasks && <col className="w-[8%]" />}
+            </colgroup>
+            <thead>
+              <tr>
+                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>Task ID</th>
+                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>Task</th>
+                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>Type</th>
+                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>Status</th>
+                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>Priority</th>
+                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>Assigned By</th>
+                {isAdmin && <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>Assigned To</th>}
+                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>Task Attachments</th>
+                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>Due Date</th>
+                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>Completed Date</th>
+                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>Completion Files</th>
+                {canDeleteTasks && <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>Actions</th>}
+              </tr>
+            </thead>
+          </table>
+        </div>
+
+        <div className="mx-3 mb-3 overflow-x-auto rounded-b-[28px]">
+          <table className="min-w-full table-fixed divide-y divide-[var(--color-border)]">
+            <colgroup>
+              <col className="w-[8%]" />
+              <col className="w-[28%]" />
+              <col className="w-[10%]" />
+              <col className="w-[10%]" />
+              <col className="w-[10%]" />
+              <col className="w-[12%]" />
+              {isAdmin && <col className="w-[12%]" />}
+              <col className="w-[12%]" />
+              <col className="w-[10%]" />
+              <col className="w-[10%]" />
+              <col className="w-[12%]" />
+              {canDeleteTasks && <col className="w-[8%]" />}
+            </colgroup>
+            <tbody className="divide-y divide-[var(--color-border)] bg-[var(--color-surface)]">
+              {individualTasks.map((task: Task) => (
+                <tr key={task._id} className="transition-colors hover:bg-[var(--color-background)]/70">
+                  <td className="px-5 py-4 whitespace-nowrap text-sm text-[var(--color-text)]">{task.taskId || '—'}</td>
+                  <td className="px-5 py-4">
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-[var(--color-text)] mb-1">
+                        <ReadMore text={task.title} maxLength={70} />
+                      </div>
+                      <div className="text-sm leading-6 text-[var(--color-textSecondary)] whitespace-pre-wrap break-words">
+                        <ReadMore text={task.description} maxLength={descriptionMaxLength} />
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {task.parentTaskInfo?.isForever && (
+                          <span className="inline-flex items-center rounded-full border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary)]">
+                            Forever
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <ReadMore text={task.description} maxLength={descriptionMaxLength} />
-                    <div className="flex items-center mt-2 space-x-2">
-                      {task.parentTaskInfo?.isForever && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[--color-primary-light] text-[--color-primary]">
-                          FOREVER
-                        </span>
-                      )}
-                      {task.parentTaskInfo && (
-                        <div className="flex flex-col space-y-1 text-xs text-[--color-textSecondary]">
-                          <span>Sunday: {task.parentTaskInfo.includeSunday ? 'Yes' : 'No'}</span>
-                          {resolveWeekOffDays(task.weekOffDays, task.parentTaskInfo.weekOffDays)
-                            .length > 0 && (
-                            <span>
-                              Week Off:{' '}
-                              {resolveWeekOffDays(task.weekOffDays, task.parentTaskInfo.weekOffDays)
-                                .map((d: number) =>
-                                  ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d]
-                                )
-                                .join(', ')}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <TaskTypeBadge taskType={task.taskType} />
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <StatusBadge status={task.status} />
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <PriorityBadge priority={task.priority} />
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-semibold text-[--color-text]">{task.assignedBy.username}</div>
-                </td>
-                {isAdmin && (
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-[--color-text]">{task.assignedTo.username}</div>
-                    <div className="text-sm text-[--color-textSecondary]">{task.assignedTo.email}</div>
                   </td>
-                )}
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  {task.attachments && task.attachments.length > 0 ? (
-                    <button
-                      onClick={() => setShowAttachmentsModal({ attachments: task.attachments, type: 'task' })}
-                      className="font-medium text-[--color-primary] hover:text-[--color-primary]"
-                    >
-                      Click Here ({task.attachments.length})
-                    </button>
-                  ) : (
-                    <span className="text-[--color-textSecondary]">No Attachments</span>
+                  <td className="px-5 py-4 whitespace-nowrap"><TaskTypeBadge taskType={task.taskType} /></td>
+                  <td className="px-5 py-4 whitespace-nowrap"><StatusBadge status={task.status} /></td>
+                  <td className="px-5 py-4 whitespace-nowrap"><PriorityBadge priority={task.priority} /></td>
+                  <td className="px-5 py-4 whitespace-nowrap"><div className="text-sm font-semibold text-[var(--color-text)]">{task.assignedBy.username}</div></td>
+                  {isAdmin && (
+                    <td className="px-5 py-4 whitespace-nowrap">
+                      <div className="text-sm text-[var(--color-text)]">{task.assignedTo.username}</div>
+                      <div className="text-sm text-[var(--color-textSecondary)]">{task.assignedTo.email}</div>
+                    </td>
                   )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-[--color-text]">
-                    {new Date(task.dueDate).toLocaleDateString('en-GB', {
-                      day: '2-digit',
-                      month: 'numeric',
-                      year: 'numeric',
-                    })}
-                  </div>
-                  {task.lastCompletedDate && (
-                    <div className="text-xs text-[--color-textSecondary]">
-                      Last: {new Date(task.lastCompletedDate).toLocaleDateString('en-GB', {
+                  <td className="px-5 py-4 whitespace-nowrap text-sm">
+                    {task.attachments && task.attachments.length > 0 ? (
+                      <button onClick={() => setShowAttachmentsModal({ attachments: task.attachments, type: 'task' })} className="font-semibold text-[var(--color-primary)] hover:underline">
+                        View ({task.attachments.length})
+                      </button>
+                    ) : (
+                      <span className="text-[var(--color-textSecondary)]">No attachments</span>
+                    )}
+                  </td>
+                  <td className="px-5 py-4 whitespace-nowrap">
+                    <div className="text-sm font-semibold text-[var(--color-text)]">
+                      {new Date(task.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'numeric', year: 'numeric' })}
+                    </div>
+                  </td>
+                  <td className="px-5 py-4 whitespace-nowrap">
+                    <div className="text-sm flex items-center text-[var(--color-text)]">
+                      {task.completedAt ? new Date(task.completedAt).toLocaleDateString('en-GB', {
                         day: '2-digit',
                         month: 'numeric',
                         year: 'numeric',
-                      })}
+                      }) : ''}
+                      {task.completionRemarks && task.completedAt && (
+                        <button
+                          onClick={() => setShowRemarksModal(task)}
+                          className="ml-2 text-[var(--color-primary)] hover:text-[var(--color-primary)]"
+                          title="View completion remarks"
+                        >
+                          <Info size={14} />
+                        </button>
+                      )}
                     </div>
-                  )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm flex items-center text-[--color-text]">
-                    {task.completedAt ? new Date(task.completedAt).toLocaleDateString('en-GB', {
-                      day: '2-digit',
-                      month: 'numeric',
-                      year: 'numeric',
-                    }) : ''}
-                    {task.completionRemarks && task.completedAt && (
-                      <button
-                        onClick={() => setShowRemarksModal(task)}
-                        className="ml-2 text-[--color-primary] hover:text-[--color-primary]"
-                        title="View completion remarks"
-                      >
-                        <Info size={14} />
-                      </button>
-                    )}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  {task.completionAttachments && task.completionAttachments.length > 0 ? (
-                    <button
-                      onClick={() => setShowAttachmentsModal({ attachments: task.completionAttachments!, type: 'completion' })}
-                      className="font-medium text-[--color-success] hover:text-[--color-success]"
-                    >
-                      Click Here ({task.completionAttachments.length})
-                    </button>
-                  ) : (
-                    <span className="text-[--color-textSecondary]">No Files</span>
-                  )}
-                </td>
-                {canDeleteTasks && (
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button
-                      onClick={() => handleDeleteTask(task._id)}
-                      className="flex items-center gap-1 p-2 text-[--color-error] hover:bg-[--color-error] hover:text-white hover:scale-105 rounded-lg transition-all duration-150 ease-in-out"
-                      title="Move to recycle bin"
-                    >
-                      <Trash2 size={18} />
-                    </button>
                   </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  <td className="px-5 py-4 whitespace-nowrap text-sm">
+                    {task.completionAttachments && task.completionAttachments.length > 0 ? (
+                      <button
+                        onClick={() => setShowAttachmentsModal({ attachments: task.completionAttachments!, type: 'completion' })}
+                        className="font-semibold text-[var(--color-success)] hover:underline"
+                      >
+                        View ({task.completionAttachments.length})
+                      </button>
+                    ) : (
+                      <span className="text-[var(--color-textSecondary)]">No Files</span>
+                    )}
+                  </td>
+                  {canDeleteTasks && (
+                    <td className="px-5 py-4 whitespace-nowrap text-sm font-medium">
+                      <button
+                        onClick={() => handleDeleteTask(task._id)}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-[var(--color-error)]/20 bg-[var(--color-error)]/10 text-[var(--color-error)] transition hover:border-[var(--color-error)]/30 hover:bg-[var(--color-error)]/15"
+                        title="Move to recycle bin"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -1983,29 +2113,22 @@ const MasterRecurringTasks: React.FC = () => {
   const currentData = isEditMode ? masterTasks : individualTasks;
 
   return (
-    <div className="min-h-full bg-[var(--color-background)] p-6">
-      {/* Header */}
-      <div className="mb-3">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+    <div className="min-h-full bg-[var(--color-background)] p-4 sm:p-6">
+      <section className="mb-4 rounded-[22px] border border-[var(--color-border)] bg-[var(--color-surface)]/90 px-4 py-4 shadow-sm backdrop-blur-xl sm:px-5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
 
           {/* LEFT: Title + Meta */}
-          <div className="flex flex-col">
-            <h1 className="text-lg lg:text-xl font-bold text-[--color-text] leading-tight whitespace-nowrap">
+          <div className="min-w-0">
+            <h1 className="text-xl font-semibold tracking-tight text-[var(--color-text)] sm:text-[1.65rem]">
               Master Recurring Tasks
               {isAdmin && (
-                <span className="hidden lg:inline text-xs font-normal text-[--color-primary] ml-2">
+                <span className="hidden lg:inline text-sm font-normal text-[var(--color-primary)] ml-2">
                   (Admin View - All Team)
                 </span>
               )}
             </h1>
 
-            <p className="
-  text-xs text-[--color-textSecondary]
-  flex flex-wrap items-center gap-1
-  max-w-full
-  break-words
-  sm:flex-nowrap sm:whitespace-nowrap
-">
+            <p className="mt-1 flex flex-wrap items-center gap-1 text-xs text-[var(--color-textSecondary)] sm:flex-nowrap sm:whitespace-nowrap">
               {isEditMode
                 ? `${masterTasks.length} master task series`
                 : `${individualTasks.length} recurring task(s) found`}
@@ -2027,29 +2150,20 @@ const MasterRecurringTasks: React.FC = () => {
           </div>
 
           {/* RIGHT: Actions */}
-          <div className="flex flex-wrap lg:flex-nowrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 whitespace-nowrap">
             {canEditRecurringTaskSchedules && (
               <button
                 onClick={handleEditModeToggle}
                 disabled={editModeLoading}
-                className={`
-    px-3 py-2 text-xs lg:text-sm font-medium rounded-lg
-    flex items-center whitespace-nowrap
-    transition-all duration-300 ease-out
-    active:scale-95
-    ${isEditMode
-                    ? 'bg-[--color-primary] text-white shadow-lg'
-                    : 'bg-[--color-surface] text-[--color-text] hover:bg-[--color-border]'
-                  }
-    ${editModeLoading ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.04]'}
-  `}
+                className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                  isEditMode
+                    ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white shadow-md'
+                    : 'border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)] hover:border-[var(--color-primary)]/25 hover:text-[var(--color-primary)]'
+                } ${editModeLoading ? 'cursor-not-allowed opacity-50' : ''}`}
               >
                 <Settings
                   size={14}
-                  className={`
-      mr-1 transition-transform duration-500
-      ${isEditMode ? 'rotate-180' : 'rotate-0'}
-    `}
+                  className={`mr-1 transition-transform duration-500 ${isEditMode ? 'rotate-180' : 'rotate-0'}`}
                 />
                 {isEditMode ? 'Exit Edit' : 'Edit Mode'}
               </button>
@@ -2062,10 +2176,11 @@ const MasterRecurringTasks: React.FC = () => {
                   layout="position"
                   onClick={toggleSelectionMode}
                   transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-                  className={`px-3 py-2 text-xs lg:text-sm font-medium rounded-lg flex items-center whitespace-nowrap ${isSelectionMode
-                    ? "bg-blue-600 text-white"
-                    : "bg-[--color-surface] text-[--color-text] hover:bg-[--color-border]"
-                    }`}
+                  className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold whitespace-nowrap transition ${
+                    isSelectionMode
+                      ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white shadow-md'
+                      : 'border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)] hover:border-[var(--color-primary)]/25 hover:text-[var(--color-primary)]'
+                  }`}
                 >
                   <Users size={14} className="mr-1" />
                   {isSelectionMode ? "Exit Selection" : "Bulk Reassign"}
@@ -2105,7 +2220,7 @@ const MasterRecurringTasks: React.FC = () => {
                           transition: { duration: 0.18 }
                         }}
                         onClick={handleSelectAll}
-                        className="px-3 py-2 text-xs lg:text-sm font-medium text-blue-600 bg-blue-50 rounded-lg whitespace-nowrap"
+                        className="inline-flex items-center rounded-full border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/10 px-4 py-2 text-sm font-semibold text-[var(--color-primary)] whitespace-nowrap"
                       >
                         Select All
                       </motion.button>
@@ -2121,7 +2236,7 @@ const MasterRecurringTasks: React.FC = () => {
                           transition: { duration: 0.18 }
                         }}
                         onClick={handleDeselectAll}
-                        className="px-3 py-2 text-xs lg:text-sm font-medium text-gray-600 bg-gray-100 rounded-lg whitespace-nowrap"
+                        className="inline-flex items-center rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2 text-sm font-semibold text-[var(--color-textSecondary)] whitespace-nowrap"
                       >
                         Clear
                       </motion.button>
@@ -2139,7 +2254,7 @@ const MasterRecurringTasks: React.FC = () => {
                               transition: { duration: 0.18 }
                             }}
                             onClick={() => setShowBulkReassignModal(true)}
-                            className="px-3 py-2 text-xs lg:text-sm font-medium text-white bg-green-600 rounded-lg flex items-center whitespace-nowrap"
+                            className="inline-flex items-center rounded-full border border-[var(--color-success)]/20 bg-[var(--color-success)]/10 px-4 py-2 text-sm font-semibold text-[var(--color-success)] whitespace-nowrap"
                           >
                             <RotateCcw size={14} className="mr-1" />
                             Reassign ({selectedTasks.size})
@@ -2156,7 +2271,7 @@ const MasterRecurringTasks: React.FC = () => {
 
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="px-3 py-2 text-xs lg:text-sm font-medium text-[--color-textSecondary] bg-[--color-surface] rounded-lg flex items-center whitespace-nowrap"
+              className="inline-flex items-center rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2 text-sm font-semibold text-[var(--color-text)] transition hover:border-[var(--color-primary)]/25 hover:text-[var(--color-primary)] whitespace-nowrap"
             >
               <Filter size={14} className="mr-1" />
               Filters
@@ -2168,12 +2283,12 @@ const MasterRecurringTasks: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
 
       {/* Filters */}
       {showFilters && (
-        <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] p-4">
+        <div className="mt-4 rounded-[20px] border border-[var(--color-border)] bg-[var(--color-background)] p-4 shadow-sm">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-4">
             {!isEditMode && (
               <div>
@@ -2395,41 +2510,40 @@ const MasterRecurringTasks: React.FC = () => {
             <>
               {isEditMode
                 ? (view === 'card' ? renderMasterTaskCardView() : renderMasterTaskTableView())
-                : (view === 'card' ? renderCardView() : renderTableView())
+                : (view === 'card' ? renderCardView() : renderTableViewV2())
               }
 
               {/* Enhanced Pagination */}
               {totalPages > 1 && (
-                <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] p-4 mt-2">
-                  <div className="flex flex-col items-center text-center sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm text-[--color-textSecondary]">Show:</span>
+                <div className="mt-4 rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 p-4 shadow-lg shadow-black/5 backdrop-blur-xl">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="flex items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm text-[var(--color-textSecondary)]">
+                        <span className="font-semibold text-[var(--color-text)]">Show</span>
                       <select
                         value={itemsPerPage}
                         onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-                        className="text-sm px-2 py-1 border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] bg-[--color-surface] text-[--color-text]"
+                          className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)]"
                       >
                         <option value={10}>10</option>
                         <option value={25}>25</option>
                         <option value={50}>50</option>
                         <option value={100}>100</option>
                       </select>
-                      <span className="text-sm text-[--color-textSecondary]">per page</span>
+                        <span>per page</span>
+                      </div>
+                      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2 text-sm text-[var(--color-textSecondary)]">
+                        Showing <span className="font-semibold text-[var(--color-text)]">{((currentPage - 1) * itemsPerPage) + 1}</span> to{' '}
+                        <span className="font-semibold text-[var(--color-text)]">{Math.min(currentPage * itemsPerPage, totalCount)}</span> of{' '}
+                        <span className="font-semibold text-[var(--color-text)]">{totalCount}</span> results
+                      </div>
                     </div>
 
-                    <div className="flex items-center">
-                      <p className="text-sm text-[--color-textSecondary]">
-                        Showing <span className="font-medium">{((currentPage - 1) * itemsPerPage) + 1}</span> to{' '}
-                        <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalCount)}</span> of{' '}
-                        <span className="font-medium">{totalCount}</span> results
-                      </p>
-                    </div>
-
-                    <div className="flex items-center space-x-1">
+                    <div className="flex flex-wrap items-center gap-2">
                       <button
                         onClick={() => handlePageChange(1)}
                         disabled={currentPage === 1}
-                        className="p-2 text-sm font-medium text-[--color-textSecondary] bg-[--color-surface] border border-[--color-border] rounded-lg hover:bg-[--color-border] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-textSecondary)] transition hover:border-[var(--color-primary)]/30 hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
                         title="First page"
                       >
                         <ChevronsLeft size={16} />
@@ -2438,13 +2552,13 @@ const MasterRecurringTasks: React.FC = () => {
                       <button
                         onClick={() => handlePageChange(currentPage - 1)}
                         disabled={currentPage === 1}
-                        className="p-2 text-sm font-medium text-[--color-textSecondary] bg-[--color-surface] border border-[--color-border] rounded-lg hover:bg-[--color-border] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-textSecondary)] transition hover:border-[var(--color-primary)]/30 hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
                         title="Previous page"
                       >
                         <ChevronLeft size={16} />
                       </button>
 
-                      <div className="flex items-center space-x-1">
+                      <div className="flex items-center gap-2">
                         {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
                           let pageNumber;
 
@@ -2462,9 +2576,10 @@ const MasterRecurringTasks: React.FC = () => {
                             <button
                               key={pageNumber}
                               onClick={() => handlePageChange(pageNumber)}
-                              className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${currentPage === pageNumber
-                                ? 'bg-[--color-primary] text-white'
-                                : 'text-[--color-textSecondary] bg-[--color-surface] border border-[--color-border] hover:bg-[--color-border]'
+                              className={`inline-flex h-10 min-w-10 items-center justify-center rounded-xl border px-3 text-sm font-semibold transition ${
+                                currentPage === pageNumber
+                                  ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white shadow-md'
+                                  : 'border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-textSecondary)] hover:border-[var(--color-primary)]/30 hover:text-[var(--color-text)]'
                                 }`}
                             >
                               {pageNumber}
@@ -2476,7 +2591,7 @@ const MasterRecurringTasks: React.FC = () => {
                       <button
                         onClick={() => handlePageChange(currentPage + 1)}
                         disabled={currentPage === totalPages}
-                        className="p-2 text-sm font-medium text-[--color-textSecondary] bg-[--color-surface] border border-[--color-border] rounded-lg hover:bg-[--color-border] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-textSecondary)] transition hover:border-[var(--color-primary)]/30 hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
                         title="Next page"
                       >
                         <ChevronRight size={16} />
@@ -2485,7 +2600,7 @@ const MasterRecurringTasks: React.FC = () => {
                       <button
                         onClick={() => handlePageChange(totalPages)}
                         disabled={currentPage === totalPages}
-                        className="p-2 text-sm font-medium text-[--color-textSecondary] bg-[--color-surface] border border-[--color-border] rounded-lg hover:bg-[--color-border] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-textSecondary)] transition hover:border-[var(--color-primary)]/30 hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
                         title="Last page"
                       >
                         <ChevronsRight size={16} />

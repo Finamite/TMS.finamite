@@ -9,27 +9,27 @@ const TaskTypeBadge: React.FC<TaskTypeBadgeProps> = ({ taskType, size = 'sm' }) 
   const getTaskTypeStyles = (taskType: string) => {
     switch (taskType.toLowerCase()) {
       case 'daily':
-        return 'bg-purple-100 text-purple-800 border-purple-200';
+        return 'bg-[var(--color-primary)]/10 text-[var(--color-primary)] border-[var(--color-primary)]/20';
       case 'weekly':
-        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+        return 'bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-[var(--color-accent)]/20';
       case 'fortnightly':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
+        return 'bg-sky-500/10 text-sky-600 border-sky-500/20';
       case 'monthly':
-        return 'bg-teal-100 text-teal-800 border-teal-200';
+        return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20';
       case 'yearly':
-        return 'bg-pink-100 text-pink-800 border-pink-200';
+        return 'bg-fuchsia-500/10 text-fuchsia-600 border-fuchsia-500/20';
       case 'one-time':
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-[var(--color-background)] text-[var(--color-textSecondary)] border-[var(--color-border)]';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-[var(--color-background)] text-[var(--color-textSecondary)] border-[var(--color-border)]';
     }
   };
 
-  const sizeClasses = size === 'sm' ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-sm';
+  const sizeClasses = size === 'sm' ? 'px-2.5 py-1 text-[11px]' : 'px-3 py-1.5 text-sm';
 
   return (
     <span
-      className={`inline-flex items-center rounded-full border font-medium ${sizeClasses} ${getTaskTypeStyles(
+      className={`inline-flex items-center rounded-full border font-semibold tracking-[0.14em] uppercase ${sizeClasses} ${getTaskTypeStyles(
         taskType
       )}`}
     >
