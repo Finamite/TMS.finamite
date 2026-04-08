@@ -590,7 +590,7 @@ const Dashboard: React.FC = () => {
 
   const teamMembersList = getTeamMembersList();
   const selectedTeamMemberData = teamPerformance.find((member) => member.username === selectedTeamMember);
-  const topTeamMembers = teamPerformance.slice(0, 4);
+  const visibleTeamMembers = selectedTeamMember === 'all' ? teamPerformance : teamPerformance.slice(0, 1000);
 
   const cardStyle = {
     backgroundColor: isDark ? 'rgba(15, 23, 42, 0.80)' : 'rgba(255, 255, 255, 0.92)',
@@ -1152,8 +1152,8 @@ const Dashboard: React.FC = () => {
                 )}
 
                 <div className="mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
-                  {topTeamMembers.length > 0 ? (
-                    topTeamMembers.map((member) => {
+                  {visibleTeamMembers.length > 0 ? (
+                    visibleTeamMembers.map((member) => {
                       const barWidth = Math.max(member.totalPerformanceRate, 8);
                       return (
                         <div key={member.username} className="rounded-[20px] border border-[var(--color-border)] px-4 py-3">
