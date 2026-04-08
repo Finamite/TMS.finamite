@@ -366,12 +366,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           border-r border-[var(--color-border)]
           bg-[var(--color-surface)]/92 backdrop-blur-xl
           shadow-[0_20px_60px_rgba(15,23,42,0.12)]
-          transition-[transform,width] duration-300 ease-out
+          transform-gpu will-change-[width,transform]
+          transition-[transform,width,box-shadow,background-color] duration-200 ease-out
           lg:static lg:inset-0
           ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
         style={{
           width: isExpanded ? "240px" : "84px",
+          contain: 'layout paint',
         }}
         onMouseEnter={() => {
           if (window.innerWidth >= 1024 && isCollapsed) {
@@ -469,7 +471,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                       }`}
                     />
                     {item.label === "Integrations" && !isExpanded && showIntegrationsNewBadge && (
-                      <span className="absolute left-2 top-.5 inline-flex -translate-y-1/2 items-center rounded-full border border-red-500/20 bg-red-500 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-white">
+                      <span className="absolute -right-3 -top-1 inline-flex -translate-y-1/2 translate-x-1/2 items-center rounded-full border border-red-500/20 bg-red-500 px-1 py-0 text-[8px] font-semibold uppercase tracking-[0.14em] text-white">
                         New
                       </span>
                     )}

@@ -1337,28 +1337,24 @@ const MasterRecurringTasks: React.FC = () => {
               })}
             </span>
           </div>
-          {masterTask.parentTaskInfo && (
-            <>
-              <div className="flex items-start justify-between gap-4">
-                <span className="font-medium text-[var(--color-textSecondary)]">Include Sunday:</span>
-                <span className="font-semibold text-[var(--color-text)]">
-                  {masterTask.parentTaskInfo.includeSunday ? 'Yes' : 'No'}
-                </span>
-              </div>
-              {resolveWeekOffDays(masterTask.weekOffDays, masterTask.parentTaskInfo?.weekOffDays).length > 0 && (
-                <div className="flex items-start justify-between gap-4">
-                  <span className="font-medium text-[var(--color-textSecondary)]">Week Off:</span>
-                  <span className="font-semibold text-right text-[var(--color-text)]">
-                    {resolveWeekOffDays(masterTask.weekOffDays, masterTask.parentTaskInfo?.weekOffDays)
-                      .map((d: number) =>
-                        ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d]
-                      )
-                      .join(', ')}
-                  </span>
-                </div>
-              )}
-            </>
-          )}
+          <div className="flex items-start justify-between gap-4">
+            <span className="font-medium text-[var(--color-textSecondary)]">Include Sunday:</span>
+            <span className="font-semibold text-[var(--color-text)]">
+              {masterTask.parentTaskInfo?.includeSunday ? 'Yes' : 'No'}
+            </span>
+          </div>
+          <div className="flex items-start justify-between gap-4">
+            <span className="font-medium text-[var(--color-textSecondary)]">Week Off:</span>
+            <span className="font-semibold text-right text-[var(--color-text)]">
+              {resolveWeekOffDays(masterTask.weekOffDays, masterTask.parentTaskInfo?.weekOffDays).length > 0
+                ? resolveWeekOffDays(masterTask.weekOffDays, masterTask.parentTaskInfo?.weekOffDays)
+                    .map((d: number) =>
+                      ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d]
+                    )
+                    .join(', ')
+                : 'None'}
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -1650,26 +1646,22 @@ const MasterRecurringTasks: React.FC = () => {
               </span>
             </div>
           )}
-          {task.parentTaskInfo && (
-            <>
-              <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
-                <span className="text-[var(--color-textSecondary)]">Include Sunday</span>
-                <span className="font-semibold text-[var(--color-text)]">{task.parentTaskInfo.includeSunday ? 'Yes' : 'No'}</span>
-              </div>
-              {resolveWeekOffDays(task.weekOffDays, task.parentTaskInfo.weekOffDays).length > 0 && (
-                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
-                  <span className="text-[var(--color-textSecondary)]">Week Off</span>
-                  <p className="mt-1 font-semibold text-[var(--color-text)]">
-                    {resolveWeekOffDays(task.weekOffDays, task.parentTaskInfo.weekOffDays)
-                      .map((d: number) =>
-                        ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d]
-                      )
-                      .join(', ')}
-                  </p>
-                </div>
-              )}
-            </>
-          )}
+          <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
+            <span className="text-[var(--color-textSecondary)]">Include Sunday</span>
+            <span className="font-semibold text-[var(--color-text)]">{task.parentTaskInfo?.includeSunday ? 'Yes' : 'No'}</span>
+          </div>
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
+            <span className="text-[var(--color-textSecondary)]">Week Off</span>
+            <p className="mt-1 font-semibold text-[var(--color-text)]">
+              {resolveWeekOffDays(task.weekOffDays, task.parentTaskInfo?.weekOffDays).length > 0
+                ? resolveWeekOffDays(task.weekOffDays, task.parentTaskInfo?.weekOffDays)
+                    .map((d: number) =>
+                      ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d]
+                    )
+                    .join(', ')
+                : 'None'}
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -1803,6 +1795,26 @@ const MasterRecurringTasks: React.FC = () => {
                     <div className="min-w-0">
                       <div className="text-sm font-semibold text-[var(--color-text)] mb-1">
                         <ReadMore text={masterTask.title} maxLength={80} />
+                      </div>
+                      <div className="mt-2 space-y-1 text-[11px] text-[var(--color-textSecondary)]">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="font-medium">Include Sunday:</span>
+                          <span className="font-semibold text-[var(--color-text)]">
+                            {masterTask.parentTaskInfo?.includeSunday ? 'Yes' : 'No'}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="font-medium">Week Off:</span>
+                          <span className="font-semibold text-[var(--color-text)]">
+                            {resolveWeekOffDays(masterTask.weekOffDays, masterTask.parentTaskInfo?.weekOffDays).length > 0
+                              ? resolveWeekOffDays(masterTask.weekOffDays, masterTask.parentTaskInfo?.weekOffDays)
+                                  .map((d: number) =>
+                                    ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d]
+                                  )
+                                  .join(', ')
+                              : 'None'}
+                          </span>
+                        </div>
                       </div>
                       {masterTask.endedEarly && (
                         <span className="inline-flex items-center rounded-full border border-[var(--color-warning)]/20 bg-[var(--color-warning)]/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-warning)]">
@@ -2013,6 +2025,26 @@ const MasterRecurringTasks: React.FC = () => {
                             Forever
                           </span>
                         )}
+                      </div>
+                      <div className="mt-2 space-y-1 text-[11px] text-[var(--color-textSecondary)]">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="font-medium">Include Sunday:</span>
+                          <span className="font-semibold text-[var(--color-text)]">
+                            {task.parentTaskInfo?.includeSunday ? 'Yes' : 'No'}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="font-medium">Week Off:</span>
+                          <span className="font-semibold text-[var(--color-text)]">
+                            {resolveWeekOffDays(task.weekOffDays, task.parentTaskInfo?.weekOffDays).length > 0
+                              ? resolveWeekOffDays(task.weekOffDays, task.parentTaskInfo?.weekOffDays)
+                                  .map((d: number) =>
+                                    ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d]
+                                  )
+                                  .join(', ')
+                              : 'None'}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </td>

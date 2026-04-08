@@ -2260,6 +2260,27 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
       return res.status(404).json({ message: "Master Task not found" });
     }
 
+    const fallbackTask = await Task.findOne({ taskGroupId })
+      .select("companyId")
+      .lean();
+
+    const effectiveCompanyId =
+      companyId ||
+      masterTask.companyId ||
+      fallbackTask?.companyId ||
+      null;
+
+    if (!effectiveCompanyId) {
+      return res.status(400).json({
+        message: "companyId is required to reschedule master task"
+      });
+    }
+
+    if (!masterTask.companyId) {
+      masterTask.companyId = effectiveCompanyId;
+      await masterTask.save();
+    }
+
     // ✅ Lock original end date once (first time only)
     if (!masterTask.originalEndDate && masterTask.endDate) {
       masterTask.originalEndDate = masterTask.endDate;
@@ -2338,7 +2359,7 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
       const result = await Task.updateMany(
         {
           taskGroupId,
-          ...(companyId ? { companyId } : {}),
+          companyId: effectiveCompanyId,
           dueDate: { $gt: newEndDate },
           isActive: true
         },
@@ -2351,7 +2372,7 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
       );
 
       // ✅ Track database usage after changes
-      await trackDatabaseUsage(masterTask.companyId);
+      await trackDatabaseUsage(effectiveCompanyId);
 
       return res.json({
         message: "Recurring task ended early successfully",
@@ -2369,7 +2390,7 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
     await MasterTask.findOneAndUpdate(
       {
         taskGroupId,
-        ...(companyId ? { companyId } : {})
+        companyId: effectiveCompanyId
       },
       {
         title: updates.title,
@@ -2394,7 +2415,7 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
     await Task.updateMany(
       {
         taskGroupId,
-        ...(companyId ? { companyId } : {})
+        companyId: effectiveCompanyId
       },
       {
         $set: {
@@ -2467,7 +2488,7 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
     // ✅ Get active tasks from today onward
     const existingFutureActiveTasks = await Task.find({
       taskGroupId,
-      ...(companyId ? { companyId } : {}),
+      companyId: effectiveCompanyId,
       isActive: true,
       dueDate: { $gte: today }
     })
@@ -2502,7 +2523,7 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
     });
 
     if (datesToInsert.length > 0) {
-      const seqRange = await reserveTaskSequences(masterTask.companyId, datesToInsert.length);
+      const seqRange = await reserveTaskSequences(effectiveCompanyId, datesToInsert.length);
       let nextSeq = seqRange ? seqRange.start : null;
       const bulkOps = datesToInsert.map((date) => {
         const taskSeq = nextSeq;
@@ -2519,9 +2540,9 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
               priority: updates.priority,
               assignedBy: masterTask.assignedBy,
               assignedTo: updates.assignedTo,
-              companyId: masterTask.companyId,
+              companyId: effectiveCompanyId,
               taskSeq: taskSeq ?? undefined,
-              taskId: taskSeq != null ? formatTaskId(masterTask.companyId, taskSeq) : undefined,
+              taskId: taskSeq != null ? formatTaskId(effectiveCompanyId, taskSeq) : undefined,
               attachments: updates.attachments || [],
               requiresApproval: isApprovalEligibleTask(updates.taskType, updates.requiresApproval),
               dueDate: date,
@@ -2553,7 +2574,7 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
     }
 
     // ✅ Track database usage after changes
-    await trackDatabaseUsage(masterTask.companyId);
+    await trackDatabaseUsage(effectiveCompanyId);
 
     return res.json({
       message: "Master Task updated successfully ✅ (old tasks not affected)",
