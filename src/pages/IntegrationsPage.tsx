@@ -16,6 +16,9 @@ interface RecipientConfig { assignee: boolean; admins: boolean; }
 interface ProviderCfg { configs: Record<EventKey, TemplateConfig>; apiKey?: string; apiEndpoint?: string; baseUrl?: string; accessToken?: string; templateLanguage?: string; connected?: boolean; accountName?: string; connectedAt?: string; }
 interface SettingsData { enabled: boolean; activeProvider: ProviderKey; recipients: Record<EventKey, RecipientConfig>; interakt: ProviderCfg; wati: ProviderCfg; fichat: ProviderCfg; supportedVariableKeys: string[]; }
 interface TemplateItem { name: string; language?: string; status?: string; placeholderCount?: number; body?: string; variables?: string[]; }
+interface CompanyPermissions {
+  integrationspage?: boolean;
+}
 
 const EVENTS: Array<{ key: EventKey; label: string; section: 'One-time' | 'Recurring' }> = [
   { key: 'oneTimeAssigned', label: 'Assigned', section: 'One-time' },
@@ -183,6 +186,7 @@ const IntegrationsPage: React.FC = () => {
     fichat: emptyEventStringMap()
   });
   const [fiChatTemplateBodyCache, setFiChatTemplateBodyCache] = useState<Record<string, { body: string; placeholderCount: number; language: string }>>({});
+  const [companyPermissions, setCompanyPermissions] = useState<CompanyPermissions | null>(null);
   const templateBodyRequestSeq = useRef<Record<ProviderKey, Record<EventKey, number>>>({
     interakt: emptyEventNumberMap(),
     wati: emptyEventNumberMap(),
@@ -195,7 +199,9 @@ const IntegrationsPage: React.FC = () => {
   const [expandedEventEditors, setExpandedEventEditors] = useState<Record<EventKey, boolean>>(collapsedEventEditorDefaults);
   const [showSecrets, setShowSecrets] = useState({ interakt: false, wati: false, fichat: false });
   const [pendingClear, setPendingClear] = useState<{ provider: ProviderKey; field: 'apiKey' | 'apiEndpoint' } | null>(null);
-  const integrationsLocked = user?.company?.permissions?.integrationspage === false;
+  const integrationsEnabled = companyPermissions?.integrationspage ?? user?.company?.permissions?.integrationspage;
+  const integrationsLocked = integrationsEnabled !== true;
+  const integrationsReadOnly = integrationsLocked;
   const modalSurface = isDark ? 'rgba(26,32,44,0.92)' : 'rgba(255,255,255,0.72)';
   const modalSurfaceStrong = isDark ? 'rgba(30,41,59,0.98)' : 'rgba(255,255,255,0.82)';
   const modalSurfaceSoft = isDark ? 'rgba(30,41,59,0.82)' : 'rgba(255,255,255,0.74)';
@@ -223,12 +229,28 @@ const IntegrationsPage: React.FC = () => {
     }
   };
 
+  const loadCompanyPermissions = async () => {
+    if (!companyId) return;
+
+    try {
+      const response = await axios.get(`${address}/api/companies`);
+      const currentCompany = Array.isArray(response.data)
+        ? response.data.find((company: any) => company.companyId === companyId)
+        : null;
+
+      setCompanyPermissions(currentCompany?.permissions || null);
+    } catch {
+      setCompanyPermissions(null);
+    }
+  };
+
   useEffect(() => {
     if (!companyId) {
       setLoading(false);
       return;
     }
-    loadSettings();
+    void loadCompanyPermissions();
+    void loadSettings();
   }, [companyId]);
 
   const updateProvider = (p: ProviderKey, field: keyof ProviderCfg, value: any) => setSettings((prev) => ({ ...prev, [p]: { ...prev[p], [field]: value } }));
@@ -1386,17 +1408,21 @@ const IntegrationsPage: React.FC = () => {
               <div>
                 <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Integrations are disabled for this company</p>
                 <p className="mt-1 text-sm" style={{ color: 'var(--color-textSecondary)' }}>
-                  Enable the Integrations Page permission in SuperAdmin to edit provider credentials, template mappings, and recipients.
+                  Please contact Finamite Solution LLP to enable the Integrations Page permission. Until then, this page stays read-only.
                 </p>
               </div>
             </div>
           </div>
         )}
 
-        <div className="grid gap-4 xl:grid-cols-3">{providerOrder.map(card)}</div>
+        <div className={integrationsReadOnly ? 'pointer-events-none select-none opacity-60' : ''}>
+          <div className="grid gap-4 xl:grid-cols-3">{providerOrder.map(card)}</div>
+        </div>
 
-        {providerForm()}
-        {renderClearConfirmModal()}
+        <div className={integrationsReadOnly ? 'pointer-events-none select-none opacity-60' : ''}>
+          {providerForm()}
+          {renderClearConfirmModal()}
+        </div>
       </div>
     </div>
   );
