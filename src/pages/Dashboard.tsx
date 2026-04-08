@@ -714,7 +714,7 @@ const Dashboard: React.FC = () => {
                   <Users size={14} />
                   {user?.role || 'user'}
                 </span>
-                {isPrivilegedUser && whatsappIntegrationStatus.live && (
+                {isPrivilegedUser && (
                   <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600 shadow-sm shadow-emerald-500/10">
                     <span className="relative flex h-2.5 w-2.5">
                       <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75 animate-ping" />

@@ -2325,7 +2325,7 @@ const MasterRecurringTasks: React.FC = () => {
 
       {/* Filters */}
       {showFilters && (
-        <div className="mt-4 rounded-[20px] border border-[var(--color-border)] bg-[var(--color-background)] p-4 shadow-sm">
+        <div className="mt-4 rounded-[20px] border border-[var(--color-border)] bg-[var(--color-background)] p-4 shadow-sm mb-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-4">
             {!isEditMode && (
               <div>

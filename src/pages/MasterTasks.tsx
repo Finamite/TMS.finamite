@@ -981,7 +981,7 @@ const MasterTasks: React.FC = () => {
 
       {/* Filters */}
       {showFilters && (
-        <div className="mt-4 rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/90 p-5 shadow-[0_14px_36px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+        <div className="mt-4 rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/90 p-5 shadow-[0_14px_36px_rgba(15,23,42,0.06)] backdrop-blur-xl mb-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
             {/* Date From */}
             <div>
