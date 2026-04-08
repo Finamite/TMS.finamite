@@ -1313,7 +1313,7 @@ const Dashboard: React.FC = () => {
             )}
 
             {isPrivilegedUser && (
-              <section className="rounded-[28px] border p-5 sm:p-6" style={cardStyle}>
+              <section className="rounded-[28px] h-[785px] border p-5 sm:p-6" style={cardStyle}>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] px-3 py-1 text-xs font-semibold text-[var(--color-textSecondary)]">
