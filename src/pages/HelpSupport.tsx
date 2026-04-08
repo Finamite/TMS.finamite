@@ -21,13 +21,13 @@ const ThemeCard = ({ children, className = "", variant = "default", hover = true
   const baseClasses = "relative transition-all duration-300 ease-out";
 
   const variants = {
-    default: `rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-lg`,
-    glass: `rounded-2xl bg-[var(--color-surface)] backdrop-blur-xl border border-[var(--color-border)] shadow-xl`,
-    elevated: `rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-2xl`,
-    bordered: `rounded-2xl bg-[var(--color-chat)] border-2 border-blue-200/50`
+    default: `rounded-3xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-[0_18px_45px_rgba(15,23,42,0.06)]`,
+    glass: `rounded-3xl bg-[var(--color-surface)]/95 backdrop-blur-xl border border-[var(--color-border)] shadow-[0_18px_45px_rgba(15,23,42,0.08)]`,
+    elevated: `rounded-3xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-[0_24px_70px_rgba(15,23,42,0.1)]`,
+    bordered: `rounded-3xl bg-[var(--color-background)] border border-[var(--color-border)] shadow-[0_16px_40px_rgba(15,23,42,0.05)]`
   };
 
-  const hoverClasses = hover ? "hover:shadow-xl hover:scale-[1.02] hover:border-blue-300/30" : "";
+  const hoverClasses = hover ? "hover:-translate-y-0.5 hover:shadow-[0_24px_70px_rgba(15,23,42,0.1)]" : "";
 
   return (
     <div className={`${baseClasses} ${variants[variant]} ${hoverClasses} ${className}`}>
@@ -252,58 +252,52 @@ const HelpSupport: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--color-background)] p-6">
-      <div className="max-w-15xl mx-auto">
+    <div className="min-h-screen bg-[var(--color-background)] p-2 sm:p-4 lg:p-6">
+      <div className="w-full space-y-6">
         {/* Header */}
-        <div className="mb-6">
-
-          {/* Icon + Title (Left aligned) */}
-          <div className="flex items-center space-x-4 mb-1">
-            <div className="p-3 rounded-xl shadow-xl bg-gradient-to-r from-purple-600 to-blue-500">
-              <HelpCircle size={18} className="text-white" />
+        <ThemeCard className="p-5 sm:p-6" variant="glass" hover={false}>
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] shadow-sm">
+              <HelpCircle size={22} className="text-[var(--color-primary)]" />
             </div>
-
-            <div>
-              <h1 className="text-xl font-bold text-[var(--color-text)]">
+            <div className="min-w-0">
+              <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-text)]">
                 Help & Support Center
               </h1>
-
-              {/* Welcome text directly under the title */}
-              <p className="text-xs text-[var(--color-textSecondary)] max-w-xl mt-1">
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--color-textSecondary)]">
                 Welcome, <span className="font-semibold text-[var(--color-primary)]">{user?.username}</span> ({getUserRoleDisplay()})!
                 Find answers to your questions and get the help you need.
               </p>
             </div>
           </div>
-
-        </div>
-
-
+        </ThemeCard>
 
         {/* Main Layout: Left Sidebar + Right Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
           {/* Left Sidebar - Contact Information */}
-          <div className="lg:col-span-1 space-y-6">
-            <ThemeCard className="p-6" variant="elevated">
+          <div className="space-y-6">
+            <ThemeCard className="p-6" variant="default" hover={false}>
               <div className="space-y-6">
-
-                <h2 className="text-xl font-bold text-[var(--color-text)]">Contact Support</h2>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Contact</p>
+                  <h2 className="mt-1 text-xl font-semibold text-[var(--color-text)]">Contact Support</h2>
+                </div>
 
                 {/* EMAIL SUPPORT */}
                 <div className="flex flex-col space-y-4">
 
                   {/* Left Side */}
-                  <div className="flex items-start space-x-4">
-                    <div className="p-3 rounded-2xl bg-indigo-100 flex-shrink-0">
-                      <Mail size={24} className="text-[var(--color-primary)]" />
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-primary)]/10">
+                      <Mail size={22} className="text-[var(--color-primary)]" />
                     </div>
 
                     <div>
-                      <h3 className="text-lg font-bold text-[var(--color-text)]">Email Support</h3>
-                      <a href="mailto:support@taskflow.com" className="text-[var(--color-primary)] font-semibold hover:underline">
+                      <h3 className="text-lg font-semibold text-[var(--color-text)]">Email Support</h3>
+                      <a href="mailto:support@taskflow.com" className="font-semibold text-[var(--color-primary)] hover:underline">
                         info@finamite.in
                       </a>
-                      <p className="text-sm text-[var(--color-textsecondary)] mt-1">
+                      <p className="mt-1 text-sm text-[var(--color-textSecondary)]">
                         We'll respond within 24 hours
                       </p>
                     </div>
@@ -314,10 +308,7 @@ const HelpSupport: React.FC = () => {
                     href={`https://mail.google.com/mail/?view=cm&fs=1&to=info@finamite.in&su=${emailSubject}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-center space-x-2 
-             w-full px-4 py-3 
-             bg-[var(--color-primary)] text-white rounded-xl 
-             hover:[var(--color-primary)] transition-all duration-200 font-semibold shadow-sm"
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[var(--color-primary)] bg-[var(--color-primary)] px-4 py-3 font-semibold text-white shadow-lg shadow-[rgba(59,130,246,0.18)] transition-all hover:brightness-105"
                   >
                     <Mail size={18} />
                     <span>Send Email</span>
@@ -325,27 +316,27 @@ const HelpSupport: React.FC = () => {
                 </div>
                  
                 {(user?.role === 'admin' || user?.role === 'manager') && (
-                <div className="border-t border-gray-200 my-4"></div>
+                <div className="my-2 border-t border-[var(--color-border)]"></div>
                 )}
                 {/* PHONE SUPPORT */}
                 {(user?.role === 'admin' || user?.role === 'manager') && (
                 <div className="flex flex-col space-y-4">
 
                   {/* Left Side */}
-                  <div className="flex items-start space-x-4">
-                    <div className="p-3 rounded-2xl bg-green-100 flex-shrink-0">
-                      <Phone size={24} className="text-green-600" />
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[var(--color-border)] bg-emerald-500/10">
+                      <Phone size={22} className="text-emerald-600" />
                     </div>
 
                     <div>
-                      <h3 className="text-lg font-bold text-[var(--color-text)]">Phone Support</h3>
+                      <h3 className="text-lg font-semibold text-[var(--color-text)]">Phone Support</h3>
                       <a
                         href={`tel:${supportNumberDial}`}
-                        className="text-green-600 font-semibold text-lg hover:underline"
+                        className="text-lg font-semibold text-emerald-600 hover:underline"
                       >
                         {supportNumberDisplay}
                       </a>
-                      <p className="text-sm text-[var(--color-textsecondary)] mt-1">
+                      <p className="mt-1 text-sm text-[var(--color-textSecondary)]">
                         Mon–Sat, 10 AM – 6:30 PM IST
                       </p>
                     </div>
@@ -361,10 +352,7 @@ const HelpSupport: React.FC = () => {
                     }
                     target={!isMobile ? "_blank" : undefined}
                     rel="noopener noreferrer"
-                    className="flex items-center justify-center space-x-2 
-    w-full px-4 py-3 
-    bg-green-600 text-white rounded-xl 
-    hover:bg-green-700 transition-all duration-200 font-semibold shadow-sm"
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-600 bg-emerald-600 px-4 py-3 font-semibold text-white shadow-lg shadow-emerald-500/20 transition-all hover:bg-emerald-700"
                   >
                     <Phone size={18} />
                     <span>{isMobile ? "Call Now" : "WhatsApp Support"}</span>
@@ -380,18 +368,18 @@ const HelpSupport: React.FC = () => {
 
 
           {/* Right Content - Search, Filter & FAQ */}
-          <div className="lg:col-span-3">
-            <ThemeCard className="p-6" variant="glass">
+          <div className="min-w-0">
+            <ThemeCard className="p-6" variant="glass" hover={false}>
               <div className="space-y-6">
                 {/* Search Bar */}
                 <div className="relative">
-                  <Search size={20} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[var(--color-text)]" />
+                  <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)]" />
                   <input
                     type="text"
                     placeholder="Search for help topics, features, or questions..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-12 pr-6 py-4 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl text-[var(--color-text)] placeholder-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] py-4 pl-12 pr-6 text-[var(--color-text)] shadow-sm transition-all placeholder:text-[var(--color-textSecondary)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/15"
                   />
                 </div>
 
@@ -401,15 +389,15 @@ const HelpSupport: React.FC = () => {
                     <button
                       key={category.id}
                       onClick={() => setSelectedCategory(category.id)}
-                      className={`flex items-center space-x-2 px-4 py-2 rounded-xl transition-all duration-200 ${selectedCategory === category.id
-                          ? 'bg-[var(--color-primary)] text-white shadow-lg'
-                          : 'bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-chat)] border border-[var(--color-border)]'
+                      className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200 ${selectedCategory === category.id
+                          ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white shadow-lg shadow-[rgba(59,130,246,0.16)]'
+                          : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5'
                         }`}
                     >
-                      <div className={selectedCategory === category.id ? 'text-white' : 'text-blue-600'}>
+                      <div className={selectedCategory === category.id ? 'text-white' : 'text-[var(--color-primary)]'}>
                         {category.icon}
                       </div>
-                      <span className="font-medium">{category.name}</span>
+                      <span>{category.name}</span>
                     </button>
                   ))}
                 </div>
@@ -419,9 +407,7 @@ const HelpSupport: React.FC = () => {
                   {/* Header */}
                   <button
                     onClick={() => setShowMobileTopics(prev => !prev)}
-                    className="w-full flex items-center justify-between px-4 py-3 
-               rounded-xl border border-[var(--color-border)] 
-               bg-[var(--color-surface)]"
+                    className="flex w-full items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3"
                   >
                     <span className="font-semibold text-[var(--color-text)]">
                       All Topics
@@ -444,9 +430,9 @@ const HelpSupport: React.FC = () => {
                             setSelectedCategory(category.id);
                             setShowMobileTopics(false); // auto close
                           }}
-                          className={`flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${selectedCategory === category.id
-                              ? 'bg-[var(--color-primary)] text-white'
-                              : 'bg-[var(--color-surface)] text-[var(--color-text)] border-[var(--color-border)]'
+                          className={`flex items-center justify-between rounded-2xl border px-4 py-3 transition-all ${selectedCategory === category.id
+                              ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white'
+                              : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)]'
                             }`}
                         >
                           <span className="font-medium">{category.name}</span>
@@ -458,10 +444,10 @@ const HelpSupport: React.FC = () => {
 
                 {/* Results Header */}
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-[var(--color-text)]">
+                  <h2 className="text-2xl font-semibold text-[var(--color-text)]">
                     {selectedCategory === 'all' ? 'All Help Topics' : categories.find(c => c.id === selectedCategory)?.name}
                   </h2>
-                  <div className="text-sm px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 font-semibold">
+                  <div className="rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-1.5 text-sm font-semibold text-[var(--color-primary)]">
                     {filteredFAQs.length} {filteredFAQs.length === 1 ? 'result' : 'results'}
                   </div>
                 </div>
@@ -474,18 +460,16 @@ const HelpSupport: React.FC = () => {
                       <ThemeCard key={faq.id} className="overflow-hidden" variant="default" hover={false}>
                         <button
                           onClick={() => setExpandedFAQ(expandedFAQ === faq.id ? null : faq.id)}
-                          className="w-full p-6 text-left flex items-center justify-between hover:bg-[var(--color-surfacehelp)] transition-colors duration-200"
+                          className="flex w-full items-center justify-between p-5 text-left transition-colors duration-200 hover:bg-[var(--color-primary)]/5 sm:p-6"
                         >
                           {/* ================= DESKTOP (UNCHANGED) ================= */}
-                          <div className="hidden sm:flex items-center space-x-4 flex-1">
-                            <div className="p-2 rounded-xl bg-blue-50">
-                              <div className="text-blue-600">
-                                {faq.icon}
-                              </div>
+                          <div className="hidden flex-1 items-center gap-4 sm:flex">
+                            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-primary)]/10 p-2 text-[var(--color-primary)]">
+                              {faq.icon}
                             </div>
 
                             <div className="flex-1">
-                              <h3 className="text-lg font-semibold text-[var(--color-text)] mb-2">
+                              <h3 className="mb-2 text-lg font-semibold text-[var(--color-text)]">
                                 {faq.question}
                               </h3>
 
@@ -493,7 +477,7 @@ const HelpSupport: React.FC = () => {
                                 {faq.tags.map((tag) => (
                                   <span
                                     key={tag}
-                                    className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600 font-medium"
+                                    className="rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-2 py-1 text-xs font-medium text-[var(--color-textSecondary)]"
                                   >
                                     {tag}
                                   </span>
@@ -502,21 +486,21 @@ const HelpSupport: React.FC = () => {
                             </div>
                           </div>
 
-                          <div className="hidden sm:flex items-center space-x-2">
+                          <div className="hidden items-center gap-2 sm:flex">
                             {(user?.role === 'admin' || user?.role === 'manager') && faq.roles.includes('admin') && (
-                              <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-600 font-bold">
+                              <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-bold text-rose-600">
                                 Admin
                               </span>
                             )}
                             {expandedFAQ === faq.id ? (
-                              <ChevronDown size={20} className="text-blue-600" />
+                              <ChevronDown size={20} className="text-[var(--color-primary)]" />
                             ) : (
-                              <ChevronRight size={20} className="text-gray-400" />
+                              <ChevronRight size={20} className="text-[var(--color-textSecondary)]" />
                             )}
                           </div>
 
                           {/* ================= MOBILE (QUESTION + ARROW ONLY) ================= */}
-                          <div className="flex sm:hidden items-center justify-between w-full">
+                          <div className="flex w-full items-center justify-between sm:hidden">
                             <h3 className="text-sm font-semibold text-[var(--color-text)]">
                               {faq.question}
                             </h3>
@@ -531,7 +515,7 @@ const HelpSupport: React.FC = () => {
 
                         {/* ANSWER (same for both, padding responsive only) */}
                         {expandedFAQ === faq.id && (
-                          <div className="px-4 sm:px-6 pb-4 sm:pb-6 border-t border-gray-200">
+                          <div className="border-t border-[var(--color-border)] px-4 pb-4 sm:px-6 sm:pb-6">
                             <div className="pt-4">
                               <p className="text-sm sm:text-base text-[var(--color-text)] leading-relaxed whitespace-pre-line">
                                 {faq.answer}
@@ -544,11 +528,11 @@ const HelpSupport: React.FC = () => {
                     ))
                   ) : (
                     <ThemeCard className="p-12 text-center" variant="glass">
-                      <HelpCircle size={48} className="mx-auto mb-4 text-gray-400 opacity-50" />
+                      <HelpCircle size={48} className="mx-auto mb-4 text-[var(--color-textSecondary)] opacity-50" />
                       <h3 className="text-xl font-semibold text-[var(--color-text)] mb-2">
                         No help topics found
                       </h3>
-                      <p className="text-[var(--color-text)]">
+                      <p className="text-[var(--color-textSecondary)]">
                         Try adjusting your search terms or selecting a different category.
                       </p>
                     </ThemeCard>

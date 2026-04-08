@@ -102,6 +102,8 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const CHAT_POLL_MS = 30000;
   const COUNTS_POLL_MS = 30000;
+  const INTEGRATIONS_NEW_BADGE_RELEASE_AT = new Date('2026-04-08T00:00:00+05:30').getTime();
+  const INTEGRATIONS_NEW_BADGE_WINDOW_MS = 15 * 24 * 60 * 60 * 1000;
   const { user } = useAuth();
   const { enabled: pcmIntegrationEnabled, count: pcmPendingCount } = usePcmIntegration();
   const [isCollapsed, setIsCollapsed] = useState(true);
@@ -111,6 +113,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const [unreadChatsCount, setUnreadChatsCount] = useState(0);
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
   const [pendingRecurringCount, setPendingRecurringCount] = useState(0);
+  const showIntegrationsNewBadge =
+    Date.now() >= INTEGRATIONS_NEW_BADGE_RELEASE_AT &&
+    Date.now() <= INTEGRATIONS_NEW_BADGE_RELEASE_AT + INTEGRATIONS_NEW_BADGE_WINDOW_MS;
 
   // Fetch unread messages on interval (visibility-aware)
   useEffect(() => {
@@ -463,7 +468,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                         isExpanded ? "mr-3 shrink-0" : ""
                       }`}
                     />
-
+                    {item.label === "Integrations" && !isExpanded && showIntegrationsNewBadge && (
+                      <span className="absolute left-2 top-.5 inline-flex -translate-y-1/2 items-center rounded-full border border-red-500/20 bg-red-500 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-white">
+                        New
+                      </span>
+                    )}
                   </div>
 
                   <span
@@ -480,6 +489,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                   {item.label === "Chat Support" && unreadChatsCount > 0 && renderCountBadge(unreadChatsCount, !isExpanded)}
                   {item.label === "For Approval" && approvalPendingCount > 0 && renderCountBadge(approvalPendingCount, !isExpanded)}
                   {item.label === "PCM Pending" && pcmIntegrationEnabled && pcmPendingCount > 0 && renderCountBadge(pcmPendingCount, !isExpanded)}
+                  {item.label === "Integrations" && isExpanded && showIntegrationsNewBadge && (
+                    <span className="ml-auto inline-flex items-center rounded-full border border-red-500/20 bg-red-500 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
+                      New
+                    </span>
+                  )}
                   </NavLink>
               </Tooltip>
             ))}

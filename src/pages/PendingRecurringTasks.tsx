@@ -9,7 +9,6 @@ import StatusBadge from '../components/StatusBadge';
 import TaskTypeBadge from '../components/TaskTypeBadge';
 import TaskCompletionModal from '../components/TaskCompletionModal';
 import { useTaskSettings } from '../hooks/useTaskSettings';
-import { useTheme } from '../contexts/ThemeContext';
 import { address } from '../../utils/ipAddress';
 import { useLocation } from 'react-router-dom';
 
@@ -104,7 +103,6 @@ const getInitialViewPreference = (): 'card' | 'table' => {
 
 const PendingRecurringTasks: React.FC = () => {
   const { user } = useAuth();
-  const { isDark } = useTheme();
   const { settings: taskSettings, loading: settingsLoading } = useTaskSettings();
 
   const [allTasks, setAllTasks] = useState<Task[]>([]);
@@ -444,11 +442,7 @@ const PendingRecurringTasks: React.FC = () => {
         return (
           <div
             key={task._id}
-            className={`group relative overflow-hidden rounded-[24px] border border-[var(--color-border)] shadow-[0_12px_30px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--color-primary)]/25 hover:shadow-[0_18px_40px_rgba(15,23,42,0.10)] ${
-              isDark
-                ? 'bg-[linear-gradient(180deg,rgba(30,41,59,0.98),rgba(15,23,42,0.94))] shadow-[0_16px_38px_rgba(0,0,0,0.28)]'
-                : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(248,250,252,0.88))]'
-            } ${
+            className={`group relative overflow-hidden rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_12px_34px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--color-primary)]/25 hover:shadow-[0_16px_42px_rgba(15,23,42,0.1)] ${
               overdue
                 ? 'ring-1 ring-[var(--color-error)]/25'
                 : daysUntilDue <= 1
@@ -456,8 +450,7 @@ const PendingRecurringTasks: React.FC = () => {
                   : ''
             }`}
           >
-            <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-[var(--color-primary)] via-cyan-500 to-emerald-500 opacity-80" />
-            <div className="p-4">
+            <div className="p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5">
@@ -482,13 +475,14 @@ const PendingRecurringTasks: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setShowCompleteModal(task._id)}
-                  className="inline-flex shrink-0 items-center justify-center rounded-2xl border border-[var(--color-success)]/20 bg-[var(--color-success)]/10 p-3 text-[var(--color-success)] transition hover:-translate-y-0.5 hover:border-[var(--color-success)]/30 hover:bg-[var(--color-success)]/15"
+                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-success)] transition hover:bg-[rgba(34,197,94,0.08)]"
                   title="Complete task"
                 >
-                  <CheckSquare size={18} />
+                  <CheckSquare size={16} />
                 </button>
               </div>
-              <p className="text-[var(--color-textSecondary)] text-sm mb-4 whitespace-pre-wrap break-words">
+
+              <p className="mt-2 text-sm leading-6 text-[var(--color-textSecondary)] whitespace-pre-wrap break-words">
                 {displayDescription}
                 {descriptionIsLong && (
                   <button
@@ -499,24 +493,33 @@ const PendingRecurringTasks: React.FC = () => {
                   </button>
                 )}
               </p>
-              <div className="space-y-3 text-sm">
-                <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
+
+              <div className="mt-5 space-y-2.5 text-sm">
+                <div className="flex items-center justify-between gap-4">
                   <span className="text-[var(--color-textSecondary)]">Task ID:</span>
                   <span className="font-semibold text-[var(--color-text)]">{task.taskId || '-'}</span>
                 </div>
-                <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
+                <div className="flex items-center justify-between gap-4">
                   <span className="text-[var(--color-textSecondary)]">Assigned by:</span>
                   <span className="font-semibold text-[var(--color-text)]">{task.assignedBy.username}</span>
                 </div>
                 {isAdmin && (
-                  <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-primary)]/5 px-3 py-2">
+                  <div className="flex items-center justify-between gap-4">
                     <span className="text-[var(--color-textSecondary)]">Assigned to:</span>
-                    <span className="font-semibold text-[var(--color-primary)]">{task.assignedTo.username}</span>
+                    <span className="font-semibold text-[var(--color-text)]">{task.assignedTo.username}</span>
                   </div>
                 )}
-                <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-accent)]/5 px-3 py-2">
+                <div className="flex items-center justify-between gap-4">
                   <span className="text-[var(--color-textSecondary)]">Due date:</span>
-                  <span className="font-semibold text-[var(--color-accent)]">
+                  <span
+                    className={`font-semibold ${
+                      overdue
+                        ? 'text-[var(--color-error)]'
+                        : daysUntilDue <= 1
+                          ? 'text-[var(--color-warning)]'
+                          : 'text-[var(--color-text)]'
+                    }`}
+                  >
                     {new Date(task.dueDate).toLocaleDateString('en-GB', {
                       day: '2-digit',
                       month: 'numeric',
@@ -525,9 +528,9 @@ const PendingRecurringTasks: React.FC = () => {
                   </span>
                 </div>
                 {task.lastCompletedDate && (
-                  <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-success)]/5 px-3 py-2">
+                  <div className="flex items-center justify-between gap-4">
                     <span className="text-[var(--color-textSecondary)]">Last completed:</span>
-                    <span className="font-semibold text-[var(--color-success)]">
+                    <span className="font-semibold text-[var(--color-text)]">
                       {new Date(task.lastCompletedDate).toLocaleDateString('en-GB', {
                         day: '2-digit',
                         month: 'numeric',
@@ -536,8 +539,7 @@ const PendingRecurringTasks: React.FC = () => {
                     </span>
                   </div>
                 )}
-                {/* Attachments in Card View */}
-                <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
+                <div className="flex items-center justify-between gap-4">
                   <span className="flex items-center gap-1 text-[var(--color-textSecondary)]">
                     <Paperclip size={14} />
                     Attachments

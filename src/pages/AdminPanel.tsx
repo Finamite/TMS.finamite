@@ -492,6 +492,37 @@ const AdminPanel: React.FC = () => {
       .sort((a, b) => a.label.localeCompare(b.label));
   }, []);
 
+  const filteredUsers = useMemo(() => {
+    return users
+      .filter((u) => {
+        if (currentUser?.role === 'manager') {
+          return u.role !== 'admin' && u.role !== 'manager';
+        }
+        return true;
+      })
+      .filter((u) =>
+        u.username.toLowerCase().includes(searchName.toLowerCase()) ||
+        u.email.toLowerCase().includes(searchName.toLowerCase())
+      )
+      .filter((u) =>
+        filterStatus === '' ? true :
+          filterStatus === 'active' ? u.isActive : !u.isActive
+      )
+      .filter((u) =>
+        filterRole === '' ? true : u.role === filterRole
+      )
+      .filter((u) => {
+        if (filterDepartment === '') return true;
+        if (filterDepartment === 'No Department') {
+          return u.department.trim() === '' || !u.department;
+        }
+
+        return (u.department || '')
+          .toLowerCase()
+          .includes(filterDepartment.toLowerCase());
+      });
+  }, [users, currentUser?.role, searchName, filterStatus, filterRole, filterDepartment]);
+
   const renderPhoneField = () => (
     <div className="sm:col-span-2">
       <label className="block text-sm font-medium mb-2">
@@ -773,47 +804,54 @@ const AdminPanel: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: 'var(--color-primary)' }}></div>
+      <div className="flex min-h-[60vh] items-center justify-center bg-[var(--color-background)]">
+        <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4 shadow-[0_18px_45px_rgba(15,23,42,0.08)]">
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-primary)]" />
+          <div>
+            <p className="text-sm font-semibold text-[var(--color-text)]">Loading Admin Panel</p>
+            <p className="text-xs text-[var(--color-textSecondary)]">Fetching users and company settings...</p>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-[var(--color-background)] p-2 sm:p-4">
+      <div className="flex w-full flex-col p-2 gap-5">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center space-x-3">
-          <Shield size={24} style={{ color: 'var(--color-primary)' }} />
-          <h1 className="text-xl font-bold" style={{ color: 'var(--color-text)' }}>
+      <div className="flex flex-col gap-4 rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4 shadow-[0_18px_45px_rgba(15,23,42,0.08)] sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <Shield size={20} className="text-[var(--color-primary)] mt-1" />
+          <h1 className="text-2xl font-semibold" style={{ color: 'var(--color-text)' }}>
             Admin Panel
           </h1>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <button
             onClick={() => {
               fetchCompanyData(); // always fetch latest data
               setShowPlanModal(true);
             }}
-            className="px-3 py-2 rounded-lg text-white font-medium hover:opacity-90 transition-opacity text-sm"
-            style={{ backgroundColor: 'var(--color-textSecondary)' }}
+            className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-sm font-medium text-[var(--color-text)] shadow-sm transition-all hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5"
+            
           >
-            <CreditCard size={16} className="inline mr-2" />
+            <CreditCard size={16} />
             View Plan
           </button>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="px-3 py-2 rounded-lg text-white font-medium hover:opacity-90 transition-opacity text-sm"
-            style={{ backgroundColor: 'var(--color-primary)' }}
+            className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-sm font-medium text-[var(--color-text)] shadow-sm transition-all hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5"
+            
           >
-            <Plus size={16} className="inline mr-2" />
+            <Plus size={16} />
             Create User
           </button>
         </div>
       </div>
       {/* 🔍 FILTER BAR */}
-      <div className="p-6 bg-gradient-to-br from-[var(--color-surface)] to-[var(--color-background)] rounded-2xl border border-[var(--color-border)] shadow-xl mt-6 backdrop-blur-sm">
+      <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-5 shadow-[0_18px_45px_rgba(15,23,42,0.06)] mt-5">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* 🔍 Enhanced Search with Icon */}
           <div className="relative group">
@@ -825,7 +863,7 @@ const AdminPanel: React.FC = () => {
                 setSearchEmail(e.target.value); // 🔥 unified search
               }}
               placeholder="Search name or email..."
-              className="w-full pl-12 pr-4 py-3.5 rounded-xl text-sm border-0 shadow-lg focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:shadow-[0_0_0_3px_rgba(var(--color-primary-rgb),0.1)] transition-all duration-300 group-hover:shadow-md bg-[var(--color-background)] text-[var(--color-text)] placeholder-[var(--color-textSecondary)]"
+              className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] py-3.5 pl-12 pr-10 text-sm text-[var(--color-text)] shadow-sm transition-all placeholder:text-[var(--color-textSecondary)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/15"
             />
             <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[var(--color-textSecondary)] group-focus-within:text-[var(--color-primary)] transition-colors duration-300" size={20} />
             {searchName && (
@@ -849,7 +887,7 @@ const AdminPanel: React.FC = () => {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full pl-12 pr-4 py-3.5 rounded-xl text-sm border-0 shadow-lg focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:shadow-[0_0_0_3px_rgba(var(--color-primary-rgb),0.1)] transition-all duration-300 group-hover:shadow-md bg-[var(--color-background)] text-[var(--color-text)] appearance-none cursor-pointer"
+              className="w-full appearance-none rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] py-3.5 pl-12 pr-10 text-sm text-[var(--color-text)] shadow-sm transition-all focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/15"
             >
               <option value="">All Status</option>
               <option value="active">Active</option>
@@ -864,7 +902,7 @@ const AdminPanel: React.FC = () => {
             <select
               value={filterRole}
               onChange={(e) => setFilterRole(e.target.value)}
-              className="w-full pl-12 pr-4 py-3.5 rounded-xl text-sm border-0 shadow-lg focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:shadow-[0_0_0_3px_rgba(var(--color-primary-rgb),0.1)] transition-all duration-300 group-hover:shadow-md bg-[var(--color-background)] text-[var(--color-text)] appearance-none cursor-pointer"
+              className="w-full appearance-none rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] py-3.5 pl-12 pr-10 text-sm text-[var(--color-text)] shadow-sm transition-all focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/15"
             >
               <option value="">All Roles</option>
               <option value="employee">User</option>
@@ -880,7 +918,7 @@ const AdminPanel: React.FC = () => {
             <select
               value={filterDepartment}
               onChange={(e) => setFilterDepartment(e.target.value)}
-              className="w-full pl-12 pr-4 py-3.5 rounded-xl text-sm border-0 shadow-lg focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:shadow-[0_0_0_3px_rgba(var(--color-primary-rgb),0.1)] transition-all duration-300 group-hover:shadow-md bg-[var(--color-background)] text-[var(--color-text)] appearance-none cursor-pointer"
+              className="w-full appearance-none rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] py-3.5 pl-12 pr-10 text-sm text-[var(--color-text)] shadow-sm transition-all focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/15"
             >
               <option value="">All Departments</option>
               {Array.from(new Set(users.map(u => u.department || "No Department")))
@@ -898,7 +936,7 @@ const AdminPanel: React.FC = () => {
       {/* Message */}
       {message.text && (
         <div
-          className={`p-3 mt-2 rounded-lg text-sm ${message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
+          className={`rounded-2xl border px-4 py-3 text-sm shadow-sm ${message.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-rose-200 bg-rose-50 text-rose-800'
             }`}
         >
           {message.text}
@@ -907,7 +945,7 @@ const AdminPanel: React.FC = () => {
 
       {settingsMessage.text && (
         <div
-          className={`p-3 mt-2 rounded-lg text-sm ${settingsMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
+          className={`rounded-2xl border px-4 py-3 text-sm shadow-sm ${settingsMessage.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-rose-200 bg-rose-50 text-rose-800'
             }`}
         >
           {settingsMessage.text}
@@ -915,8 +953,8 @@ const AdminPanel: React.FC = () => {
       )}
 
       {(currentUser?.permissions?.canManageUsers || currentUser?.permissions?.canManageSettings) && pcmIntegration.enabled && (
-        <div className="rounded-lg border overflow-hidden mt-4" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
-          <div className="p-3 sm:p-4 border-b flex items-center justify-between gap-3" style={{ borderColor: 'var(--color-border)' }}>
+        <div className="overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_18px_45px_rgba(15,23,42,0.06)]" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
+          <div className="flex flex-col gap-3 border-b border-[var(--color-border)] p-4 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: 'var(--color-border)' }}>
             <div>
               <h2 className="text-md font-semibold flex items-center" style={{ color: 'var(--color-text)' }}>
                 <Building2 className="mr-2 text-[var(--color-primary)]" size={16} />
@@ -929,7 +967,7 @@ const AdminPanel: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowPcmMappingModal(true)}
-              className="px-4 py-2 rounded-lg text-white font-medium text-sm whitespace-nowrap"
+              className="inline-flex items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2 text-sm font-medium text-[var(--color-text)] shadow-sm transition-colors hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5"
               style={{ backgroundColor: 'var(--color-primary)' }}
             >
               Open PCM Mapping
@@ -938,7 +976,7 @@ const AdminPanel: React.FC = () => {
         </div>
       )}
 
-      <div className="rounded-lg border overflow-hidden mt-4" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
+      <div className="overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_18px_45px_rgba(15,23,42,0.06)]" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
         <div className="p-3 sm:p-4 border-b" style={{ borderColor: 'var(--color-border)' }}>
           <h2 className="text-md font-semibold flex items-center" style={{ color: 'var(--color-text)' }}>
             <Users className="mr-2 text-[var(--color-primary)]" size={16} />
@@ -1288,38 +1326,32 @@ const AdminPanel: React.FC = () => {
                 {/* keep your permissions section exactly as it is */}
               </div>
 
-            ))}
+            ))} 
         </div>
+      </div>
+
       </div>
 
       {/* View Plan Modal */}
       {showPlanModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full 
-     max-w-lg sm:max-w-md md:max-w-lg 
-     max-h-[90vh] overflow-y-auto 
-     transform transition-all
-     mx-2">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-2xl p-6 text-white">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center space-x-3">
-                  <div className="bg-white bg-opacity-20 rounded-full p-2">
-                    <Building2 className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold">Plan Details</h2>
-                    <p className="text-blue-100 text-sm">Current subscription limits</p>
-                  </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-h-[90vh] max-w-lg overflow-y-auto rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl">
+            <div className="flex items-center justify-between gap-4 border-b border-[var(--color-border)] px-6 py-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]">
+                  <Building2 className="h-5 w-5 text-[var(--color-primary)]" />
                 </div>
-                <button
-                  onClick={() => setShowPlanModal(false)}
-                  className="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                <div>
+                  <h2 className="text-xl font-bold text-[var(--color-text)]">Plan Details</h2>
+                  <p className="text-sm text-[var(--color-textSecondary)]">Current subscription limits</p>
+                </div>
               </div>
+              <button
+                onClick={() => setShowPlanModal(false)}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--color-border)] text-[var(--color-textSecondary)] transition-colors hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5 hover:text-[var(--color-text)]"
+              >
+                <X size={18} />
+              </button>
             </div>
 
             <div className="p-6">
@@ -1332,31 +1364,31 @@ const AdminPanel: React.FC = () => {
                 <>
                   {/* Plan Limits */}
                   <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Subscription Limits</h3>
+                    <h3 className="mb-4 text-lg font-semibold text-[var(--color-text)]">Subscription Limits</h3>
 
                     {/* Users */}
-                    <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="bg-green-100 rounded-full p-2">
-                            <Users className="w-5 h-5 text-green-600" />
+                        <div className="flex items-center gap-4">
+                          <div className="rounded-full bg-emerald-100 p-2">
+                            <Users className="h-5 w-5 text-emerald-600" />
                           </div>
                           <div>
-                            <p className="font-semibold text-gray-800">Users (Employees)</p>
-                            <p className="text-sm text-gray-600">
+                            <p className="font-semibold text-[var(--color-text)]">Users (Employees)</p>
+                            <p className="text-sm text-[var(--color-textSecondary)]">
                               {companyData.userCounts.employee} / {companyData.limits.userLimit} used
                             </p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-2xl font-bold text-green-600">{companyData.limits.userLimit}</p>
-                          <p className="text-xs text-gray-500">Max limit</p>
+                          <p className="text-2xl font-bold text-emerald-600">{companyData.limits.userLimit}</p>
+                          <p className="text-xs text-[var(--color-textSecondary)]">Max limit</p>
                         </div>
                       </div>
                       <div className="mt-3">
-                        <div className="bg-green-200 rounded-full h-2">
+                        <div className="h-2 rounded-full bg-emerald-200">
                           <div
-                            className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                            className="h-2 rounded-full bg-emerald-600 transition-all duration-300"
                             style={{
                               width: `${Math.min((companyData.userCounts.employee / companyData.limits.userLimit) * 100, 100)}%`
                             }}
@@ -1366,28 +1398,28 @@ const AdminPanel: React.FC = () => {
                     </div>
 
                     {/* Managers */}
-                    <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+                    <div className="rounded-2xl border border-orange-200 bg-orange-50/70 p-4">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="bg-orange-100 rounded-full p-2">
-                            <UserCog className="w-5 h-5 text-orange-600" />
+                        <div className="flex items-center gap-4">
+                          <div className="rounded-full bg-orange-100 p-2">
+                            <UserCog className="h-5 w-5 text-orange-600" />
                           </div>
                           <div>
-                            <p className="font-semibold text-gray-800">Managers</p>
-                            <p className="text-sm text-gray-600">
+                            <p className="font-semibold text-[var(--color-text)]">Managers</p>
+                            <p className="text-sm text-[var(--color-textSecondary)]">
                               {companyData.userCounts.manager} / {companyData.limits.managerLimit} used
                             </p>
                           </div>
                         </div>
                         <div className="text-right">
                           <p className="text-2xl font-bold text-orange-600">{companyData.limits.managerLimit}</p>
-                          <p className="text-xs text-gray-500">Max limit</p>
+                          <p className="text-xs text-[var(--color-textSecondary)]">Max limit</p>
                         </div>
                       </div>
                       <div className="mt-3">
-                        <div className="bg-orange-200 rounded-full h-2">
+                        <div className="h-2 rounded-full bg-orange-200">
                           <div
-                            className="bg-orange-600 h-2 rounded-full transition-all duration-300"
+                            className="h-2 rounded-full bg-orange-600 transition-all duration-300"
                             style={{
                               width: `${Math.min((companyData.userCounts.manager / companyData.limits.managerLimit) * 100, 100)}%`
                             }}
@@ -1397,28 +1429,28 @@ const AdminPanel: React.FC = () => {
                     </div>
 
                     {/* Admins */}
-                    <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                    <div className="rounded-2xl border border-violet-200 bg-violet-50/70 p-4">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="bg-purple-100 rounded-full p-2">
-                            <UserCheck className="w-5 h-5 text-purple-600" />
+                        <div className="flex items-center gap-4">
+                          <div className="rounded-full bg-violet-100 p-2">
+                            <UserCheck className="h-5 w-5 text-violet-600" />
                           </div>
                           <div>
-                            <p className="font-semibold text-gray-800">Admins</p>
-                            <p className="text-sm text-gray-600">
+                            <p className="font-semibold text-[var(--color-text)]">Admins</p>
+                            <p className="text-sm text-[var(--color-textSecondary)]">
                               {companyData.userCounts.admin} / {companyData.limits.adminLimit} used
                             </p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-2xl font-bold text-purple-600">{companyData.limits.adminLimit}</p>
-                          <p className="text-xs text-gray-500">Max limit</p>
+                          <p className="text-2xl font-bold text-violet-600">{companyData.limits.adminLimit}</p>
+                          <p className="text-xs text-[var(--color-textSecondary)]">Max limit</p>
                         </div>
                       </div>
                       <div className="mt-3">
-                        <div className="bg-purple-200 rounded-full h-2">
+                        <div className="h-2 rounded-full bg-violet-200">
                           <div
-                            className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                            className="h-2 rounded-full bg-violet-600 transition-all duration-300"
                             style={{
                               width: `${Math.min((companyData.userCounts.admin / companyData.limits.adminLimit) * 100, 100)}%`
                             }}
@@ -1430,18 +1462,18 @@ const AdminPanel: React.FC = () => {
                 </>
               ) : (
                 <div className="text-center py-8">
-                  <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                    <p className="text-red-600 font-medium">Unable to load plan details</p>
-                    <p className="text-red-500 text-sm mt-1">Please try again later</p>
+                  <div className="rounded-2xl border border-rose-200 bg-rose-50/70 p-4">
+                    <p className="font-medium text-rose-600">Unable to load plan details</p>
+                    <p className="mt-1 text-sm text-rose-500">Please try again later</p>
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="bg-gray-50 rounded-b-2xl px-6 py-4">
+            <div className="border-t border-[var(--color-border)] px-6 py-4">
               <button
                 onClick={() => setShowPlanModal(false)}
-                className="w-full bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors font-medium"
+                className="w-full rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2.5 font-medium text-[var(--color-text)] transition-colors hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5"
               >
                 Close
               </button>
@@ -1561,8 +1593,8 @@ const AdminPanel: React.FC = () => {
 
       {/* Create User Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" style={{ backgroundColor: 'var(--color-surface)' }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="max-w-7xl max-h-[90vh] overflow-y-auto rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl" style={{ backgroundColor: 'var(--color-surface)' }}>
             <div className="sticky top-0 p-4 border-b" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold" style={{ color: 'var(--color-text)' }}>
@@ -1785,8 +1817,8 @@ const AdminPanel: React.FC = () => {
 
       {/* Edit User Modal */}
       {editingUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" style={{ backgroundColor: 'var(--color-surface)' }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-h-[90vh] overflow-y-auto rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl" style={{ backgroundColor: 'var(--color-surface)' }}>
             <div className="sticky top-0 p-4 border-b" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold" style={{ color: 'var(--color-text)' }}>
@@ -1970,8 +2002,8 @@ const AdminPanel: React.FC = () => {
 
       {/* Update Password Modal */}
       {passwordUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="rounded-lg max-w-md w-full" style={{ backgroundColor: 'var(--color-surface)' }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl" style={{ backgroundColor: 'var(--color-surface)' }}>
             <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--color-border)' }}>
               <h3 className="text-lg font-semibold" style={{ color: 'var(--color-text)' }}>
                 Update Password - {passwordUser.username}
@@ -2038,9 +2070,9 @@ const AdminPanel: React.FC = () => {
       )}
       {/* 🚨 Permanent Delete Confirmation Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <div
-            className="rounded-lg max-w-md w-full p-6"
+            className="w-full max-w-md rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-2xl"
             style={{
               backgroundColor: "var(--color-surface)",
               color: "var(--color-text)",
@@ -2151,3 +2183,6 @@ const AdminPanel: React.FC = () => {
 };
 
 export default AdminPanel;
+
+
+

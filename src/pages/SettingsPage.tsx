@@ -923,7 +923,7 @@ const SettingsPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100/80 p-4 sm:p-6 lg:p-8">
-            <div className="mx-auto w-full max-w-15xl space-y-6">
+        <div className="w-full space-y-6">
                 <section className="relative overflow-hidden rounded-[32px] border border-slate-200/80 bg-white/90 p-5 shadow-[0_22px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-6 lg:p-8">
                     <div className="pointer-events-none absolute inset-0">
                         <div className="absolute -right-24 top-0 h-56 w-56 rounded-full bg-[var(--color-primary)]/10 blur-3xl" />
@@ -934,7 +934,7 @@ const SettingsPage: React.FC = () => {
                         <div className="max-w-3xl">
 
                             <div className="mt-4">
-                                <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                                <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
                                     Settings Studio
                                 </h1>
                                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">

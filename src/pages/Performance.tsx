@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useTheme } from '../contexts/ThemeContext';
 import {
   Calendar, CheckCircle, ChevronDown, Award, Star, BarChart3, Trophy, CalendarRange,
   Clock, CalendarDays, RefreshCw, UserCheck, RotateCcw, Users,
@@ -83,7 +82,6 @@ interface DashboardData {
 const Performance: React.FC = () => {
   const ANALYTICS_CACHE_TTL_MS = 60 * 1000;
   const { user } = useAuth();
-  useTheme();
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -107,10 +105,10 @@ const Performance: React.FC = () => {
   }) => {
     const baseClasses = "relative overflow-hidden transition-all duration-300 ease-out";
     const variants = {
-      default: `rounded-2xl bg-[var(--color-background)] `,
-      glass: `rounded-2xl bg-[var(--color-surface)]/80 backdrop-blur-xl border border-[var(--color-border)] shadow-lg`,
-      elevated: `rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xl`,
-      bordered: `rounded-2xl bg-[var(--color-primary)]/10 border-2 border-[var(--color-primary)]/20`
+      default: `rounded-[28px] bg-[var(--color-surface)] border border-[var(--color-border)] shadow-[0_12px_34px_rgba(15,23,42,0.06)]`,
+      glass: `rounded-[28px] bg-[var(--color-surface)]/90 backdrop-blur-xl border border-[var(--color-border)] shadow-[0_18px_50px_rgba(15,23,42,0.08)]`,
+      elevated: `rounded-[28px] bg-[var(--color-surface)] border border-[var(--color-border)] shadow-[0_18px_50px_rgba(15,23,42,0.08)]`,
+      bordered: `rounded-[28px] bg-[var(--color-primary)]/8 border border-[var(--color-primary)]/15`
     };
     const hoverClasses = hover ? "hover:shadow-xl hover:scale-[1.02] hover:border-[var(--color-primary)]/30" : "";
     return (
@@ -280,138 +278,117 @@ const Performance: React.FC = () => {
     ];
 
     return (
-      <ThemeCard className="p-6" variant="glass" hover={false}>
-        {/* Header Section */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-3">
-            <div className="relative">
-              <div className={`w-12 h-12 rounded-xl bg-gradient-to-r ${badge.gradient} flex items-center justify-center text-white font-bold text-lg shadow-lg`}>
+      <ThemeCard className="p-5" variant="glass" hover={false}>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="relative shrink-0">
+              <div className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${badge.gradient} text-base font-bold text-white shadow-[0_12px_28px_rgba(15,23,42,0.18)]`}>
                 {member.username.charAt(0).toUpperCase()}
               </div>
               {rank && (
-                <div className={`absolute -top-1 -right-1 ${badge.bg} rounded-full p-1 shadow-md`}>
+                <div className={`absolute -right-1 -top-1 rounded-full border border-white/70 ${badge.bg} p-1 shadow-sm`}>
                   <div className={badge.text}>{badge.icon}</div>
                 </div>
               )}
             </div>
-            <div>
-              <div className="flex items-center space-x-2 mb-0.5">
-                <h4 className="font-bold text-lg text-[var(--color-text)]">{member.username}</h4>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h4 className="truncate text-lg font-semibold text-[var(--color-text)]">{member.username}</h4>
                 {rank && (
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${badge.bg} ${badge.text}`}>
+                  <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${badge.bg} ${badge.text}`}>
                     #{rank}
                   </span>
                 )}
                 {isUser && (
-                  <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-blue-50 text-blue-700">
+                  <span className="inline-flex items-center rounded-full border border-[rgba(14,165,233,0.18)] bg-[rgba(14,165,233,0.10)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary)]">
                     You
                   </span>
                 )}
               </div>
-              <p className="text-sm font-medium text-[var(--color-textSecondary)]">{member.totalTasks} tasks</p>
+              <p className="mt-1 text-sm text-[var(--color-textSecondary)]">{member.totalTasks} tasks</p>
             </div>
           </div>
           <div className="text-right">
-            <div className="text-2xl font-bold mb-1" style={{ color: '#10b981' }}>{totalPerformanceRate.toFixed(1)}%</div>
+            <div className="text-2xl font-semibold text-[var(--color-success)]">{totalPerformanceRate.toFixed(1)}%</div>
             <p className="text-xs text-[var(--color-textSecondary)]">Score</p>
           </div>
         </div>
 
         {/* Status Bars - Compact */}
-        <div className="grid grid-cols-2 gap-2 mb-4">
-          {/* Completed */}
-          <div className="space-y-1">
+        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/55 p-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-[var(--color-text)]">Done</span>
-              <span className="text-sm font-bold" style={{ color: '#5b88dbff' }}>
-                {completed}
-              </span>
+              <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-textSecondary)]">Completed</span>
+              <span className="text-sm font-bold text-[var(--color-primary)]">{completed}</span>
             </div>
-            <div className="w-full h-2 bg-[var(--color-border)] rounded-full overflow-hidden">
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--color-border)]">
               <div
-                className="h-full rounded-full transition-all duration-1000"
-                style={{
-                  width: `${actualCompletionRate}%`,
-                  background: 'linear-gradient(to right, #1614b1ff, #5b88dbff)'
-                }}
+                className="h-full rounded-full bg-[var(--color-primary)] transition-all duration-1000"
+                style={{ width: `${actualCompletionRate}%` }}
               />
             </div>
-            <p className="text-xs text-[var(--color-textSecondary)]">{actualCompletionRate.toFixed(0)}%</p>
+            <p className="mt-1 text-xs text-[var(--color-textSecondary)]">{actualCompletionRate.toFixed(0)}%</p>
           </div>
 
-          {/* On-Time */}
-          <div className="space-y-1">
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/55 p-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-[var(--color-text)]">On-Time</span>
-              {member.totalTasks > 0 && (
-                <span className="text-sm font-bold" style={{ color: '#04b9ddff' }}>
-                  {member.onTimeCompletedTasks || 0}
-                </span>
-              )}
+              <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-textSecondary)]">On-Time</span>
+              <span className="text-sm font-bold text-[var(--color-success)]">{member.onTimeCompletedTasks || 0}</span>
             </div>
-            <div className="w-full h-2 bg-[var(--color-border)] rounded-full overflow-hidden">
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--color-border)]">
               <div
-                className="h-full rounded-full transition-all duration-1000"
-                style={{
-                  width: `${actualOnTimeRate}%`,
-                  background: 'linear-gradient(to right, #04b9ddff, #2575fc)'
-                }}
+                className="h-full rounded-full bg-[var(--color-success)] transition-all duration-1000"
+                style={{ width: `${actualOnTimeRate}%` }}
               />
             </div>
-            <p className="text-xs text-[var(--color-textSecondary)]">{actualOnTimeRate.toFixed(0)}%</p>
+            <p className="mt-1 text-xs text-[var(--color-textSecondary)]">{actualOnTimeRate.toFixed(0)}%</p>
           </div>
         </div>
 
         {/* Task Types Compact Display */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1 gap-2 mb-4">
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           {taskTypes.map((item, index) => (
             <div
               key={index}
-              className="p-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-center"
+              className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/55 p-3"
             >
-              {/* Icon + Label Row */}
-              <div className="flex items-center justify-center gap-1 mb-1">
-                <span style={{ color: item.color }} className="text-base">
-                  {item.icon}
-                </span>
-                <span className="text-md font-medium text-[var(--color-textSecondary)]">
-                  {item.label}
-                </span>
-
-                {/* Total */}
-                <div className="text-lg font-bold text-[var(--color-text)] mb-1 ml-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span style={{ color: item.color }} className="text-base">
+                    {item.icon}
+                  </span>
+                  <span className="text-sm font-medium text-[var(--color-textSecondary)]">
+                    {item.label}
+                  </span>
+                </div>
+                <div className="text-lg font-semibold text-[var(--color-text)]">
                   {item.total}
                 </div>
               </div>
 
-              {/* Pending / Completed */}
-              <div className="flex justify-center gap-2 lg:gap-4 text-xs items-center">
-                {/* Pending */}
-                <div className="flex items-center gap-1 text-[#04b9ddff] font-semibold"
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
+                <div className="flex items-center gap-1 font-semibold text-[var(--color-primary)]"
                   title="Pending">
                   <Clock size={12} strokeWidth={2} />
                   <span>{item.pending}</span>
                 </div>
 
-                {/* Completed */}
-                <div className="flex items-center gap-1 text-[#5b88dbff] font-semibold "
+                <div className="flex items-center gap-1 font-semibold text-[var(--color-success)]"
                   title="Completed">
                   <CheckCircle size={12} strokeWidth={2} />
                   <span>{item.completed}</span>
                 </div>
 
-                {/* Revised count (ONLY for One-time tasks) */}
                 {item.label === "One-time" && (
-                  <div className="flex items-center gap-1 text-orange-500 font-semibold "
+                  <div className="flex items-center gap-1 font-semibold text-[var(--color-warning)]"
                     title="Revised">
                     <RotateCcw size={12} strokeWidth={2} />
                     <span>{item.revised || 0}</span>
                   </div>
                 )}
 
-                {/* Rejected count (ONLY for One-time tasks) */}
                 {item.label === "One-time" && item.rejected !== undefined && (
-                  <div className="flex items-center gap-1 text-red-500 font-semibold "
+                  <div className="flex items-center gap-1 font-semibold text-[var(--color-error)]"
                     title="Rejected">
                     <XCircle size={12} strokeWidth={2} />
                     <span>{item.rejected}</span>
@@ -423,7 +400,7 @@ const Performance: React.FC = () => {
         </div>
 
         {/* Bottom Stats - More Compact */}
-        <div className="pt-3 border-t border-[var(--color-border)]">
+        <div className="pt-3">
           <div className="grid grid-cols-4 gap-3 text-center">
             <div>
               <p className="text-sm text-[var(--color-textSecondary)] mb-0.5">Total</p>
@@ -567,16 +544,16 @@ const Performance: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-background)] p-4 sm:p-8 space-y-8">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
-        <div className="flex items-center space-x-6">
-          <div className="p-4 rounded-2xl shadow-xl" style={{ background: `linear-gradient(135deg, #6a11cb 0%, #2575fc 100%)` }}>
-            <BarChart3 size={18} className="text-white" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-[var(--color-text)] ">Performance Dashboard</h1>
-            <p className="text-sm text-[var(--color-textSecondary)]">
+    <div className="min-h-full bg-[var(--color-background)] p-4 sm:p-6 space-y-6">
+      <ThemeCard className="px-6 py-5" variant="glass" hover={false}>
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-primary)] shadow-[0_12px_28px_rgba(15,23,42,0.08)]">
+              <BarChart3 size={18} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-text)]">Performance Dashboard</h1>
+              <p className="mt-1 text-sm text-[var(--color-textSecondary)]">
               Welcome back, <span className="font-bold text-[var(--color-text)]">{user?.username}</span>!
               {(user?.role === 'admin' || user?.role === 'manager') ? ' Team performance overview' : ' Here\'s your performance overview'}
               {viewMode === 'current' ?
@@ -585,19 +562,18 @@ const Performance: React.FC = () => {
                   ` from ${format(new Date(dateFrom), 'MMM dd')} to ${format(new Date(dateTo), 'MMM dd, yyyy')}` :
                   ' (all time)'
               }
-            </p>
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
-          {/* Export Button */}
-          {(dashboardData?.teamPerformance?.length || dashboardData?.userPerformance) && (
-            <div className="relative">
-              <button
-                onClick={() => setShowExportMenu(!showExportMenu)}
-                disabled={exporting}
-                className="flex items-center justify-center px-4 py-2.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-              >
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            {(dashboardData?.teamPerformance?.length || dashboardData?.userPerformance) && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  disabled={exporting}
+                  className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-sm font-medium text-[var(--color-text)] shadow-[0_8px_18px_rgba(15,23,42,0.05)] transition hover:border-[var(--color-primary)]/25 hover:text-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+                >
                 {exporting ? (
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                 ) : (
@@ -606,16 +582,15 @@ const Performance: React.FC = () => {
                 {exporting ? 'Exporting...' : 'Export'}
                 {!exporting && <ChevronDown size={16} className="ml-1" />}
               </button>
-              
               {showExportMenu && !exporting && (
-                <div className="absolute right-0 top-full mt-2 w-48 z-50">
+                <div className="absolute right-0 top-full z-50 mt-2 w-48">
                   <ThemeCard className="p-2" variant="elevated" hover={false}>
                     <div className="space-y-1">
                       <button
                         onClick={handleExportExcel}
-                        className="w-full flex items-center px-3 py-2 rounded-xl text-left hover:bg-[var(--color-border)] transition-colors"
+                        className="flex w-full items-center rounded-2xl px-3 py-2 text-left transition-colors hover:bg-[var(--color-background)]"
                       >
-                        <FileSpreadsheet size={18} className="mr-3 text-green-600" />
+                        <FileSpreadsheet size={18} className="mr-3 text-[var(--color-success)]" />
                         <div>
                           <div className="font-semibold text-[var(--color-text)]">Excel Report</div>
                           <div className="text-xs text-[var(--color-textSecondary)]">Detailed data sheets</div>
@@ -623,9 +598,9 @@ const Performance: React.FC = () => {
                       </button>
                       <button
                         onClick={handleExportPDF}
-                        className="w-full flex items-center px-3 py-2 rounded-xl text-left hover:bg-[var(--color-border)] transition-colors"
+                        className="flex w-full items-center rounded-2xl px-3 py-2 text-left transition-colors hover:bg-[var(--color-background)]"
                       >
-                        <FileText size={18} className="mr-3 text-red-600" />
+                        <FileText size={18} className="mr-3 text-[var(--color-error)]" />
                         <div>
                           <div className="font-semibold text-[var(--color-text)]">PDF Scorecard</div>
                           <div className="text-xs text-[var(--color-textSecondary)]">Performance summary</div>
@@ -636,173 +611,171 @@ const Performance: React.FC = () => {
                 </div>
               )}
             </div>
-          )}
+            )}
 
-          <ThemeCard className="p-1 w-full sm:w-auto" variant="bordered" hover={false}>
-            <div className="flex items-center justify-center">
-              <button
-                onClick={() => {
-                  setViewMode('current');
-                  setSelectedMonth(new Date());
-                  setShowDateFilter(false);
-                }}
-                className={`px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-200 flex-1 sm:flex-none ${viewMode === 'current' ? 'bg-[var(--color-primary)] text-white shadow-md' : 'text-[var(--color-textSecondary)] hover:text-[var(--color-text)]'}`}
-              >
-                Current Month
-              </button>
-              <button
-                onClick={() => {
-                  setViewMode('custom');
-                  setShowDateFilter(false);
-                }}
-                className={`px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-200 flex-1 sm:flex-none ${viewMode === 'custom' ? 'bg-[var(--color-primary)] text-white shadow-md' : 'text-[var(--color-textSecondary)] hover:text-[var(--color-text)]'}`}
-              >
-                Date Range
-              </button>
-              <button
-                onClick={() => {
-                  setViewMode('all-time');
-                  setShowDateFilter(false);
-                }}
-                className={`px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-200 flex-1 sm:flex-none ${viewMode === 'all-time' ? 'bg-[var(--color-primary)] text-white shadow-md' : 'text-[var(--color-textSecondary)] hover:text-[var(--color-text)]'}`}
-              >
-                All Time
-              </button>
-            </div>
-          </ThemeCard>
+            <ThemeCard className="p-1" variant="bordered" hover={false}>
+              <div className="flex items-center justify-center">
+                <button
+                  onClick={() => {
+                    setViewMode('current');
+                    setSelectedMonth(new Date());
+                    setShowDateFilter(false);
+                  }}
+                  className={`rounded-2xl px-3 py-2 text-sm font-semibold transition-all duration-200 ${
+                    viewMode === 'current'
+                      ? 'bg-[var(--color-primary)] text-white shadow-md'
+                      : 'text-[var(--color-textSecondary)] hover:text-[var(--color-text)]'
+                  }`}
+                >
+                  Current Month
+                </button>
+                <button
+                  onClick={() => {
+                    setViewMode('custom');
+                    setShowDateFilter(false);
+                  }}
+                  className={`rounded-2xl px-3 py-2 text-sm font-semibold transition-all duration-200 ${
+                    viewMode === 'custom'
+                      ? 'bg-[var(--color-primary)] text-white shadow-md'
+                      : 'text-[var(--color-textSecondary)] hover:text-[var(--color-text)]'
+                  }`}
+                >
+                  Date Range
+                </button>
+                <button
+                  onClick={() => {
+                    setViewMode('all-time');
+                    setShowDateFilter(false);
+                  }}
+                  className={`rounded-2xl px-3 py-2 text-sm font-semibold transition-all duration-200 ${
+                    viewMode === 'all-time'
+                      ? 'bg-[var(--color-primary)] text-white shadow-md'
+                      : 'text-[var(--color-textSecondary)] hover:text-[var(--color-text)]'
+                  }`}
+                >
+                  All Time
+                </button>
+              </div>
+            </ThemeCard>
 
-          {viewMode === 'custom' && (
-            <div className="relative z-10 w-full sm:w-auto">
-              <button
-                onClick={() => setShowDateFilter(!showDateFilter)}
-                className="flex items-center justify-center px-4 py-2.5 bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] shadow-lg hover:shadow-xl transition-all duration-200 text-[var(--color-text)] font-md w-full"
-              >
-                <CalendarRange size={18} className="mr-3" />
-                <span className='font-semibold'>
-                  {dateFrom === dateTo
-                    ? format(new Date(dateFrom), 'MMM dd, yyyy')
-                    : `${format(new Date(dateFrom), 'MMM dd')} - ${format(new Date(dateTo), 'MMM dd, yyyy')}`
-                  }
-                </span>
-                <ChevronDown size={18} className="ml-3" />
-              </button>
-              {showDateFilter && (
-                <div className="absolute right-0 top-full mt-2 w-full sm:w-80 z-50">
-                  <ThemeCard className="p-4" variant="elevated" hover={false}>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-semibold text-[var(--color-text)] mb-2">From Date</label>
-                        <input
-                          ref={fromDateRef}
-                          type="date"
-                          value={dateFrom}
-                          onClick={() => fromDateRef.current?.showPicker()}
-                          onChange={(e) => setDateFrom(e.target.value)}
-                          className="w-full cursor-pointer px-3 py-2
-               bg-[var(--color-background)]
-               border border-[var(--color-border)]
-               rounded-xl text-[var(--color-text)]
-               focus:outline-none
-               focus:ring-2 focus:ring-[var(--color-primary)]
-               focus:border-transparent"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-[var(--color-text)] mb-2">To Date</label>
-                        <input
-                          ref={toDateRef}
-                          type="date"
-                          value={dateTo}
-                          min={dateFrom}
-                          onClick={() => toDateRef.current?.showPicker()}
-                          onChange={(e) => setDateTo(e.target.value)}
-                          className="w-full cursor-pointer px-3 py-2
-               bg-[var(--color-background)]
-               border border-[var(--color-border)]
-               rounded-xl text-[var(--color-text)]
-               focus:outline-none
-               focus:ring-2 focus:ring-[var(--color-primary)]
-               focus:border-transparent"
-                        />
-                      </div>
-                      <div className="flex space-x-2 pt-2">
-                        <button
-                          onClick={() => setShowDateFilter(false)}
-                          className="flex-1 px-4 py-2 bg-[var(--color-border)] text-[var(--color-text)] rounded-xl hover:bg-[var(--color-border)]/80 transition-colors font-semibold"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  </ThemeCard>
-                </div>
-              )}
-            </div>
-          )}
-
-          {viewMode === 'current' && (
-            <div className="relative z-10 w-full sm:w-auto">
-              <button
-                onClick={() => setShowMonthFilter(!showMonthFilter)}
-                className="flex items-center justify-center px-4 py-2  bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] shadow-lg hover:shadow-xl transition-all duration-200 text-[var(--color-text)] font-md w-full"
-              >
-                <Calendar size={18} className="mr-3" />
-                <span className='font-semibold'>
-                  {isSameMonth(selectedMonth, new Date()) && isSameYear(selectedMonth, new Date())
-                    ? 'Current Month'
-                    : format(selectedMonth, 'MMMM yyyy')}
-                </span>
-                <ChevronDown size={18} className="ml-3" />
-              </button>
-              {showMonthFilter && (
-                <div className="absolute right-0 top-full mt-2 w-full sm:w-52 z-50">
-                  <ThemeCard className="p-3 max-h-80 overflow-y-auto" variant="elevated" hover={false}>
-                    <div ref={monthListRef} className="space-y-2">
-                      {monthOptions.map((date, index) => {
-                        const isSelected = format(date, 'yyyy-MM') === format(selectedMonth, 'yyyy-MM');
-                        const isCurrent = isThisMonth(date);
-                        return (
+            {viewMode === 'custom' && (
+              <div className="relative z-10 w-full sm:w-auto">
+                <button
+                  onClick={() => setShowDateFilter(!showDateFilter)}
+                  className="inline-flex w-full items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-sm font-medium text-[var(--color-text)] shadow-[0_8px_18px_rgba(15,23,42,0.05)] transition hover:border-[var(--color-primary)]/25"
+                >
+                  <CalendarRange size={18} className="mr-3" />
+                  <span className="font-semibold">
+                    {dateFrom === dateTo
+                      ? format(new Date(dateFrom), 'MMM dd, yyyy')
+                      : `${format(new Date(dateFrom), 'MMM dd')} - ${format(new Date(dateTo), 'MMM dd, yyyy')}`}
+                  </span>
+                  <ChevronDown size={18} className="ml-3" />
+                </button>
+                {showDateFilter && (
+                  <div className="absolute right-0 top-full z-50 mt-2 w-full sm:w-80">
+                    <ThemeCard className="p-4" variant="elevated" hover={false}>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="mb-2 block text-sm font-semibold text-[var(--color-text)]">From Date</label>
+                          <input
+                            ref={fromDateRef}
+                            type="date"
+                            value={dateFrom}
+                            onClick={() => fromDateRef.current?.showPicker()}
+                            onChange={(e) => setDateFrom(e.target.value)}
+                            className="w-full cursor-pointer rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-[var(--color-text)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-2 block text-sm font-semibold text-[var(--color-text)]">To Date</label>
+                          <input
+                            ref={toDateRef}
+                            type="date"
+                            value={dateTo}
+                            min={dateFrom}
+                            onClick={() => toDateRef.current?.showPicker()}
+                            onChange={(e) => setDateTo(e.target.value)}
+                            className="w-full cursor-pointer rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-[var(--color-text)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                          />
+                        </div>
+                        <div className="pt-2">
                           <button
-                            key={index}
-                            onClick={() => {
-                              setSelectedMonth(date);
-                              setShowMonthFilter(false);
-                            }}
-                            className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-200 
-  ${isSelected ? 'selected-month bg-[var(--color-primary)] text-white shadow-lg'
-                                : 'hover:bg-[var(--color-border)] text-[var(--color-text)]'}`}
+                            onClick={() => setShowDateFilter(false)}
+                            className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2 font-semibold text-[var(--color-textSecondary)] transition hover:text-[var(--color-text)]"
                           >
-                            <div className="flex items-center justify-between">
-                              <span className="font-semibold">{format(date, 'MMMM yyyy')}</span>
-                              <div className="flex items-center space-x-0">
-                                {isCurrent && (
-                                  <div className="w-2 h-2 bg-[var(--color-success)] rounded-full"></div>
-                                )}
-                              </div>
-                            </div>
+                            Cancel
                           </button>
-                        );
-                      })}
-                    </div>
-                  </ThemeCard>
-                </div>
-              )}
-            </div>
-          )}
+                        </div>
+                      </div>
+                    </ThemeCard>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {viewMode === 'current' && (
+              <div className="relative z-10 w-full sm:w-auto">
+                <button
+                  onClick={() => setShowMonthFilter(!showMonthFilter)}
+                  className="inline-flex w-full items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-sm font-medium text-[var(--color-text)] shadow-[0_8px_18px_rgba(15,23,42,0.05)] transition hover:border-[var(--color-primary)]/25"
+                >
+                  <Calendar size={18} className="mr-3" />
+                  <span className="font-semibold">
+                    {isSameMonth(selectedMonth, new Date()) && isSameYear(selectedMonth, new Date())
+                      ? 'Current Month'
+                      : format(selectedMonth, 'MMMM yyyy')}
+                  </span>
+                  <ChevronDown size={18} className="ml-3" />
+                </button>
+                {showMonthFilter && (
+                  <div className="absolute right-0 top-full z-50 mt-2 w-full sm:w-52">
+                    <ThemeCard className="max-h-80 overflow-y-auto p-3" variant="elevated" hover={false}>
+                      <div ref={monthListRef} className="space-y-2">
+                        {monthOptions.map((date, index) => {
+                          const isSelected = format(date, 'yyyy-MM') === format(selectedMonth, 'yyyy-MM');
+                          const isCurrent = isThisMonth(date);
+                          return (
+                            <button
+                              key={index}
+                              onClick={() => {
+                                setSelectedMonth(date);
+                                setShowMonthFilter(false);
+                              }}
+                              className={`w-full rounded-2xl px-4 py-3 text-left transition-all duration-200 ${
+                                isSelected
+                                  ? 'bg-[var(--color-primary)] text-white shadow-lg'
+                                  : 'text-[var(--color-text)] hover:bg-[var(--color-background)]'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-semibold">{format(date, 'MMMM yyyy')}</span>
+                                {isCurrent && <div className="h-2 w-2 rounded-full bg-[var(--color-success)]" />}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </ThemeCard>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </ThemeCard>
 
       {/* Performance Content */}
       {(user?.role !== 'admin' && user?.role !== 'manager') && dashboardData?.userPerformance && (
-        <div className="grid grid-cols-1 gap-6">
+        <div className="grid grid-cols-1 gap-4">
           <PerformanceCard member={dashboardData.userPerformance} isUser={true} />
         </div>
       )}
 
       {(user?.role === 'admin' || user?.role === 'manager') && (
-        <ThemeCard className="" variant="default">
+        <div className="space-y-6">
           {top10Users.length > 0 ? (
-            <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
+            <div className="grid grid-cols-1 gap-6">
               {top10Users.map((member, i) => (
                 <PerformanceCard key={member.username} member={member} rank={i + 1} />
               ))}
@@ -821,7 +794,7 @@ const Performance: React.FC = () => {
               </p>
             </div>
           )}
-        </ThemeCard>
+        </div>
       )}
 
       {!dashboardData?.userPerformance && !dashboardData?.teamPerformance?.length && (

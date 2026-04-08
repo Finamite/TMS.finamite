@@ -412,7 +412,7 @@ const MasterTasks: React.FC = () => {
   };
 
   const renderCardView = () => (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
+    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
       {currentTasks.map((task) => {
         const isExpanded = expandedDescriptions.has(task._id);
         const showReadMore = task.description.length > 110;
@@ -423,235 +423,185 @@ const MasterTasks: React.FC = () => {
         return (
           <div
             key={task._id}
-            className={`group flex h-full flex-col rounded-[26px] border bg-[var(--color-surface)] shadow-[0_12px_36px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_48px_rgba(15,23,42,0.1)] ${
+            className={`group flex h-full flex-col overflow-hidden rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_12px_34px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--color-primary)]/25 hover:shadow-[0_16px_42px_rgba(15,23,42,0.1)] ${
               isTaskOverdue(task.dueDate, task.status)
-                ? 'border-[var(--color-error)]/20 ring-1 ring-[var(--color-error)]/10'
-                : 'border-[var(--color-border)]'
+                ? 'ring-1 ring-[var(--color-error)]/25'
+                : ''
             }`}
           >
-            <div className="flex h-full flex-col p-4">
+            <div className="flex h-full flex-col p-5">
               <div className="flex items-start justify-between gap-3">
-                <div className={`text-lg font-semibold flex-1 ${isDark ? 'text-white' : 'text-gray-800'}`}>
-                  {expandedTitles.has(task._id) || task.title.length <= 70
-                    ? task.title
-                    : `${task.title.substring(0, 70)}...`}
-                  {task.title.length > 70 && (
-                    <button
-                      onClick={() => toggleTitleExpansion(task._id)}
-                      className="ml-1 text-blue-500 hover:underline text-xs"
-                    >
-                      {expandedTitles.has(task._id) ? 'Show Less' : 'Show More'}
-                    </button>
-                  )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge status={task.status} />
+                    <PriorityBadge priority={task.priority} />
+                    {task.revisionCount > 0 && (
+                      <span className="inline-flex items-center rounded-full border border-[rgba(245,158,11,0.18)] bg-[rgba(245,158,11,0.10)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-warning)]">
+                        <History size={12} className="mr-1 inline" />
+                        Revised {task.revisionCount}x
+                      </span>
+                    )}
+                    {isTaskOverdue(task.dueDate, task.status) && (
+                      <span className="inline-flex items-center rounded-full border border-[rgba(239,68,68,0.18)] bg-[rgba(239,68,68,0.10)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-error)]">
+                        Overdue
+                      </span>
+                    )}
+                    {task.parentTaskInfo?.isForever && (
+                      <span className="inline-flex items-center rounded-full border border-[rgba(14,165,233,0.18)] bg-[rgba(14,165,233,0.10)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary)]">
+                        FOREVER
+                      </span>
+                    )}
+                  </div>
+
+                  <h3 className="mt-3 text-[1rem] font-semibold leading-snug text-[var(--color-text)]">
+                    {expandedTitles.has(task._id) || task.title.length <= 70
+                      ? task.title
+                      : `${task.title.substring(0, 70)}...`}
+                    {task.title.length > 70 && (
+                      <button
+                        onClick={() => toggleTitleExpansion(task._id)}
+                        className="ml-1 text-xs text-[var(--color-primary)] hover:underline"
+                      >
+                        {expandedTitles.has(task._id) ? 'Show Less' : 'Show More'}
+                      </button>
+                    )}
+                  </h3>
                 </div>
-                <div className="flex items-center gap-1.5 opacity-80 hover:opacity-100 transition-opacity">
+
+                <div className="flex shrink-0 items-center gap-2">
                   {task.revisionCount > 0 && (
                     <button
                       onClick={() => viewRevisionHistory(task)}
-                      className={`inline-flex h-8 w-8 items-center justify-center rounded-2xl transition-colors ${isDark ? 'text-blue-400 hover:bg-blue-900' : 'text-blue-600 hover:bg-blue-50'}`}
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-primary)] transition hover:bg-[rgba(14,165,233,0.08)]"
                       title="View revision history"
                     >
-                      <History size={14} />
+                      <History size={16} />
                     </button>
                   )}
                   {task.status !== 'completed' && user?.permissions.canEditTasks && (
                     <button
                       onClick={() => setEditingTask(task)}
-                      className={`inline-flex h-8 w-8 items-center justify-center rounded-2xl transition-colors ${isDark ? 'text-green-400 hover:bg-green-900' : 'text-green-600 hover:bg-green-50'}`}
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-success)] transition hover:bg-[rgba(34,197,94,0.08)]"
                       title="Edit task"
                     >
-                      <Edit3 size={14} />
+                      <Edit3 size={16} />
                     </button>
                   )}
                   {user?.permissions.canDeleteTasks && (
                     <button
                       onClick={() => handleDeleteTask(task._id)}
-                      className={`inline-flex h-8 w-8 items-center justify-center rounded-2xl transition-colors ${isDark ? 'text-red-400 hover:bg-red-900' : 'text-red-600 hover:bg-red-50'}`}
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-danger)] transition hover:bg-[rgba(239,68,68,0.08)]"
                       title="Delete task"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={16} />
                     </button>
                   )}
                 </div>
               </div>
 
-              <div className="mt-3 flex flex-wrap gap-2">
-                <StatusBadge status={task.status} />
-                {task.status === 'rejected' && (
-                  <button
-                    onClick={() => setShowRejectInfoModal(task)}
-                    className="ml-1 p-1 rounded-full hover:bg-red-100"
-                    title="View rejection details"
-                  >
-                    <Info size={14} className="text-red-600" />
-                  </button>
-                )}
-                {task.status === 'completed' && task.approvedAt && task.approvedBy && (
-                  <button
-                    onClick={() => setShowApproveInfoModal(task)}
-                    className="ml-1 p-1 rounded-full hover:bg-green-100"
-                    title="View approval details"
-                  >
-                    <Info size={14} className="text-green-600" />
-                  </button>
-                )}
-                <PriorityBadge priority={task.priority} />
-                {task.revisionCount > 0 && (
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${isDark ? 'bg-orange-700 text-orange-200 border-orange-600' : 'bg-orange-100 text-orange-800 border border-orange-200'}`}>
-                    <History size={12} className="inline mr-1" />
-                    Revised {task.revisionCount}x
-                  </span>
-                )}
-                {isTaskOverdue(task.dueDate, task.status) && (
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${isDark ? 'bg-red-700 text-red-200 border-red-600' : 'bg-red-100 text-red-800 border border-red-200'}`}>
-                    Overdue
-                  </span>
-                )}
-              </div>
-
-              <p className={`mt-3 text-sm leading-6 whitespace-pre-wrap break-words ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              <p className="mt-3 text-sm leading-6 whitespace-pre-wrap break-words text-[var(--color-textSecondary)]">
                 {displayedDescription}
                 {showReadMore && (
                   <button
                     onClick={() => toggleDescriptionExpansion(task._id)}
-                    className="ml-1 text-blue-500 hover:underline text-xs"
+                    className="ml-1 text-xs text-[var(--color-primary)] hover:underline"
                   >
                     {isExpanded ? 'Show Less' : 'Show More'}
                   </button>
                 )}
               </p>
 
-              <div className="mt-4 grid gap-2 md:grid-cols-2">
-                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-3.5 py-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-textSecondary)]">Task ID</span>
-                    <span className="text-sm font-semibold text-[var(--color-text)]">{task.taskId || '—'}</span>
+              <div className="mt-4 space-y-2.5 text-sm">
+                <div className="flex items-start justify-between gap-4">
+                  <span className="font-medium text-[var(--color-textSecondary)]">Task ID:</span>
+                  <span className="font-semibold text-[var(--color-text)]">{task.taskId || '—'}</span>
+                </div>
+                <div className="flex items-start justify-between gap-4">
+                  <span className="font-medium text-[var(--color-textSecondary)]">Assigned by:</span>
+                  <span className="font-semibold text-[var(--color-text)]">{task.assignedBy.username}</span>
+                </div>
+                <div className="flex items-start justify-between gap-4">
+                  <span className="font-medium text-[var(--color-textSecondary)]">Assigned to:</span>
+                  <div className="text-right">
+                    <div className="font-semibold text-[var(--color-text)]">{task.assignedTo.username}</div>
+                    
                   </div>
                 </div>
-                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-3.5 py-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-textSecondary)]">
-                      <Users size={12} className="mr-1 inline-block align-[-1px]" />
-                      Assigned by
-                    </span>
-                    <span className="text-sm font-semibold text-[var(--color-text)]">{task.assignedBy.username}</span>
-                  </div>
+                <div className="flex items-start justify-between gap-4">
+                  <span className="font-medium text-[var(--color-textSecondary)]">Task Attachments:</span>
+                  {task.attachments && task.attachments.length > 0 ? (
+                    <button
+                      onClick={() => setShowAttachmentsModal({ attachments: task.attachments, type: 'task' })}
+                      className="font-medium text-[var(--color-primary)] hover:underline"
+                    >
+                      View ({task.attachments.length})
+                    </button>
+                  ) : (
+                    <span className="font-medium text-[var(--color-textSecondary)]">No Attachments</span>
+                  )}
                 </div>
-                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-3.5 py-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-textSecondary)]">
-                      <Eye size={12} className="mr-1 inline-block align-[-1px]" />
-                      Assigned to
-                    </span>
-                    <div className="text-right">
-                      <div className="text-sm font-semibold text-[var(--color-primary)]">{task.assignedTo.username}</div>
-                      <div className="mt-0.5 text-xs text-[var(--color-textSecondary)]">{task.assignedTo.email}</div>
+                <div className="flex items-start justify-between gap-4">
+                  <span className="font-medium text-[var(--color-textSecondary)]">Due date:</span>
+                  <div className="text-right">
+                    <div className={`font-semibold ${
+                      isTaskOverdue(task.dueDate, task.status)
+                        ? 'text-[var(--color-error)]'
+                        : 'text-[var(--color-text)]'
+                    }`}>
+                      {task.dueDate ? new Date(task.dueDate).toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: 'numeric',
+                        year: 'numeric',
+                      }) : 'N/A'}
                     </div>
-                  </div>
-                </div>
-                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-3.5 py-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-textSecondary)]">
-                      <Paperclip size={12} className="mr-1 inline-block align-[-1px]" />
-                      Attachments
-                    </span>
-                    {task.attachments && task.attachments.length > 0 ? (
-                      <button
-                        onClick={() => setShowAttachmentsModal({ attachments: task.attachments, type: 'task' })}
-                        className="text-sm font-semibold text-[var(--color-primary)] hover:underline"
-                      >
-                        View ({task.attachments.length})
-                      </button>
-                    ) : (
-                      <span className="text-sm font-medium text-[var(--color-textSecondary)]">No attachments</span>
+                   
+                    {isTaskOverdue(task.dueDate, task.status) && (
+                      <div className="text-xs font-medium text-[var(--color-error)]">Overdue</div>
                     )}
                   </div>
                 </div>
-                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-3.5 py-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-textSecondary)]">
-                      <Calendar size={12} className="mr-1 inline-block align-[-1px]" />
-                      Due date
-                    </span>
-                    <div className="text-right">
-                      <div className={`text-sm font-semibold ${
-                        isTaskOverdue(task.dueDate, task.status)
-                          ? 'text-[var(--color-error)]'
-                          : 'text-[var(--color-text)]'
-                      }`}>
-                        {task.dueDate ? new Date(task.dueDate).toLocaleDateString('en-GB', {
-                          day: '2-digit',
-                          month: 'numeric',
-                          year: 'numeric',
-                        }) : 'N/A'}
-                      </div>
-                      <div className="mt-0.5 text-xs text-[var(--color-textSecondary)]">
-                        Created: {new Date(task.createdAt).toLocaleDateString('en-GB', {
-                          day: '2-digit',
-                          month: 'numeric',
-                          year: 'numeric',
-                        })}
-                      </div>
-                      {isTaskOverdue(task.dueDate, task.status) && (
-                        <div className="mt-0.5 text-xs font-medium text-[var(--color-error)]">Overdue</div>
-                      )}
-                    </div>
-                  </div>
+                <div className="flex items-start justify-between gap-4">
+                  <span className="font-medium text-[var(--color-textSecondary)]">Created date:</span>
+                  <span className="font-semibold text-[var(--color-text)]">
+                    {new Date(task.createdAt).toLocaleDateString('en-GB', {
+                      day: '2-digit',
+                      month: 'numeric',
+                      year: 'numeric',
+                    })}
+                  </span>
                 </div>
-                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-3.5 py-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-textSecondary)]">
-                      <Calendar size={12} className="mr-1 inline-block align-[-1px]" />
-                      Created date
+                {task.completedAt && (
+                  <div className="flex items-start justify-between gap-4">
+                    <span className="font-medium text-[var(--color-textSecondary)]">
+                      Completed:
+                      {task.completionRemarks && (
+                        <button
+                          onClick={() => setShowRemarksModal(task)}
+                          className="ml-1 inline-flex align-middle text-[var(--color-primary)] hover:underline"
+                          title="View completion remarks"
+                        >
+                          <Info size={12} />
+                        </button>
+                      )}
                     </span>
-                    <span className="text-sm font-semibold text-[var(--color-text)]">
-                      {new Date(task.createdAt).toLocaleDateString('en-GB', {
+                    <span className="font-semibold text-[var(--color-success)]">
+                      {new Date(task.completedAt).toLocaleDateString('en-GB', {
                         day: '2-digit',
                         month: 'numeric',
                         year: 'numeric',
                       })}
                     </span>
                   </div>
-                </div>
-                {task.completedAt && (
-                  <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-3.5 py-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-textSecondary)]">
-                        Completed
-                        {task.completionRemarks && (
-                          <button
-                            onClick={() => setShowRemarksModal(task)}
-                            className="ml-1 inline-flex align-middle text-[var(--color-primary)] hover:underline"
-                            title="View completion remarks"
-                          >
-                            <Info size={12} />
-                          </button>
-                        )}
-                      </span>
-                      <span className="text-sm font-semibold text-[var(--color-success)]">
-                        {new Date(task.completedAt).toLocaleDateString('en-GB', {
-                          day: '2-digit',
-                          month: 'numeric',
-                          year: 'numeric',
-                        })}
-                      </span>
-                    </div>
-                  </div>
                 )}
                 {task.completionAttachments && task.completionAttachments.length > 0 && (
-                  <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-3.5 py-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-textSecondary)]">
-                        <Paperclip size={12} className="mr-1 inline-block align-[-1px]" />
-                        Completion files
-                      </span>
-                      <button
-                        onClick={() => setShowAttachmentsModal({ attachments: task.completionAttachments!, type: 'completion' })}
-                        className="text-sm font-semibold text-[var(--color-success)] hover:underline"
-                      >
-                        View ({task.completionAttachments.length})
-                      </button>
-                    </div>
+                  <div className="flex items-start justify-between gap-4">
+                    <span className="font-medium text-[var(--color-textSecondary)]">Completion files:</span>
+                    <button
+                      onClick={() => setShowAttachmentsModal({ attachments: task.completionAttachments!, type: 'completion' })}
+                      className="font-medium text-[var(--color-success)] hover:underline"
+                    >
+                      View ({task.completionAttachments.length})
+                    </button>
                   </div>
                 )}
               </div>
@@ -1012,6 +962,7 @@ const MasterTasks: React.FC = () => {
               {user?.permissions.canViewAllTeamTasks ? ' (All team members)' : ' (Your tasks)'}
             </p>
           </div>
+
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowFilters(!showFilters)}

@@ -230,6 +230,8 @@ const Dashboard: React.FC = () => {
     (user.role === 'admin' ||
       (user.role === 'manager' && user.permissions?.canManageApproval));
 
+  const isPrivilegedUser = user?.role === 'admin' || user?.role === 'manager';
+
   const ThemeCard = ({ children, className = "", variant = "default", hover = true, onClick }: {
     children: React.ReactNode;
     className?: string;
@@ -1019,10 +1021,14 @@ const Dashboard: React.FC = () => {
                   <Users size={14} />
                   {user?.role || 'user'}
                 </span>
-                {whatsappIntegrationStatus.live && (
-                  <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600">
+                {isPrivilegedUser && whatsappIntegrationStatus.live && (
+                  <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600 shadow-sm shadow-emerald-500/10">
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75 animate-ping" />
+                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                    </span>
                     <MessageSquare size={14} />
-                    WhatsApp live
+                    WhatsApp integration live now
                   </span>
                 )}
               </div>
@@ -1273,7 +1279,8 @@ const Dashboard: React.FC = () => {
               </div>
             </section>
 
-            <section className="rounded-[28px] border p-5 sm:p-6" style={cardStyle}>
+            {isPrivilegedUser && (
+              <section className="rounded-[28px] border p-5 sm:p-6" style={cardStyle}>
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] px-3 py-1 text-xs font-semibold text-[var(--color-textSecondary)]">
@@ -1349,7 +1356,8 @@ const Dashboard: React.FC = () => {
                   </div>
                 )}
               </div>
-            </section>
+              </section>
+            )}
           </div>
 
           <div className="space-y-6">
@@ -1545,7 +1553,73 @@ const Dashboard: React.FC = () => {
               )}
             </section>
 
-            {(user?.role === 'admin' || user?.role === 'manager') && (
+            {!isPrivilegedUser && (
+              <section className="flex h-[600px] flex-col rounded-[28px] border p-5 sm:p-6" style={cardStyle}>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] px-3 py-1 text-xs font-semibold text-[var(--color-textSecondary)]">
+                      <Activity size={12} />
+                      Recent activity
+                    </div>
+                    <h2 className="mt-3 text-2xl font-semibold text-[var(--color-text)]">Latest updates</h2>
+                  </div>
+                  <div className="rounded-full border border-[var(--color-border)] px-3 py-1.5 text-xs font-semibold text-[var(--color-textSecondary)]">
+                    Last {Math.min(dashboardData.recentActivity?.slice(0, 10).length || 0, 10)}
+                  </div>
+                </div>
+                <div className="mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+                  {dashboardData?.recentActivity?.slice(0, 10).length ? (
+                    dashboardData.recentActivity.slice(0, 10).map((activity) => (
+                      <div key={activity._id} className="rounded-[22px] border border-[var(--color-border)] px-4 py-4 transition hover:border-[var(--color-primary)]/30">
+                        <div className="flex items-start gap-3">
+                          <div
+                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
+                            style={{
+                              backgroundColor:
+                                activity.type === 'completed'
+                                  ? '#10b9811a'
+                                  : activity.type === 'overdue'
+                                    ? '#ef44441a'
+                                    : '#3b82f61a',
+                              color:
+                                activity.type === 'completed'
+                                  ? '#10b981'
+                                  : activity.type === 'overdue'
+                                    ? '#ef4444'
+                                    : '#3b82f6'
+                            }}
+                          >
+                            {getActivityIcon(activity.type)}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-[var(--color-text)]">
+                              <span className="text-[var(--color-textSecondary)]">
+                                {activity.type === 'assigned' && 'You were assigned'}
+                                {activity.type === 'completed' && 'You completed'}
+                                {activity.type === 'overdue' && 'You have overdue'}
+                              </span>
+                              <span className="mx-1 font-semibold">{activity.title}</span>
+                            </p>
+                            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[var(--color-textSecondary)]">
+                              <span className="rounded-full border border-[var(--color-border)] px-2.5 py-1">{activity.taskType}</span>
+                              <span>{format(new Date(activity.date), 'MMM d, h:mm a')}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-[24px] border border-dashed border-[var(--color-border)] px-6 py-10 text-center">
+                      <Activity size={32} className="mx-auto text-[var(--color-textSecondary)]" />
+                      <p className="mt-3 text-sm font-semibold text-[var(--color-text)]">No recent activity</p>
+                      <p className="mt-1 text-xs text-[var(--color-textSecondary)]">Task updates will appear here as work moves.</p>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {isPrivilegedUser && (
               <section className="rounded-[28px] border p-5 sm:p-6" style={cardStyle}>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>

@@ -196,19 +196,19 @@ ReadMore.displayName = 'ReadMore';
 // Skeleton loader component
 const SkeletonLoader = memo(() => (
     <div className="animate-pulse">
-        <div className="bg-[--color-surface] rounded-xl shadow-sm border border-[--color-border] p-6 mb-4">
+        <div className="mb-4 rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-[0_12px_34px_rgba(15,23,42,0.06)]">
             <div className="flex items-start justify-between mb-4">
-                <div className="h-6 bg-[--color-border] rounded w-3/4"></div>
-                <div className="h-8 w-8 bg-[--color-border] rounded"></div>
+                <div className="h-6 w-3/4 rounded-full bg-[var(--color-border)]"></div>
+                <div className="h-8 w-8 rounded-full bg-[var(--color-border)]"></div>
             </div>
             <div className="flex flex-wrap gap-2 mb-4">
-                <div className="h-6 bg-[--color-border] rounded w-16"></div>
-                <div className="h-6 bg-[--color-border] rounded w-20"></div>
-                <div className="h-6 bg-[--color-border] rounded w-24"></div>
+                <div className="h-6 w-16 rounded-full bg-[var(--color-border)]"></div>
+                <div className="h-6 w-20 rounded-full bg-[var(--color-border)]"></div>
+                <div className="h-6 w-24 rounded-full bg-[var(--color-border)]"></div>
             </div>
             <div className="space-y-2">
-                <div className="h-4 bg-[--color-border] rounded w-full"></div>
-                <div className="h-4 bg-[--color-border] rounded w-2/3"></div>
+                <div className="h-4 w-full rounded-full bg-[var(--color-border)]"></div>
+                <div className="h-4 w-2/3 rounded-full bg-[var(--color-border)]"></div>
             </div>
         </div>
     </div>
@@ -786,7 +786,7 @@ const RecycleBin: React.FC = () => {
 
     // Memoized components for better performance
     const MasterTaskCard = memo<{ masterTask: MasterTask }>(({ masterTask }) => (
-        <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] hover:shadow-md transition-all duration-200 overflow-hidden">
+        <div className="overflow-hidden rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_12px_34px_rgba(15,23,42,0.06)] transition-all duration-200 hover:shadow-[0_16px_42px_rgba(15,23,42,0.1)]">
             <div className="p-6">
                 <div className="flex items-start justify-between mb-4">
                     <div className="text-lg font-semibold text-[--color-text] mb-2">
@@ -796,14 +796,14 @@ const RecycleBin: React.FC = () => {
                         <div className="flex items-center space-x-2 ml-2">
                             <button
                                 onClick={() => handleRestoreMasterTask(masterTask)}
-                                className="p-2 text-[--color-success] hover:bg-green-500 hover:text-white rounded-lg transition-colors"
+                                className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] p-2 text-[var(--color-success)] transition hover:bg-[rgba(34,197,94,0.08)]"
                                 title="Restore master task"
                             >
                                 <Restore size={16} />
                             </button>
                             <button
                                 onClick={() => handlePermanentDeleteMasterTask(masterTask)}
-                                className="flex items-center gap-1 p-2 text-[--color-error] hover:bg-[--color-error] hover:text-white hover:scale-105 rounded-lg transition-all duration-150 ease-in-out"
+                                className="flex items-center gap-1 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] p-2 text-red-500 transition hover:bg-[rgba(239,68,68,0.08)]"
                                 title="Permanently delete master task"
                             >
                                 <Trash2 size={16} />
@@ -815,20 +815,20 @@ const RecycleBin: React.FC = () => {
                 <div className="flex flex-wrap gap-2 mb-4">
                     <TaskTypeBadge taskType={masterTask.taskType} />
                     <PriorityBadge priority={masterTask.priority} />
-                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-[--color-info-light] text-[--color-info]">
+                    <span className="rounded-full border border-[rgba(14,165,233,0.16)] bg-[rgba(14,165,233,0.10)] px-2 py-1 text-xs font-medium text-[var(--color-primary)]">
                         {masterTask.instanceCount} instances
                     </span>
-                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-[--color-success-light] text-[--color-success]">
+                    <span className="rounded-full border border-[rgba(34,197,94,0.16)] bg-[rgba(34,197,94,0.10)] px-2 py-1 text-xs font-medium text-[var(--color-success)]">
                         {masterTask.completedCount} completed
                     </span>
-                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-[--color-warning-light] text-[--color-warning]">
+                    <span className="rounded-full border border-[rgba(245,158,11,0.16)] bg-[rgba(245,158,11,0.10)] px-2 py-1 text-xs font-medium text-[var(--color-warning)]">
                         {masterTask.pendingCount} pending
                     </span>
-                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-[--color-error-light] text-[--color-error]">
+                    <span className="rounded-full border border-[rgba(239,68,68,0.16)] bg-[rgba(239,68,68,0.10)] px-2 py-1 text-xs font-medium text-[var(--color-danger)]">
                         {masterTask.deletedCount} deleted
                     </span>
                     {masterTask.parentTaskInfo?.isForever && (
-                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-[--color-primary-light] text-[--color-primary]">
+                        <span className="rounded-full border border-[rgba(14,165,233,0.16)] bg-[rgba(14,165,233,0.10)] px-2 py-1 text-xs font-medium text-[var(--color-primary)]">
                             FOREVER
                         </span>
                     )}
@@ -887,24 +887,36 @@ const RecycleBin: React.FC = () => {
     MasterTaskCard.displayName = 'MasterTaskCard';
 
     const TaskCard = memo<{ task: Task }>(({ task }) => (
-        <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] hover:shadow-md transition-all duration-200 overflow-hidden">
-            <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                    <div className="text-lg font-semibold text-[--color-text] mb-2">
-                        <ReadMore text={task.title} maxLength={70} />
+        <div className="overflow-hidden rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_12px_34px_rgba(15,23,42,0.06)] transition-all duration-200 hover:shadow-[0_16px_42px_rgba(15,23,42,0.1)]">
+            <div className="p-5">
+                <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <TaskTypeBadge taskType={task.taskType} />
+                            <StatusBadge status={task.status} />
+                            <PriorityBadge priority={task.priority} />
+                            {task.parentTaskInfo?.isForever && (
+                                <span className="inline-flex items-center rounded-full border border-[rgba(14,165,233,0.18)] bg-[rgba(14,165,233,0.10)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary)]">
+                                    FOREVER
+                                </span>
+                            )}
+                        </div>
+                        <h3 className="mt-3 text-[1rem] font-semibold leading-snug text-[var(--color-text)]">
+                            <ReadMore text={task.title} maxLength={70} />
+                        </h3>
                     </div>
                     {canDeleteTasks && (
-                        <div className="flex items-center space-x-2 ml-2">
+                        <div className="flex shrink-0 items-center gap-2">
                             <button
                                 onClick={() => handleRestoreTask(task._id)}
-                                className="p-2 text-[--color-success] hover:bg-green-500 hover:text-white rounded-lg transition-colors"
+                                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-success)] transition hover:bg-[rgba(34,197,94,0.08)]"
                                 title="Restore task"
                             >
                                 <Restore size={16} />
                             </button>
                             <button
                                 onClick={() => handlePermanentDeleteTask(task._id)}
-                                className="flex items-center gap-1 p-2 text-[--color-error] hover:bg-[--color-error] hover:text-white hover:scale-105 rounded-lg transition-all duration-150 ease-in-out"
+                                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-danger)] transition hover:bg-[rgba(239,68,68,0.08)]"
                                 title="Permanently delete task"
                             >
                                 <Trash2 size={16} />
@@ -913,18 +925,9 @@ const RecycleBin: React.FC = () => {
                     )}
                 </div>
 
-                <div className="flex flex-wrap gap-2 mb-4">
-                    <TaskTypeBadge taskType={task.taskType} />
-                    <StatusBadge status={task.status} />
-                    <PriorityBadge priority={task.priority} />
-                    {task.parentTaskInfo?.isForever && (
-                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-[--color-primary-light] text-[--color-primary]">
-                            FOREVER
-                        </span>
-                    )}
-                </div>
-
-                <ReadMore text={task.description} maxLength={descriptionMaxLength} />
+                <p className="mt-3 text-sm leading-6 whitespace-pre-wrap break-words text-[var(--color-textSecondary)]">
+                    <ReadMore text={task.description} maxLength={descriptionMaxLength} />
+                </p>
 
                 <div className="space-y-2 text-sm text-[--color-textSecondary]">
                     <div className="flex justify-between">
@@ -1014,7 +1017,7 @@ const RecycleBin: React.FC = () => {
     );
 
     const renderMasterTaskTableView = () => (
-        <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] overflow-hidden">
+        <div className="overflow-hidden rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_12px_34px_rgba(15,23,42,0.06)]">
             <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-[--color-border]">
                     <thead className="bg-[--color-surface]">
@@ -1054,7 +1057,7 @@ const RecycleBin: React.FC = () => {
                     </thead>
                     <tbody className="bg-[--color-background] divide-y divide-[--color-border]">
                         {masterTasks.map((masterTask: MasterTask) => (
-                            <tr key={masterTask.taskGroupId} className="hover:bg-[--color-surface] transition-colors">
+                        <tr key={masterTask.taskGroupId} className="transition-colors hover:bg-[var(--color-background)]/70">
                                 <td className="px-6 py-4">
                                     <div>
                                         <div className="text-sm font-medium text-[--color-text] mb-1">
@@ -1109,19 +1112,19 @@ const RecycleBin: React.FC = () => {
                                 {canDeleteTasks && (
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                         <div className="flex items-center space-x-2">
-                                            <button
-                                                onClick={() => handleRestoreMasterTask(masterTask)}
-                                                className="p-2 text-[--color-success] hover:bg-[--color-success] hover:text-white rounded-lg transition-colors"
-                                                title="Restore master task"
-                                            >
-                                                <Restore size={16} />
-                                            </button>
-                                            <button
-                                                onClick={() => handlePermanentDeleteMasterTask(masterTask)}
-                                                className="p-2 text-[--color-error] hover:bg-[--color-error] hover:text-white hover:scale-105 rounded-lg transition-all duration-150 ease-in-out"
-                                                title="Permanently delete master task"
-                                            >
-                                                <Trash2 size={18} />
+                            <button
+                                onClick={() => handleRestoreMasterTask(masterTask)}
+                                className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] p-2 text-[var(--color-success)] transition hover:bg-[rgba(34,197,94,0.08)]"
+                                title="Restore master task"
+                            >
+                                <Restore size={16} />
+                            </button>
+                            <button
+                                onClick={() => handlePermanentDeleteMasterTask(masterTask)}
+                                className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] p-2 text-red-500 transition hover:bg-[rgba(239,68,68,0.08)]"
+                                title="Permanently delete master task"
+                            >
+                                <Trash2 size={18} />
                                             </button>
                                         </div>
                                     </td>
@@ -1143,7 +1146,7 @@ const RecycleBin: React.FC = () => {
     );
 
     const renderTableView = () => (
-        <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] overflow-hidden">
+        <div className="overflow-hidden rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_12px_34px_rgba(15,23,42,0.06)]">
             <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-[--color-border]">
                     <thead className="bg-[--color-surface]">
@@ -1189,7 +1192,7 @@ const RecycleBin: React.FC = () => {
                     </thead>
                     <tbody className="bg-[--color-background] divide-y divide-[--color-border]">
                         {individualTasks.map((task: Task) => (
-                            <tr key={task._id} className="hover:bg-[--color-surface] transition-colors">
+                            <tr key={task._id} className="transition-colors hover:bg-[var(--color-background)]/70">
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-[--color-text]">
                                     {task.taskId || '—'}
                                 </td>
@@ -1247,14 +1250,14 @@ const RecycleBin: React.FC = () => {
                                         <div className="flex items-center space-x-2">
                                             <button
                                                 onClick={() => handleRestoreTask(task._id)}
-                                                className="p-2 text-[--color-success] hover:bg-[--color-success] hover:text-white rounded-lg transition-colors"
+                                                className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] p-2 text-[var(--color-success)] transition hover:bg-[rgba(34,197,94,0.08)]"
                                                 title="Restore task"
                                             >
                                                 <Restore size={16} />
                                             </button>
                                             <button
                                                 onClick={() => handlePermanentDeleteTask(task._id)}
-                                                className="flex items-center gap-1 p-2 text-[--color-error] hover:bg-[--color-error] hover:text-white hover:scale-105 rounded-lg transition-all duration-150 ease-in-out"
+                                                className="flex items-center gap-1 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] p-2 text-red-500 transition hover:bg-[rgba(239,68,68,0.08)]"
                                                 title="Permanently delete task"
                                             >
                                                 <Trash2 size={18} />
@@ -1272,16 +1275,16 @@ const RecycleBin: React.FC = () => {
 
     if (initialLoading) {
         return (
-            <div className="min-h-screen bg-[var(--color-background)] p-4 space-y-6">
+            <div className="h-full min-h-0 bg-[var(--color-background)] p-4 space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
                     <div>
-                        <div className="h-8 bg-[--color-border] rounded w-64 mb-2"></div>
-                        <div className="h-4 bg-[--color-border] rounded w-48"></div>
+                        <div className="h-8 rounded-full bg-[var(--color-border)] w-64 mb-2"></div>
+                        <div className="h-4 rounded-full bg-[var(--color-border)] w-48"></div>
                     </div>
                     <div className="flex items-center mt-4 sm:mt-0 space-x-3">
-                        <div className="h-10 bg-[--color-border] rounded w-32"></div>
-                        <div className="h-10 bg-[--color-border] rounded w-32"></div>
-                        <div className="h-10 bg-[--color-border] rounded w-24"></div>
+                        <div className="h-10 rounded-full bg-[var(--color-border)] w-32"></div>
+                        <div className="h-10 rounded-full bg-[var(--color-border)] w-32"></div>
+                        <div className="h-10 rounded-full bg-[var(--color-border)] w-24"></div>
                     </div>
                 </div>
 
@@ -1296,16 +1299,18 @@ const RecycleBin: React.FC = () => {
 
     if (!binSettings.enabled) {
         return (
-            <div className="min-h-[90vh] bg-[var(--color-background)] p-6 flex items-center justify-center">
-                <div className="text-center">
-                    <Archive size={64} className="mx-auto mb-4 text-[--color-textSecondary]" />
-                    <h2 className="text-2xl font-bold text-[--color-text] mb-2">Recycle Bin Disabled</h2>
-                    <p className="text-[--color-textSecondary] mb-4">
+            <div className="flex min-h-screen items-center justify-center bg-[var(--color-background)] p-6">
+                <div className="max-w-md rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center shadow-[0_20px_60px_rgba(15,23,42,0.12)]">
+                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-primary)]">
+                        <Archive size={32} />
+                    </div>
+                    <h2 className="text-2xl font-bold text-[var(--color-text)] mb-2">Recycle Bin Disabled</h2>
+                    <p className="text-[var(--color-textSecondary)] mb-4">
                         The recycle bin feature is currently disabled. Please enable it in the settings to view deleted tasks.
                     </p>
                     <button
                         onClick={() => navigate('/settings-page')}
-                        className="px-6 py-3 bg-[--color-primary] text-white rounded-lg hover:opacity-90 transition-opacity"
+                        className="rounded-2xl bg-[var(--color-primary)] px-6 py-3 text-white transition hover:opacity-95"
                     >
                         Go to Settings
                     </button>
@@ -1317,35 +1322,36 @@ const RecycleBin: React.FC = () => {
     const currentData = isEditMode ? masterTasks : individualTasks;
 
     return (
-        <div className="min-h-full bg-[var(--color-background)] p-6">
+        <div className="relative h-full min-h-0 bg-[var(--color-background)] p-4 sm:p-6">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
+            <div className="mb-4 rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[0_12px_34px_rgba(15,23,42,0.06)] sm:p-5">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h1 className="text-xl font-bold text-[--color-error] flex items-center">
-                        <Archive size={24} className="mr-2" />
+                    <h1 className="flex items-center text-2xl font-semibold text-[var(--color-text)]">
+                        <Archive size={20} className="mr-2 mt-1 text-[var(--color-primary)]" />
                         Recycle Bin
                     </h1>
-                    <p className="mt-1 text-xs text-[--color-textSecondary] flex items-center">
+                    <p className="mt-1 flex items-center text-xs text-[var(--color-textSecondary)]">
                         {isEditMode ? `${masterTasks.length} deleted master task series` : `${individualTasks.length} deleted task(s) found`}
                         {isAdmin ? ' (All team members)' : ' (Your tasks)'}
                         {totalCount > currentData.length && ` - Showing ${currentData.length} of ${totalCount}`}
                         {loading && (
-                            <Loader className="ml-2 h-3 w-3 animate-spin text-[--color-primary]" />
+                            <Loader className="ml-2 h-3 w-3 animate-spin text-[var(--color-primary)]" />
                         )}
                     </p>
-                    <p className="text-xs text-[--color-error] mt-1">
+                    <p className="mt-1 text-xs text-[var(--color-danger)]">
                         Auto-delete after {binSettings.retentionDays} days
                     </p>
                 </div>
-                <div className="flex items-center mt-4 sm:mt-0 space-x-3">
+                <div className="flex items-center space-x-3">
                     <button
                         onClick={() => {
                             setIsEditMode(!isEditMode);
                             cacheRef.current.clear();
                         }}
-                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center ${isEditMode
-                            ? 'bg-[--color-primary] text-white hover:bg-[--color-primary]'
-                            : 'text-[--color-text] bg-[--color-surface] hover:bg-[--color-border]'
+                        className={`flex items-center rounded-2xl px-4 py-2 text-sm font-medium transition ${isEditMode
+                            ? 'bg-[var(--color-primary)] text-white shadow-[0_12px_24px_rgba(14,165,233,0.18)]'
+                            : 'border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-text)] hover:bg-[var(--color-background)]'
                             }`}
                     >
                         <Settings size={16} className="inline mr-2" />
@@ -1353,7 +1359,7 @@ const RecycleBin: React.FC = () => {
                     </button>
                     <button
                         onClick={() => setShowFilters(!showFilters)}
-                        className="px-4 py-2 text-sm font-medium text-[--color-textSecondary] bg-[--color-surface] hover:bg-[--color-border] rounded-lg transition-colors flex items-center"
+                        className="flex items-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2 text-sm font-medium text-[var(--color-textSecondary)] transition hover:bg-[var(--color-background)]"
                         title={showFilters ? "Hide Filters" : "Show Filters"}
                     >
                         <Filter size={16} className="inline mr-2" />
@@ -1363,11 +1369,12 @@ const RecycleBin: React.FC = () => {
                         <ViewToggle view={view} onViewChange={setView} />
                     </div>
                 </div>
+                </div>
             </div>
 
             {/* Filters */}
             {showFilters && (
-                <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] p-4 mb-6">
+                <div className="mb-6 rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[0_12px_34px_rgba(15,23,42,0.06)]">
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-4">
                         {!isEditMode && (
                             <>
@@ -1380,15 +1387,11 @@ const RecycleBin: React.FC = () => {
                                             ref={dateFromRef}
                                             type="date"
                                             value={filter.dateFrom}
-                                            onClick={() => dateFromRef.current?.showPicker()}
+                                            onClick={() => dateToRef.current?.showPicker()}
                                             onChange={(e) =>
                                                 setFilter({ ...filter, dateFrom: e.target.value })
                                             }
-                                            className="w-full cursor-pointer text-sm px-3 py-2
-             border border-[--color-border] rounded-lg
-             focus:ring-2 focus:ring-[--color-primary]
-             focus:border-[--color-primary]
-             bg-[--color-surface] text-[--color-text]"
+                                            className="w-full cursor-pointer rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm text-[var(--color-text)] transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                                         />
                                         <Calendar
                                             size={16}
@@ -1416,11 +1419,7 @@ const RecycleBin: React.FC = () => {
                                         onChange={(e) =>
                                             setFilter({ ...filter, dateTo: e.target.value })
                                         }
-                                        className="w-full cursor-pointer text-sm px-3 py-2
-             border border-[--color-border] rounded-lg
-             focus:ring-2 focus:ring-[--color-primary]
-             focus:border-[--color-primary]
-             bg-[--color-surface] text-[--color-text]"
+                                        className="w-full cursor-pointer rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm text-[var(--color-text)] transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                                     />
                                     <Calendar
                     size={16}
@@ -1441,7 +1440,7 @@ const RecycleBin: React.FC = () => {
                             <select
                                 value={filter.taskType}
                                 onChange={(e) => setFilter({ ...filter, taskType: e.target.value })}
-                                className="w-full text-sm px-3 py-2 border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] bg-[--color-surface] text-[--color-text]"
+                            className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm text-[var(--color-text)] transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                             >
                                 <option value="">All Types</option>
                                 <option value="daily">Daily</option>
@@ -1458,7 +1457,7 @@ const RecycleBin: React.FC = () => {
                                 <select
                                     value={filter.status}
                                     onChange={(e) => setFilter({ ...filter, status: e.target.value })}
-                                    className="w-full text-sm px-3 py-2 border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] bg-[--color-surface] text-[--color-text]"
+                                    className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm text-[var(--color-text)] transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                                 >
                                     <option value="">All Statuses</option>
                                     <option value="pending">Pending</option>
@@ -1473,7 +1472,7 @@ const RecycleBin: React.FC = () => {
                             <select
                                 value={filter.priority}
                                 onChange={(e) => setFilter({ ...filter, priority: e.target.value })}
-                                className="w-full text-sm px-3 py-2 border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] bg-[--color-surface] text-[--color-text]"
+                                className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm text-[var(--color-text)] transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                             >
                                 <option value="">All Priorities</option>
                                 <option value="normal">Normal</option>
@@ -1489,9 +1488,7 @@ const RecycleBin: React.FC = () => {
                                 <select
                                     value={filter.assignedBy}
                                     onChange={(e) => setFilter({ ...filter, assignedBy: e.target.value })}
-                                    className="w-full text-sm px-3 py-2 border border-[--color-border] rounded-lg 
-                             bg-[--color-surface] text-[--color-text]
-                             focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary]"
+                                className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm text-[var(--color-text)] transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                                 >
                                     <option value="">All Assigners</option>
                                     {[...new Set(
@@ -1515,7 +1512,7 @@ const RecycleBin: React.FC = () => {
                                 <select
                                     value={filter.assignedTo}
                                     onChange={(e) => setFilter({ ...filter, assignedTo: e.target.value })}
-                                    className="w-full text-sm px-3 py-2 border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] bg-[--color-surface] text-[--color-text]"
+                                    className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm text-[var(--color-text)] transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                                 >
                                     <option value="">All Members</option>
                                     {users.map((teamUser) => (
@@ -1533,13 +1530,13 @@ const RecycleBin: React.FC = () => {
                                 Search
                             </label>
                             <div className="relative">
-                                <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[--color-textSecondary]" />
+                                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)]" />
                                 <input
                                     type="text"
                                     placeholder="Search tasks, descriptions, or Task ID..."
                                     value={filter.search}
                                     onChange={(e) => setFilter({ ...filter, search: e.target.value })}
-                                    className="w-full pl-10 pr-3 py-2 text-sm border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] bg-[--color-surface] text-[--color-text]"
+                                    className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] py-2 pl-10 pr-3 text-sm text-[var(--color-text)] transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                                 />
                             </div>
                         </div>
@@ -1547,7 +1544,7 @@ const RecycleBin: React.FC = () => {
                         <div className="flex items-end">
                             <button
                                 onClick={resetFilters}
-                                className="px-4 py-2 text-sm font-medium text-[--color-text] bg-[--color-surface] hover:bg-[--color-border] rounded-lg transition-colors flex items-center"
+                                className="flex items-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2 text-sm font-medium text-[var(--color-text)] transition hover:bg-[var(--color-background)]"
                             >
                                 <RotateCcw size={16} className="inline mr-1" />
                                 Clear Filters
@@ -1559,18 +1556,18 @@ const RecycleBin: React.FC = () => {
 
             {/* Loading overlay */}
             {loading && !initialLoading && (
-                <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] p-8">
+                <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 shadow-[0_12px_34px_rgba(15,23,42,0.06)]">
                     <div className="flex items-center justify-center">
-                        <Loader className="h-8 w-8 animate-spin text-[--color-primary] mr-3" />
-                        <span className="text-[--color-textSecondary]">Loading deleted tasks...</span>
+                        <Loader className="mr-3 h-8 w-8 animate-spin text-[var(--color-primary)]" />
+                        <span className="text-[var(--color-textSecondary)]">Loading deleted tasks...</span>
                     </div>
                 </div>
             )}
 
             {/* Content */}
             {currentData.length === 0 && !loading ? (
-                <div className="text-center py-12">
-                    <Archive size={48} className="mx-auto mb-4 text-[--color-textSecondary]" />
+                <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-12 text-center shadow-[0_12px_34px_rgba(15,23,42,0.06)]">
+                    <Archive size={48} className="mx-auto mb-4 text-[var(--color-textSecondary)]" />
                     <p className="text-lg text-[--color-textSecondary]">
                         {isEditMode
                             ? 'No deleted master tasks found'
@@ -1581,7 +1578,7 @@ const RecycleBin: React.FC = () => {
                     {!isEditMode && Object.values(filter).some(value => value !== '') && (
                         <button
                             onClick={resetFilters}
-                            className="mt-4 px-4 py-2 text-sm font-medium text-[--color-primary] hover:text-[--color-primary-dark] transition-colors"
+                            className="mt-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2 text-sm font-medium text-[var(--color-primary)] transition hover:bg-[var(--color-background)]"
                         >
                             Clear all filters
                         </button>
@@ -1598,14 +1595,14 @@ const RecycleBin: React.FC = () => {
 
                             {/* Enhanced Pagination */}
                             {totalPages > 1 && (
-                                <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] p-4 mt-2">
-                                    <div className="flex flex-col items-center text-center sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="mt-2 rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[0_12px_34px_rgba(15,23,42,0.06)]">
+                    <div className="flex flex-col items-center text-center sm:flex-row sm:items-center sm:justify-between gap-4">
                                         <div className="flex items-center space-x-2">
                                             <span className="text-sm text-[--color-textSecondary]">Show:</span>
                                             <select
                                                 value={itemsPerPage}
                                                 onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-                                                className="text-sm px-2 py-1 border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] bg-[--color-surface] text-[--color-text]"
+                                                className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-2 py-1 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                                             >
                                                 <option value={10}>10</option>
                                                 <option value={25}>25</option>
@@ -1627,7 +1624,7 @@ const RecycleBin: React.FC = () => {
                                             <button
                                                 onClick={() => handlePageChange(1)}
                                                 disabled={currentPage === 1}
-                                                className="p-2 text-sm font-medium text-[--color-textSecondary] bg-[--color-surface] border border-[--color-border] rounded-lg hover:bg-[--color-border] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-2 text-sm font-medium text-[var(--color-textSecondary)] transition hover:bg-[var(--color-background)] disabled:cursor-not-allowed disabled:opacity-50"
                                                 title="First page"
                                             >
                                                 <ChevronsLeft size={16} />
@@ -1636,7 +1633,7 @@ const RecycleBin: React.FC = () => {
                                             <button
                                                 onClick={() => handlePageChange(currentPage - 1)}
                                                 disabled={currentPage === 1}
-                                                className="p-2 text-sm font-medium text-[--color-textSecondary] bg-[--color-surface] border border-[--color-border] rounded-lg hover:bg-[--color-border] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-2 text-sm font-medium text-[var(--color-textSecondary)] transition hover:bg-[var(--color-background)] disabled:cursor-not-allowed disabled:opacity-50"
                                                 title="Previous page"
                                             >
                                                 <ChevronLeft size={16} />
@@ -1660,9 +1657,9 @@ const RecycleBin: React.FC = () => {
                                                         <button
                                                             key={pageNumber}
                                                             onClick={() => handlePageChange(pageNumber)}
-                                                            className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${currentPage === pageNumber
-                                                                ? 'bg-[--color-primary] text-white'
-                                                                : 'text-[--color-textSecondary] bg-[--color-surface] border border-[--color-border] hover:bg-[--color-border]'
+                                                            className={`rounded-2xl px-3 py-2 text-sm font-medium transition-colors ${currentPage === pageNumber
+                                                                ? 'bg-[var(--color-primary)] text-white shadow-[0_12px_24px_rgba(14,165,233,0.18)]'
+                                                                : 'border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-textSecondary)] hover:bg-[var(--color-background)]'
                                                                 }`}
                                                         >
                                                             {pageNumber}
@@ -1674,7 +1671,7 @@ const RecycleBin: React.FC = () => {
                                             <button
                                                 onClick={() => handlePageChange(currentPage + 1)}
                                                 disabled={currentPage === totalPages}
-                                                className="p-2 text-sm font-medium text-[--color-textSecondary] bg-[--color-surface] border border-[--color-border] rounded-lg hover:bg-[--color-border] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-2 text-sm font-medium text-[var(--color-textSecondary)] transition hover:bg-[var(--color-background)] disabled:cursor-not-allowed disabled:opacity-50"
                                                 title="Next page"
                                             >
                                                 <ChevronRight size={16} />
@@ -1683,7 +1680,7 @@ const RecycleBin: React.FC = () => {
                                             <button
                                                 onClick={() => handlePageChange(totalPages)}
                                                 disabled={currentPage === totalPages}
-                                                className="p-2 text-sm font-medium text-[--color-textSecondary] bg-[--color-surface] border border-[--color-border] rounded-lg hover:bg-[--color-border] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-2 text-sm font-medium text-[var(--color-textSecondary)] transition hover:bg-[var(--color-background)] disabled:cursor-not-allowed disabled:opacity-50"
                                                 title="Last page"
                                             >
                                                 <ChevronsRight size={16} />
@@ -1699,22 +1696,22 @@ const RecycleBin: React.FC = () => {
 
             {/* Remarks Modal */}
             {showRemarksModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-                    <div className="bg-[--color-surface] rounded-xl max-w-lg w-full shadow-2xl transform transition-all">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+                    <div className="w-full max-w-lg transform rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_24px_80px_rgba(15,23,42,0.18)] transition-all">
                         <div className="p-6">
                             <h3 className="text-lg font-semibold mb-4 flex items-center text-[--color-text]">
                                 <Info size={20} className="mr-2" />
                                 Completion Remarks
                             </h3>
-                            <div className="bg-[--color-background] rounded-lg p-4 border border-[--color-border]">
-                                <p className="text-[--color-text] leading-relaxed">
+                            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
+                                <p className="leading-relaxed text-[var(--color-text)]">
                                     {showRemarksModal.completionRemarks}
                                 </p>
                             </div>
                             <div className="mt-6 flex justify-end">
                                 <button
                                     onClick={() => setShowRemarksModal(null)}
-                                    className="py-2 px-4 rounded-lg font-medium transition-colors hover:bg-[--color-background] bg-[--color-surface] border border-[--color-border] text-[--color-text]"
+                                    className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2 font-medium text-[var(--color-text)] transition hover:bg-[var(--color-background)]"
                                 >
                                     Close
                                 </button>
@@ -1726,9 +1723,9 @@ const RecycleBin: React.FC = () => {
 
             {/* Attachments Modal */}
             {showAttachmentsModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-                    <div className="bg-[--color-surface] rounded-xl max-w-4xl w-full max-h-[90vh] shadow-2xl transform transition-all overflow-hidden">
-                        <div className="p-6 border-b border-[--color-border]">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+                    <div className="max-h-[90vh] w-full max-w-4xl transform overflow-hidden rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_24px_80px_rgba(15,23,42,0.18)]">
+                        <div className="border-b border-[var(--color-border)] p-6">
                             <h3 className="text-lg font-semibold flex items-center text-[--color-text]">
                                 <Paperclip size={20} className="mr-2" />
                                 {showAttachmentsModal.type === 'completion' ? 'Completion Attachments' : 'Task Attachments'}
@@ -1738,7 +1735,7 @@ const RecycleBin: React.FC = () => {
                             {showAttachmentsModal.attachments.length > 0 ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                     {showAttachmentsModal.attachments.map((attachment, index) => (
-                                        <div key={index} className="border border-[--color-border] rounded-lg p-4 bg-[--color-background] hover:shadow-md transition-shadow">
+                                        <div key={index} className="rounded-[24px] border border-[var(--color-border)] bg-[var(--color-background)] p-4 transition-shadow hover:shadow-[0_12px_30px_rgba(15,23,42,0.08)]">
                                             <div className="flex flex-col h-full">
                                                 <div className="flex-1 mb-3">
                                                     {isImage(attachment.filename) ? (
@@ -1746,15 +1743,15 @@ const RecycleBin: React.FC = () => {
                                                             <img
                                                                 src={`${address}/uploads/${attachment.filename}`}
                                                                 alt={attachment.originalName}
-                                                                className="w-full h-32 object-cover rounded-md border border-[--color-border] cursor-pointer"
+                                                                className="h-32 w-full cursor-pointer rounded-[18px] border border-[var(--color-border)] object-cover"
                                                                 onClick={() => setSelectedImagePreview(`${address}/uploads/${attachment.filename}`)}
                                                             />
-                                                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded-md flex items-center justify-center">
-                                                                <ExternalLink size={24} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                            <div className="absolute inset-0 flex items-center justify-center rounded-[18px] bg-black/0 transition-all duration-200 group-hover:bg-black/20">
+                                                                <ExternalLink size={24} className="opacity-0 text-white transition-opacity group-hover:opacity-100" />
                                                             </div>
                                                         </div>
                                                     ) : (
-                                                        <div className="w-full h-32 bg-[--color-surface] border border-[--color-border] rounded-md flex items-center justify-center">
+                                                        <div className="flex h-32 w-full items-center justify-center rounded-[18px] border border-[var(--color-border)] bg-[var(--color-surface)]">
                                                             <FileText size={48} className="text-[--color-primary]" />
                                                         </div>
                                                     )}
@@ -1779,14 +1776,14 @@ const RecycleBin: React.FC = () => {
                                                         <>
                                                             <button
                                                                 onClick={() => window.open(`${address}/uploads/${attachment.filename}`, '_blank')}
-                                                                className="flex-1 px-3 py-2 text-xs font-medium bg-[--color-primary] text-white rounded-lg hover:bg-[--color-primary] transition-colors flex items-center justify-center"
+                                                                className="flex flex-1 items-center justify-center rounded-2xl bg-[var(--color-primary)] px-3 py-2 text-xs font-medium text-white transition hover:opacity-95"
                                                             >
                                                                 <ExternalLink size={14} className="mr-1" />
                                                                 View
                                                             </button>
                                                             <button
                                                                 onClick={() => handleDownload(attachment)}
-                                                                className="flex-1 px-3 py-2 text-xs font-medium bg-[--color-success] text-white rounded-lg hover:bg-[--color-success] transition-colors flex items-center justify-center"
+                                                                className="flex flex-1 items-center justify-center rounded-2xl bg-[var(--color-success)] px-3 py-2 text-xs font-medium text-white transition hover:opacity-95"
                                                             >
                                                                 <Download size={14} className="mr-1" />
                                                                 Download
@@ -1795,7 +1792,7 @@ const RecycleBin: React.FC = () => {
                                                     ) : (
                                                         <button
                                                             onClick={() => handleDownload(attachment)}
-                                                            className="w-full px-3 py-2 text-xs font-medium bg-[--color-primary] text-white rounded-lg hover:bg-[--color-primary] transition-colors flex items-center justify-center"
+                                                            className="flex w-full items-center justify-center rounded-2xl bg-[var(--color-primary)] px-3 py-2 text-xs font-medium text-white transition hover:opacity-95"
                                                         >
                                                             <Download size={14} className="mr-1" />
                                                             Download
@@ -1813,10 +1810,10 @@ const RecycleBin: React.FC = () => {
                                 </div>
                             )}
                         </div>
-                        <div className="p-6 border-t border-[--color-border] flex justify-end">
+                        <div className="flex justify-end border-t border-[var(--color-border)] p-6">
                             <button
                                 onClick={() => setShowAttachmentsModal(null)}
-                                className="py-2 px-4 rounded-lg font-medium transition-colors hover:bg-[--color-background] bg-[--color-surface] border border-[--color-border] text-[--color-text]"
+                                className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2 font-medium text-[var(--color-text)] transition hover:bg-[var(--color-background)]"
                             >
                                 Close
                             </button>
@@ -1828,7 +1825,7 @@ const RecycleBin: React.FC = () => {
             {/* Image Preview Modal */}
             {selectedImagePreview && (
                 <div
-                    className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
                     onClick={() => setSelectedImagePreview(null)}
                 >
                     <div
@@ -1843,7 +1840,7 @@ const RecycleBin: React.FC = () => {
                         />
                         <button
                             onClick={() => setSelectedImagePreview(null)}
-                            className="absolute top-4 right-4 text-white text-3xl bg-black bg-opacity-50 rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-75 transition-opacity"
+                            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-3xl text-white transition-opacity hover:bg-black/70"
                             title="Close"
                         >
                             &times;
@@ -1854,19 +1851,19 @@ const RecycleBin: React.FC = () => {
 
             {/* Action Modal */}
             {showActionModal && actionConfig && (
-                <div className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm flex items-center justify-center z-50">
-                    <div className="bg-[var(--color-background)] rounded-lg shadow-lg p-6 w-96">
-                        <h2 className="text-[var(--color-text)] font-semibold mb-4">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+                    <div className="w-full max-w-md rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-[0_24px_80px_rgba(15,23,42,0.18)]">
+                        <h2 className="mb-4 font-semibold text-[var(--color-text)]">
                             {actionConfig.type === "restore" ? "Confirm Restore" : "Confirm Permanent Delete"}
                         </h2>
                         {actionConfig.target === "master" ? (
-                            <p className="mb-6 text-[var(--color-text)]">
+                            <p className="mb-6 text-[var(--color-textSecondary)]">
                                 Are you sure you want to {actionConfig.type === "restore" ? "restore" : "permanently delete"} all{" "}
                                 {actionConfig.masterTask?.instanceCount} instances of this task series?
                                 {actionConfig.type === "permanentDelete" && " This action cannot be undone."}
                             </p>
                         ) : (
-                            <p className="mb-6 text-[var(--color-text)]">
+                            <p className="mb-6 text-[var(--color-textSecondary)]">
                                 Are you sure you want to {actionConfig.type === "restore" ? "restore" : "permanently delete"} this task?
                                 {actionConfig.type === "permanentDelete" && " This action cannot be undone."}
                             </p>
@@ -1874,15 +1871,15 @@ const RecycleBin: React.FC = () => {
                         <div className="flex justify-end space-x-3">
                             <button
                                 onClick={() => setShowActionModal(false)}
-                                className="px-4 py-2 text-gray-800 rounded bg-gray-200 hover:bg-gray-300"
+                                className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2 font-medium text-[var(--color-text)] transition hover:bg-[var(--color-background)]"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={executeAction}
-                                className={`px-4 py-2 rounded text-white ${actionConfig.type === "restore"
-                                    ? "bg-green-500 hover:bg-green-600"
-                                    : "bg-red-500 hover:bg-red-600"
+                                className={`rounded-2xl px-4 py-2 font-medium text-white transition ${actionConfig.type === "restore"
+                                    ? "bg-[var(--color-success)] hover:opacity-95"
+                                    : "bg-[var(--color-danger)] hover:opacity-95"
                                     }`}
                             >
                                 {actionConfig.type === "restore" ? "Restore" : "Permanently Delete"}

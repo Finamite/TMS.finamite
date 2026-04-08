@@ -1370,7 +1370,7 @@ const IntegrationsPage: React.FC = () => {
       <div className="mx-auto w-full max-w-[1800px] space-y-5 px-4 py-5 pb-10 sm:px-6 lg:px-8">
         <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_22px_70px_rgba(15,23,42,0.08)]">
           <div className="px-6 py-6 sm:px-8 sm:py-7">
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl" style={{ color: 'var(--color-text)' }}>Integrations</h1>
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-4xl" style={{ color: 'var(--color-text)' }}>Integrations</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6" style={{ color: 'var(--color-textSecondary)' }}>
               Manage FiChat, Interakt, and WATI from one place.
             </p>

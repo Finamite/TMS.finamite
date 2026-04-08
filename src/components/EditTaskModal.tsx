@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Calendar, User, AlertCircle, FileText, Flag } from 'lucide-react';
 import { Task } from "../types/Task";
-import { useTheme } from "../contexts/ThemeContext"; // ← ADD THIS
 
 interface User {
   _id: string;
@@ -24,7 +23,6 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
   users,
   onSave
 }) => {
-  const { isDark } = useTheme();   // ← GET THEME
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -274,21 +272,28 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
           </div>
 
           {/* Task Info */}
-          <div
-            className="p-4 rounded-md"
-            style={{
-              backgroundColor: "var(--color-settingcolor)"
-            }}
-          >
-            <h3 className="text-sm font-medium mb-2" style={{ color: "var(--color-text)" }}>
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/55 p-4">
+            <h3 className="mb-3 text-sm font-medium text-[var(--color-text)]">
               Task Information
             </h3>
 
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><strong>Type:</strong> {task.taskType}</div>
-              <div><strong>Status:</strong> {task.status}</div>
-              <div><strong>Assigned By:</strong> {task.assignedBy.username}</div>
-              <div><strong>Current Assignee:</strong> {task.assignedTo.username}</div>
+            <div className="space-y-2.5 text-sm">
+              <div className="flex items-start justify-between gap-4">
+                <span className="font-medium text-[var(--color-textSecondary)]">Type:</span>
+                <span className="font-semibold text-[var(--color-text)]">{task.taskType}</span>
+              </div>
+              <div className="flex items-start justify-between gap-4">
+                <span className="font-medium text-[var(--color-textSecondary)]">Status:</span>
+                <span className="font-semibold text-[var(--color-text)]">{task.status}</span>
+              </div>
+              <div className="flex items-start justify-between gap-4">
+                <span className="font-medium text-[var(--color-textSecondary)]">Assigned By:</span>
+                <span className="font-semibold text-[var(--color-text)]">{task.assignedBy.username}</span>
+              </div>
+              <div className="flex items-start justify-between gap-4">
+                <span className="font-medium text-[var(--color-textSecondary)]">Current Assignee:</span>
+                <span className="font-semibold text-[var(--color-text)]">{task.assignedTo.username}</span>
+              </div>
             </div>
           </div>
 

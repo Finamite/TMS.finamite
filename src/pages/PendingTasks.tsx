@@ -6,7 +6,6 @@ import ViewToggle from '../components/ViewToggle';
 import PriorityBadge from '../components/PriorityBadge';
 import TaskCompletionModal from '../components/TaskCompletionModal';
 import { useTaskSettings } from '../hooks/useTaskSettings';
-import { useTheme } from '../contexts/ThemeContext';
 import { address } from '../../utils/ipAddress';
 import { useLocation } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
@@ -85,7 +84,6 @@ const getInitialViewPreference = (): 'table' | 'card' => {
 
 const PendingTasks: React.FC = () => {
   const { user } = useAuth();
-  const { isDark } = useTheme();
   const { settings: taskSettings, loading: settingsLoading } = useTaskSettings();
   const isMobile = useIsMobile();
   const [allTasks, setAllTasks] = useState<Task[]>([]);
@@ -662,11 +660,7 @@ const PendingTasks: React.FC = () => {
           return (
             <article
               key={task._id}
-              className={`group relative overflow-hidden rounded-[24px] border border-[var(--color-border)] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--color-primary)]/25 hover:shadow-[0_18px_40px_rgba(15,23,42,0.10)] ${
-                isDark
-                  ? 'bg-[linear-gradient(180deg,rgba(30,41,59,0.98),rgba(15,23,42,0.94))] shadow-[0_16px_38px_rgba(0,0,0,0.28)]'
-                  : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(248,250,252,0.88))]'
-              } ${
+              className={`group relative overflow-hidden rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[0_12px_34px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--color-primary)]/25 hover:shadow-[0_16px_42px_rgba(15,23,42,0.1)] ${
                 isTaskOverdue
                   ? 'ring-1 ring-[var(--color-error)]/25'
                   : isTaskDueToday
@@ -674,7 +668,6 @@ const PendingTasks: React.FC = () => {
                     : ''
               }`}
             >
-              <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-[var(--color-primary)] via-cyan-500 to-emerald-500 opacity-80" />
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5">
@@ -729,7 +722,7 @@ const PendingTasks: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="flex shrink-0 flex-col gap-2">
+                <div className="flex shrink-0 items-center gap-2">
                   <button
                     disabled={revisionDisabled}
                     onClick={() => {
@@ -752,48 +745,46 @@ const PendingTasks: React.FC = () => {
 
                       setShowReviseModal(task._id);
                     }}
-                    className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm font-semibold transition ${
+                    className={`inline-flex h-10 w-10 items-center justify-center rounded-full border transition ${
                       revisionDisabled
                         ? 'cursor-not-allowed border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-textSecondary)] opacity-60'
-                        : 'border-[var(--color-warning)]/20 bg-[var(--color-warning)]/10 text-[var(--color-warning)] hover:-translate-y-0.5 hover:border-[var(--color-warning)]/30 hover:bg-[var(--color-warning)]/15'
+                        : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-success)] hover:bg-[rgba(34,197,94,0.08)]'
                     }`}
                     title={isInProgress ? 'Task is under approval' : 'Revise task'}
                   >
-                    <RefreshCcw size={14} />
-                    Revise
+                    <RefreshCcw size={16} />
                   </button>
                   <button
                     onClick={() => setShowCompleteModal(task._id)}
                     disabled={completionDisabled}
-                    className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm font-semibold transition ${
+                    className={`inline-flex h-10 w-10 items-center justify-center rounded-full border transition ${
                       completionDisabled
-                        ? 'cursor-not-allowed border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-textSecondary)] opacity-60'
-                        : 'border-[var(--color-success)]/20 bg-[var(--color-success)]/10 text-[var(--color-success)] hover:-translate-y-0.5 hover:border-[var(--color-success)]/30 hover:bg-[var(--color-success)]/15'
+                        ? 'cursor-not-allowed border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-textSecondary)] opacity-60'
+                        : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-danger)] hover:bg-[rgba(239,68,68,0.08)]'
                     }`}
                     title={isInProgress ? 'Task is under approval' : 'Complete task'}
                   >
-                    <CheckSquare size={14} />
-                    Complete
+                    <CheckSquare size={16} />
                   </button>
                 </div>
               </div>
 
-              <div className="mt-4 grid grid-cols-2 gap-2.5">
-                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/75 p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-textSecondary)]">Task ID</p>
-                  <p className="mt-1 text-sm font-semibold text-[var(--color-text)]">{task.taskId || '—'}</p>
+              <div className="mt-5 space-y-2.5">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm text-[var(--color-textSecondary)]">Task ID:</span>
+                  <span className="text-sm font-semibold text-[var(--color-text)]">{task.taskId || '—'}</span>
                 </div>
-                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/75 p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-textSecondary)]">Assigned by</p>
-                  <p className="mt-1 text-sm font-semibold text-[var(--color-text)]">{task.assignedBy.username}</p>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm text-[var(--color-textSecondary)]">Assigned by:</span>
+                  <span className="text-sm font-semibold text-[var(--color-text)]">{task.assignedBy.username}</span>
                 </div>
-                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/75 p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-textSecondary)]">Assigned to</p>
-                  <p className="mt-1 text-sm font-semibold text-[var(--color-text)]">{task.assignedTo.username}</p>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm text-[var(--color-textSecondary)]">Assigned to:</span>
+                  <span className="text-sm font-semibold text-[var(--color-text)]">{task.assignedTo.username}</span>
                 </div>
-                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/75 p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-textSecondary)]">Due date</p>
-                  <p className={`mt-1 text-sm font-semibold ${
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm text-[var(--color-textSecondary)]">Due date:</span>
+                  <span className={`text-sm font-semibold ${
                     task.dueDate && isOverdue(task.dueDate)
                       ? 'text-[var(--color-error)]'
                       : task.dueDate && isDueToday(task.dueDate)
@@ -807,29 +798,32 @@ const PendingTasks: React.FC = () => {
                           year: 'numeric',
                         })
                       : 'N/A'}
-                  </p>
+                  </span>
                 </div>
-                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/75 p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-textSecondary)]">Created</p>
-                  <p className="mt-1 text-sm font-semibold text-[var(--color-text)]">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm text-[var(--color-textSecondary)]">Created:</span>
+                  <span className="text-sm font-semibold text-[var(--color-text)]">
                     {new Date(task.createdAt).toLocaleDateString('en-GB', {
                       day: '2-digit',
                       month: 'numeric',
                       year: 'numeric',
                     })}
-                  </p>
+                  </span>
                 </div>
-                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/75 p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-textSecondary)]">Attachments</p>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="flex items-center text-sm text-[var(--color-textSecondary)]">
+                    <Paperclip size={14} className="mr-1" />
+                    Task Attachments:
+                  </span>
                   {task.attachments && task.attachments.length > 0 ? (
                     <button
                       onClick={() => setShowAttachmentsModal(task.attachments)}
-                      className="mt-1 text-sm font-semibold text-[var(--color-primary)] hover:underline"
+                      className="text-sm font-semibold text-[var(--color-primary)] hover:underline"
                     >
                       View {task.attachments.length} file{task.attachments.length > 1 ? 's' : ''}
                     </button>
                   ) : (
-                    <p className="mt-1 text-sm font-semibold text-[var(--color-textSecondary)]">No attachments</p>
+                    <span className="text-sm text-[var(--color-textSecondary)]">No Attachments</span>
                   )}
                 </div>
               </div>

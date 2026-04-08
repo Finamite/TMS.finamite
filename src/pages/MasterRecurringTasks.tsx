@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
+﻿import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { RotateCcw, Calendar, Filter, Search, Trash2, Users, Paperclip, FileText, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CreditCard as Edit, Info, Download, ExternalLink, Settings, Loader, AlertTriangle, XCircle, CreditCard as Edit3, RefreshCw, X, CheckCircle2, Clock3 } from 'lucide-react';
 import axios from 'axios';
@@ -143,7 +143,7 @@ interface CacheEntry {
   params: string;
 }
 
-// ⚡ ULTRA-FAST Cache manager with instant edit mode support
+// âš¡ ULTRA-FAST Cache manager with instant edit mode support
 class CacheManager {
   private cache: Map<string, CacheEntry> = new Map();
   private readonly CACHE_DURATION = 30 * 60 * 1000; // 30 minutes for edit mode data
@@ -185,7 +185,7 @@ class CacheManager {
     }
   }
 
-  // ⚡ Instant cache check for edit mode
+  // âš¡ Instant cache check for edit mode
   hasEditModeCache(companyId: string): boolean {
     const key = `master-tasks-light-${companyId}`;
     const entry = this.cache.get(key);
@@ -414,14 +414,14 @@ const MasterRecurringTasks: React.FC = () => {
     return () => scrollEl.removeEventListener('scroll', updateScrolledState);
   }, [view, isEditMode, currentPage, itemsPerPage, masterTasks.length, individualTasks.length]);
 
-  // ⚡ LIGHTNING FAST: Ultra-optimized edit mode data fetching
+  // âš¡ LIGHTNING FAST: Ultra-optimized edit mode data fetching
   const fetchMasterTasksUltraFast = useCallback(async (useCache: boolean = true) => {
     const companyId = user?.company?.companyId || '';
     if (!companyId) return;
 
     const cacheKey = `master-tasks-light-${companyId}`;
 
-    // ⚡ INSTANT: Check cache first for lightning speed
+    // âš¡ INSTANT: Check cache first for lightning speed
     if (useCache && cacheRef.current.hasEditModeCache(companyId)) {
       const cachedData = cacheRef.current.get(cacheKey, { companyId });
       if (cachedData) {
@@ -437,7 +437,7 @@ const MasterRecurringTasks: React.FC = () => {
     try {
       setEditModeLoading(true);
 
-      // ⚡ Use the ultra-fast light endpoint
+      // âš¡ Use the ultra-fast light endpoint
       const response = await axios.get(
         `${address}/api/tasks/master-recurring-light?companyId=${companyId}`,
         {
@@ -505,11 +505,11 @@ const MasterRecurringTasks: React.FC = () => {
             return;
           }
         } catch (fallbackError) {
-          console.error('❌ Fallback fetch failed:', fallbackError);
+          console.error('âŒ Fallback fetch failed:', fallbackError);
         }
       }
 
-      // ⚡ INSTANT: Apply user filter if needed
+      // âš¡ INSTANT: Apply user filter if needed
       let filteredData = lightData;
 
       // Apply AssignedTo filter for non admins
@@ -573,18 +573,18 @@ const MasterRecurringTasks: React.FC = () => {
         });
       }
 
-      // ⚡ INSTANT: Set all data immediately
+      // âš¡ INSTANT: Set all data immediately
       setFullMasterTasks(filteredData);
       setTotalCount(filteredData.length);
       setTotalPages(Math.ceil(filteredData.length / itemsPerPage));
       setMasterTasks(filteredData.slice(0, itemsPerPage));
 
-      // ⚡ CACHE: Store for instant future access
+      // âš¡ CACHE: Store for instant future access
       cacheRef.current.set(cacheKey, Array.isArray(lightData) ? lightData : [], { companyId });
 
 
     } catch (error) {
-      console.error('❌ Error in ultra-fast fetch:', error);
+      console.error('âŒ Error in ultra-fast fetch:', error);
       toast.error('Failed to load master tasks');
       setMasterTasks([]);
       setFullMasterTasks([]);
@@ -693,7 +693,7 @@ const MasterRecurringTasks: React.FC = () => {
       cacheRef.current.set(cacheKey, data, params);
 
     } catch (error) {
-      console.error('❌ Error fetching individual tasks:', error);
+      console.error('âŒ Error fetching individual tasks:', error);
       toast.error('Failed to load tasks');
       setIndividualTasks([]);
       setTotalPages(1);
@@ -705,7 +705,7 @@ const MasterRecurringTasks: React.FC = () => {
     }
   }, [currentPage, itemsPerPage, filter, debouncedSearch, debouncedDateFrom, debouncedDateTo, user, isAdmin]);
 
-  // ⚡ LIGHTNING FAST: Ultra-optimized edit mode toggle
+  // âš¡ LIGHTNING FAST: Ultra-optimized edit mode toggle
   const handleEditModeToggle = useCallback(async () => {
     const newEditMode = !isEditMode;
 
@@ -715,7 +715,7 @@ const MasterRecurringTasks: React.FC = () => {
     setCurrentPage(1);
 
     if (newEditMode) {
-      // ⚡ INSTANT: Use ultra-fast light endpoint for edit mode
+      // âš¡ INSTANT: Use ultra-fast light endpoint for edit mode
       setEditModeLoading(true);
       setMasterTasks([]); // Clear current data to show loading
       await fetchMasterTasksUltraFast(true); // Use cache if available
@@ -734,7 +734,7 @@ const MasterRecurringTasks: React.FC = () => {
       const res = await axios.get(`${address}/api/tasks/task-activities/${taskGroupId}`);
       setTaskActivities(res.data.activities || []);
     } catch (error) {
-      console.error("❌ Activity fetch error:", error);
+      console.error("âŒ Activity fetch error:", error);
     } finally {
       setActivityLoading(false);
     }
@@ -778,7 +778,7 @@ const MasterRecurringTasks: React.FC = () => {
   useEffect(() => {
     if (isEditMode) {
       setEditModeLoading(true);
-      fetchMasterTasksUltraFast(true); // ⚡ Use ultra-fast method
+      fetchMasterTasksUltraFast(true); // âš¡ Use ultra-fast method
     } else {
       fetchIndividualTasks(1, false);
     }
@@ -795,7 +795,7 @@ const MasterRecurringTasks: React.FC = () => {
 
     if (isEditMode) {
       setEditModeLoading(true);
-      fetchMasterTasksUltraFast(false); // ⚡ Force fresh data with filters
+      fetchMasterTasksUltraFast(false); // âš¡ Force fresh data with filters
     } else {
       fetchIndividualTasks(1, false);
     }
@@ -806,7 +806,7 @@ const MasterRecurringTasks: React.FC = () => {
     if (isEditMode) {
       if (fullMasterTasks.length === 0) {
         setEditModeLoading(true);
-        fetchMasterTasksUltraFast(true); // ⚡ Use cached if available
+        fetchMasterTasksUltraFast(true); // âš¡ Use cached if available
       }
     } else {
       fetchIndividualTasks(currentPage);
@@ -819,7 +819,7 @@ const MasterRecurringTasks: React.FC = () => {
     setShowDeleteModal(true);
   }, []);
 
-  // ✅ FIXED: Updated handleDeleteMasterTask to store taskGroupId instead of full task data
+  // âœ… FIXED: Updated handleDeleteMasterTask to store taskGroupId instead of full task data
   const handleDeleteMasterTask = useCallback((masterTask: MasterTask) => {
     setDeleteConfig({
       type: "master",
@@ -841,7 +841,7 @@ const MasterRecurringTasks: React.FC = () => {
       taskType: masterTask.taskType,
       startDate: masterTask.parentTaskInfo?.originalStartDate || masterTask.dateRange.start,
       endDate: masterTask.parentTaskInfo?.originalEndDate || masterTask.dateRange.end,
-      originalEndDate: resolvedEndDate,   // ✅ ADD
+      originalEndDate: resolvedEndDate,   // âœ… ADD
       allowEndDateEdit: false,
       isForever: masterTask.parentTaskInfo?.isForever || false,
       includeSunday: masterTask.parentTaskInfo?.includeSunday ?? true,
@@ -904,7 +904,7 @@ const MasterRecurringTasks: React.FC = () => {
       return;
     }
 
-    // 🔒 VALIDATION: force Add / Don’t Add selection
+    // ðŸ”’ VALIDATION: force Add / Donâ€™t Add selection
     const invalidTasks: string[] = [];
 
     selectedTasks.forEach(taskGroupId => {
@@ -921,7 +921,7 @@ const MasterRecurringTasks: React.FC = () => {
       toast.error(
         `Please choose "Add" or "Don't Add" for attachments`
       );
-      return; // ⛔ STOP REASSIGN
+      return; // â›” STOP REASSIGN
     }
 
     try {
@@ -957,7 +957,7 @@ const MasterRecurringTasks: React.FC = () => {
       setShowBulkReassignModal(false);
 
     } catch (error) {
-      console.error("❌ Bulk reassign failed:", error);
+      console.error("âŒ Bulk reassign failed:", error);
       toast.error("Failed to reassign tasks");
     } finally {
       setIsSaving(false);
@@ -982,10 +982,10 @@ const MasterRecurringTasks: React.FC = () => {
       reassignTask.attachments.length > 0;
 
     if (hasAttachments) {
-      // ✅ Ask user only if attachments exist
+      // âœ… Ask user only if attachments exist
       setShowIncludeFilesModal(true);
     } else {
-      // ✅ No attachments → directly reassign
+      // âœ… No attachments â†’ directly reassign
       proceedReassign(false);
     }
   };
@@ -1068,7 +1068,7 @@ const MasterRecurringTasks: React.FC = () => {
       // Clear cache and refresh data
       cacheRef.current.clearByPattern("master-tasks-light");
       cacheRef.current.clearByPattern("master-tasks");
-      await fetchMasterTasksUltraFast(false); // ⚡ Refresh with ultra-fast method
+      await fetchMasterTasksUltraFast(false); // âš¡ Refresh with ultra-fast method
       setCurrentPage(1);
 
       // Close modal
@@ -1176,7 +1176,7 @@ const MasterRecurringTasks: React.FC = () => {
   }, []);
 
 
-  // ✅ FIXED: Function to get actual task IDs for a master task group
+  // âœ… FIXED: Function to get actual task IDs for a master task group
   const getTaskIdsForMasterTask = useCallback(
     async (taskGroupId: string): Promise<string[]> => {
       const companyId = user?.company?.companyId;
@@ -1202,16 +1202,15 @@ const MasterRecurringTasks: React.FC = () => {
         const isSelected = selectedTasks.has(masterTask.taskGroupId);
         handleTaskSelection(masterTask.taskGroupId, !isSelected);
       }}
-      className={`group relative overflow-hidden rounded-[24px] border transition-all duration-300 ${
+      className={`group flex h-full flex-col overflow-hidden rounded-[28px] border transition-all duration-300 ${
         isSelectionMode && masterTask.parentTaskInfo?.isForever
           ? selectedTasks.has(masterTask.taskGroupId)
             ? 'border-[var(--color-primary)]/35 bg-[var(--color-primary)]/5 shadow-[0_18px_40px_rgba(14,165,233,0.14)]'
             : 'border-[var(--color-border)] hover:border-[var(--color-primary)]/25'
-          : 'border-[var(--color-border)] shadow-[0_12px_30px_rgba(15,23,42,0.06)] hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.10)]'
-      } bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(248,250,252,0.90))] backdrop-blur-xl`}
+          : 'border-[var(--color-border)] shadow-[0_12px_34px_rgba(15,23,42,0.06)] hover:-translate-y-0.5 hover:shadow-[0_16px_42px_rgba(15,23,42,0.1)]'
+      } bg-[var(--color-surface)]`}
     >
-      <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-[var(--color-primary)] via-cyan-500 to-emerald-500 opacity-80" />
-      <div className="p-5">
+      <div className="flex h-full flex-col p-5">
         {isSelectionMode && masterTask.parentTaskInfo?.isForever && (
           <div className="mb-4 flex items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
             <input
@@ -1232,7 +1231,7 @@ const MasterRecurringTasks: React.FC = () => {
               <TaskTypeBadge taskType={masterTask.taskType} />
               <PriorityBadge priority={masterTask.priority} />
               {masterTask.parentTaskInfo?.isForever && (
-                <span className="inline-flex items-center rounded-full border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary)]">
+                <span className="inline-flex items-center rounded-full border border-[rgba(14,165,233,0.18)] bg-[rgba(14,165,233,0.10)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary)]">
                   Forever
                 </span>
               )}
@@ -1242,12 +1241,11 @@ const MasterRecurringTasks: React.FC = () => {
                 </span>
               )}
             </div>
-            <div className="mt-3">
-              <div className="text-[1rem] font-semibold leading-snug text-[var(--color-text)] transition-colors group-hover:text-[var(--color-primary)]">
-                <ReadMore text={masterTask.title} maxLength={60} />
-              </div>
-            </div>
+            <h3 className="mt-3 text-[1rem] font-semibold leading-snug text-[var(--color-text)]">
+              <ReadMore text={masterTask.title} maxLength={60} />
+            </h3>
           </div>
+
           {hasMasterTaskActions && (
             <div className="flex shrink-0 items-center gap-2">
               {canEditRecurringTaskSchedules && (
@@ -1259,7 +1257,7 @@ const MasterRecurringTasks: React.FC = () => {
                     setShowActivityModal(true);
                     fetchTaskActivities(masterTask.taskGroupId);
                   }}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-textSecondary)] transition hover:border-[var(--color-primary)]/25 hover:bg-[var(--color-primary)]/10 hover:text-[var(--color-primary)]"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-textSecondary)] transition hover:border-[var(--color-primary)]/25 hover:bg-[var(--color-primary)]/10 hover:text-[var(--color-primary)]"
                   title="View activity logs"
                 >
                   <Info size={16} />
@@ -1268,7 +1266,7 @@ const MasterRecurringTasks: React.FC = () => {
               {canEditRecurringTaskSchedules && (
                 <button
                   onClick={() => handleEditMasterTask(masterTask)}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/10 text-[var(--color-primary)] transition hover:border-[var(--color-primary)]/30 hover:bg-[var(--color-primary)]/15"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-primary)] transition hover:bg-[rgba(14,165,233,0.08)]"
                   title="Edit master task"
                 >
                   <Edit size={16} />
@@ -1277,14 +1275,14 @@ const MasterRecurringTasks: React.FC = () => {
               {canDeleteTasks && (
                 <button
                   onClick={() => handleDeleteMasterTask(masterTask)}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-[var(--color-error)]/20 bg-[var(--color-error)]/10 text-[var(--color-error)] transition hover:border-[var(--color-error)]/30 hover:bg-[var(--color-error)]/15"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-danger)] transition hover:bg-[rgba(239,68,68,0.08)]"
                   title="Move to recycle bin"
                 >
                   <Trash2 size={16} />
                 </button>
               )}
               <button
-                className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-[var(--color-success)]/20 bg-[var(--color-success)]/10 text-[var(--color-success)] transition hover:border-[var(--color-success)]/30 hover:bg-[var(--color-success)]/15"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-success)] transition hover:bg-[rgba(34,197,94,0.08)]"
                 onClick={() => openReassignModal(masterTask)}
               >
                 <RotateCcw size={16} />
@@ -1299,38 +1297,35 @@ const MasterRecurringTasks: React.FC = () => {
           </div>
         )}
 
-        <div className="mt-4 grid gap-3 text-sm">
-          <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
-            <span className="text-[var(--color-textSecondary)]">Instances</span>
+        <div className="mt-4 space-y-2.5 text-sm">
+          <div className="flex items-start justify-between gap-4">
+            <span className="font-medium text-[var(--color-textSecondary)]">Instances:</span>
             <span className="font-semibold text-[var(--color-text)]">{masterTask.instanceCount}</span>
           </div>
-          <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-success)]/5 px-3 py-2">
-            <span className="text-[var(--color-textSecondary)]">Completed</span>
+          <div className="flex items-start justify-between gap-4">
+            <span className="font-medium text-[var(--color-textSecondary)]">Completed:</span>
             <span className="font-semibold text-[var(--color-success)]">{masterTask.completedCount}</span>
           </div>
-          <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-warning)]/5 px-3 py-2">
-            <span className="text-[var(--color-textSecondary)]">Pending</span>
+          <div className="flex items-start justify-between gap-4">
+            <span className="font-medium text-[var(--color-textSecondary)]">Pending:</span>
             <span className="font-semibold text-[var(--color-warning)]">{masterTask.pendingCount}</span>
           </div>
-          <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
-            <span className="flex items-center gap-1 text-[var(--color-textSecondary)]">
-              <Paperclip size={14} />
-              Attachments
-            </span>
+          <div className="flex items-start justify-between gap-4">
+            <span className="font-medium text-[var(--color-textSecondary)]">Attachments:</span>
             {masterTask.attachments && masterTask.attachments.length > 0 ? (
               <button
                 onClick={() => setShowAttachmentsModal({ attachments: masterTask.attachments, type: 'task' })}
-                className="font-semibold text-[var(--color-primary)] hover:underline"
+                className="font-medium text-[var(--color-primary)] hover:underline"
               >
                 View ({masterTask.attachments.length})
               </button>
             ) : (
-              <span className="text-[var(--color-textSecondary)]">No attachments</span>
+              <span className="font-medium text-[var(--color-textSecondary)]">No Attachments</span>
             )}
           </div>
-          <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
-            <span className="text-[var(--color-textSecondary)]">Date range</span>
-            <span className="font-semibold text-[var(--color-text)]">
+          <div className="flex items-start justify-between gap-4">
+            <span className="font-medium text-[var(--color-textSecondary)]">Date range:</span>
+            <span className="font-semibold text-right text-[var(--color-text)]">
               {new Date(masterTask.dateRange.start).toLocaleDateString('en-GB', {
                 day: '2-digit',
                 month: 'numeric',
@@ -1344,22 +1339,22 @@ const MasterRecurringTasks: React.FC = () => {
           </div>
           {masterTask.parentTaskInfo && (
             <>
-              <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
-                <span className="text-[var(--color-textSecondary)]">Include Sunday</span>
+              <div className="flex items-start justify-between gap-4">
+                <span className="font-medium text-[var(--color-textSecondary)]">Include Sunday:</span>
                 <span className="font-semibold text-[var(--color-text)]">
                   {masterTask.parentTaskInfo.includeSunday ? 'Yes' : 'No'}
                 </span>
               </div>
               {resolveWeekOffDays(masterTask.weekOffDays, masterTask.parentTaskInfo?.weekOffDays).length > 0 && (
-                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
-                  <span className="text-[var(--color-textSecondary)]">Week Off</span>
-                  <p className="mt-1 font-semibold text-[var(--color-text)]">
+                <div className="flex items-start justify-between gap-4">
+                  <span className="font-medium text-[var(--color-textSecondary)]">Week Off:</span>
+                  <span className="font-semibold text-right text-[var(--color-text)]">
                     {resolveWeekOffDays(masterTask.weekOffDays, masterTask.parentTaskInfo?.weekOffDays)
                       .map((d: number) =>
                         ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d]
                       )
                       .join(', ')}
-                  </p>
+                  </span>
                 </div>
               )}
             </>
@@ -1372,16 +1367,30 @@ const MasterRecurringTasks: React.FC = () => {
   MasterTaskCard.displayName = 'MasterTaskCard';
 
   const TaskCard = memo<{ task: Task }>(({ task }) => (
-    <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] hover:shadow-md transition-all duration-200 overflow-hidden">
-      <div className="p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="text-lg font-semibold text-[--color-text] mb-2">
-            <ReadMore text={task.title} maxLength={70} />
+    <div className="group flex h-full flex-col overflow-hidden rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_12px_34px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--color-primary)]/25 hover:shadow-[0_16px_42px_rgba(15,23,42,0.1)]">
+      <div className="flex h-full flex-col p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <TaskTypeBadge taskType={task.taskType} />
+              <StatusBadge status={task.status} />
+              <PriorityBadge priority={task.priority} />
+              {task.parentTaskInfo?.isForever && (
+                <span className="inline-flex items-center rounded-full border border-[rgba(14,165,233,0.18)] bg-[rgba(14,165,233,0.10)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary)]">
+                  Forever
+                </span>
+              )}
+            </div>
+
+            <h3 className="mt-3 text-[1rem] font-semibold leading-snug text-[var(--color-text)]">
+              <ReadMore text={task.title} maxLength={70} />
+            </h3>
           </div>
+
           {canDeleteTasks && (
             <button
               onClick={() => handleDeleteTask(task._id)}
-              className="flex items-center gap-1 p-2 text-[--color-error] hover:bg-[--color-error] hover:text-white hover:scale-105 rounded-lg transition-all duration-150 ease-in-out"
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-danger)] transition hover:bg-[rgba(239,68,68,0.08)]"
               title="Delete task"
             >
               <Trash2 size={16} />
@@ -1389,53 +1398,48 @@ const MasterRecurringTasks: React.FC = () => {
           )}
         </div>
 
-        <div className="flex flex-wrap gap-2 mb-4">
-          <TaskTypeBadge taskType={task.taskType} />
-          <StatusBadge status={task.status} />
-          <PriorityBadge priority={task.priority} />
-          {task.parentTaskInfo?.isForever && (
-            <span className="px-2 py-1 text-xs font-medium rounded-full bg-[--color-primary-light] text-[--color-primary]">
-              FOREVER
-            </span>
-          )}
-        </div>
+        <p className="mt-3 text-sm leading-6 whitespace-pre-wrap break-words text-[var(--color-textSecondary)]">
+          <ReadMore text={task.description} maxLength={descriptionMaxLength} />
+        </p>
 
-        <ReadMore text={task.description} maxLength={descriptionMaxLength} />
+        <div className="mt-4 space-y-2.5 text-sm">
+          <div className="flex items-start justify-between gap-4">
+            <span className="font-medium text-[var(--color-textSecondary)]">Task ID:</span>
+            <span className="font-semibold text-[var(--color-text)]">{task.taskId || '—'}</span>
+          </div>
 
-        <div className="space-y-2 text-sm text-[--color-textSecondary]">
-          <div className="flex justify-between">
-            <span>Task ID:</span>
-            <span className="font-medium">{task.taskId || '—'}</span>
+          <div className="flex items-start justify-between gap-4">
+            <span className="font-medium text-[var(--color-textSecondary)]">Assigned by:</span>
+            <span className="font-semibold text-[var(--color-text)]">{task.assignedBy.username}</span>
           </div>
-          <div className="flex justify-between">
-            <span>Assigned by:</span>
-            <span className="font-medium">{task.assignedBy.username}</span>
-          </div>
+
           {isAdmin && (
-            <div className="flex justify-between">
-              <span>Assigned to:</span>
-              <span className="font-medium">{task.assignedTo.username}</span>
+            <div className="flex items-start justify-between gap-4">
+              <span className="font-medium text-[var(--color-textSecondary)]">Assigned to:</span>
+              <div className="text-right">
+                <div className="font-semibold text-[var(--color-text)]">{task.assignedTo.username}</div>
+                <div className="text-xs text-[var(--color-textSecondary)]">{task.assignedTo.email}</div>
+              </div>
             </div>
           )}
-          <div className="flex justify-between">
-            <span className="flex items-center">
-              <Paperclip size={14} className="mr-1" />
-              Task Attachments:
-            </span>
+
+          <div className="flex items-start justify-between gap-4">
+            <span className="font-medium text-[var(--color-textSecondary)]">Task Attachments:</span>
             {task.attachments && task.attachments.length > 0 ? (
               <button
                 onClick={() => setShowAttachmentsModal({ attachments: task.attachments, type: 'task' })}
-                className="font-medium text-[--color-primary] hover:text-[--color-primary]"
+                className="font-medium text-[var(--color-primary)] hover:underline"
               >
-                Click Here ({task.attachments.length})
+                View ({task.attachments.length})
               </button>
             ) : (
-              <span>No Attachments</span>
+              <span className="font-medium text-[var(--color-textSecondary)]">No Attachments</span>
             )}
           </div>
-          <div className="flex justify-between">
-            <span>Due date:</span>
-            <span className="font-medium">
+
+          <div className="flex items-start justify-between gap-4">
+            <span className="font-medium text-[var(--color-textSecondary)]">Due date:</span>
+            <span className="font-semibold text-[var(--color-text)]">
               {new Date(task.dueDate).toLocaleDateString('en-GB', {
                 day: '2-digit',
                 month: 'numeric',
@@ -1443,21 +1447,22 @@ const MasterRecurringTasks: React.FC = () => {
               })}
             </span>
           </div>
+
           {task.completedAt && (
-            <div className="flex justify-between">
-              <span className="flex items-center">
+            <div className="flex items-start justify-between gap-4">
+              <span className="font-medium text-[var(--color-textSecondary)]">
                 Completed:
                 {task.completionRemarks && (
                   <button
                     onClick={() => setShowRemarksModal(task)}
-                    className="ml-1 text-[--color-primary] hover:text-[--color-primary]"
+                    className="ml-1 inline-flex align-middle text-[var(--color-primary)] hover:underline"
                     title="View completion remarks"
                   >
-                    <Info size={14} />
+                    <Info size={12} />
                   </button>
                 )}
               </span>
-              <span className="font-medium">
+              <span className="font-semibold text-[var(--color-success)]">
                 {new Date(task.completedAt).toLocaleDateString('en-GB', {
                   day: '2-digit',
                   month: 'numeric',
@@ -1466,24 +1471,23 @@ const MasterRecurringTasks: React.FC = () => {
               </span>
             </div>
           )}
+
           {task.completionAttachments && task.completionAttachments.length > 0 && (
-            <div className="flex justify-between">
-              <span className="flex items-center">
-                <Paperclip size={14} className="mr-1" />
-                Completion Files:
-              </span>
+            <div className="flex items-start justify-between gap-4">
+              <span className="font-medium text-[var(--color-textSecondary)]">Completion files:</span>
               <button
                 onClick={() => setShowAttachmentsModal({ attachments: task.completionAttachments!, type: 'completion' })}
-                className="font-medium text-[--color-success] hover:text-[--color-success]"
+                className="font-medium text-[var(--color-success)] hover:underline"
               >
-                Click Here ({task.completionAttachments.length})
+                View ({task.completionAttachments.length})
               </button>
             </div>
           )}
+
           {task.lastCompletedDate && (
-            <div className="flex justify-between">
-              <span>Last completed:</span>
-              <span className="font-medium">
+            <div className="flex items-start justify-between gap-4">
+              <span className="font-medium text-[var(--color-textSecondary)]">Last completed:</span>
+              <span className="font-semibold text-[var(--color-text)]">
                 {new Date(task.lastCompletedDate).toLocaleDateString('en-GB', {
                   day: '2-digit',
                   month: 'numeric',
@@ -1492,17 +1496,18 @@ const MasterRecurringTasks: React.FC = () => {
               </span>
             </div>
           )}
+
           {task.parentTaskInfo && (
             <>
-              <div className="flex justify-between">
-                <span>Include Sunday:</span>
-                <span className="font-medium">{task.parentTaskInfo.includeSunday ? 'Yes' : 'No'}</span>
+              <div className="flex items-start justify-between gap-4">
+                <span className="font-medium text-[var(--color-textSecondary)]">Include Sunday:</span>
+                <span className="font-semibold text-[var(--color-text)]">{task.parentTaskInfo.includeSunday ? 'Yes' : 'No'}</span>
               </div>
-              {resolveWeekOffDays(task.weekOffDays, task.parentTaskInfo.weekOffDays)
-                .length > 0 && (
-                <div className="flex justify-between">
-                  <span>Week Off:</span>
-                  <span className="font-medium">
+
+              {resolveWeekOffDays(task.weekOffDays, task.parentTaskInfo.weekOffDays).length > 0 && (
+                <div className="flex items-start justify-between gap-4">
+                  <span className="font-medium text-[var(--color-textSecondary)]">Week Off:</span>
+                  <span className="font-semibold text-right text-[var(--color-text)]">
                     {resolveWeekOffDays(task.weekOffDays, task.parentTaskInfo.weekOffDays)
                       .map((d: number) =>
                         ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d]
@@ -1558,7 +1563,7 @@ const MasterRecurringTasks: React.FC = () => {
         <div className="mt-4 grid gap-3 text-sm">
           <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
             <span className="text-[var(--color-textSecondary)]">Task ID</span>
-            <span className="font-semibold text-[var(--color-text)]">{task.taskId || '—'}</span>
+            <span className="font-semibold text-[var(--color-text)]">{task.taskId || 'â€”'}</span>
           </div>
           <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
             <span className="text-[var(--color-textSecondary)]">Assigned by</span>
@@ -1674,7 +1679,7 @@ const MasterRecurringTasks: React.FC = () => {
 
   // Render functions
   const renderMasterTaskCardView = () => (
-    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
       {masterTasks.map((masterTask: MasterTask) => (
         <MasterTaskCard key={masterTask.taskGroupId} masterTask={masterTask} />
       ))}
@@ -1924,7 +1929,7 @@ const MasterRecurringTasks: React.FC = () => {
   const renderCardView = () => (
     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
       {individualTasks.map((task: Task) => (
-        <ModernTaskCard key={task._id} task={task} />
+        <TaskCard key={task._id} task={task} />
       ))}
     </div>
   );
@@ -1993,7 +1998,7 @@ const MasterRecurringTasks: React.FC = () => {
             <tbody className="divide-y divide-[var(--color-border)] bg-[var(--color-surface)]">
               {individualTasks.map((task: Task) => (
                 <tr key={task._id} className="transition-colors hover:bg-[var(--color-background)]/70">
-                  <td className="px-5 py-4 whitespace-nowrap text-sm text-[var(--color-text)]">{task.taskId || '—'}</td>
+                  <td className="px-5 py-4 whitespace-nowrap text-sm text-[var(--color-text)]">{task.taskId || 'â€”'}</td>
                   <td className="px-5 py-4">
                     <div className="min-w-0">
                       <div className="text-sm font-semibold text-[var(--color-text)] mb-1">
@@ -2085,7 +2090,7 @@ const MasterRecurringTasks: React.FC = () => {
     </div>
   );
 
-  // ✅ OPTIMIZED: Show loading for edit mode instead of "No master tasks found"
+  // âœ… OPTIMIZED: Show loading for edit mode instead of "No master tasks found"
   if (initialLoading) {
     return (
       <div className="min-h-screen bg-[var(--color-background)] p-4 space-y-6">
@@ -2205,7 +2210,7 @@ const MasterRecurringTasks: React.FC = () => {
                         transition: {
                           duration: 0.3,
                           ease: [0.4, 0, 0.2, 1],
-                          delay: 0.12 // ⭐ wait for children to exit
+                          delay: 0.12 // â­ wait for children to exit
                         }
                       }}
                     >
@@ -2313,7 +2318,7 @@ const MasterRecurringTasks: React.FC = () => {
                     onClick={() => dateFromRef.current?.showPicker()}
                     className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
                     style={{
-                      color: "var(--color-text)",   // 🔥 THIS FIXES DARK MODE
+                      color: "var(--color-text)",   // ðŸ”¥ THIS FIXES DARK MODE
                       opacity: 0.9
                     }}
                   />
@@ -2344,7 +2349,7 @@ const MasterRecurringTasks: React.FC = () => {
                     onClick={() => dateFromRef.current?.showPicker()}
                     className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
                     style={{
-                      color: "var(--color-text)",   // 🔥 THIS FIXES DARK MODE
+                      color: "var(--color-text)",   // ðŸ”¥ THIS FIXES DARK MODE
                       opacity: 0.9
                     }}
                   />
@@ -2472,7 +2477,7 @@ const MasterRecurringTasks: React.FC = () => {
         </div>
       )}
 
-      {/* ✅ OPTIMIZED: Show loading for edit mode instead of "No master tasks found" */}
+      {/* âœ… OPTIMIZED: Show loading for edit mode instead of "No master tasks found" */}
       {(loading || editModeLoading) && !initialLoading && (
         <div className="bg-[--color-background] rounded-xl shadow-sm border border-[--color-border] p-8">
           <div className="flex items-center justify-center">
@@ -2840,7 +2845,7 @@ const MasterRecurringTasks: React.FC = () => {
 
                       let taskIds: string[] = [];
 
-                      // ✅ FIXED: Proper handling for both single and master task deletion
+                      // âœ… FIXED: Proper handling for both single and master task deletion
                       if (deleteConfig?.type === "single" && deleteConfig.taskId) {
                         taskIds = [deleteConfig.taskId];
                       } else if (deleteConfig?.type === "master" && deleteConfig.taskGroupId) {
@@ -2854,13 +2859,13 @@ const MasterRecurringTasks: React.FC = () => {
 
                       // Delete each task individually
                       if (deleteConfig.type === "single" && deleteConfig.taskId) {
-                        // ✅ NORMAL TASK
+                        // âœ… NORMAL TASK
                         await axios.put(
                           `${address}/api/tasks/${deleteConfig.taskId}/bin`,
                           { companyId: user.company.companyId }
                         );
                       } else if (deleteConfig.type === "master" && deleteConfig.taskGroupId) {
-                        // ✅ MASTER TASK
+                        // âœ… MASTER TASK
                         await axios.delete(`${address}/api/tasks/bulk/master`, {
                           params: {
                             taskGroupId: deleteConfig.taskGroupId,
@@ -2882,7 +2887,7 @@ const MasterRecurringTasks: React.FC = () => {
                       setShowDeleteModal(false);
                       setDeleteConfig(null);
                     } catch (err) {
-                      console.error('❌ Error moving to bin:', err);
+                      console.error('âŒ Error moving to bin:', err);
                       toast.error("Error moving to bin");
                     } finally {
                       setIsProcessingDelete(false);
@@ -2918,7 +2923,7 @@ const MasterRecurringTasks: React.FC = () => {
 
                       let taskIds: string[] = [];
 
-                      // ✅ FIXED: Proper handling for both single and master task deletion
+                      // âœ… FIXED: Proper handling for both single and master task deletion
                       if (deleteConfig?.type === "single" && deleteConfig.taskId) {
                         taskIds = [deleteConfig.taskId];
                       } else if (deleteConfig?.type === "master" && deleteConfig.taskGroupId) {
@@ -2932,12 +2937,12 @@ const MasterRecurringTasks: React.FC = () => {
 
                       // Delete each task permanently
                       if (deleteConfig.type === "single" && deleteConfig.taskId) {
-                        // ✅ NORMAL TASK
+                        // âœ… NORMAL TASK
                         await axios.delete(
                           `${address}/api/tasks/${deleteConfig.taskId}?companyId=${user.company.companyId}`
                         );
                       } else if (deleteConfig.type === "master" && deleteConfig.taskGroupId) {
-                        // ✅ MASTER TASK
+                        // âœ… MASTER TASK
                         await axios.delete(`${address}/api/tasks/bulk/master`, {
                           params: {
                             taskGroupId: deleteConfig.taskGroupId,
@@ -2960,7 +2965,7 @@ const MasterRecurringTasks: React.FC = () => {
                       setShowDeleteModal(false);
                       setDeleteConfig(null);
                     } catch (err) {
-                      console.error('❌ Error deleting permanently:', err);
+                      console.error('âŒ Error deleting permanently:', err);
                       toast.error("Error deleting permanently");
                     } finally {
                       setIsProcessingDelete(false);
@@ -3159,7 +3164,7 @@ const MasterRecurringTasks: React.FC = () => {
                       >
                         <div className="flex items-center gap-2 truncate">
                           <span className="truncate font-medium">
-                            • {task?.title || taskGroupId}
+                            â€¢ {task?.title || taskGroupId}
                           </span>
 
                           {hasAttachments && (
@@ -3208,7 +3213,7 @@ const MasterRecurringTasks: React.FC = () => {
                                     : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'
                                 }`}
                             >
-                              Don’t Add
+                              Donâ€™t Add
                             </button>
                           </div>
                         )}
@@ -3305,7 +3310,7 @@ const MasterRecurringTasks: React.FC = () => {
                 <p className="text-sm mt-2">
                   <span className="text-sm text-[--color-muted]">Task:</span>{" "}
                   <span className="font-extrabold text-[--color-text]">
-                    {selectedActivityTaskTitle || "—"}
+                    {selectedActivityTaskTitle || "â€”"}
                   </span>
                 </p>
               </div>
@@ -3320,7 +3325,7 @@ const MasterRecurringTasks: React.FC = () => {
                 }}
                 className="h-9 w-9 rounded-full border border-[--color-border] flex items-center justify-center hover:bg-[--color-background] transition text-[--color-text]"
               >
-                ✕
+                âœ•
               </button>
             </div>
 
@@ -3342,7 +3347,7 @@ const MasterRecurringTasks: React.FC = () => {
                         month: "2-digit",
                         year: "2-digit",
                       }).format(new Date(dateStr))
-                      : "—";
+                      : "â€”";
 
                   const formatISTDateTime = (dateStr: string) =>
                     dateStr
@@ -3355,7 +3360,7 @@ const MasterRecurringTasks: React.FC = () => {
                         minute: "2-digit",
                         hour12: true,
                       }).format(new Date(dateStr))
-                      : "—";
+                      : "â€”";
 
                   const sorted = [...taskActivities].sort(
                     (a, b) =>
@@ -3422,7 +3427,7 @@ const MasterRecurringTasks: React.FC = () => {
                                       End Date:
                                     </span>{" "}
                                     {formatISTDate(a.oldEndDate)}{" "}
-                                    <span className="text-[--color-muted]">→</span>{" "}
+                                    <span className="text-[--color-muted]">â†’</span>{" "}
                                     <span className="font-semibold text-[--color-error]">
                                       {formatISTDate(a.newEndDate)}
                                     </span>
@@ -3435,7 +3440,7 @@ const MasterRecurringTasks: React.FC = () => {
                                         : "animate-pulse-arrow"
                                       }`}
                                   >
-                                    ↓
+                                    â†“
                                   </span>
                                 </button>
                               )}
@@ -3456,7 +3461,7 @@ const MasterRecurringTasks: React.FC = () => {
                                     )}
 
                                     <div className="pt-2 border-t border-[--color-border] text-xs text-[--color-muted]">
-                                      Updated by {a.performedBy?.username || "Unknown"} ·{" "}
+                                      Updated by {a.performedBy?.username || "Unknown"} Â·{" "}
                                       {formatISTDateTime(a.createdAt)} IST
                                     </div>
                                   </div>
@@ -3499,3 +3504,5 @@ const MasterRecurringTasks: React.FC = () => {
 };
 
 export default MasterRecurringTasks;
+
+
