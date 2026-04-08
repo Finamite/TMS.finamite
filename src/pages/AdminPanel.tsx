@@ -1076,10 +1076,11 @@ const AdminPanel: React.FC = () => {
                     </td>
                     <td className="py-3 px-4">
                       <span
-                        className="px-2 py-1 text-xs font-medium rounded-full capitalize"
+                        className="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold capitalize"
                         style={{
-                          backgroundColor: `${getRoleColor(user.role)}20`,
-                          color: getRoleColor(user.role)
+                          backgroundColor: `${getRoleColor(user.role)}14`,
+                          color: getRoleColor(user.role),
+                          borderColor: `${getRoleColor(user.role)}30`
                         }}
                       >
                         {getRoleLabel(user.role)}
@@ -1087,10 +1088,11 @@ const AdminPanel: React.FC = () => {
                     </td>
                     <td className="py-3 px-4">
                       <span
-                        className="px-2 py-1 text-xs font-medium rounded-full"
+                        className="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold"
                         style={{
-                          backgroundColor: "var(--color-border)",
-                          color: "var(--color-text)"
+                          backgroundColor: 'var(--color-surface)',
+                          color: 'var(--color-textSecondary)',
+                          borderColor: 'var(--color-border)'
                         }}
                       >
                         {user.department || "No Department"}
@@ -1102,10 +1104,11 @@ const AdminPanel: React.FC = () => {
                         {getActivePermissions(user.permissions).slice(0, 2).map(([key, _]) => (
                           <div key={key} className="inline-block mr-2 mb-1">
                             <span
-                              className="px-2 py-1 rounded-full"
+                              className="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold"
                               style={{
-                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                                color: 'var(--color-primary)'
+                                backgroundColor: 'color-mix(in srgb, var(--color-primary) 12%, transparent)',
+                                color: 'var(--color-primary)',
+                                borderColor: 'color-mix(in srgb, var(--color-primary) 24%, var(--color-border))'
                               }}
                             >
                               {getPermissionDisplayName(key)}
@@ -1121,8 +1124,12 @@ const AdminPanel: React.FC = () => {
                     </td>
                     <td className="py-3 px-4">
                       <span
-                        className={`px-2 py-1 text-xs font-medium rounded-full ${user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}
+                        className="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold"
+                        style={{
+                          backgroundColor: user.isActive ? 'color-mix(in srgb, var(--color-success) 12%, transparent)' : 'color-mix(in srgb, var(--color-error) 12%, transparent)',
+                          color: user.isActive ? 'var(--color-success)' : 'var(--color-error)',
+                          borderColor: user.isActive ? 'color-mix(in srgb, var(--color-success) 24%, var(--color-border))' : 'color-mix(in srgb, var(--color-error) 24%, var(--color-border))'
+                        }}
                       >
                         {user.isActive ? 'Active' : 'Inactive'}
                       </span>
@@ -1302,10 +1309,12 @@ const AdminPanel: React.FC = () => {
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                   {/* STATUS */}
                   <span
-                    className={`px-2 py-0.5 rounded-full font-medium ${user.isActive
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-red-100 text-red-700'
-                      }`}
+                    className="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold"
+                    style={{
+                      backgroundColor: user.isActive ? 'color-mix(in srgb, var(--color-success) 12%, transparent)' : 'color-mix(in srgb, var(--color-error) 12%, transparent)',
+                      color: user.isActive ? 'var(--color-success)' : 'var(--color-error)',
+                      borderColor: user.isActive ? 'color-mix(in srgb, var(--color-success) 24%, var(--color-border))' : 'color-mix(in srgb, var(--color-error) 24%, var(--color-border))'
+                    }}
                   >
                     {user.isActive ? 'Active' : 'Inactive'}
                   </span>
@@ -1346,16 +1355,17 @@ const AdminPanel: React.FC = () => {
                 {/* ===== TAGS ===== */}
                 <div className="flex flex-wrap items-center gap-2 mt-2">
                   <span
-                    className="px-2 py-0.5 text-xs rounded-full"
+                    className="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold"
                     style={{
-                      backgroundColor: `${getRoleColor(user.role)}20`,
-                      color: getRoleColor(user.role)
+                      backgroundColor: `${getRoleColor(user.role)}14`,
+                      color: getRoleColor(user.role),
+                      borderColor: `${getRoleColor(user.role)}30`
                     }}
                   >
                     {getRoleLabel(user.role)}
                   </span>
 
-                  <span className="px-2 py-0.5 text-xs rounded-full bg-[var(--color-border)]">
+                  <span className="inline-flex items-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--color-textSecondary)]">
                     {user.department || '-'}
                   </span>
                 </div>
@@ -2185,8 +2195,8 @@ const AdminPanel: React.FC = () => {
                       key={idx}
                       className="flex items-center gap-3 p-3 rounded-xl bg-[var(--color-background)] border border-[var(--color-chat)] hover:border-[var(--color-primary)] transition-colors"
                     >
-                      <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
-                        <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                        <Clock className="w-4 h-4 text-blue-600" />
                       </div>
                       <span className="text-sm text-[var(--color-text)]">
                         {formatDateTime(time)}
@@ -2208,7 +2218,7 @@ const AdminPanel: React.FC = () => {
             <div className="p-6 border-t border-gray-200 dark:border-gray-800">
               <button
                 onClick={() => setShowAccessModal(false)}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-2.5 rounded-xl font-medium transition-all shadow-lg shadow-blue-500/25"
+                className="w-full bg-gradient-to-r from-blue-600 to-[var(--color-primary)] hover:from-blue-700 hover:to-[var(--color-primary)] text-white py-2.5 rounded-xl font-medium transition-all shadow-lg shadow-blue-500/25"
               >
                 Close
               </button>
