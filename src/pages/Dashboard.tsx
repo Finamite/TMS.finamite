@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -6,19 +6,17 @@ import {
 } from 'recharts';
 import {
   CheckSquare, Clock, AlertTriangle, TrendingUp, Calendar,
-  Target, Activity, CheckCircle, XCircle, Timer,
-  ChevronDown, Star, Zap, BarChart3, Sparkles,
-  PieChart as PieChartIcon, Users, RotateCcw, ClipboardCheck,
-  MessageSquare,
-  GitBranch
+  Target, Activity, CheckCircle, XCircle, 
+  ChevronDown, BarChart3, Sparkles,
+  PieChart as PieChartIcon, Users,
+  MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
-import { format, startOfMonth, endOfMonth, subMonths, addMonths, isThisMonth, isSameMonth, isSameYear } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths, addMonths, isSameMonth, isSameYear } from 'date-fns';
 // import { availableThemes } from '../contexts/ThemeContext';
 import { address } from '../../utils/ipAddress';
 import TeamPendingTasksChart from "../components/TeamPendingTasksChart";
-import { usePcmIntegration } from "../hooks/usePcmIntegration";
 import { useNavigate } from "react-router-dom";
 
 // --- Interfaces (updated to include quarterly) ---
@@ -174,7 +172,7 @@ const Dashboard: React.FC = () => {
   const [taskCounts, setTaskCounts] = useState<TaskCounts | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(new Date());
-  const [showMonthFilter, setShowMonthFilter] = useState(false);
+  const [showMonthFilter] = useState(false);
   const [viewMode, setViewMode] = useState<'current' | 'all-time'>('current');
 
   // New states for team member selection
@@ -184,9 +182,6 @@ const Dashboard: React.FC = () => {
   const [teamPendingData, setTeamPendingData] = useState<TeamPendingData>({});
   const [teamPerformance, setTeamPerformance] = useState<TeamPerformanceItem[]>([]);
   const monthListRef = React.useRef<HTMLDivElement>(null);
-  const [openSelector, setOpenSelector] = useState<string | null>(null);
-  const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
-  const [adminApprovalEnabled, setAdminApprovalEnabled] = useState(false);
   const [whatsappIntegrationStatus, setWhatsappIntegrationStatus] = useState<{
     live: boolean;
     provider: 'interakt' | 'wati' | 'fichat' | null;
@@ -194,275 +189,13 @@ const Dashboard: React.FC = () => {
     live: false,
     provider: null
   });
-  const { enabled: pcmEnabled, settings: pcmSettings, steps: pcmSteps, error: pcmError } = usePcmIntegration();
-  const pcmBillingBlocked = Boolean(pcmError && /billing|payment|trial/i.test(pcmError));
   const analyticsCacheRef = React.useRef<Map<string, { data: any; ts: number }>>(new Map());
   const countsCacheRef = React.useRef<Map<string, { data: any; ts: number }>>(new Map());
   const teamPendingCacheRef = React.useRef<Map<string, { data: TeamPendingData; ts: number }>>(new Map());
 
-
-  const handleCardClick = (card: string) => {
-    setOpenSelector(openSelector === card ? null : card);
-  };
-
   const navigate = useNavigate();
-  const openIntegrationsPage = () => navigate('/integrations');
-
-  const goToPage = (type: string, category: string) => {
-    setOpenSelector(null);
-
-    if (category === "total") {
-      navigate(type === "single" ? "/master-tasks" : "/master-recurring");
-    }
-    if (category === "pending") {
-      navigate(type === "single" ? "/pending-tasks" : "/pending-recurring");
-    }
-    if (category === "completed") {
-      navigate(type === "single" ? "/master-tasks" : "/master-recurring");
-    }
-    if (category === "overdue") {
-      navigate(type === "single" ? "/pending-tasks" : "/pending-recurring");
-    }
-  };
-
-  const canOpenApprovalPage =
-    user &&
-    (user.role === 'admin' ||
-      (user.role === 'manager' && user.permissions?.canManageApproval));
 
   const isPrivilegedUser = user?.role === 'admin' || user?.role === 'manager';
-
-  const ThemeCard = ({ children, className = "", variant = "default", hover = true, onClick }: {
-    children: React.ReactNode;
-    className?: string;
-    variant?: 'default' | 'glass' | 'elevated' | 'bordered';
-    hover?: boolean;
-    onClick?: () => void;
-  }) => {
-    const baseClasses = "relative transition-all duration-300 ease-out";
-
-    const variants = {
-      default: `rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-lg`,
-      glass: `rounded-2xl bg-[var(--color-surface)]/80 backdrop-blur-xl border border-[var(--color-border)] shadow-xl`,
-      elevated: `rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-2xl`,
-      bordered: `rounded-2xl bg-[var(--color-primary)]/10 border-2 border-[var(--color-primary)]/20`
-    };
-
-    const hoverClasses = hover ? "hover:shadow-xl hover:scale-[1.02] hover:border-[var(--color-primary)]/30" : "";
-
-    return (
-      <div onClick={onClick}
-        className={`${baseClasses} ${variants[variant]} ${hoverClasses} ${className}`}>
-        {children}
-      </div>
-    );
-  };
-
-  // --- MetricCard Component with Real Trends ---
-  const MetricCard = ({
-    icon,
-    title,
-    slug,
-    value,
-    subtitle,
-    sparklineData,
-    isMain = false,
-    pendingValue,
-    completedValue,
-    valueColor,
-    onClick,
-  }: {
-    icon: React.ReactNode;
-    title: string;
-    slug?: string;
-    value: string | number;
-    subtitle?: string;
-    percentage?: number;
-    sparklineData?: number[];
-    isMain?: boolean;
-    pendingValue?: number;
-    completedValue?: number;
-    valueColor?: string;
-    onClick?: () => void;
-  }) => {
-
-
-    return (
-      <div className="relative">
-        <ThemeCard
-          onClick={
-            onClick
-              ? onClick
-              : slug
-                ? () => handleCardClick(title)
-                : undefined
-          }
-          className={`p-2 sm:p-3 rounded-xl transition-shadow duration-300 hover:shadow-lg ${isMain ? "col-span-2" : ""
-            }`}
-          variant="glass"
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between mb-2">
-            {/* Left: Icon + Title */}
-            <div className="flex items-center gap-3">
-              <div
-                className="p-2 rounded-xl ring-1 ring-white/10 shadow-md backdrop-blur"
-                style={{
-                  backgroundColor: `var(--color-primary)12`,
-                  boxShadow: `0 4px 14px var(--color-primary)25`
-                }}
-              >
-                <div
-                  className="w-6 h-6 flex items-center justify-center"
-                  style={{ color: "var(--color-primary)" }}
-                >
-                  {icon}
-                </div>
-              </div>
-
-              <p className="text-xl font-semibold text-[var(--color-text)] truncate">{title}</p>
-            </div>
-
-            {/* Right: Value */}
-            <p
-              className="text-xl font-bold text-right leading-tight mr-2"
-              style={{ color: valueColor || "var(--color-text)" }}
-            >
-              {value}
-            </p>
-          </div>
-
-          {/* Subtitle */}
-          {subtitle && (
-            <p className="text-sm text-[var(--color-textSecondary)] ml-10 mb-2">{subtitle}</p>
-          )}
-
-          {/* Percentage Bar
-      <div className="mb-2">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-[10px] font-medium text-[var(--color-textSecondary)] flex items-center gap-1">
-            <Activity size={14} className="text-blue-500" />
-          </span>
-          <span className="text-xs font-bold" style={{ color: "var(--color-primary)" }}>
-            {(safePercentage ?? 0).toFixed(1)}%
-          </span>
-        </div>
-
-        <div className="w-full h-1.5 bg-[var(--color-border)] rounded-full overflow-hidden">
-          <div
-            className="h-full rounded-full transition-all duration-1000"
-            style={{
-              width: `${Math.min(safePercentage ?? 0, 100)}%`,
-              backgroundColor: "var(--color-primary)"
-            }}
-          />
-        </div>
-      </div> */}
-
-          {/* Pending / Completed */}
-          {(pendingValue !== undefined || completedValue !== undefined) && (
-            <div className="flex justify-between text-[11px] text-[var(--color-textSecondary)] pt-2 border-t border-[var(--color-border)]">
-              {pendingValue !== undefined && (
-                <div className="flex items-center ml-3 sm:ml-0 gap-1">
-                  <Clock size={13} style={{ color: "#04b9ddff" }} />
-                  <span className="text-xs font-bold text-[#04b9ddff]">{pendingValue}</span>
-                </div>
-              )}
-
-              {completedValue !== undefined && (
-                <div className="flex items-center mr-3 sm:mr-0 gap-1">
-                  <CheckCircle size={13} style={{ color: "#5b88dbff" }} />
-                  <span className="text-xs font-bold text-[#5b88dbff]">{completedValue}</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Sparkline */}
-          {sparklineData && sparklineData.length > 0 && (
-            <div className="mt-3 h-10">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={sparklineData.map((v, i) => ({ value: v, index: i }))}>
-                  <defs>
-                    <linearGradient id={`gradient-${title}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <Area
-                    type="monotone"
-                    dataKey="value"
-                    stroke="var(--color-primary)"
-                    strokeWidth={1.5}
-                    fill={`url(#gradient-${title})`}
-                    dot={false}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </ThemeCard>
-        {openSelector === title && slug && (
-          <div
-            className="
-          absolute 
-          left-1/2 
-          -translate-x-1/2 
-          top-[102%]
-          bg-[var(--color-surface)]
-          border
-          border-[var(--color-border)]
-          shadow-xl 
-          rounded-xl 
-          p-3 
-          z-[9999]
-          w-44
-        "
-          >
-            <p className="text-sm font-semibold mb-2">Choose Type</p>
-
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                goToPage("single", slug);
-              }}
-              className="block w-full text-left px-3 py-2 hover:bg-[var(--color-chat)] rounded-lg"
-            >
-              Single Tasks
-            </button>
-
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                goToPage("recurring", slug);
-              }}
-              className="block w-full text-left px-3 py-2 hover:bg-[var(--color-chat)] rounded-lg"
-            >
-              Recurring Tasks
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-
-  // --- CustomTooltip Component (kept as is, good utility component) ---
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <ThemeCard className="p-3" variant="elevated" hover={false}>
-          <p className="text-sm font-semibold text-[var(--color-text)] mb-1">{label}</p>
-          {payload.map((entry: any, index: number) => (
-            <p key={index} className="text-xs" style={{ color: entry.color }}>
-              {entry.name}: <span className="font-bold">{entry.value}</span>
-            </p>
-          ))}
-        </ThemeCard>
-      );
-    }
-    return null;
-  };
 
   // --- Core Data Fetching Logic ---
   // Using useCallback for memoization of fetch functions
@@ -527,8 +260,6 @@ const Dashboard: React.FC = () => {
     }
   }, [user?.companyId]);
 
-
-  const memoTeamPendingData = useMemo(() => teamPendingData, [teamPendingData]);
 
   const fetchTaskCounts = useCallback(async (startDate?: string, endDate?: string) => {
     try {
@@ -677,18 +408,6 @@ const Dashboard: React.FC = () => {
     if (!user?.companyId) return;
 
     axios
-      .get(`${address}/api/settings/admin-approval?companyId=${user.companyId}`)
-      .then(res => {
-        setAdminApprovalEnabled(res.data.enabled === true);
-      })
-      .catch(() => setAdminApprovalEnabled(false));
-
-  }, [user?.companyId]);
-
-  useEffect(() => {
-    if (!user?.companyId) return;
-
-    axios
       .get(`${address}/api/settings/whatsapp`, {
         params: { companyId: user.companyId }
       })
@@ -703,24 +422,6 @@ const Dashboard: React.FC = () => {
         setWhatsappIntegrationStatus({ live: false, provider: null });
       });
   }, [user?.companyId]);
-
-  useEffect(() => {
-    if (!user?.companyId || !adminApprovalEnabled) return;
-
-    axios
-      .get(`${address}/api/tasks/pending-approval-count`, {
-        params: {
-          companyId: user.companyId,
-          userId: user.id,
-          role: user.role
-        }
-      })
-      .then(res => {
-        setPendingApprovalCount(res.data.count || 0);
-      })
-      .catch(() => setPendingApprovalCount(0));
-
-  }, [user, adminApprovalEnabled]);
 
   // Load member trend data when selected team member changes
   useEffect(() => {
@@ -764,14 +465,6 @@ const Dashboard: React.FC = () => {
 
     return options;
   };
-
-  const pcmDashboardEnabled = pcmEnabled && (pcmSettings.showInDashboard ?? true);
-  const gridColsClass =
-    adminApprovalEnabled && pcmDashboardEnabled
-      ? "xl:grid-cols-6"
-      : adminApprovalEnabled || pcmDashboardEnabled
-        ? "xl:grid-cols-5"
-        : "xl:grid-cols-4";
 
   const monthOptions = generateMonthOptions();
 

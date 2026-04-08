@@ -17,6 +17,7 @@ interface User {
     canManageUsers: boolean;
     canEditRecurringTaskSchedules: boolean;
     canManageSettings: boolean;
+    canManageIntegrations: boolean;
     canManageRecycle: boolean;
     canManageApproval: boolean
   };

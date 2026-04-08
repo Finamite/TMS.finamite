@@ -280,7 +280,6 @@ const RecycleBin: React.FC = () => {
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [totalPages, setTotalPages] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
-    const [hasMore, setHasMore] = useState(false);
     const [fullMasterTasks, setFullMasterTasks] = useState<MasterTask[]>([]);
 
     const [filter, setFilter] = useState({
@@ -366,7 +365,6 @@ const RecycleBin: React.FC = () => {
                     setMasterTasks(cachedData.masterTasks || []);
                     setTotalPages(cachedData.totalPages || 1);
                     setTotalCount(cachedData.total || 0);
-                    setHasMore(cachedData.hasMore || false);
                     return;
                 } else {
                     let processedFull = cachedData.masterTasks || [];
@@ -382,7 +380,6 @@ const RecycleBin: React.FC = () => {
                     const totalFiltered = processedFull.length;
                     setTotalCount(totalFiltered);
                     setTotalPages(Math.ceil(totalFiltered / itemsPerPage));
-                    setHasMore(false);
                     const startIndex = (page - 1) * itemsPerPage;
                     const endIndex = startIndex + itemsPerPage;
                     setMasterTasks(processedFull.slice(startIndex, endIndex));
@@ -435,8 +432,6 @@ const RecycleBin: React.FC = () => {
                 setMasterTasks(processedMasterTasks);
                 setTotalPages(backendTotalPages);
                 setTotalCount(backendTotal);
-                setHasMore(backendHasMore);
-
                 cacheRef.current.set(cacheKey, { ...backendData, masterTasks: processedMasterTasks }, params);
             } else {
                 let processedFull: MasterTask[] = processedMasterTasks;
@@ -452,7 +447,6 @@ const RecycleBin: React.FC = () => {
                 const totalFiltered = processedFull.length;
                 setTotalCount(totalFiltered);
                 setTotalPages(Math.ceil(totalFiltered / itemsPerPage));
-                setHasMore(false);
                 const startIndex = (page - 1) * itemsPerPage;
                 const endIndex = startIndex + itemsPerPage;
                 setMasterTasks(processedFull.slice(startIndex, endIndex));
@@ -479,7 +473,6 @@ const RecycleBin: React.FC = () => {
             }
             setTotalPages(1);
             setTotalCount(0);
-            setHasMore(false);
         } finally {
             setLoading(false);
             setInitialLoading(false);
@@ -511,7 +504,6 @@ const RecycleBin: React.FC = () => {
                     setIndividualTasks(cachedData.tasks || []);
                     setTotalPages(cachedData.totalPages || 1);
                     setTotalCount(cachedData.total || 0);
-                    setHasMore(cachedData.hasMore || false);
                     return;
                 }
             }
@@ -544,8 +536,6 @@ const RecycleBin: React.FC = () => {
                 setIndividualTasks(processedTasks);
                 setTotalPages(data.totalPages || 1);
                 setTotalCount(data.total || 0);
-                setHasMore(data.hasMore || false);
-
                 cacheRef.current.set(
                     cacheKey,
                     { ...data, tasks: processedTasks },
@@ -558,7 +548,6 @@ const RecycleBin: React.FC = () => {
                 setIndividualTasks([]);
                 setTotalPages(1);
                 setTotalCount(0);
-                setHasMore(false);
             } finally {
                 setLoading(false);
                 setInitialLoading(false);
@@ -665,7 +654,6 @@ const RecycleBin: React.FC = () => {
                 setMasterTasks(fullMasterTasks.slice(startIndex, endIndex));
                 setTotalPages(Math.ceil(fullMasterTasks.length / itemsPerPage));
                 setTotalCount(fullMasterTasks.length);
-                setHasMore(false);
             }
         } else {
             fetchIndividualTasks(currentPage);

@@ -24,6 +24,7 @@ interface User {
     canManageUsers: boolean;
     canEditRecurringTaskSchedules: boolean;
     canManageSettings: boolean;
+    canManageIntegrations: boolean;
     canManageRecycle: boolean;
     canManageApproval: boolean;
   };
@@ -65,6 +66,29 @@ interface PcmIntegrationSettings {
   pcmUserEmailMap: Record<string, string>;
   showInDashboard: boolean;
   showInPendingPages: boolean;
+}
+
+interface UserFormData {
+  username: string;
+  email: string;
+  password: string;
+  role: string;
+  department: string;
+  phone: string;
+  phoneCountry: CountryCode;
+  permissions: {
+    canViewTasks: boolean;
+    canViewAllTeamTasks: boolean;
+    canAssignTasks: boolean;
+    canDeleteTasks: boolean;
+    canEditTasks: boolean;
+    canManageUsers: boolean;
+    canEditRecurringTaskSchedules: boolean;
+    canManageSettings: boolean;
+    canManageIntegrations: boolean;
+    canManageRecycle: boolean;
+    canManageApproval: boolean;
+  };
 }
 
 const formatDateTime = (dateValue: string | number | Date) => {
@@ -143,7 +167,7 @@ const AdminPanel: React.FC = () => {
   const [loadingCompanyData, setLoadingCompanyData] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<UserFormData>({
     username: '',
     email: '',
     password: '',
@@ -160,6 +184,7 @@ const AdminPanel: React.FC = () => {
       canManageUsers: false,
       canEditRecurringTaskSchedules: false,
       canManageSettings: false,
+      canManageIntegrations: false,
       canManageRecycle: false,
       canManageApproval: false,
     }
@@ -175,7 +200,6 @@ const AdminPanel: React.FC = () => {
   const [pcmIntegrationLoading, setPcmIntegrationLoading] = useState(false);
   const [pcmIntegrationSaving, setPcmIntegrationSaving] = useState(false);
   const [searchName, setSearchName] = useState("");
-  const [searchEmail, setSearchEmail] = useState("");
   const [filterStatus, setFilterStatus] = useState("active");
   const [filterRole, setFilterRole] = useState("");
   const [filterDepartment, setFilterDepartment] = useState("");
@@ -188,9 +212,9 @@ const AdminPanel: React.FC = () => {
   // Define allowed permissions for each role
   const rolePermissions = {
     employee: ['canViewTasks', 'canAssignTasks'],
-    manager: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings', 'canManageRecycle', 'canManageApproval'],
-    admin: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings', 'canManageRecycle', 'canManageApproval'],
-    superadmin: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings', 'canManageRecycle', 'canManageApproval']
+    manager: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings', 'canManageIntegrations', 'canManageRecycle', 'canManageApproval'],
+    admin: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings', 'canManageIntegrations', 'canManageRecycle', 'canManageApproval'],
+    superadmin: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings', 'canManageIntegrations', 'canManageRecycle', 'canManageApproval']
   };
   const [passwordUser, setPasswordUser] = useState<User | null>(null);
   const [newPassword, setNewPassword] = useState("");
@@ -587,6 +611,7 @@ const AdminPanel: React.FC = () => {
         canManageUsers: false,
         canEditRecurringTaskSchedules: false,
         canManageSettings: false,
+        canManageIntegrations: false,
         canManageRecycle: false,
         canManageApproval: false,
       };
@@ -606,6 +631,7 @@ const AdminPanel: React.FC = () => {
 
         permissions.canManageUsers = false;
         permissions.canManageSettings = false;
+        permissions.canManageIntegrations = false;
         permissions.canManageApproval = false;
       }
 
@@ -723,7 +749,19 @@ const AdminPanel: React.FC = () => {
       email: user.email,
       password: '',
       role: user.role,
-      permissions: user.permissions,
+      permissions: {
+        canViewTasks: user.permissions?.canViewTasks ?? true,
+        canViewAllTeamTasks: user.permissions?.canViewAllTeamTasks ?? false,
+        canAssignTasks: user.permissions?.canAssignTasks ?? false,
+        canDeleteTasks: user.permissions?.canDeleteTasks ?? false,
+        canEditTasks: user.permissions?.canEditTasks ?? false,
+        canManageUsers: user.permissions?.canManageUsers ?? false,
+        canEditRecurringTaskSchedules: user.permissions?.canEditRecurringTaskSchedules ?? false,
+        canManageSettings: user.permissions?.canManageSettings ?? false,
+        canManageIntegrations: user.permissions?.canManageIntegrations ?? false,
+        canManageRecycle: user.permissions?.canManageRecycle ?? false,
+        canManageApproval: user.permissions?.canManageApproval ?? false,
+      },
       department: user.department || '',
       phone: parsedPhone.phone,
       phoneCountry: parsedPhone.country,
@@ -748,6 +786,7 @@ const AdminPanel: React.FC = () => {
         canManageUsers: false,
         canEditRecurringTaskSchedules: false,
         canManageSettings: false,
+        canManageIntegrations: false,
         canManageRecycle: false,
         canManageApproval: false,
       }
@@ -774,6 +813,7 @@ const AdminPanel: React.FC = () => {
       canManageUsers: 'Manage Users',
       canEditRecurringTaskSchedules: 'Edit Recurring Task Schedules',
       canManageSettings: 'Manage Settings',
+      canManageIntegrations: 'Manage Integrations',
       canManageRecycle: 'Manage Recycle Bin',
       canManageApproval: 'Manage Approval'
     };
@@ -860,7 +900,6 @@ const AdminPanel: React.FC = () => {
               value={searchName}
               onChange={(e) => {
                 setSearchName(e.target.value);
-                setSearchEmail(e.target.value); // 🔥 unified search
               }}
               placeholder="Search name or email..."
               className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] py-3.5 pl-12 pr-10 text-sm text-[var(--color-text)] shadow-sm transition-all placeholder:text-[var(--color-textSecondary)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/15"
@@ -870,7 +909,6 @@ const AdminPanel: React.FC = () => {
               <button
                 onClick={() => {
                   setSearchName("");
-                  setSearchEmail("");
                 }}
                 className="absolute right-4 top-1/2 transform -translate-y-1/2
                  w-5 h-5 flex items-center justify-center rounded-full
@@ -980,7 +1018,7 @@ const AdminPanel: React.FC = () => {
         <div className="p-3 sm:p-4 border-b" style={{ borderColor: 'var(--color-border)' }}>
           <h2 className="text-md font-semibold flex items-center" style={{ color: 'var(--color-text)' }}>
             <Users className="mr-2 text-[var(--color-primary)]" size={16} />
-            User Management ({users.length})
+            User Management ({filteredUsers.length})
           </h2>
         </div>
 
@@ -1511,7 +1549,7 @@ const AdminPanel: React.FC = () => {
               )}
 
               <div className="grid gap-3">
-                {users.length > 0 ? users.map((user) => {
+                {filteredUsers.length > 0 ? filteredUsers.map((user) => {
                   const mappedEmail = String(pcmIntegration.pcmUserEmailMap?.[user._id] || '');
                   const canEdit = Boolean(pcmIntegration.enabled);
 
@@ -1818,7 +1856,7 @@ const AdminPanel: React.FC = () => {
       {/* Edit User Modal */}
       {editingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-h-[90vh] overflow-y-auto rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl" style={{ backgroundColor: 'var(--color-surface)' }}>
+          <div className="max-w-7xl max-h-[90vh] overflow-y-auto rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl" style={{ backgroundColor: 'var(--color-surface)' }}>
             <div className="sticky top-0 p-4 border-b" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold" style={{ color: 'var(--color-text)' }}>

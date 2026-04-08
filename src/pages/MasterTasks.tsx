@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Archive, History, Filter, Search, Trash2, Users, Calendar, ChevronDown, ChevronUp, ArrowUpDown, Eye, Paperclip, FileText, Edit3, RotateCcw, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Info, Download, ExternalLink, Check } from 'lucide-react';
+import { Archive, History, Filter, Search, Trash2, Users, Calendar, ChevronDown, ChevronUp, ArrowUpDown, Paperclip, FileText, Edit3, RotateCcw, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Info, Download, ExternalLink, Check } from 'lucide-react';
 import axios from 'axios';
 import ViewToggle from '../components/ViewToggle';
 import StatusBadge from '../components/StatusBadge';
@@ -706,7 +706,7 @@ const MasterTasks: React.FC = () => {
               {shouldShowActionsColumn() && <col className="w-[9%]" />}
             </colgroup>
             <tbody className="divide-y divide-[var(--color-border)] bg-[var(--color-surface)]">
-            {currentTasks.map((task, index) => {
+            {currentTasks.map((task) => {
               const isExpanded = expandedDescriptions.has(task._id);
               const showReadMore = task.description.length > 100;
               const displayedDescription = isExpanded || !showReadMore

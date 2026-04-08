@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
-import { ArrowRight, CheckCircle2, ChevronDown, Eye, EyeOff, LockKeyhole, Plug, RefreshCw, Save, Settings2, Shield, Sparkles, Trash2, Zap } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ChevronDown, Eye, EyeOff, LockKeyhole, Plug, RefreshCw, Save, Shield, Sparkles, Trash2 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -687,12 +687,9 @@ const IntegrationsPage: React.FC = () => {
   const configuredEventCount = providerOrder.reduce((sum, provider) => (
     sum + Object.values(settings[provider].configs).filter((cfg) => cfg.enabled).length
   ), 0);
-  const activeSenderLabel = settings.enabled ? providerLabel[settings.activeProvider] : 'Alerts off';
 
   const card = (p: ProviderKey) => {
     const cfg = settings[p];
-    const theme = providerTheme[p];
-    const enabled = Object.values(cfg.configs).filter((x) => x.enabled).length;
     const selected = Object.values(cfg.configs).filter((x) => x.templateName).length;
     const isActive = settings.enabled && settings.activeProvider === p;
     const isConnected = p === 'fichat'
@@ -885,12 +882,12 @@ const IntegrationsPage: React.FC = () => {
                     <div>
                       <label className="mb-2 block text-xs font-semibold" style={{ color: 'var(--color-textSecondary)' }}>Template Language</label>
                       <input
-                      value={cfg.templateLanguage || ''}
-                      onChange={(e) => updateProvider(p, 'templateLanguage', e.target.value)}
-                      className="w-full rounded-2xl border px-4 py-3 text-sm outline-none transition placeholder:text-[var(--color-textSecondary)] focus:border-[var(--color-primary)]"
-                      placeholder={p === 'fichat' ? 'en_US' : 'en'}
-                      style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)' }}
-                    />
+                        value={cfg.templateLanguage || ''}
+                        onChange={(e) => updateProvider(p, 'templateLanguage', e.target.value)}
+                        className="w-full rounded-2xl border px-4 py-3 text-sm outline-none transition placeholder:text-[var(--color-textSecondary)] focus:border-[var(--color-primary)]"
+                        placeholder="en"
+                        style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)' }}
+                      />
                     </div>
                   )}
                 </div>

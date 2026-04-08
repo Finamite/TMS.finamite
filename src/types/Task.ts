@@ -30,6 +30,17 @@ export interface Task {
   status: string;
   revisionCount: number;
   revisions: Revision[];
+  parentTaskInfo?: {
+    originalStartDate?: string;
+    originalEndDate?: string;
+    includeSunday?: boolean;
+    isForever?: boolean;
+    weeklyDays?: number[];
+    weekOffDays?: number[];
+    monthlyDay?: number;
+    yearlyDuration?: number;
+  };
+  weekOffDays?: number[];
   completedAt?: string;
   completionRemarks?: string;
   createdAt: string;
