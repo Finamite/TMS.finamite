@@ -3357,7 +3357,7 @@ const MasterRecurringTasks: React.FC = () => {
                 }}
                 className="h-9 w-9 rounded-full border border-[--color-border] flex items-center justify-center hover:bg-[--color-background] transition text-[--color-text]"
               >
-                âœ•
+                <X size={16} />
               </button>
             </div>
 

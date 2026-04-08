@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { CheckSquare, Paperclip, X, Upload, File } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
 import axios from 'axios';
 import { address } from '../../utils/ipAddress';
 
@@ -23,6 +24,7 @@ const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
   onClose,
   onComplete
 }) => {
+  const { isDark } = useTheme();
   const [completionRemarks, setCompletionRemarks] = useState('');
   const [attachments, setAttachments] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -128,10 +130,22 @@ const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const modalStyle = {
+    backgroundColor: isDark ? 'rgba(15, 23, 42, 0.96)' : 'rgba(255, 255, 255, 0.96)',
+    borderColor: 'var(--color-border)',
+    color: 'var(--color-text)'
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-2xl overflow-hidden rounded-[28px] border border-[var(--color-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.92))] shadow-2xl shadow-black/20 max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 border-b border-[var(--color-border)] bg-[var(--color-surface)]/90 px-6 py-5 backdrop-blur-xl">
+      <div
+        className="w-full max-w-2xl max-h-[90vh] overflow-y-auto overflow-hidden rounded-[28px] border shadow-2xl shadow-black/20"
+        style={modalStyle}
+      >
+        <div
+          className="sticky top-0 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 px-6 py-5 backdrop-blur-xl"
+          style={{ backgroundColor: isDark ? 'rgba(15, 23, 42, 0.94)' : 'rgba(255, 255, 255, 0.92)' }}
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-success)]/12 text-[var(--color-success)] ring-1 ring-[var(--color-success)]/15">
@@ -180,7 +194,7 @@ const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
                     if (errors.remarks) setErrors(prev => ({ ...prev, remarks: '' }));
                   }}
                   rows={4}
-                  className={`w-full rounded-2xl border px-4 py-3 text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary)]/10 bg-[var(--color-background)] ${errors.remarks ? 'border-[var(--color-error)]' : 'border-[var(--color-border)]'
+                  className={`w-full rounded-2xl border px-4 py-3 text-[var(--color-text)] outline-none transition placeholder:text-[var(--color-textSecondary)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary)]/10 bg-[var(--color-surface)] ${errors.remarks ? 'border-[var(--color-error)]' : 'border-[var(--color-border)]'
                     }`}
                   placeholder="Add completion notes, observations, results, or any relevant details..."
                 />
@@ -197,7 +211,7 @@ const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
                     {!mandatoryAttachments && <span className="text-[var(--color-textSecondary)] text-xs">(Optional)</span>}
                   </label>
 
-                  <div className={`rounded-2xl border-2 border-dashed p-5 text-center transition-colors ${errors.attachments ? 'border-[var(--color-error)]' : 'border-[var(--color-border)] hover:border-[var(--color-primary)]/40 bg-[var(--color-background)]/60'
+                  <div className={`rounded-2xl border-2 border-dashed p-5 text-center transition-colors ${errors.attachments ? 'border-[var(--color-error)]' : 'border-[var(--color-border)] hover:border-[var(--color-primary)]/40 bg-[var(--color-surface)]/70'
                     }`}>
                     <Upload size={30} className="mx-auto mb-2 text-[var(--color-textSecondary)]" />
                     <p className="mb-2 text-sm text-[var(--color-textSecondary)]">
@@ -241,7 +255,7 @@ const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
                         {attachments.map((file, index) => (
                           <div
                             key={index}
-                            className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 p-3"
+                            className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
                           >
                             <div className="flex items-center space-x-3 flex-1 min-w-0">
                               <File size={20} className="text-[var(--color-primary)] flex-shrink-0" />
@@ -292,7 +306,7 @@ const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
             <button
               onClick={onClose}
               disabled={submitting || uploading}
-              className="flex-1 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 font-semibold text-[var(--color-text)] transition hover:border-[var(--color-primary)]/30 hover:bg-[var(--color-background)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex-1 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 font-semibold text-[var(--color-text)] transition hover:border-[var(--color-primary)]/30 hover:bg-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               Cancel
             </button>

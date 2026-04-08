@@ -1174,7 +1174,7 @@ const ForApproval: React.FC = () => {
                             className="absolute -right-2 -top-2 flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-danger)] text-white transition-all hover:opacity-95"
                             title="Close"
                         >
-                            âœ•
+                            <X size={16} />
                         </button>
                         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-slate-950/75 px-4 py-2 text-sm text-white">
                             Click anywhere to close

@@ -879,7 +879,7 @@ const MasterTasks: React.FC = () => {
                         {task.status !== 'completed' && user?.permissions.canEditTasks && (
                           <button
                             onClick={() => setEditingTask(task)}
-                            className={`p-1 rounded transition-colors ${isDark ? 'text-green-400 hover:bg-green-900' : 'text-green-600 hover:bg-green-50'}`}
+                            className={`p-2 items-center justify-center rounded-xl border border-[var(--color-border)] rounded transition-colors ${isDark ? 'text-green-400 hover:bg-green-900' : 'text-green-600 hover:bg-green-50'}`}
                             title="Edit task"
                           >
                             <Edit3 size={16} />
@@ -887,7 +887,7 @@ const MasterTasks: React.FC = () => {
                         )}
                         <button
                           onClick={() => handleDeleteTask(task._id)}
-                          className={`p-1 rounded transition-colors ${isDark ? 'text-red-400 hover:bg-red-900' : 'text-red-600 hover:bg-red-50'}`}
+                          className={`p-2 items-center justify-center rounded-xl border border-[var(--color-border)] rounded transition-colors ${isDark ? 'text-red-400 hover:bg-red-900' : 'text-red-500 hover:bg-red-50'}`}
                           title="Delete task"
                         >
                           <Trash2 size={16} />

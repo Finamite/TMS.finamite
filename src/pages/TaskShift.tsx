@@ -399,7 +399,7 @@ const TaskShift: React.FC = () => {
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     placeholder="Search tasks..."
-                                    className="w-64 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/75 py-2.5 pl-10 pr-10 text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                                    className="w-64 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] py-2.5 pl-10 pr-10 text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                                 />
                                 {searchTerm && (
                                     <button

@@ -3,6 +3,7 @@ import { Settings, Mail, AlertTriangle, Save, X, Loader as Loader2, Send, Calend
 import axios from 'axios';
 import { address } from '../../utils/ipAddress';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 // ToggleSwitch Component
 interface ToggleSwitchProps {
@@ -131,6 +132,7 @@ const generateRuleId = () => {
 
 const SettingsPage: React.FC = () => {
     const { user: currentUser } = useAuth();
+    const { isDark } = useTheme();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [testingEmail, setTestingEmail] = useState(false);
@@ -836,9 +838,9 @@ const SettingsPage: React.FC = () => {
     const allDaysSame = areAllDaysSame(settings.revision.days);
 
     const sectionCardClass =
-        "group relative overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_16px_50px_rgba(15,23,42,0.06)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_24px_70px_rgba(15,23,42,0.1)] before:pointer-events-none before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-gradient-to-b before:from-[var(--color-primary)] before:via-[var(--color-secondary)] before:to-cyan-400 before:content-[''] before:opacity-70 before:transition-opacity before:duration-300 hover:before:opacity-100";
+        "group relative overflow-hidden rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_16px_50px_rgba(15,23,42,0.06)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--color-primary)]/30 hover:shadow-[0_24px_70px_rgba(15,23,42,0.1)] before:pointer-events-none before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-gradient-to-b before:from-[var(--color-primary)] before:via-[var(--color-secondary)] before:to-cyan-400 before:content-[''] before:opacity-70 before:transition-opacity before:duration-300 hover:before:opacity-100";
     const sectionHeaderClass =
-        "flex cursor-pointer flex-col gap-4 border-b border-slate-100 bg-white px-4 py-4 transition-colors hover:bg-slate-50/70 sm:flex-row sm:items-center sm:justify-between sm:px-6";
+        "flex cursor-pointer flex-col gap-4 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-4 transition-colors hover:bg-[var(--color-background)]/40 sm:flex-row sm:items-center sm:justify-between sm:px-6";
     const sectionHeaderContentClass =
         "flex w-full min-w-0 items-start gap-3 sm:items-center sm:gap-4 sm:max-w-[75%]";
     const sectionHeaderTitleClass =
@@ -846,7 +848,7 @@ const SettingsPage: React.FC = () => {
     const sectionHeaderSubtitleClass =
         "text-[var(--color-textSecondary)] text-xs lg:text-sm mt-1 leading-relaxed break-words whitespace-normal";
     const sectionBodyClass =
-        "border-t border-slate-100 bg-slate-50/40 px-4 py-4 sm:px-6 sm:py-6";
+        "border-t border-[var(--color-border)] bg-[var(--color-background)]/30 px-4 py-4 sm:px-6 sm:py-6";
 
     const settingsSections = [
         { id: 'revision', label: 'Revision & Scoring', note: 'Rules and scoring' },
@@ -922,22 +924,29 @@ const SettingsPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100/80 p-4 sm:p-6 lg:p-8">
+        <div className="min-h-screen bg-[var(--color-background)] p-4 sm:p-6 lg:p-8">
         <div className="w-full space-y-6">
-                <section className="relative overflow-hidden rounded-[32px] border border-slate-200/80 bg-white/90 p-5 shadow-[0_22px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-6 lg:p-8">
+                <section
+                    className="relative overflow-hidden rounded-[32px] border p-5 shadow-[0_22px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-6 lg:p-8"
+                    style={{
+                        backgroundColor: 'var(--color-surface)',
+                        borderColor: 'var(--color-border)',
+                        boxShadow: isDark ? '0 22px 70px rgba(2, 6, 23, 0.34)' : '0 22px 70px rgba(15,23,42,0.08)'
+                    }}
+                >
                     <div className="pointer-events-none absolute inset-0">
-                        <div className="absolute -right-24 top-0 h-56 w-56 rounded-full bg-[var(--color-primary)]/10 blur-3xl" />
-                        <div className="absolute -left-20 -bottom-24 h-56 w-56 rounded-full bg-[var(--color-secondary)]/10 blur-3xl" />
+                        <div className={`absolute -right-24 top-0 h-56 w-56 rounded-full blur-3xl ${isDark ? 'bg-[var(--color-primary)]/8' : 'bg-[var(--color-primary)]/10'}`} />
+                        <div className={`absolute -left-20 -bottom-24 h-56 w-56 rounded-full blur-3xl ${isDark ? 'bg-[var(--color-secondary)]/8' : 'bg-[var(--color-secondary)]/10'}`} />
                     </div>
 
                     <div className="relative">
                         <div className="max-w-3xl">
 
                             <div className="mt-4">
-                                <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+                                <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-text)]">
                                     Settings Studio
                                 </h1>
-                                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                                <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--color-textSecondary)]">
                                     A single place to control revisions, email automa
                                     tion, task completion rules, PCM sync, recycle behaviour, and approval policy.
                                 </p>
@@ -946,83 +955,86 @@ const SettingsPage: React.FC = () => {
                     </div>
 
                     <div className="relative mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                        <div className="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/40 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
                             <div className="flex items-center justify-between gap-3">
                                 <div>
-                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Revision</p>
-                                    <p className="mt-2 text-sm font-semibold text-slate-900">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Revision</p>
+                                    <p className="mt-2 text-sm font-semibold text-[var(--color-text)]">
                                         {revisionEnabled ? 'Enabled' : 'Disabled'}
                                     </p>
                                 </div>
-                                <div className={`rounded-2xl p-3 ${revisionEnabled ? 'bg-amber-500/10 text-amber-600' : 'bg-slate-100 text-slate-500'}`}>
+                                <div className={`rounded-2xl p-3 ${revisionEnabled ? 'bg-amber-500/10 text-amber-600' : 'bg-[var(--color-background)] text-[var(--color-textSecondary)]'}`}>
                                     <AlertTriangle className="h-5 w-5" />
                                 </div>
                             </div>
-                            <p className="mt-2 text-xs text-slate-500">
+                            <p className="mt-2 text-xs text-[var(--color-textSecondary)]">
                                 {settings.revision.scoringRules.length} scoring rule{settings.revision.scoringRules.length === 1 ? '' : 's'}
                             </p>
                         </div>
 
-                        <div className="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/40 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
                             <div className="flex items-center justify-between gap-3">
                                 <div>
-                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Email</p>
-                                    <p className="mt-2 text-sm font-semibold text-slate-900">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Email</p>
+                                    <p className="mt-2 text-sm font-semibold text-[var(--color-text)]">
                                         {emailEnabled ? 'Connected' : 'Disconnected'}
                                     </p>
                                 </div>
-                                <div className={`rounded-2xl p-3 ${emailEnabled ? 'bg-sky-500/10 text-sky-600' : 'bg-slate-100 text-slate-500'}`}>
+                                <div className={`rounded-2xl p-3 ${emailEnabled ? 'bg-sky-500/10 text-sky-600' : 'bg-[var(--color-background)] text-[var(--color-textSecondary)]'}`}>
                                     <Mail className="h-5 w-5" />
                                 </div>
                             </div>
-                            <p className="mt-2 text-xs text-slate-500">
+                            <p className="mt-2 text-xs text-[var(--color-textSecondary)]">
                                 {settings.email.email || 'Google account not linked'}
                             </p>
                         </div>
 
-                        <div className="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/40 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
                             <div className="flex items-center justify-between gap-3">
                                 <div>
-                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">PCM</p>
-                                    <p className="mt-2 text-sm font-semibold text-slate-900">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">PCM</p>
+                                    <p className="mt-2 text-sm font-semibold text-[var(--color-text)]">
                                         {settings.pcmIntegration.enabled ? 'Synced' : 'Off'}
                                     </p>
                                 </div>
-                                <div className={`rounded-2xl p-3 ${settings.pcmIntegration.enabled ? 'bg-indigo-500/10 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>
+                                <div className={`rounded-2xl p-3 ${settings.pcmIntegration.enabled ? 'bg-indigo-500/10 text-indigo-600' : 'bg-[var(--color-background)] text-[var(--color-textSecondary)]'}`}>
                                     <GitBranch className="h-5 w-5" />
                                 </div>
                             </div>
-                            <p className="mt-2 text-xs text-slate-500">
+                            <p className="mt-2 text-xs text-[var(--color-textSecondary)]">
                                 {settings.pcmIntegration.pcmApiKeyLast4 ? `Key ****${settings.pcmIntegration.pcmApiKeyLast4}` : 'No API key saved'}
                             </p>
                         </div>
 
-                        <div className="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/40 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
                             <div className="flex items-center justify-between gap-3">
                                 <div>
-                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Approval</p>
-                                    <p className="mt-2 text-sm font-semibold text-slate-900">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Approval</p>
+                                    <p className="mt-2 text-sm font-semibold text-[var(--color-text)]">
                                         {settings.adminApproval.enabled ? 'Active' : 'Inactive'}
                                     </p>
                                 </div>
-                                <div className={`rounded-2xl p-3 ${settings.adminApproval.enabled ? 'bg-emerald-500/10 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                                <div className={`rounded-2xl p-3 ${settings.adminApproval.enabled ? 'bg-emerald-500/10 text-emerald-600' : 'bg-[var(--color-background)] text-[var(--color-textSecondary)]'}`}>
                                     <ClipboardCheck className="h-5 w-5" />
                                 </div>
                             </div>
-                            <p className="mt-2 text-xs text-slate-500">
+                            <p className="mt-2 text-xs text-[var(--color-textSecondary)]">
                                 {settings.adminApproval.defaultForOneTime ? 'One-time tasks require review' : 'No default approval required'}
                             </p>
                         </div>
                     </div>
                 </section>
 
-                <section className="sticky top-4 z-20 rounded-[28px] border border-slate-200/80 bg-white/95 px-5 py-4 shadow-[0_16px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:px-6">
+                <section
+                    className="sticky top-4 z-20 rounded-[28px] border px-5 py-4 shadow-[0_16px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:px-6"
+                    style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+                >
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                         <div className="min-w-0">
-                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text)]">
                                 Save Panel
                             </p>
-                            <p className="mt-1 text-sm text-slate-600">
+                            <p className="mt-1 text-sm text-[var(--color-textSecondary)]">
                                 Changes made below will stay unsaved until you confirm them here.
                             </p>
                         </div>
@@ -1084,13 +1096,13 @@ const SettingsPage: React.FC = () => {
 
                 <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
                     <aside className="hidden xl:block">
-                        <div className="sticky top-6 rounded-[28px] border border-slate-200/80 bg-white/90 p-4 shadow-[0_16px_50px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+                        <div className="sticky top-6 rounded-[28px] border p-4 shadow-[0_16px_50px_rgba(15,23,42,0.06)] backdrop-blur-xl" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Navigation</p>
-                                    <h2 className="mt-1 text-lg font-semibold text-slate-900">Settings Map</h2>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Navigation</p>
+                                    <h2 className="mt-1 text-lg font-semibold text-[var(--color-text)]">Settings Map</h2>
                                 </div>
-                                <div className="rounded-2xl bg-slate-50 p-2 text-slate-500">
+                                <div className="rounded-2xl bg-[var(--color-background)] p-2 text-[var(--color-textSecondary)]">
                                     <Settings className="h-4 w-4" />
                                 </div>
                             </div>
@@ -1101,31 +1113,31 @@ const SettingsPage: React.FC = () => {
                                         key={section.id}
                                         type="button"
                                         onClick={() => openSettingsSection(section.id)}
-                                        className="group flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
-                                    >
-                                        <div className="min-w-0">
-                                            <p className="text-sm font-semibold text-slate-900">{section.label}</p>
-                                            <p className="mt-0.5 text-xs text-slate-500">{section.note}</p>
-                                        </div>
-                                        <span className="text-slate-400 transition-transform duration-200 group-hover:translate-x-0.5">›</span>
-                                    </button>
-                                ))}
-                            </div>
+                                        className="group flex w-full items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/50 px-4 py-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--color-primary)]/30 hover:bg-[var(--color-surface)]"
+                                        >
+                                            <div className="min-w-0">
+                                            <p className="text-sm font-semibold text-[var(--color-text)]">{section.label}</p>
+                                            <p className="mt-0.5 text-xs text-[var(--color-textSecondary)]">{section.note}</p>
+                                            </div>
+                                        <span className="text-[var(--color-textSecondary)] transition-transform duration-200 group-hover:translate-x-0.5">›</span>
+                                        </button>
+                                    ))}
+                                </div>
 
-                            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Quick Status</p>
-                                <div className="mt-3 space-y-2 text-sm text-slate-600">
+                            <div className="mt-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Quick Status</p>
+                                <div className="mt-3 space-y-2 text-sm text-[var(--color-textSecondary)]">
                                     <div className="flex items-center justify-between">
                                         <span>Revision</span>
-                                        <span className="font-medium text-slate-900">{revisionEnabled ? 'Enabled' : 'Disabled'}</span>
+                                        <span className="font-medium text-[var(--color-text)]">{revisionEnabled ? 'Enabled' : 'Disabled'}</span>
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <span>Email</span>
-                                        <span className="font-medium text-slate-900">{emailEnabled ? 'Connected' : 'Off'}</span>
+                                        <span className="font-medium text-[var(--color-text)]">{emailEnabled ? 'Connected' : 'Off'}</span>
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <span>PCM</span>
-                                        <span className="font-medium text-slate-900">{settings.pcmIntegration.enabled ? 'Synced' : 'Off'}</span>
+                                        <span className="font-medium text-[var(--color-text)]">{settings.pcmIntegration.enabled ? 'Synced' : 'Off'}</span>
                                     </div>
                                 </div>
                             </div>
