@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { CheckSquare, Clock, RefreshCcw, Search, Users, Calendar, ArrowUpDown, ArrowUp, ArrowDown, Filter, Paperclip, FileText, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { CheckSquare, RefreshCcw, Search, Calendar, ArrowUpDown, ArrowUp, ArrowDown, Filter, Paperclip, FileText, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import axios from 'axios';
 import ViewToggle from '../components/ViewToggle';
 import PriorityBadge from '../components/PriorityBadge';
@@ -887,7 +887,7 @@ const PendingTasks: React.FC = () => {
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-[var(--color-surface)]">
+            <tbody className="divide-y divide-[var(--color-border)]/60 bg-[var(--color-surface)]">
               {currentTasks.map((task) => {
                 const isInProgress = task.status === 'in-progress';
                 const disableForHighPriority =

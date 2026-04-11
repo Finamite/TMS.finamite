@@ -8,8 +8,7 @@ import {
   CheckSquare, Clock, AlertTriangle, TrendingUp, Calendar,
   Target, Activity, CheckCircle, XCircle, 
   ChevronDown, BarChart3, Sparkles,
-  PieChart as PieChartIcon, Users,
-  MessageSquare
+  PieChart as PieChartIcon, Users
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';

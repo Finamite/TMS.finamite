@@ -150,15 +150,6 @@ const PendingRecurringTasks: React.FC = () => {
     return taskDueDate < today;
   };
 
-  const getDaysOverdue = (dueDate: string) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const taskDueDate = new Date(dueDate);
-    taskDueDate.setHours(0, 0, 0, 0);
-    const diffTime = today.getTime() - taskDueDate.getTime();
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  };
-
   const getDaysUntilDue = (dueDate: string) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
