@@ -839,13 +839,9 @@ const PendingTasks: React.FC = () => {
     <div className="space-y-6">
       <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl">
         <div
-          className={`sticky top-3 z-40 mx-3 mt-3 overflow-hidden rounded-[22px] transition-[box-shadow,background-color,border-color,transform] duration-300 ease-out ${
-            tableHasScrolled
-              ? 'bg-[var(--color-surface)] shadow-[0_18px_36px_rgba(15,23,42,0.14)] border border-[var(--color-border)] backdrop-blur-md'
-              : 'bg-[var(--color-surface)]'
-          }`}
+          className="mx-3 mt-1 overflow-x-auto rounded-[22px] bg-[var(--color-surface)]"
         >
-          <table className="min-w-full table-fixed">
+          <table className="min-w-full table-fixed border-b border-[var(--color-border)]">
             <colgroup>
               <col className="w-[8%]" />
               <col className="w-[28%]" />
@@ -858,39 +854,25 @@ const PendingTasks: React.FC = () => {
             </colgroup>
             <thead>
               <tr>
-                <th className={`bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${
-                  tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''
-                }`}>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                   Task ID
                 </th>
-                <th className={`bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${
-                  tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''
-                }`}>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                   Task
                 </th>
-                <th className={`bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${
-                  tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''
-                }`}>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                   Priority
                 </th>
-                <th className={`bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${
-                  tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''
-                }`}>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                   Assigned By
                 </th>
-                <th className={`bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${
-                  tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''
-                }`}>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                   Assigned To
                 </th>
-                <th className={`bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${
-                  tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''
-                }`}>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                   Attachments
                 </th>
-                <th className={`bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${
-                  tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''
-                }`}>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                   <button
                     onClick={toggleSort}
                     className="flex items-center gap-1 transition-colors hover:text-[var(--color-primary)]"
@@ -900,29 +882,12 @@ const PendingTasks: React.FC = () => {
                     {getSortIcon()}
                   </button>
                 </th>
-                <th className={`bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${
-                  tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''
-                }`}>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                   Actions
                 </th>
               </tr>
             </thead>
-          </table>
-        </div>
-
-        <div className="mx-3 mb-3 overflow-x-auto rounded-b-[28px]">
-          <table className="min-w-full table-fixed divide-y divide-[var(--color-border)]">
-            <colgroup>
-              <col className="w-[8%]" />
-              <col className="w-[28%]" />
-              <col className="w-[10%]" />
-              <col className="w-[12%]" />
-              <col className="w-[14%]" />
-              <col className="w-[12%]" />
-              <col className="w-[10%]" />
-              <col className="w-[6%]" />
-            </colgroup>
-            <tbody className="divide-y divide-[var(--color-border)] bg-[var(--color-surface)]">
+            <tbody className="bg-[var(--color-surface)]">
               {currentTasks.map((task) => {
                 const isInProgress = task.status === 'in-progress';
                 const disableForHighPriority =

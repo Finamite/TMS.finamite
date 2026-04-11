@@ -714,7 +714,7 @@ const Dashboard: React.FC = () => {
                   <Users size={14} />
                   {user?.role || 'user'}
                 </span>
-                {isPrivilegedUser && (
+                {/* {isPrivilegedUser && (
                   <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600 shadow-sm shadow-emerald-500/10">
                     <span className="relative flex h-2.5 w-2.5">
                       <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75 animate-ping" />
@@ -723,7 +723,7 @@ const Dashboard: React.FC = () => {
                     <MessageSquare size={14} />
                     WhatsApp integration live now
                   </span>
-                )}
+                )} */}
               </div>
             </div>
 
@@ -1068,7 +1068,7 @@ const Dashboard: React.FC = () => {
                     </p>
                   </div>
 
-                  <div className="relative">
+                  <div className="relative flex flex-col items-end">
                     <button
                       type="button"
                       onClick={() => setShowTeamMemberFilter((value) => !value)}
@@ -1080,7 +1080,7 @@ const Dashboard: React.FC = () => {
                     </button>
 
                     {showTeamMemberFilter && (
-                      <div className="absolute right-0 top-full z-20 mt-2 w-[280px] overflow-hidden rounded-[22px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl">
+                      <div className="mt-2 w-full overflow-hidden rounded-[22px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl sm:w-[280px]">
                         <div className="h-72 overflow-y-auto p-2">
                           <button
                             type="button"

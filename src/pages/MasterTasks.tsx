@@ -146,7 +146,6 @@ const MasterTasks: React.FC = () => {
   const [showApproveInfoModal, setShowApproveInfoModal] = useState<Task | null>(null);
   const dateFromRef = useRef<HTMLInputElement>(null);
   const dateToRef = useRef<HTMLInputElement>(null);
-  const [tableHasScrolled, setTableHasScrolled] = useState(false);
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredTasks.length / itemsPerPage);
@@ -179,22 +178,6 @@ const MasterTasks: React.FC = () => {
       fetchUsers();
     }
   }, [user]);
-
-  useEffect(() => {
-    const scrollEl = document.querySelector('main');
-    if (!(scrollEl instanceof HTMLElement) || view === 'card') {
-      setTableHasScrolled(false);
-      return;
-    }
-
-    const updateScrolledState = () => {
-      setTableHasScrolled(scrollEl.scrollTop > 8);
-    };
-
-    updateScrolledState();
-    scrollEl.addEventListener('scroll', updateScrolledState, { passive: true });
-    return () => scrollEl.removeEventListener('scroll', updateScrolledState);
-  }, [view, filteredTasks.length]);
 
   // Apply filters whenever filter state or allTasks changes
   useEffect(() => {
@@ -615,13 +598,7 @@ const MasterTasks: React.FC = () => {
   const renderTableView = () => (
     <div className="space-y-6 mt-4">
       <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-        <div
-          className={`sticky top-3 z-40 mx-3 mt-3 overflow-hidden rounded-[22px] transition-[box-shadow,background-color,border-color,transform] duration-300 ease-out ${
-            tableHasScrolled
-              ? 'bg-[var(--color-surface)] shadow-[0_18px_36px_rgba(15,23,42,0.14)] border border-[var(--color-border)] backdrop-blur-md'
-              : 'bg-[var(--color-surface)]'
-          }`}
-        >
+        <div className="mx-3 mt-3 overflow-x-auto rounded-[22px] bg-[var(--color-surface)]">
           <table className="min-w-full table-fixed">
             <colgroup>
               <col className="w-[8%]" />
@@ -638,73 +615,55 @@ const MasterTasks: React.FC = () => {
             </colgroup>
             <thead>
               <tr>
-                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                   Task ID
                 </th>
-                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                   <button onClick={() => handleSort('created')} className="flex items-center gap-1 transition-colors hover:text-[var(--color-primary)]">
                     <span>TASK</span>
                     {getSortIcon('created')}
                   </button>
                 </th>
-                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                   <button onClick={() => handleSort('status')} className="flex items-center gap-1 transition-colors hover:text-[var(--color-primary)]">
                     <span>STATUS</span>
                     {getSortIcon('status')}
                   </button>
                 </th>
-                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                   <button onClick={() => handleSort('priority')} className="flex items-center gap-1 transition-colors hover:text-[var(--color-primary)]">
                     <span>PRIORITY</span>
                     {getSortIcon('priority')}
                   </button>
                 </th>
-                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                   Assigned By
                 </th>
-                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                   Assigned To
                 </th>
-                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                   Task Attachments
                 </th>
-                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                   <button onClick={() => handleSort('dueDate')} className="flex items-center gap-1 transition-colors hover:text-[var(--color-primary)]">
                     <span>DUE DATE</span>
                     {getSortIcon('dueDate')}
                   </button>
                 </th>
-                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                   Completed Date
                 </th>
-                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                   Completion Files
                 </th>
                 {shouldShowActionsColumn() && (
-                  <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                  <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                     Actions
                   </th>
                 )}
               </tr>
             </thead>
-          </table>
-        </div>
-
-        <div className="mx-3 mb-3 overflow-x-auto rounded-b-[28px]">
-          <table className="min-w-full table-fixed divide-y divide-[var(--color-border)]">
-            <colgroup>
-              <col className="w-[8%]" />
-              <col className="w-[26%]" />
-              <col className="w-[10%]" />
-              <col className="w-[10%]" />
-              <col className="w-[10%]" />
-              <col className="w-[10%]" />
-              <col className="w-[10%]" />
-              <col className="w-[9%]" />
-              <col className="w-[9%]" />
-              <col className="w-[9%]" />
-              {shouldShowActionsColumn() && <col className="w-[9%]" />}
-            </colgroup>
             <tbody className="divide-y divide-[var(--color-border)] bg-[var(--color-surface)]">
             {currentTasks.map((task) => {
               const isExpanded = expandedDescriptions.has(task._id);

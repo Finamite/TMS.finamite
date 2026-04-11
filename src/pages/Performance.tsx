@@ -97,11 +97,12 @@ const Performance: React.FC = () => {
   const fromDateRef = useRef<HTMLInputElement>(null);
   const toDateRef = useRef<HTMLInputElement>(null);
 
-  const ThemeCard = ({ children, className = "", variant = "default", hover = false }: {
+  const ThemeCard = ({ children, className = "", variant = "default", hover = false, style }: {
     children: React.ReactNode;
     className?: string;
     variant?: 'default' | 'glass' | 'elevated' | 'bordered';
     hover?: boolean;
+    style?: React.CSSProperties;
   }) => {
     const baseClasses = "relative overflow-hidden transition-all duration-300 ease-out";
     const variants = {
@@ -112,7 +113,7 @@ const Performance: React.FC = () => {
     };
     const hoverClasses = hover ? "hover:shadow-xl hover:scale-[1.02] hover:border-[var(--color-primary)]/30" : "";
     return (
-      <div className={`${baseClasses} ${variants[variant]} ${hoverClasses} ${className}`}>
+      <div className={`${baseClasses} ${variants[variant]} ${hoverClasses} ${className}`} style={style}>
         {children}
       </div>
     );
@@ -545,7 +546,19 @@ const Performance: React.FC = () => {
 
   return (
     <div className="min-h-full bg-[var(--color-background)] p-4 sm:p-6 space-y-6">
-      <ThemeCard className="px-6 py-5" variant="glass" hover={false}>
+      <style>{`
+        @keyframes dropdownIn {
+          from {
+            opacity: 0;
+            transform: translateY(-6px) scale(0.97);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+      `}</style>
+      <ThemeCard className="relative z-50 px-6 py-5" variant="glass" hover={false} style={{ overflow: 'visible' }}>
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-primary)] shadow-[0_12px_28px_rgba(15,23,42,0.08)]">
@@ -580,15 +593,23 @@ const Performance: React.FC = () => {
                   <Download size={18} className="mr-2" />
                 )}
                 {exporting ? 'Exporting...' : 'Export'}
-                {!exporting && <ChevronDown size={16} className="ml-1" />}
+                {!exporting && (
+                  <ChevronDown
+                    size={16}
+                    className={`ml-1 transform-gpu transition-transform duration-300 ease-out ${showExportMenu ? 'rotate-180' : 'rotate-0'}`}
+                  />
+                )}
               </button>
               {showExportMenu && !exporting && (
-                <div className="absolute right-0 top-full z-50 mt-2 w-48">
+                <div
+                  className="absolute right-0 top-full z-50 mt-2 w-48 origin-top-right transform-gpu"
+                  style={{ animation: 'dropdownIn 180ms ease-out' }}
+                >
                   <ThemeCard className="p-2" variant="elevated" hover={false}>
                     <div className="space-y-1">
                       <button
                         onClick={handleExportExcel}
-                        className="flex w-full items-center rounded-2xl px-3 py-2 text-left transition-colors hover:bg-[var(--color-background)]"
+                        className="flex w-full items-center rounded-2xl px-3 py-2 text-left transition-colors"
                       >
                         <FileSpreadsheet size={18} className="mr-3 text-[var(--color-success)]" />
                         <div>
@@ -598,7 +619,7 @@ const Performance: React.FC = () => {
                       </button>
                       <button
                         onClick={handleExportPDF}
-                        className="flex w-full items-center rounded-2xl px-3 py-2 text-left transition-colors hover:bg-[var(--color-background)]"
+                        className="flex w-full items-center rounded-2xl px-3 py-2 text-left transition-colors"
                       >
                         <FileText size={18} className="mr-3 text-[var(--color-error)]" />
                         <div>
@@ -670,7 +691,10 @@ const Performance: React.FC = () => {
                       ? format(new Date(dateFrom), 'MMM dd, yyyy')
                       : `${format(new Date(dateFrom), 'MMM dd')} - ${format(new Date(dateTo), 'MMM dd, yyyy')}`}
                   </span>
-                  <ChevronDown size={18} className="ml-3" />
+                  <ChevronDown
+                    size={18}
+                    className={`ml-3 transform-gpu transition-transform duration-300 ease-out ${showDateFilter ? 'rotate-180' : 'rotate-0'}`}
+                  />
                 </button>
                 {showDateFilter && (
                   <div className="absolute right-0 top-full z-50 mt-2 w-full sm:w-80">
@@ -702,7 +726,7 @@ const Performance: React.FC = () => {
                         <div className="pt-2">
                           <button
                             onClick={() => setShowDateFilter(false)}
-                            className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2 font-semibold text-[var(--color-textSecondary)] transition hover:text-[var(--color-text)]"
+                            className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-2 font-semibold text-[var(--color-textSecondary)] transition"
                           >
                             Cancel
                           </button>
@@ -726,7 +750,10 @@ const Performance: React.FC = () => {
                       ? 'Current Month'
                       : format(selectedMonth, 'MMMM yyyy')}
                   </span>
-                  <ChevronDown size={18} className="ml-3" />
+                  <ChevronDown
+                    size={18}
+                    className={`ml-3 transform-gpu transition-transform duration-300 ease-out ${showMonthFilter ? 'rotate-180' : 'rotate-0'}`}
+                  />
                 </button>
                 {showMonthFilter && (
                   <div className="absolute right-0 top-full z-50 mt-2 w-full sm:w-52">
@@ -745,7 +772,7 @@ const Performance: React.FC = () => {
                               className={`w-full rounded-2xl px-4 py-3 text-left transition-all duration-200 ${
                                 isSelected
                                   ? 'bg-[var(--color-primary)] text-white shadow-lg'
-                                  : 'text-[var(--color-text)] hover:bg-[var(--color-background)]'
+                                  : 'text-[var(--color-text)]'
                               }`}
                             >
                               <div className="flex items-center justify-between">

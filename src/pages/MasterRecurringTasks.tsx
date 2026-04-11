@@ -365,7 +365,6 @@ const MasterRecurringTasks: React.FC = () => {
 
 
   const [showFilters, setShowFilters] = useState(false);
-  const [tableHasScrolled, setTableHasScrolled] = useState(false);
   const [showAttachmentsModal, setShowAttachmentsModal] = useState<{ attachments: Attachment[], type: 'task' | 'completion' } | null>(null);
   const [selectedImagePreview, setSelectedImagePreview] = useState<string | null>(null);
   const [showRemarksModal, setShowRemarksModal] = useState<Task | null>(null);
@@ -400,19 +399,6 @@ const MasterRecurringTasks: React.FC = () => {
   const canEditRecurringTaskSchedules = user?.permissions?.canEditRecurringTaskSchedules || false;
   const canDeleteTasks = user?.permissions?.canDeleteTasks || false;
   const hasMasterTaskActions = canEditRecurringTaskSchedules || canDeleteTasks;
-
-  useEffect(() => {
-    const scrollEl = document.querySelector('main');
-    if (!(scrollEl instanceof HTMLElement)) {
-      setTableHasScrolled(false);
-      return;
-    }
-
-    const updateScrolledState = () => setTableHasScrolled(scrollEl.scrollTop > 8);
-    updateScrolledState();
-    scrollEl.addEventListener('scroll', updateScrolledState, { passive: true });
-    return () => scrollEl.removeEventListener('scroll', updateScrolledState);
-  }, [view, isEditMode, currentPage, itemsPerPage, masterTasks.length, individualTasks.length]);
 
   // âš¡ LIGHTNING FAST: Ultra-optimized edit mode data fetching
   const fetchMasterTasksUltraFast = useCallback(async (useCache: boolean = true) => {
@@ -1681,13 +1667,7 @@ const MasterRecurringTasks: React.FC = () => {
   const renderMasterTaskTableView = () => (
     <div className="space-y-6 mt-4">
       <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)]/85 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-        <div
-          className={`sticky top-3 z-40 mx-3 mt-3 overflow-hidden rounded-[22px] transition-[box-shadow,background-color,border-color,transform] duration-300 ease-out ${
-            tableHasScrolled
-              ? 'bg-[var(--color-surface)] shadow-[0_18px_36px_rgba(15,23,42,0.14)] border border-[var(--color-border)] backdrop-blur-md'
-              : 'bg-[var(--color-surface)]'
-          }`}
-        >
+        <div className="mx-3 mt-3 overflow-x-auto rounded-[22px] bg-[var(--color-surface)]">
           <table className="min-w-full table-fixed">
             <colgroup>
               {isSelectionMode && <col className="w-[4%]" />}
@@ -1704,60 +1684,43 @@ const MasterRecurringTasks: React.FC = () => {
             <thead>
               <tr>
                 {isSelectionMode && (
-                  <th className={`bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                  <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                     Select
                   </th>
                 )}
-                <th className={`bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                   Master Task
                 </th>
-                <th className={`bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                   Type
                 </th>
-                <th className={`bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                   Priority
                 </th>
-                <th className={`bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                   Instances
                 </th>
-                <th className={`bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                   Assigned By
                 </th>
                 {isAdmin && (
-                  <th className={`bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                  <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                     Assigned To
                   </th>
                 )}
-                <th className={`bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                   Attachments
                 </th>
-                <th className={`bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                   Date Range
                 </th>
                 {hasMasterTaskActions && (
-                  <th className={`bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>
+                  <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
                     Actions
                   </th>
                 )}
               </tr>
             </thead>
-          </table>
-        </div>
-
-        <div className="mx-3 mb-3 overflow-x-auto rounded-b-[28px]">
-          <table className="min-w-full table-fixed divide-y divide-[var(--color-border)]">
-            <colgroup>
-              {isSelectionMode && <col className="w-[4%]" />}
-              <col className={isSelectionMode ? 'w-[22%]' : 'w-[26%]'} />
-              <col className="w-[8%]" />
-              <col className="w-[8%]" />
-              <col className="w-[13%]" />
-              <col className="w-[10%]" />
-              {isAdmin && <col className="w-[10%]" />}
-              <col className="w-[8%]" />
-              <col className="w-[8%]" />
-              {hasMasterTaskActions && <col className="w-[9%]" />}
-            </colgroup>
             <tbody className="divide-y divide-[var(--color-border)] bg-[var(--color-surface)]">
               {masterTasks.map((masterTask: MasterTask) => (
                 <tr
@@ -1950,13 +1913,7 @@ const MasterRecurringTasks: React.FC = () => {
   const renderTableViewV2 = () => (
     <div className="space-y-6 mt-4">
       <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-        <div
-          className={`sticky top-3 z-40 mx-3 mt-3 overflow-hidden rounded-[22px] transition-[box-shadow,background-color,border-color,transform] duration-300 ease-out ${
-            tableHasScrolled
-              ? 'bg-[var(--color-surface)] shadow-[0_18px_36px_rgba(15,23,42,0.14)] border border-[var(--color-border)] backdrop-blur-md'
-              : 'bg-[var(--color-surface)]'
-          }`}
-        >
+        <div className="mx-3 mt-3 overflow-x-auto rounded-[22px] bg-[var(--color-surface)]">
           <table className="min-w-full table-fixed">
             <colgroup>
               <col className="w-[8%]" />
@@ -1974,39 +1931,20 @@ const MasterRecurringTasks: React.FC = () => {
             </colgroup>
             <thead>
               <tr>
-                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>Task ID</th>
-                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>Task</th>
-                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>Type</th>
-                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>Status</th>
-                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>Priority</th>
-                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>Assigned By</th>
-                {isAdmin && <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>Assigned To</th>}
-                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>Task Attachments</th>
-                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>Due Date</th>
-                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>Completed Date</th>
-                <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>Completion Files</th>
-                {canDeleteTasks && <th className={`bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)] transition-all duration-300 ${tableHasScrolled ? 'border-b border-[var(--color-border)]/60' : ''}`}>Actions</th>}
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Task ID</th>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Task</th>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Type</th>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Status</th>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Priority</th>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Assigned By</th>
+                {isAdmin && <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Assigned To</th>}
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Task Attachments</th>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Due Date</th>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Completed Date</th>
+                <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Completion Files</th>
+                {canDeleteTasks && <th className="border-b border-[var(--color-border)]/60 bg-[var(--color-surface)] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">Actions</th>}
               </tr>
             </thead>
-          </table>
-        </div>
-
-        <div className="mx-3 mb-3 overflow-x-auto rounded-b-[28px]">
-          <table className="min-w-full table-fixed divide-y divide-[var(--color-border)]">
-            <colgroup>
-              <col className="w-[8%]" />
-              <col className="w-[28%]" />
-              <col className="w-[10%]" />
-              <col className="w-[10%]" />
-              <col className="w-[10%]" />
-              <col className="w-[12%]" />
-              {isAdmin && <col className="w-[12%]" />}
-              <col className="w-[12%]" />
-              <col className="w-[10%]" />
-              <col className="w-[10%]" />
-              <col className="w-[12%]" />
-              {canDeleteTasks && <col className="w-[8%]" />}
-            </colgroup>
             <tbody className="divide-y divide-[var(--color-border)] bg-[var(--color-surface)]">
               {individualTasks.map((task: Task) => (
                 <tr key={task._id} className="transition-colors hover:bg-[var(--color-background)]/70">
