@@ -118,7 +118,6 @@ const PendingTasks: React.FC = () => {
   const dateInputRef = useRef<HTMLInputElement>(null);
   const dateFromRef = useRef<HTMLInputElement>(null);
   const dateToRef = useRef<HTMLInputElement>(null);
-  const [tableHasScrolled, setTableHasScrolled] = useState(false);
 
   // Calculate pagination
   const totalPages = Math.ceil(tasks.length / itemsPerPage);
@@ -159,22 +158,6 @@ const PendingTasks: React.FC = () => {
       setView('card');
     }
   }, [isMobile, view]);
-
-  useEffect(() => {
-    const scrollEl = document.querySelector('main');
-    if (!(scrollEl instanceof HTMLElement) || view === 'card' || isMobile) {
-      setTableHasScrolled(false);
-      return;
-    }
-
-    const updateScrolledState = () => {
-      setTableHasScrolled(scrollEl.scrollTop > 8);
-    };
-
-    updateScrolledState();
-    scrollEl.addEventListener('scroll', updateScrolledState, { passive: true });
-    return () => scrollEl.removeEventListener('scroll', updateScrolledState);
-  }, [view, isMobile, tasks.length]);
 
   useEffect(() => {
     localStorage.setItem('taskViewPreference', view);

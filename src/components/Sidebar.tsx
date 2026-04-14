@@ -301,7 +301,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         border-[rgba(239,68,68,0.22)] bg-[rgba(255,255,255,0.96)] px-1.5 py-0.5 text-[10px] font-bold
         leading-none text-[var(--color-error)] shadow-[0_6px_14px_rgba(239,68,68,0.10)] backdrop-blur-sm
         ring-2 ring-[var(--color-surface)]
-        ${compact ? 'top-1.5 right-0.5' : 'top-1.5 right-2'}
+        ${compact ? 'top-1.5 -right-1.5' : 'top-1.5 right-2'}
       `}
     >
       <span>{formatCount(count)}</span>
@@ -372,7 +372,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
         style={{
-          width: isExpanded ? "240px" : "84px",
+          width: isExpanded ? "225px" : "74px",
           contain: 'layout paint',
         }}
         onMouseEnter={() => {
@@ -415,7 +415,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
           <button
             onClick={toggleCollapse}
-            className="hidden lg:flex p-1.5 rounded-xl border shadow-sm hover:scale-105 transition ml-1 mr-2"
+            className="hidden lg:flex p-1.5 rounded-xl border hover:scale-105 transition ml-1 mr-2"
             style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-primary)', borderColor: 'var(--color-border)' }}
             aria-label={isExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
           >
@@ -449,7 +449,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                   className={({ isActive }) =>
                     `group relative flex w-full items-center rounded-2xl px-3 py-2.5 font-medium transition-all duration-300 ease-out ${
                       isActive
-                        ? "border border-white/20 text-white shadow-[0_16px_30px_rgba(14,165,233,0.34),inset_0_1px_0_rgba(255,255,255,0.18)] ring-1 ring-white/15"
+                        ? "border border-white/20 text-white inset_0_1px_0_rgba(255,255,255,0.18)] ring-1 ring-white/15"
                         : "border border-transparent text-[var(--color-text)] hover:border-[var(--color-border)] hover:bg-[var(--color-background)]/75 hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)] hover:text-[var(--color-primary)]"
                     } ${isExpanded ? "text-[14px]" : "text-sm justify-center"}`
                   }
@@ -471,7 +471,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                       }`}
                     />
                     {item.label === "Integrations" && !isExpanded && showIntegrationsNewBadge && (
-                      <span className="absolute -right-3 -top-1 inline-flex -translate-y-1/2 translate-x-1/2 items-center rounded-full border border-red-500/20 bg-red-500 px-1 py-0 text-[8px] font-semibold uppercase tracking-[0.14em] text-white">
+                      <span className="absolute -right-2.5 -top-1 inline-flex -translate-y-1/2 translate-x-1/2 items-center rounded-full border border-red-500/20 bg-red-500 px-1 py-0 text-[8px] font-semibold uppercase tracking-[0.14em] text-white">
                         New
                       </span>
                     )}

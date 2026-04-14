@@ -1,51 +1,40 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Calendar, Paperclip, X, Users, Clock, ChevronDown, Search, XCircle, CheckSquare, Volume2, Plus, Copy, Trash2, Zap } from 'lucide-react';
+import { Calendar, Paperclip, X, Users, Clock, ChevronDown, Search, XCircle, CheckSquare, Volume2, Plus, Copy, Trash2, Zap, Download, Upload } from 'lucide-react';
 import axios from 'axios';
 import { useTheme } from '../contexts/ThemeContext';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import VoiceRecorder from '../components/VoiceRecorder';
 import { address } from '../../utils/ipAddress';
+import {
+  generateAssignTaskTemplate,
+  parseAssignTaskTemplate,
+  TASK_TEMPLATE_LABELS,
+  TASK_TEMPLATE_TASK_TYPES,
+  type TemplateImportSummary,
+  type TemplateTaskForm,
+  type TemplateUser,
+} from '../utils/assignTaskTemplate';
 
 // Add ref type for VoiceRecorder
 interface VoiceRecorderRef {
   resetFromParent: () => void;
 }
 
-interface User {
+interface User extends TemplateUser {
   department: string;
-  _id: string;
-  username: string;
   email: string;
   companyId: string;
 }
 
-interface TaskForm {
-  id: string;
-  title: string;
-  description: string;
-  taskType: string;
-  assignedTo: string[];
-  priority: string;
-  dueDate: string;
-  startDate: string;
-  endDate: string;
-  isForever: boolean;
-  includeSunday: boolean;
-  weekOffDays: number[];
-  weeklyDays: number[];
-  monthlyDay: number;
-  yearlyDuration: number;
-  attachments: File[]; // Individual attachments per task
-  requiresApproval: boolean;
-  taskTypeLocked?: boolean;
-}
+interface TaskForm extends TemplateTaskForm {}
 
 const AssignTask: React.FC = () => {
   const { user } = useAuth();
   const { isDark } = useTheme();
   const [users, setUsers] = useState<User[]>([]);
+  const templateFileInputRef = useRef<HTMLInputElement>(null);
 
   // Multi-task state - array of task forms
   const [taskForms, setTaskForms] = useState<TaskForm[]>([
@@ -80,6 +69,13 @@ const AssignTask: React.FC = () => {
   const [originalTaskId, setOriginalTaskId] = useState(""); // Add this
   const loadedReassignDataRef = useRef(false);
   const [adminApprovalSettings, setAdminApprovalSettings] = useState({ enabled: false, defaultForOneTime: false });
+  const [templateProcessing, setTemplateProcessing] = useState(false);
+  const [templateImportSummary, setTemplateImportSummary] = useState<TemplateImportSummary | null>(null);
+  const [templatePreviewOpen, setTemplatePreviewOpen] = useState(false);
+  const [templatePreviewTasks, setTemplatePreviewTasks] = useState<TaskForm[]>([]);
+  const [templateSelectedTaskId, setTemplateSelectedTaskId] = useState<string | null>(null);
+  const [templateInspectorOpen, setTemplateInspectorOpen] = useState(false);
+  const [templateSearchQuery, setTemplateSearchQuery] = useState('');
 
   // Store refs for each task's voice recorder
   const voiceRecorderRefs = useRef<{ [key: string]: VoiceRecorderRef | null }>({});
@@ -505,16 +501,223 @@ const AssignTask: React.FC = () => {
     userItem.department.toLowerCase().includes(userSearchTerm.toLowerCase())
   );
 
+  const getUserNamesFromIds = (userIds: string[]) => {
+    if (!userIds.length) return 'Unassigned';
+    return userIds
+      .map(userId => users.find(userItem => userItem._id === userId)?.username || userId)
+      .join(', ');
+  };
+
+  const filteredTemplateTasks = templatePreviewTasks.filter(task => {
+    const query = templateSearchQuery.trim().toLowerCase();
+    if (!query) return true;
+
+    const taskTypeLabel = TASK_TEMPLATE_LABELS[task.taskType as keyof typeof TASK_TEMPLATE_LABELS] || task.taskType;
+    const assignedUserNames = getUserNamesFromIds(task.assignedTo);
+    const weeklyDaysText = task.weeklyDays.length > 0
+      ? task.weeklyDays.map(day => weekDays.find(item => item.value === day)?.short || day).join(', ')
+      : '';
+    const weekOffDaysText = task.weekOffDays.length > 0
+      ? task.weekOffDays.map(day => weekDays.find(item => item.value === day)?.short || day).join(', ')
+      : '';
+
+    const searchableValues = [
+      task.title,
+      task.description,
+      task.taskType,
+      taskTypeLabel,
+      assignedUserNames,
+      task.priority,
+      weeklyDaysText,
+      weekOffDaysText,
+    ];
+
+    return searchableValues.some(value => value.toLowerCase().includes(query));
+  });
+
+  const formatPreviewDate = (dateString?: string) => {
+    if (!dateString) return 'N/A';
+
+    const normalized = dateString.trim();
+    const isoMatch = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (isoMatch) {
+      const [, year, month, day] = isoMatch;
+      return `${day}/${month}/${year}`;
+    }
+
+    const slashMatch = normalized.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (slashMatch) return normalized;
+
+    const parsed = new Date(normalized);
+    if (Number.isNaN(parsed.getTime())) return normalized;
+
+    const day = String(parsed.getDate()).padStart(2, '0');
+    const month = String(parsed.getMonth() + 1).padStart(2, '0');
+    const year = parsed.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  const clearImportedTemplate = () => {
+    setTemplateImportSummary(null);
+    setTemplatePreviewTasks([]);
+    setTemplatePreviewOpen(false);
+    setTemplateSelectedTaskId(null);
+    setTemplateInspectorOpen(false);
+    setTemplateSearchQuery('');
+    if (templateFileInputRef.current) {
+      templateFileInputRef.current.value = '';
+    }
+  };
+
+  const downloadTaskTemplate = async () => {
+    try {
+      const buffer = await generateAssignTaskTemplate(users);
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      const now = new Date();
+      const day = String(now.getDate()).padStart(2, '0');
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const year = now.getFullYear();
+      anchor.href = url;
+      anchor.download = `assign-task-template-${day}-${month}-${year}.xlsx`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Template downloaded successfully', { theme: isDark ? 'dark' : 'light' });
+    } catch (error) {
+      console.error('Error downloading template:', error);
+      toast.error('Failed to generate the template.', { theme: isDark ? 'dark' : 'light' });
+    }
+  };
+
+  const openTemplatePicker = () => {
+    templateFileInputRef.current?.click();
+  };
+
+  const handleTemplateUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.xlsx')) {
+      toast.error('Please upload a .xlsx template file.', { theme: isDark ? 'dark' : 'light' });
+      return;
+    }
+
+    setTemplateProcessing(true);
+    try {
+      const result = await parseAssignTaskTemplate(file, users);
+      if (result.tasks.length === 0) {
+        toast.warning('No tasks were found in the uploaded template.', { theme: isDark ? 'dark' : 'light' });
+        return;
+      }
+
+      setTemplatePreviewTasks(result.tasks);
+      setTemplateImportSummary(result.summary);
+      setTemplateSelectedTaskId(null);
+      setTemplateInspectorOpen(false);
+      setTemplateSearchQuery('');
+      setTemplatePreviewOpen(true);
+
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (error) {
+      console.error('Error parsing template:', error);
+      toast.error('Failed to read the uploaded template.', { theme: isDark ? 'dark' : 'light' });
+    } finally {
+      setTemplateProcessing(false);
+    }
+  };
+
+  const importedTaskCounts = templateImportSummary?.countsByTaskType ?? {
+    daily: 0,
+    weekly: 0,
+    fortnightly: 0,
+    monthly: 0,
+    quarterly: 0,
+    yearly: 0,
+  };
+
+  const selectedTemplateTask =
+    templateInspectorOpen
+      ? filteredTemplateTasks.find(task => task.id === templateSelectedTaskId) || null
+      : null;
+
+  const handleTemplateTaskClick = (taskId: string) => {
+    if (templateInspectorOpen && templateSelectedTaskId === taskId) {
+      setTemplateInspectorOpen(false);
+      return;
+    }
+
+    setTemplateSelectedTaskId(taskId);
+    setTemplateInspectorOpen(true);
+  };
+
+  useEffect(() => {
+    if (!templatePreviewOpen) return;
+
+    if (!templateInspectorOpen) {
+      if (templateSelectedTaskId !== null) {
+        setTemplateSelectedTaskId(null);
+      }
+      return;
+    }
+
+    if (filteredTemplateTasks.length === 0) {
+      setTemplateSelectedTaskId(null);
+      return;
+    }
+
+    const selectedExists = filteredTemplateTasks.some(task => task.id === templateSelectedTaskId);
+    if (!selectedExists) {
+      setTemplateSelectedTaskId(filteredTemplateTasks[0].id);
+    }
+  }, [filteredTemplateTasks, templateInspectorOpen, templatePreviewOpen, templateSelectedTaskId]);
+
+  const templatePreviewTheme = {
+    overlay: isDark ? 'bg-slate-950/88' : 'bg-slate-950/60',
+    shell: isDark
+      ? 'border-slate-700 bg-[#0f172a] shadow-[0_32px_120px_rgba(2,6,23,0.72)]'
+      : 'border-white/70 bg-white shadow-[0_32px_110px_rgba(15,23,42,0.24)]',
+    sidebar: isDark
+      ? 'border-slate-700 bg-[linear-gradient(180deg,rgba(15,23,42,0.98),rgba(17,24,39,0.96))]'
+      : 'border-slate-200 bg-[linear-gradient(180deg,rgba(241,245,249,0.97),rgba(255,255,255,0.98))]',
+    sidebarCard: isDark
+      ? 'border-slate-700 bg-slate-800/80 shadow-[0_10px_24px_rgba(2,6,23,0.24)]'
+      : 'border-slate-200 bg-white shadow-[0_10px_24px_rgba(15,23,42,0.05)]',
+    panel: isDark ? 'bg-slate-900' : 'bg-[var(--color-background)]',
+    panelAlt: isDark
+      ? 'bg-[linear-gradient(180deg,rgba(15,23,42,0.98),rgba(30,41,59,0.92))]'
+      : 'bg-[linear-gradient(180deg,rgba(248,250,252,0.9),rgba(255,255,255,0.96))]',
+    tableHead: isDark ? 'bg-slate-900/95' : 'bg-[var(--color-background)]/95',
+    tableRow: isDark ? 'border-slate-700 hover:bg-sky-500/10' : 'border-[var(--color-border)] hover:bg-[var(--color-primary)]/5',
+    selectedRow: isDark ? 'bg-sky-500/15' : 'bg-[var(--color-primary)]/8',
+    detailCard: isDark
+      ? 'border-slate-700 bg-slate-800/80 shadow-[0_10px_24px_rgba(2,6,23,0.24)]'
+      : 'border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_10px_24px_rgba(15,23,42,0.05)]',
+    pill: isDark
+      ? 'border-slate-700 bg-slate-800/90 text-slate-100'
+      : 'border-[var(--color-border)] bg-[var(--color-background)]/90 text-[var(--color-text)]',
+    helper: isDark ? 'text-slate-400' : 'text-[var(--color-textSecondary)]',
+    detailTitle: isDark ? 'text-slate-100' : 'text-[var(--color-text)]',
+    detailBody: isDark ? 'text-slate-300' : 'text-[var(--color-text)]',
+    text: isDark ? 'text-slate-100' : 'text-[var(--color-text)]',
+    footer: isDark ? 'border-slate-700 bg-slate-950/55' : 'border-[var(--color-border)] bg-[var(--color-background)]/95',
+  };
+
   // ✅ OPTIMIZED: Super fast bulk task creation
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitTasks = async (tasksToSubmit: TaskForm[], source: 'page' | 'template') => {
     setLoading(true);
 
     try {
-      // ⚡ Step 1: Validate all tasks at once (no early returns in loop)
       const validationErrors: string[] = [];
 
-      taskForms.forEach((task, index) => {
+      tasksToSubmit.forEach((task, index) => {
         if (task.assignedTo.length === 0) {
           validationErrors.push(`Task ${index + 1}: Please select users`);
         }
@@ -536,12 +739,10 @@ const AssignTask: React.FC = () => {
 
       if (validationErrors.length > 0) {
         toast.error(validationErrors.join('. '), { theme: isDark ? 'dark' : 'light' });
-        setLoading(false);
         return;
       }
 
-      // ⚡ Step 2: Upload ALL attachments in parallel (not per task)
-      const uploadPromises = taskForms.map(async (task) => {
+      const uploadPromises = tasksToSubmit.map(async (task) => {
         if (task.attachments.length === 0) return { taskId: task.id, attachments: [] };
 
         const formDataFiles = new FormData();
@@ -558,9 +759,8 @@ const AssignTask: React.FC = () => {
         uploadResults.map(r => [r.taskId, r.attachments])
       );
 
-      // ⚡ Step 3: Prepare bulk task data (single payload)
       const bulkTaskData = {
-        tasks: taskForms.map(task => ({
+        tasks: tasksToSubmit.map(task => ({
           ...task,
           assignedBy: user?.id,
           companyId: user?.companyId,
@@ -569,18 +769,16 @@ const AssignTask: React.FC = () => {
             endDate: task.startDate
           })
         })),
-        totalUsers: taskForms.reduce((sum, task) => sum + task.assignedTo.length, 0),
-        // Add reassign mode data
+        totalUsers: tasksToSubmit.reduce((sum, task) => sum + task.assignedTo.length, 0),
         isReassignMode: mode === "reassign",
         originalTaskId: originalTaskId
       };
 
-      // ⚡ Step 4: Single API call for ALL tasks - SUPER FAST!
       const response = await axios.post(`${address}/api/tasks/bulk-create`, bulkTaskData);
 
       const { totalTasksCreated, totalUsers } = response.data;
-      const totalAttachments = taskForms.reduce((sum, task) => sum + task.attachments.length, 0);
-      const totalVoiceRecordings = taskForms.reduce((sum, task) =>
+      const totalAttachments = tasksToSubmit.reduce((sum, task) => sum + task.attachments.length, 0);
+      const totalVoiceRecordings = tasksToSubmit.reduce((sum, task) =>
         sum + task.attachments.filter(isAudioFile).length, 0);
 
       let successMessage = `Created ${totalTasksCreated} task${totalTasksCreated > 1 ? 's' : ''} for ${totalUsers} user${totalUsers > 1 ? 's' : ''}`;
@@ -592,7 +790,6 @@ const AssignTask: React.FC = () => {
         successMessage += ')';
       }
 
-      // Add reassign success message
       if (mode === "reassign" && originalTaskId) {
         successMessage += '. Original task has been marked as rejected.';
       }
@@ -602,35 +799,36 @@ const AssignTask: React.FC = () => {
         autoClose: 4000,
       });
 
-      // ✅ Reset everything
-      setTaskForms([{
-        id: '1',
-        title: '',
-        description: '',
-        taskType: 'one-time',
-        assignedTo: [],
-        priority: 'normal',
-        dueDate: '',
-        startDate: '',
-        endDate: '',
-        isForever: false,
-        includeSunday: false,
-        weekOffDays: [],
-        weeklyDays: [],
-        monthlyDay: 1,
-        yearlyDuration: 3,
-        attachments: [],
-        requiresApproval: false,
-      }]);
-      setUserSearchTerm('');
-      setShowUserDropdown({});
-      setShowWeekOff({});
+      if (source === 'page') {
+        setTaskForms([{
+          id: '1',
+          title: '',
+          description: '',
+          taskType: 'one-time',
+          assignedTo: [],
+          priority: 'normal',
+          dueDate: '',
+          startDate: '',
+          endDate: '',
+          isForever: false,
+          includeSunday: false,
+          weekOffDays: [],
+          weeklyDays: [],
+          monthlyDay: 1,
+          yearlyDuration: 3,
+          attachments: [],
+          requiresApproval: false,
+        }]);
+        setUserSearchTerm('');
+        setShowUserDropdown({});
+        setShowWeekOff({});
 
-      // Reset all voice recorders
-      Object.values(voiceRecorderRefs.current).forEach(ref => {
-        if (ref) ref.resetFromParent();
-      });
-
+        Object.values(voiceRecorderRefs.current).forEach(ref => {
+          if (ref) ref.resetFromParent();
+        });
+      } else {
+        clearImportedTemplate();
+      }
     } catch (error: any) {
       console.error('Error creating tasks:', error);
       const errorMsg = error.response?.data?.message || 'Failed to create tasks. Please try again.';
@@ -640,7 +838,13 @@ const AssignTask: React.FC = () => {
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitTasks(taskForms, 'page');
+  };
+
   const resetAllForms = () => {
+    clearImportedTemplate();
     setTaskForms([{
       id: '1',
       title: '',
@@ -661,11 +865,11 @@ const AssignTask: React.FC = () => {
       requiresApproval: false,
     }]);
     setUserSearchTerm('');
-    setShowUserDropdown({});
-    setShowWeekOff({});
+      setShowUserDropdown({});
+      setShowWeekOff({});
 
-    // Reset all voice recorders
-    Object.values(voiceRecorderRefs.current).forEach(ref => {
+      // Reset all voice recorders
+      Object.values(voiceRecorderRefs.current).forEach(ref => {
       if (ref) {
         ref.resetFromParent();
       }
@@ -680,8 +884,16 @@ const AssignTask: React.FC = () => {
       <div className="absolute -top-24 right-0 h-80 w-80 rounded-full bg-cyan-500/10 blur-3xl" />
       <div className="absolute left-0 top-1/3 h-96 w-96 rounded-full bg-indigo-500/10 blur-3xl" />
 
-      <div className="relative mx-auto max-w-7xl space-y-6">
-        <form onSubmit={handleSubmit} className="space-y-8">
+      <div className="relative mx-auto max-w-7xl ">
+        <form onSubmit={handleSubmit} className="space-y-2">
+          <input
+            ref={templateFileInputRef}
+            type="file"
+            accept=".xlsx"
+            onChange={handleTemplateUpload}
+            className="hidden"
+          />
+
           {/* Task Forms */}
           <div className="grid gap-6">
             {taskForms.map((task, index) => (
@@ -709,6 +921,31 @@ const AssignTask: React.FC = () => {
                     </div>
 
                     <div className="flex items-center space-x-2">
+                      {index === 0 && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={downloadTaskTemplate}
+                            className="inline-flex h-10 items-center justify-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-3 text-[var(--color-primary)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_20px_rgba(15,23,42,0.08)]"
+                            title="Download Template"
+                          >
+                            <Download size={16} />
+                            <span className="ml-2 hidden text-sm font-semibold sm:inline">Download Template</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={openTemplatePicker}
+                            disabled={templateProcessing}
+                            className="inline-flex h-10 items-center justify-center rounded-2xl bg-[var(--color-primary)] px-3 text-white transition-all duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 hover:shadow-[0_10px_20px_rgba(15,23,42,0.08)]"
+                            title="Upload Template"
+                          >
+                            <Upload size={16} />
+                            <span className="ml-2 hidden text-sm font-semibold sm:inline">
+                              {templateProcessing ? 'Reading...' : 'Upload Template'}
+                            </span>
+                          </button>
+                        </>
+                      )}
                       <button
                         type="button"
                         onClick={() => duplicateTaskForm(task.id)}
@@ -1123,7 +1360,7 @@ const AssignTask: React.FC = () => {
                           </label>
                         )}
 
-                        {(task.taskType === 'daily' || task.taskType === 'monthly' || task.taskType === 'fortnightly' || task.taskType === 'quarterly' || task.taskType === 'yearly') && (
+                        {task.taskType !== 'one-time' && (
                           <label className="flex items-center cursor-pointer">
                             <input
                               type="checkbox"
@@ -1135,7 +1372,7 @@ const AssignTask: React.FC = () => {
                           </label>
                         )}
 
-                        {task.taskType !== "weekly" && (
+                        {task.taskType !== "one-time" && (
                           <label className="flex items-center cursor-pointer">
                             <input
                               type="checkbox"
@@ -1339,7 +1576,6 @@ const AssignTask: React.FC = () => {
 
             {/* Right side buttons (Add Task + Create Tasks) */}
             <div className="flex w-full flex-col gap-4 sm:w-auto sm:flex-row sm:items-center">
-
               {/* Add Task Button (moved near Create All Tasks) */}
               <button
                 type="button"
@@ -1373,6 +1609,335 @@ const AssignTask: React.FC = () => {
             </div>
           </div>
         </form>
+
+        {templatePreviewOpen && templatePreviewTasks.length > 0 && (
+          <div className={`fixed inset-0 z-50 px-3 py-3 backdrop-blur-md sm:px-4 sm:py-4 ${templatePreviewTheme.overlay}`}>
+            <div className={`mx-auto flex h-[95vh] w-full max-w-[1600px] overflow-hidden rounded-[34px] border ${templatePreviewTheme.shell}`}>
+              <aside className={`flex w-full flex-col border-b px-5 py-5 sm:px-6 lg:w-[340px] lg:border-b-0 lg:border-r ${templatePreviewTheme.sidebar}`}>
+                <div className="space-y-5">
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[var(--color-primary)]">
+                      Template Preview
+                    </p>
+                    <h2 className={`truncate text-xl text-[var(--color-text)] font-semibold tracking-tight ${templatePreviewTheme.text}`}>
+                      {templateImportSummary?.fileName || 'Imported Template'}
+                    </h2>
+                    <p className={`text-sm leading-6 ${templatePreviewTheme.helper}`}>
+                      Review and assign the imported tasks from a clean, side-by-side preview.
+                    </p>
+                  </div>
+
+                  <div className={`rounded-[26px] border p-4 ${templatePreviewTheme.sidebarCard}`}>
+                    <div className="text-center">
+                      <p className={`text-[11px] font-semibold uppercase tracking-[0.22em] ${templatePreviewTheme.helper}`}>
+                      Total Tasks
+                      </p>
+                      <p className={`mt-1 text-4xl font-bold tracking-tight ${templatePreviewTheme.text}`}>
+                        {templatePreviewTasks.length}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    {TASK_TEMPLATE_TASK_TYPES.map((taskType) => (
+                      <div
+                        key={taskType}
+                        className={`rounded-2xl border px-4 py-3 text-center ${templatePreviewTheme.sidebarCard}`}
+                      >
+                        <p className={`text-[11px] font-semibold uppercase tracking-[0.22em] ${templatePreviewTheme.helper}`}>
+                          {TASK_TEMPLATE_LABELS[taskType]}
+                        </p>
+                        <p className={`mt-1 text-2xl font-bold ${templatePreviewTheme.text}`}>
+                          {importedTaskCounts[taskType] || 0}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className={`rounded-[26px] border p-4 ${templatePreviewTheme.sidebarCard}`}>
+                    <p className={`text-[11px] font-semibold uppercase tracking-[0.22em] ${templatePreviewTheme.helper}`}>
+                      Workflow
+                    </p>
+                    <ol className={`mt-3 space-y-2 text-sm ${templatePreviewTheme.text}`}>
+                      <li className="flex gap-2">
+                        <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-[11px] font-bold text-white">1</span>
+                        Review task details in the list
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-[11px] font-bold text-white">2</span>
+                        Confirm to assign all imported tasks
+                      </li>
+                    </ol>
+                  </div>
+                </div>
+
+              </aside>
+
+              <section className="flex min-w-0 flex-1 flex-col">
+                <div className={`border-b px-5 py-4 sm:px-6 ${templatePreviewTheme.footer}`}>
+                  <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-3">
+                        <p className={`text-xs font-semibold uppercase tracking-[0.24em] ${templatePreviewTheme.helper}`}>
+                          Imported tasks
+                        </p>
+                        <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${templatePreviewTheme.pill}`}>
+                          {filteredTemplateTasks.length} / {templatePreviewTasks.length}
+                        </span>
+                      </div>
+                      <p className={`mt-1 text-sm ${templatePreviewTheme.helper}`}>
+                        Choose a row to inspect its details in the panel below.
+                      </p>
+                    </div>
+
+                    <div className="flex w-full items-center gap-3 xl:w-auto">
+                      <div className="relative min-w-0 flex-1 xl:w-[340px] xl:flex-none">
+                        <Search className={`pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 ${templatePreviewTheme.helper}`} />
+                        <input
+                          type="text"
+                          value={templateSearchQuery}
+                          onChange={(event) => setTemplateSearchQuery(event.target.value)}
+                          placeholder="Search tasks, types, or assignees"
+                          className={`w-full rounded-2xl border py-2.5 pl-11 pr-11 text-sm outline-none transition-all placeholder:text-slate-400 focus:ring-2 ${
+                            isDark
+                              ? 'border-slate-700 bg-slate-900/70 text-slate-100 focus:border-sky-400 focus:ring-sky-400/20'
+                              : 'border-[var(--color-border)] bg-[var(--color-background)]/90 text-[var(--color-text)] focus:border-[var(--color-primary)] focus:ring-[var(--color-primary)]/15'
+                          }`}
+                        />
+                        {templateSearchQuery.trim() && (
+                          <button
+                            type="button"
+                            onClick={() => setTemplateSearchQuery('')}
+                            aria-label="Clear search"
+                            className={`absolute right-3 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full transition-all duration-200 hover:text-red-500 ${templatePreviewTheme.helper}`}
+                          >
+                            <XCircle className="h-5 w-5" />
+                          </button>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={clearImportedTemplate}
+                        aria-label="Close preview"
+                        className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl  transition-all duration-200 hover:text-red-500 ${templatePreviewTheme.pill}`}
+                      >
+                        <XCircle className="h-6 w-6" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="min-h-0 flex-1 overflow-hidden">
+                  <div className="flex h-full min-w-0 flex-col lg:flex-row">
+                    <div className={`min-h-0 flex-1 ${templateInspectorOpen ? `lg:border-r ${isDark ? 'border-slate-700' : 'border-[var(--color-border)]'}` : ''} ${templatePreviewTheme.panel}`}>
+                      <div className="h-full overflow-y-auto">
+                        <table className="min-w-full border-collapse">
+                          <thead className={`sticky top-0 z-10 backdrop-blur ${templatePreviewTheme.tableHead}`}>
+                            <tr className={`border-b text-left text-[11px] font-bold uppercase tracking-[0.22em] ${isDark ? 'border-slate-700 text-slate-400' : 'border-[var(--color-border)] text-[var(--color-textSecondary)]'}`}>
+                              <th className="px-5 py-4">Task</th>
+                              <th className="px-4 py-4">Type</th>
+                              <th className="px-4 py-4">Assigned To</th>
+                              <th className="px-4 py-4">Dates</th>
+                              <th className="px-4 py-4">Priority</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredTemplateTasks.length > 0 ? filteredTemplateTasks.map((task, index) => {
+                              const isSelected = task.id === templateSelectedTaskId;
+                              return (
+                                <tr
+                                  key={task.id}
+                                  onClick={() => handleTemplateTaskClick(task.id)}
+                                  className={`cursor-pointer border-b transition-colors duration-150 ${templatePreviewTheme.tableRow} ${isSelected ? templatePreviewTheme.selectedRow : ''}`}
+                                >
+                                  <td className="px-5 py-4 align-top">
+                                    <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--color-primary)]">
+                                      Task {index + 1}
+                                    </p>
+                                    <p className="mt-1 truncate text-sm font-semibold text-[var(--color-text)]">
+                                      {task.title || 'Untitled Task'}
+                                    </p>
+                                    {task.description && (
+                                      <p className="mt-1 truncate text-xs text-[var(--color-textSecondary)]">
+                                        {task.description}
+                                      </p>
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-4 align-top text-sm font-semibold text-[var(--color-text)]">
+                                    {TASK_TEMPLATE_LABELS[task.taskType as keyof typeof TASK_TEMPLATE_LABELS] || task.taskType}
+                                  </td>
+                                  <td className={`px-4 py-4 align-top text-sm ${templatePreviewTheme.helper}`}>
+                                    {getUserNamesFromIds(task.assignedTo)}
+                                  </td>
+                                  <td className={`px-4 py-4 align-top text-sm font-semibold ${templatePreviewTheme.detailBody}`}>
+                                    {task.taskType === 'quarterly' || task.taskType === 'yearly'
+                                      ? formatPreviewDate(task.startDate)
+                                      : `${formatPreviewDate(task.startDate)} to ${formatPreviewDate(task.endDate)}`
+                                  }
+                                  </td>
+                                  <td className={`px-4 py-4 align-top text-sm font-semibold capitalize ${templatePreviewTheme.detailBody}`}>
+                                    {task.priority || 'normal'}
+                                  </td>
+                                </tr>
+                              );
+                            }) : (
+                              <tr>
+                                <td colSpan={5} className={`px-5 py-12 text-center text-sm ${templatePreviewTheme.helper}`}>
+                                  No tasks match your search.
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <div
+                      className={`min-h-0 overflow-hidden border-t transition-[max-height,opacity,transform] duration-300 ease-out lg:border-t-0 lg:transition-[width,opacity,transform] ${
+                        templateInspectorOpen
+                          ? `max-h-[52vh] opacity-100 translate-x-0 lg:max-h-none lg:w-[420px] ${templatePreviewTheme.panelAlt}`
+                          : `max-h-0 opacity-0 translate-x-8 lg:max-h-none lg:w-0 ${templatePreviewTheme.panelAlt}`
+                      }`}
+                    >
+                      <div className="h-full overflow-y-auto px-5 py-5 sm:px-6 lg:w-[420px]">
+                        {selectedTemplateTask ? (
+                          <div className="space-y-6">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="min-w-0">
+                                <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[var(--color-primary)]">
+                                  Selected Task
+                                </p>
+                                <h3 className={`mt-2 truncate text-2xl text-[var(--color-text)] font-bold tracking-tight ${templatePreviewTheme.detailTitle}`}>
+                                  {selectedTemplateTask.title || 'Untitled Task'}
+                                </h3>
+                                <p className={`mt-2 text-sm ${templatePreviewTheme.helper}`}>
+                                  {TASK_TEMPLATE_LABELS[selectedTemplateTask.taskType as keyof typeof TASK_TEMPLATE_LABELS] || selectedTemplateTask.taskType}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className={`rounded-full border px-4 py-2 text-sm font-semibold capitalize ${templatePreviewTheme.pill}`}>
+                                  {selectedTemplateTask.priority || 'normal'}
+                                </div>
+                                
+                              </div>
+                            </div>
+
+                            {selectedTemplateTask.description && (
+                              <div className={`rounded-[26px] border p-4 ${templatePreviewTheme.detailCard}`}>
+                                <p className={`text-[11px] font-bold uppercase tracking-[0.22em] ${templatePreviewTheme.helper}`}>Description</p>
+                                <p className={`mt-2 whitespace-pre-wrap text-sm leading-6 ${templatePreviewTheme.detailBody}`}>
+                                  {selectedTemplateTask.description}
+                                </p>
+                              </div>
+                            )}
+
+                            <div className="space-y-3">
+                              <div className={`rounded-[26px] border p-4 ${templatePreviewTheme.detailCard}`}>
+                                <p className={`text-[11px] font-bold uppercase tracking-[0.22em] ${templatePreviewTheme.helper}`}>Assigned To</p>
+                                <p className={`mt-2 text-sm font-semibold leading-6 ${templatePreviewTheme.detailBody}`}>
+                                  {getUserNamesFromIds(selectedTemplateTask.assignedTo)}
+                                </p>
+                              </div>
+
+                              <div className={`rounded-[26px] border p-4 ${templatePreviewTheme.detailCard}`}>
+                                <p className={`text-[11px] font-bold uppercase tracking-[0.22em] ${templatePreviewTheme.helper}`}>Dates</p>
+                                <p className={`mt-2 text-sm font-semibold leading-6 ${templatePreviewTheme.detailBody}`}>
+                                  {selectedTemplateTask.taskType === 'quarterly' || selectedTemplateTask.taskType === 'yearly'
+                                    ? `Start: ${formatPreviewDate(selectedTemplateTask.startDate)}`
+                                    : `${formatPreviewDate(selectedTemplateTask.startDate)} to ${formatPreviewDate(selectedTemplateTask.endDate)}`
+                                  }
+                                </p>
+                              </div>
+
+                              <div className={`rounded-[26px] border p-4 ${templatePreviewTheme.detailCard}`}>
+                                <p className={`text-[11px] font-bold uppercase tracking-[0.22em] ${templatePreviewTheme.helper}`}>Recurring Rules</p>
+                                <div className={`mt-2 space-y-2 text-sm font-semibold ${templatePreviewTheme.detailBody}`}>
+                                  <p>
+                                    Forever: {selectedTemplateTask.taskType === 'quarterly' || selectedTemplateTask.taskType === 'yearly'
+                                      ? 'Not used'
+                                      : selectedTemplateTask.isForever ? 'Yes' : 'No'
+                                    }
+                                  </p>
+                                  <p>
+                                    Sunday: {selectedTemplateTask.taskType === 'quarterly' || selectedTemplateTask.taskType === 'yearly'
+                                      ? 'Not used'
+                                      : selectedTemplateTask.includeSunday ? 'Included' : 'Excluded'
+                                    }
+                                  </p>
+                                  {selectedTemplateTask.taskType === 'weekly' && (
+                                    <p>
+                                      Weekly Days: {selectedTemplateTask.weeklyDays.length > 0
+                                        ? selectedTemplateTask.weeklyDays.map(day => weekDays.find(item => item.value === day)?.short || day).join(', ')
+                                        : 'N/A'}
+                                    </p>
+                                  )}
+                                  {selectedTemplateTask.taskType === 'monthly' && (
+                                    <p>Monthly Day: {selectedTemplateTask.monthlyDay || 1}</p>
+                                  )}
+                                  {selectedTemplateTask.taskType === 'yearly' && (
+                                    <p>Yearly Duration: {selectedTemplateTask.yearlyDuration || 3} years</p>
+                                  )}
+                                  {selectedTemplateTask.weekOffDays.length > 0 && (
+                                    <p>
+                                      Week Off Days: {selectedTemplateTask.weekOffDays.map(day => weekDays.find(item => item.value === day)?.short || day).join(', ')}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className={`flex h-full items-center justify-center text-center text-sm ${templatePreviewTheme.helper}`}>
+                            {templateSearchQuery.trim()
+                              ? 'No tasks match your search. Clear the filter to see all imported tasks.'
+                              : 'Select a task from the table to inspect its details.'}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className={`sticky bottom-0 z-10 border-t px-4 py-3 sm:px-5 ${templatePreviewTheme.footer}`}>
+                  <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${templatePreviewTheme.pill}`}>
+                        {filteredTemplateTasks.length} ready
+                      </span>
+                      <p className={`text-xs ${templatePreviewTheme.helper}`}>
+                        Review the filtered tasks, then assign them.
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <button
+                        type="button"
+                        onClick={clearImportedTemplate}
+                        className={`inline-flex h-10 items-center justify-center rounded-2xl border px-4 text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5 ${templatePreviewTheme.pill}`}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void submitTasks(templatePreviewTasks, 'template')}
+                        disabled={loading}
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,var(--color-primary),var(--color-secondary))] px-4 text-sm font-bold text-white shadow-[0_12px_22px_rgba(14,165,233,0.2)] transition-all duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {loading ? (
+                          <>
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                            <span>Assigning...</span>
+                          </>
+                        ) : (
+                          <span>Assign Tasks</span>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+        )}
 
         <ToastContainer
           position="top-right"
