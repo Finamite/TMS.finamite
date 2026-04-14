@@ -102,19 +102,19 @@ router.get('/analytics', async (req, res) => {
         },
         { $group: { _id: '$effectiveStatus', count: { $sum: 1 } } },
         { $sort: { count: -1 } }
-      ]),
+      ]).allowDiskUse(true),
       // Type stats
       Task.aggregate([
         { $match: { ...baseQuery, ...dateRangeQueryForStats } },
         { $group: { _id: '$taskType', count: { $sum: 1 } } },
         { $sort: { count: -1 } }
-      ]),
+      ]).allowDiskUse(true),
       // Priority stats
       Task.aggregate([
         { $match: { ...baseQuery, ...dateRangeQueryForStats } },
         { $group: { _id: '$priority', count: { $sum: 1 } } },
         { $sort: { count: -1 } }
-      ]),
+      ]).allowDiskUse(true),
       // Completion trend
       Task.aggregate([
         {
@@ -138,7 +138,7 @@ router.get('/analytics', async (req, res) => {
           }
         },
         { $sort: { '_id.year': 1, '_id.month': 1 } },
-      ]),
+      ]).allowDiskUse(true),
       // Planned trend
       Task.aggregate([
         {
@@ -174,7 +174,7 @@ router.get('/analytics', async (req, res) => {
           }
         },
         { $sort: { '_id.year': 1, '_id.month': 1 } }
-      ]),
+      ]).allowDiskUse(true),
       // Recent activity
       Task.aggregate([
         {
@@ -300,7 +300,7 @@ router.get('/analytics', async (req, res) => {
         },
         { $sort: { date: -1 } },
         { $limit: 20 }
-      ]),
+      ]).allowDiskUse(true),
       // Total active tasks
       Task.countDocuments({ ...baseQuery, ...dateRangeQueryForStats }),
       // Completed tasks count
@@ -375,7 +375,7 @@ router.get('/analytics', async (req, res) => {
             avgDays: { $avg: '$daysTaken' }
           }
         }
-      ])
+      ]).allowDiskUse(true)
     ]);
 
     // Calculate performance metrics
