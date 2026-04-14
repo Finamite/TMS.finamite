@@ -955,7 +955,7 @@ const Dashboard: React.FC = () => {
                         </div>
                       </div>
                       <div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--color-border)]">
-                        <div className="h-full rounded-full" style={{ width: `${Math.max(percent, 2)}%`, backgroundColor: item.color }} />
+                        <div className="h-full rounded-full" style={{ width: `${Math.max(percent)}%`, backgroundColor: item.color }} />
                       </div>
                       <div className="mt-4 flex items-center justify-between text-sm">
                         <span className="text-[var(--color-textSecondary)]">Total</span>
@@ -1153,7 +1153,7 @@ const Dashboard: React.FC = () => {
                 <div className="mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
                   {visibleTeamMembers.length > 0 ? (
                     visibleTeamMembers.map((member) => {
-                      const barWidth = Math.max(member.totalPerformanceRate, 8);
+                      const barWidth = member.totalPerformanceRate;
                       return (
                         <div key={member.username} className="rounded-[20px] border border-[var(--color-border)] px-4 py-3">
                           <div className="flex items-center justify-between gap-3">
