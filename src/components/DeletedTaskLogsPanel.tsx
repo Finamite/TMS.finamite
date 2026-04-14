@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
+import { format } from 'date-fns';
 import { Building2, Calendar, Filter, History, Loader2, Search, Trash2, Users, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { address } from '../../utils/ipAddress';
 
@@ -25,6 +26,9 @@ type DeleteLog = {
   deleteMode: 'soft' | 'permanent';
   source?: string;
   deletedAt: string;
+  dateFrom?: string;
+  dateTo?: string;
+  instanceCount?: number;
   dueDate?: string;
   status?: string;
   priority?: string;
@@ -51,7 +55,23 @@ const taskTypeOptions = [
 
 const formatDateTime = (value?: string) => {
   if (!value) return '—';
-  return new Date(value).toLocaleString();
+  const date = new Date(value);
+  const hasTime =
+    date.getHours() !== 0 ||
+    date.getMinutes() !== 0 ||
+    date.getSeconds() !== 0 ||
+    date.getMilliseconds() !== 0;
+
+  const dateLabel = format(date, 'dd/MM/yyyy');
+  return hasTime ? `${dateLabel}, ${format(date, 'h:mm a')}` : dateLabel;
+};
+
+const formatDateRange = (from?: string, to?: string) => {
+  if (!from && !to) return '—';
+  const fromLabel = from ? format(new Date(from), 'dd/MM/yyyy') : '—';
+  const toLabel = to ? format(new Date(to), 'dd/MM/yyyy') : '—';
+  if (fromLabel === toLabel) return fromLabel;
+  return `${fromLabel} to ${toLabel}`;
 };
 
 const DeletedTaskLogsPanel: React.FC<{ companies: CompanyOption[] }> = ({ companies }) => {
@@ -61,6 +81,7 @@ const DeletedTaskLogsPanel: React.FC<{ companies: CompanyOption[] }> = ({ compan
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [pageLimit, setPageLimit] = useState(25);
   const didMountSearchEffect = useRef(false);
   const [filters, setFilters] = useState({
     search: '',
@@ -92,7 +113,7 @@ const DeletedTaskLogsPanel: React.FC<{ companies: CompanyOption[] }> = ({ compan
       setLoading(true);
       const params: Record<string, string> = {
         page: String(page),
-        limit: '25'
+        limit: String(pageLimit)
       };
 
       if (filters.search.trim()) params.search = filters.search.trim();
@@ -124,7 +145,7 @@ const DeletedTaskLogsPanel: React.FC<{ companies: CompanyOption[] }> = ({ compan
   useEffect(() => {
     fetchLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, filters.companyId, filters.taskType, filters.assignedTo, filters.assignedBy, filters.dateFrom, filters.dateTo]);
+  }, [page, pageLimit, filters.companyId, filters.taskType, filters.assignedTo, filters.assignedBy, filters.dateFrom, filters.dateTo]);
 
   const debouncedSearch = useMemo(() => filters.search, [filters.search]);
 
@@ -151,6 +172,11 @@ const DeletedTaskLogsPanel: React.FC<{ companies: CompanyOption[] }> = ({ compan
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
+  const handleLimitChange = (value: string) => {
+    setPage(1);
+    setPageLimit(Number(value) || 25);
+  };
+
   const resetFilters = () => {
     setPage(1);
     setFilters({
@@ -162,6 +188,7 @@ const DeletedTaskLogsPanel: React.FC<{ companies: CompanyOption[] }> = ({ compan
       dateFrom: '',
       dateTo: ''
     });
+    setPageLimit(25);
   };
 
   const userLabel = (user: UserOption) => {
@@ -181,7 +208,7 @@ const DeletedTaskLogsPanel: React.FC<{ companies: CompanyOption[] }> = ({ compan
               </h2>
             </div>
             <p className="mt-1 text-sm" style={{ color: 'var(--color-textSecondary)' }}>
-              Company-wise deletion history with search, date, assignee, and assigner filters.
+              Company-wise deletion history with search, date, assignee, and assigner filters. Data is kept for the last 3 months.
             </p>
           </div>
 
@@ -335,6 +362,7 @@ const DeletedTaskLogsPanel: React.FC<{ companies: CompanyOption[] }> = ({ compan
                 <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Task</th>
                 <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Company</th>
                 <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Type</th>
+                <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Date Range</th>
                 <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Assigned To</th>
                 <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Assigned By</th>
                 <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Deleted By</th>
@@ -345,7 +373,7 @@ const DeletedTaskLogsPanel: React.FC<{ companies: CompanyOption[] }> = ({ compan
             <tbody className="divide-y" style={{ borderColor: 'var(--color-border)' }}>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10">
+                  <td colSpan={9} className="px-4 py-10">
                     <div className="flex items-center justify-center gap-2" style={{ color: 'var(--color-textSecondary)' }}>
                       <Loader2 size={18} className="animate-spin" />
                       Loading delete logs...
@@ -354,7 +382,7 @@ const DeletedTaskLogsPanel: React.FC<{ companies: CompanyOption[] }> = ({ compan
                 </tr>
               ) : logs.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center">
+                  <td colSpan={9} className="px-4 py-10 text-center">
                     <div className="text-sm" style={{ color: 'var(--color-textSecondary)' }}>
                       No deleted task logs found for the selected filters.
                     </div>
@@ -400,6 +428,16 @@ const DeletedTaskLogsPanel: React.FC<{ companies: CompanyOption[] }> = ({ compan
                             {log.taskFamily === 'one-time' ? 'One-time' : 'Recurring'}
                           </span>
                         </div>
+                        {log.instanceCount && log.instanceCount > 1 && (
+                          <div className="text-xs font-medium" style={{ color: 'var(--color-textSecondary)' }}>
+                            {log.instanceCount} instances
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+                        {formatDateRange(log.dateFrom, log.dateTo)}
                       </div>
                     </td>
                     <td className="px-4 py-4">
@@ -446,25 +484,59 @@ const DeletedTaskLogsPanel: React.FC<{ companies: CompanyOption[] }> = ({ compan
           </table>
         </div>
 
-        <div className="flex flex-col gap-3 border-t px-4 py-4 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: 'var(--color-border)' }}>
-          <div className="text-sm" style={{ color: 'var(--color-textSecondary)' }}>
-            Showing {logs.length} of {total} deleted tasks
+        <div className="flex flex-col gap-4 border-t px-4 py-4 lg:flex-row lg:items-center lg:justify-between" style={{ borderColor: 'var(--color-border)' }}>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)', color: 'var(--color-textSecondary)' }}>
+              <span className="font-semibold" style={{ color: 'var(--color-text)' }}>Show</span>
+              <select
+                value={pageLimit}
+                onChange={(e) => handleLimitChange(e.target.value)}
+                className="rounded-xl border px-2 py-1 text-sm outline-none transition focus:border-[var(--color-primary)]"
+                style={{
+                  backgroundColor: 'var(--color-surface)',
+                  borderColor: 'var(--color-border)',
+                  color: 'var(--color-text)'
+                }}
+              >
+                {[10, 25, 50, 100].map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+              <span>per page</span>
+            </div>
+            <div className="rounded-2xl border px-4 py-2 text-sm" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)', color: 'var(--color-textSecondary)' }}>
+              Showing{' '}
+              <span className="font-semibold" style={{ color: 'var(--color-text)' }}>
+                {total === 0 ? 0 : (page - 1) * pageLimit + 1}
+              </span>{' '}
+              to{' '}
+              <span className="font-semibold" style={{ color: 'var(--color-text)' }}>
+                {Math.min(page * pageLimit, total)}
+              </span>{' '}
+              of{' '}
+              <span className="font-semibold" style={{ color: 'var(--color-text)' }}>
+                {total}
+              </span>{' '}
+              results
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={() => setPage(1)}
               disabled={page === 1}
-              className="rounded-lg border p-2 transition-colors disabled:opacity-40"
-              style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border transition-colors disabled:opacity-40"
+              style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)', color: 'var(--color-textSecondary)' }}
             >
               <ChevronsLeft size={16} />
             </button>
             <button
               onClick={() => setPage((prev) => Math.max(1, prev - 1))}
               disabled={page === 1}
-              className="rounded-lg border p-2 transition-colors disabled:opacity-40"
-              style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border transition-colors disabled:opacity-40"
+              style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)', color: 'var(--color-textSecondary)' }}
             >
               <ChevronLeft size={16} />
             </button>
@@ -474,16 +546,16 @@ const DeletedTaskLogsPanel: React.FC<{ companies: CompanyOption[] }> = ({ compan
             <button
               onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
               disabled={page >= totalPages}
-              className="rounded-lg border p-2 transition-colors disabled:opacity-40"
-              style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border transition-colors disabled:opacity-40"
+              style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)', color: 'var(--color-textSecondary)' }}
             >
               <ChevronRight size={16} />
             </button>
             <button
               onClick={() => setPage(totalPages)}
               disabled={page >= totalPages}
-              className="rounded-lg border p-2 transition-colors disabled:opacity-40"
-              style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border transition-colors disabled:opacity-40"
+              style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)', color: 'var(--color-textSecondary)' }}
             >
               <ChevronsRight size={16} />
             </button>

@@ -64,6 +64,10 @@ interface DashboardData {
     assignedBy?: string;
     date: string;
     taskType: string;
+    dateFrom?: string;
+    dateTo?: string;
+    isRecurringSeries?: boolean;
+    instanceCount?: number;
   }>;
   performanceMetrics: {
     onTimeCompletion: number;
@@ -576,6 +580,19 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const formatRecentActivityTime = (activity: DashboardData['recentActivity'][number]) => {
+    if (activity.isRecurringSeries && activity.dateFrom) {
+      const fromDate = format(new Date(activity.dateFrom), 'MMM d, yyyy');
+      const toDate = activity.dateTo
+        ? format(new Date(activity.dateTo), 'MMM d, yyyy')
+        : 'Ongoing';
+
+      return `${fromDate} to ${toDate}`;
+    }
+
+    return format(new Date(activity.date), 'MMM d, h:mm a');
+  };
+
   // Get team members list for the dropdown
   const getTeamMembersList = () => {
     if ((user?.role !== 'admin' && user?.role !== 'manager') || !teamPerformance.length) return [];
@@ -943,6 +960,7 @@ const Dashboard: React.FC = () => {
               <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {taskTypeData.map((item) => {
                   const percent = totalTaskTypes > 0 ? (item.value / totalTaskTypes) * 100 : 0;
+                  const barWidth = item.value > 0 ? Math.max(percent, 2) : 0;
                   return (
                     <div key={item.name} className="rounded-[24px] border border-[var(--color-border)] p-4">
                       <div className="flex items-start justify-between gap-3">
@@ -955,7 +973,14 @@ const Dashboard: React.FC = () => {
                         </div>
                       </div>
                       <div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--color-border)]">
-                        <div className="h-full rounded-full" style={{ width: `${Math.max(percent, 2)}%`, backgroundColor: item.color }} />
+                        <div
+                          className="h-full rounded-full"
+                          style={{
+                            width: `${barWidth}%`,
+                            backgroundColor: item.color,
+                            opacity: item.value > 0 ? 1 : 0
+                          }}
+                        />
                       </div>
                       <div className="mt-4 flex items-center justify-between text-sm">
                         <span className="text-[var(--color-textSecondary)]">Total</span>
@@ -1034,7 +1059,7 @@ const Dashboard: React.FC = () => {
                           </p>
                           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[var(--color-textSecondary)]">
                             <span className="rounded-full border border-[var(--color-border)] px-2.5 py-1">{activity.taskType}</span>
-                            <span>{format(new Date(activity.date), 'MMM d, h:mm a')}</span>
+                            <span>{formatRecentActivityTime(activity)}</span>
                           </div>
                         </div>
                       </div>
@@ -1153,7 +1178,7 @@ const Dashboard: React.FC = () => {
                 <div className="mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
                   {visibleTeamMembers.length > 0 ? (
                     visibleTeamMembers.map((member) => {
-                      const barWidth = Math.max(member.totalPerformanceRate, 8);
+                      const barWidth = member.totalPerformanceRate > 0 ? Math.max(member.totalPerformanceRate, 8) : 0;
                       return (
                         <div key={member.username} className="rounded-[20px] border border-[var(--color-border)] px-4 py-3">
                           <div className="flex items-center justify-between gap-3">
@@ -1168,7 +1193,10 @@ const Dashboard: React.FC = () => {
                           <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--color-border)]">
                             <div
                               className="h-full rounded-full bg-gradient-to-r from-[var(--color-primary)] to-cyan-500"
-                              style={{ width: `${Math.min(barWidth, 100)}%` }}
+                              style={{
+                                width: `${Math.min(barWidth, 100)}%`,
+                                opacity: member.totalPerformanceRate > 0 ? 1 : 0
+                              }}
                             />
                           </div>
                         </div>
@@ -1294,7 +1322,7 @@ const Dashboard: React.FC = () => {
                             </p>
                             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[var(--color-textSecondary)]">
                               <span className="rounded-full border border-[var(--color-border)] px-2.5 py-1">{activity.taskType}</span>
-                              <span>{format(new Date(activity.date), 'MMM d, h:mm a')}</span>
+                              <span>{formatRecentActivityTime(activity)}</span>
                             </div>
                           </div>
                         </div>

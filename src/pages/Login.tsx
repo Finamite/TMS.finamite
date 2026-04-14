@@ -57,7 +57,7 @@ const Login: React.FC = () => {
 
             {/* HEADER */}
             <div className="mb-8">
-              <h1 className="text-2xl font-bold text-gray-900">
+              <h1 className="text-2xl font-bold text-sky-700">
                 TMS – Task Management System
               </h1>
               
@@ -83,7 +83,7 @@ const Login: React.FC = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="you@company.com"
-                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 outline-none transition"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 focus:border-sky-500 focus:ring-4 focus:ring-sky-500/20 outline-none transition"
                     />
                   </div>
                 </div>
@@ -101,12 +101,12 @@ const Login: React.FC = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full pl-10 pr-10 py-3 rounded-xl border border-gray-300 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 outline-none transition"
+                      className="w-full pl-10 pr-10 py-3 rounded-xl border border-gray-300 focus:border-sky-500 focus:ring-4 focus:ring-sky-500/20 outline-none transition"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-3.5 text-gray-400 hover:text-indigo-600"
+                      className="absolute right-3 top-3.5 text-gray-400 hover:text-sky-600"
                     >
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
@@ -124,7 +124,7 @@ const Login: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition disabled:opacity-50 shadow-md shadow-indigo-600/25"
+                  className="w-full py-3 rounded-xl bg-sky-600 text-white font-semibold hover:bg-sky-700 transition disabled:opacity-50 shadow-md shadow-sky-600/25"
                 >
                   {isLoading ? "Signing in…" : "Sign in"}
                 </button>
@@ -136,14 +136,14 @@ const Login: React.FC = () => {
               By continuing, you agree to our{" "}
               <Link
                 to="/terms-and-conditions"
-                className="text-indigo-600 hover:underline font-medium"
+                className="text-sky-600 hover:underline font-medium"
               >
                 Terms & Conditions
               </Link>{" "}
               and{" "}
               <Link
                 to="/privacy-policy"
-                className="text-indigo-600 hover:underline font-medium"
+                className="text-sky-600 hover:underline font-medium"
               >
                 Privacy Policy
               </Link>.

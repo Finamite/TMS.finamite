@@ -1611,50 +1611,50 @@ const AssignTask: React.FC = () => {
         </form>
 
         {templatePreviewOpen && templatePreviewTasks.length > 0 && (
-          <div className={`fixed inset-0 z-50 px-3 py-3 backdrop-blur-md sm:px-4 sm:py-4 ${templatePreviewTheme.overlay}`}>
-            <div className={`mx-auto flex h-[95vh] w-full max-w-[1600px] overflow-hidden rounded-[34px] border ${templatePreviewTheme.shell}`}>
-              <aside className={`flex w-full flex-col border-b px-5 py-5 sm:px-6 lg:w-[340px] lg:border-b-0 lg:border-r ${templatePreviewTheme.sidebar}`}>
-                <div className="space-y-5">
+          <div className={`fixed inset-0 z-50 px-2 py-2 backdrop-blur-md sm:px-3 sm:py-3 ${templatePreviewTheme.overlay}`}>
+            <div className={`mx-auto flex h-[calc(100dvh-1rem)] w-full max-w-[1600px] flex-col overflow-y-auto rounded-[24px] border sm:rounded-[28px] lg:flex-row lg:overflow-hidden ${templatePreviewTheme.shell}`}>
+              <aside className={`flex w-full flex-col border-b px-4 py-4 sm:px-5 sm:py-5 lg:w-[300px] lg:border-b-0 lg:border-r ${templatePreviewTheme.sidebar}`}>
+                <div className="mx-auto w-full max-w-none space-y-3 sm:space-y-4 sm:max-w-[420px] lg:max-w-[284px] lg:space-y-5">
                   <div className="space-y-2">
                     <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[var(--color-primary)]">
                       Template Preview
                     </p>
-                    <h2 className={`truncate text-xl text-[var(--color-text)] font-semibold tracking-tight ${templatePreviewTheme.text}`}>
+                    <h2 className={`truncate text-lg font-semibold tracking-tight text-[var(--color-text)] sm:text-xl ${templatePreviewTheme.text}`}>
                       {templateImportSummary?.fileName || 'Imported Template'}
                     </h2>
-                    <p className={`text-sm leading-6 ${templatePreviewTheme.helper}`}>
+                    <p className={`hidden text-sm leading-6 sm:block ${templatePreviewTheme.helper}`}>
                       Review and assign the imported tasks from a clean, side-by-side preview.
                     </p>
                   </div>
 
-                  <div className={`rounded-[26px] border p-4 ${templatePreviewTheme.sidebarCard}`}>
+                  <div className={`rounded-[22px] border p-3 sm:rounded-[26px] sm:p-4 ${templatePreviewTheme.sidebarCard}`}>
                     <div className="text-center">
                       <p className={`text-[11px] font-semibold uppercase tracking-[0.22em] ${templatePreviewTheme.helper}`}>
-                      Total Tasks
+                        Total Tasks
                       </p>
-                      <p className={`mt-1 text-4xl font-bold tracking-tight ${templatePreviewTheme.text}`}>
+                      <p className={`mt-1 text-3xl font-bold tracking-tight sm:text-4xl ${templatePreviewTheme.text}`}>
                         {templatePreviewTasks.length}
                       </p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-2 sm:gap-4">
                     {TASK_TEMPLATE_TASK_TYPES.map((taskType) => (
                       <div
                         key={taskType}
-                        className={`rounded-2xl border px-4 py-3 text-center ${templatePreviewTheme.sidebarCard}`}
+                        className={`rounded-2xl border px-2.5 py-2 text-center sm:px-4 sm:py-3 ${templatePreviewTheme.sidebarCard}`}
                       >
-                        <p className={`text-[11px] font-semibold uppercase tracking-[0.22em] ${templatePreviewTheme.helper}`}>
+                        <p className={`text-[10px] font-semibold uppercase tracking-[0.18em] sm:text-[11px] sm:tracking-[0.22em] ${templatePreviewTheme.helper}`}>
                           {TASK_TEMPLATE_LABELS[taskType]}
                         </p>
-                        <p className={`mt-1 text-2xl font-bold ${templatePreviewTheme.text}`}>
+                        <p className={`mt-1 text-xl font-bold sm:text-2xl ${templatePreviewTheme.text}`}>
                           {importedTaskCounts[taskType] || 0}
                         </p>
                       </div>
                     ))}
                   </div>
 
-                  <div className={`rounded-[26px] border p-4 ${templatePreviewTheme.sidebarCard}`}>
+                  <div className={`hidden rounded-[26px] border p-4 lg:block ${templatePreviewTheme.sidebarCard}`}>
                     <p className={`text-[11px] font-semibold uppercase tracking-[0.22em] ${templatePreviewTheme.helper}`}>
                       Workflow
                     </p>
@@ -1674,8 +1674,8 @@ const AssignTask: React.FC = () => {
               </aside>
 
               <section className="flex min-w-0 flex-1 flex-col">
-                <div className={`border-b px-5 py-4 sm:px-6 ${templatePreviewTheme.footer}`}>
-                  <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                <div className={`border-b px-4 py-4 sm:px-5 sm:py-5 ${templatePreviewTheme.footer}`}>
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div className="min-w-0">
                       <div className="flex items-center gap-3">
                         <p className={`text-xs font-semibold uppercase tracking-[0.24em] ${templatePreviewTheme.helper}`}>
@@ -1690,8 +1690,8 @@ const AssignTask: React.FC = () => {
                       </p>
                     </div>
 
-                    <div className="flex w-full items-center gap-3 xl:w-auto">
-                      <div className="relative min-w-0 flex-1 xl:w-[340px] xl:flex-none">
+                    <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:w-auto">
+                      <div className="relative min-w-0 flex-1 lg:w-[340px] lg:flex-none">
                         <Search className={`pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 ${templatePreviewTheme.helper}`} />
                         <input
                           type="text"
@@ -1719,7 +1719,7 @@ const AssignTask: React.FC = () => {
                         type="button"
                         onClick={clearImportedTemplate}
                         aria-label="Close preview"
-                        className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl  transition-all duration-200 hover:text-red-500 ${templatePreviewTheme.pill}`}
+                        className={`inline-flex h-11 w-11 shrink-0 items-center justify-center self-end rounded-2xl transition-all duration-200 hover:text-red-500 sm:self-auto ${templatePreviewTheme.pill}`}
                       >
                         <XCircle className="h-6 w-6" />
                       </button>
@@ -1733,52 +1733,155 @@ const AssignTask: React.FC = () => {
                       <div className="h-full overflow-y-auto">
                         <table className="min-w-full border-collapse">
                           <thead className={`sticky top-0 z-10 backdrop-blur ${templatePreviewTheme.tableHead}`}>
-                            <tr className={`border-b text-left text-[11px] font-bold uppercase tracking-[0.22em] ${isDark ? 'border-slate-700 text-slate-400' : 'border-[var(--color-border)] text-[var(--color-textSecondary)]'}`}>
-                              <th className="px-5 py-4">Task</th>
-                              <th className="px-4 py-4">Type</th>
-                              <th className="px-4 py-4">Assigned To</th>
-                              <th className="px-4 py-4">Dates</th>
-                              <th className="px-4 py-4">Priority</th>
+                            <tr className={`border-b text-left text-[10px] font-bold uppercase tracking-[0.18em] sm:text-[11px] sm:tracking-[0.22em] ${isDark ? 'border-slate-700 text-slate-400' : 'border-[var(--color-border)] text-[var(--color-textSecondary)]'}`}>
+                              <th className="px-4 py-3 sm:px-5 sm:py-4">Task</th>
+                              <th className="hidden px-4 py-3 sm:table-cell">Type</th>
+                              <th className="hidden px-4 py-3 md:table-cell">Assigned To</th>
+                              <th className="hidden px-4 py-3 md:table-cell">Dates</th>
+                              <th className="hidden px-4 py-3 lg:table-cell">Priority</th>
                             </tr>
                           </thead>
                           <tbody>
                             {filteredTemplateTasks.length > 0 ? filteredTemplateTasks.map((task, index) => {
                               const isSelected = task.id === templateSelectedTaskId;
+                              const shouldShowMobileDetails =
+                                templateInspectorOpen &&
+                                isSelected &&
+                                selectedTemplateTask?.id === task.id;
+
                               return (
-                                <tr
-                                  key={task.id}
-                                  onClick={() => handleTemplateTaskClick(task.id)}
-                                  className={`cursor-pointer border-b transition-colors duration-150 ${templatePreviewTheme.tableRow} ${isSelected ? templatePreviewTheme.selectedRow : ''}`}
-                                >
-                                  <td className="px-5 py-4 align-top">
-                                    <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--color-primary)]">
-                                      Task {index + 1}
-                                    </p>
-                                    <p className="mt-1 truncate text-sm font-semibold text-[var(--color-text)]">
-                                      {task.title || 'Untitled Task'}
-                                    </p>
-                                    {task.description && (
-                                      <p className="mt-1 truncate text-xs text-[var(--color-textSecondary)]">
-                                        {task.description}
+                                <React.Fragment key={task.id}>
+                                  <tr
+                                    onClick={() => handleTemplateTaskClick(task.id)}
+                                    className={`cursor-pointer border-b transition-colors duration-150 ${templatePreviewTheme.tableRow} ${isSelected ? templatePreviewTheme.selectedRow : ''}`}
+                                  >
+                                    <td className="px-4 py-3 align-top sm:px-5 sm:py-4">
+                                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-primary)] sm:text-[11px] sm:tracking-[0.22em]">
+                                        Task {index + 1}
                                       </p>
-                                    )}
-                                  </td>
-                                  <td className="px-4 py-4 align-top text-sm font-semibold text-[var(--color-text)]">
-                                    {TASK_TEMPLATE_LABELS[task.taskType as keyof typeof TASK_TEMPLATE_LABELS] || task.taskType}
-                                  </td>
-                                  <td className={`px-4 py-4 align-top text-sm ${templatePreviewTheme.helper}`}>
-                                    {getUserNamesFromIds(task.assignedTo)}
-                                  </td>
-                                  <td className={`px-4 py-4 align-top text-sm font-semibold ${templatePreviewTheme.detailBody}`}>
-                                    {task.taskType === 'quarterly' || task.taskType === 'yearly'
-                                      ? formatPreviewDate(task.startDate)
-                                      : `${formatPreviewDate(task.startDate)} to ${formatPreviewDate(task.endDate)}`
-                                  }
-                                  </td>
-                                  <td className={`px-4 py-4 align-top text-sm font-semibold capitalize ${templatePreviewTheme.detailBody}`}>
-                                    {task.priority || 'normal'}
-                                  </td>
-                                </tr>
+                                      <p className="mt-1 truncate text-sm font-semibold text-[var(--color-text)] sm:text-[15px]">
+                                        {task.title || 'Untitled Task'}
+                                      </p>
+                                      {task.description && (
+                                        <p className="mt-1 line-clamp-2 text-xs text-[var(--color-textSecondary)]">
+                                          {task.description}
+                                        </p>
+                                      )}
+                                    </td>
+                                    <td className="hidden px-4 py-3 align-top text-sm font-semibold text-[var(--color-text)] sm:table-cell sm:px-4 sm:py-4">
+                                      {TASK_TEMPLATE_LABELS[task.taskType as keyof typeof TASK_TEMPLATE_LABELS] || task.taskType}
+                                    </td>
+                                    <td className={`hidden px-4 py-3 align-top text-sm ${templatePreviewTheme.helper} md:table-cell md:px-4 md:py-4`}>
+                                      {getUserNamesFromIds(task.assignedTo)}
+                                    </td>
+                                    <td className={`hidden px-4 py-3 align-top text-sm font-semibold ${templatePreviewTheme.detailBody} md:table-cell md:px-4 md:py-4`}>
+                                      {task.taskType === 'quarterly' || task.taskType === 'yearly'
+                                        ? formatPreviewDate(task.startDate)
+                                        : `${formatPreviewDate(task.startDate)} to ${formatPreviewDate(task.endDate)}`
+                                    }
+                                    </td>
+                                    <td className={`hidden px-4 py-3 align-top text-sm font-semibold capitalize ${templatePreviewTheme.detailBody} lg:table-cell lg:px-4 lg:py-4`}>
+                                      {task.priority || 'normal'}
+                                    </td>
+                                  </tr>
+
+                                  {shouldShowMobileDetails && (
+                                    <tr className="2xl:hidden">
+                                      <td colSpan={5} className={`px-3 pb-3 pt-0 sm:px-4 ${templatePreviewTheme.panelAlt}`}>
+                                        <div className={`overflow-hidden rounded-[24px] border p-4 transition-all duration-300 ${templatePreviewTheme.detailCard}`}>
+                                          <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-primary)]">
+                                                Selected Task
+                                              </p>
+                                              <h3 className={`mt-1 truncate text-lg font-bold ${templatePreviewTheme.detailTitle}`}>
+                                                {selectedTemplateTask?.title || 'Untitled Task'}
+                                              </h3>
+                                              <p className={`mt-1 text-xs ${templatePreviewTheme.helper}`}>
+                                                {TASK_TEMPLATE_LABELS[selectedTemplateTask.taskType as keyof typeof TASK_TEMPLATE_LABELS] || selectedTemplateTask.taskType}
+                                              </p>
+                                            </div>
+                                            <button
+                                              type="button"
+                                              onClick={(event) => {
+                                                event.stopPropagation();
+                                                setTemplateInspectorOpen(false);
+                                              }}
+                                              aria-label="Close selected task"
+                                              className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${templatePreviewTheme.pill}`}
+                                            >
+                                              <XCircle className="h-5 w-5" />
+                                            </button>
+                                          </div>
+
+                                          {selectedTemplateTask?.description && (
+                                            <div className={`mt-3 rounded-[20px] border p-3 ${templatePreviewTheme.detailCard}`}>
+                                              <p className={`text-[10px] font-bold uppercase tracking-[0.18em] ${templatePreviewTheme.helper}`}>Description</p>
+                                              <p className={`mt-1 whitespace-pre-wrap text-sm leading-6 ${templatePreviewTheme.detailBody}`}>
+                                                {selectedTemplateTask.description}
+                                              </p>
+                                            </div>
+                                          )}
+
+                                          <div className="mt-3 grid gap-3">
+                                            <div className={`rounded-[20px] border p-3 ${templatePreviewTheme.detailCard}`}>
+                                              <p className={`text-[10px] font-bold uppercase tracking-[0.18em] ${templatePreviewTheme.helper}`}>Assigned To</p>
+                                              <p className={`mt-1 text-sm font-semibold leading-6 ${templatePreviewTheme.detailBody}`}>
+                                                {getUserNamesFromIds(selectedTemplateTask.assignedTo)}
+                                              </p>
+                                            </div>
+
+                                            <div className={`rounded-[20px] border p-3 ${templatePreviewTheme.detailCard}`}>
+                                              <p className={`text-[10px] font-bold uppercase tracking-[0.18em] ${templatePreviewTheme.helper}`}>Dates</p>
+                                              <p className={`mt-1 text-sm font-semibold leading-6 ${templatePreviewTheme.detailBody}`}>
+                                                {selectedTemplateTask.taskType === 'quarterly' || selectedTemplateTask.taskType === 'yearly'
+                                                  ? `Start: ${formatPreviewDate(selectedTemplateTask.startDate)}`
+                                                  : `${formatPreviewDate(selectedTemplateTask.startDate)} to ${formatPreviewDate(selectedTemplateTask.endDate)}`
+                                                }
+                                              </p>
+                                            </div>
+
+                                            <div className={`rounded-[20px] border p-3 ${templatePreviewTheme.detailCard}`}>
+                                              <p className={`text-[10px] font-bold uppercase tracking-[0.18em] ${templatePreviewTheme.helper}`}>Recurring Rules</p>
+                                              <div className={`mt-1 space-y-1.5 text-sm font-semibold ${templatePreviewTheme.detailBody}`}>
+                                                <p>
+                                                  Forever: {selectedTemplateTask.taskType === 'quarterly' || selectedTemplateTask.taskType === 'yearly'
+                                                    ? 'Not used'
+                                                    : selectedTemplateTask.isForever ? 'Yes' : 'No'
+                                                  }
+                                                </p>
+                                                <p>
+                                                  Sunday: {selectedTemplateTask.taskType === 'quarterly' || selectedTemplateTask.taskType === 'yearly'
+                                                    ? 'Not used'
+                                                    : selectedTemplateTask.includeSunday ? 'Included' : 'Excluded'
+                                                  }
+                                                </p>
+                                                {selectedTemplateTask.taskType === 'weekly' && (
+                                                  <p>
+                                                    Weekly Days: {selectedTemplateTask.weeklyDays.length > 0
+                                                      ? selectedTemplateTask.weeklyDays.map(day => weekDays.find(item => item.value === day)?.short || day).join(', ')
+                                                      : 'N/A'}
+                                                  </p>
+                                                )}
+                                                {selectedTemplateTask.taskType === 'monthly' && (
+                                                  <p>Monthly Day: {selectedTemplateTask.monthlyDay || 1}</p>
+                                                )}
+                                                {selectedTemplateTask.taskType === 'yearly' && (
+                                                  <p>Yearly Duration: {selectedTemplateTask.yearlyDuration || 3} years</p>
+                                                )}
+                                                {selectedTemplateTask.weekOffDays.length > 0 && (
+                                                  <p>
+                                                    Week Off Days: {selectedTemplateTask.weekOffDays.map(day => weekDays.find(item => item.value === day)?.short || day).join(', ')}
+                                                  </p>
+                                                )}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  )}
+                                </React.Fragment>
                               );
                             }) : (
                               <tr>
@@ -1793,16 +1896,16 @@ const AssignTask: React.FC = () => {
                     </div>
 
                     <div
-                      className={`min-h-0 overflow-hidden border-t transition-[max-height,opacity,transform] duration-300 ease-out lg:border-t-0 lg:transition-[width,opacity,transform] ${
+                      className={`hidden min-h-0 overflow-hidden border-t transition-[max-height,opacity,transform] duration-300 ease-out 2xl:block 2xl:border-t-0 2xl:transition-[width,opacity,transform] ${
                         templateInspectorOpen
-                          ? `max-h-[52vh] opacity-100 translate-x-0 lg:max-h-none lg:w-[420px] ${templatePreviewTheme.panelAlt}`
-                          : `max-h-0 opacity-0 translate-x-8 lg:max-h-none lg:w-0 ${templatePreviewTheme.panelAlt}`
+                          ? `max-h-[42vh] opacity-100 translate-y-0 2xl:max-h-none 2xl:w-[420px] ${templatePreviewTheme.panelAlt}`
+                          : `max-h-0 opacity-0 translate-y-4 2xl:max-h-none 2xl:w-0 ${templatePreviewTheme.panelAlt}`
                       }`}
                     >
-                      <div className="h-full overflow-y-auto px-5 py-5 sm:px-6 lg:w-[420px]">
+                      <div className="hidden h-full overflow-y-auto px-4 py-4 sm:px-5 sm:py-5 2xl:block 2xl:w-[420px]">
                         {selectedTemplateTask ? (
-                          <div className="space-y-6">
-                            <div className="flex items-start justify-between gap-4">
+                          <div className="space-y-5 sm:space-y-6">
+                            <div className="flex items-start justify-between gap-3 sm:gap-4">
                               <div className="min-w-0">
                                 <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[var(--color-primary)]">
                                   Selected Task
@@ -1818,7 +1921,14 @@ const AssignTask: React.FC = () => {
                                 <div className={`rounded-full border px-4 py-2 text-sm font-semibold capitalize ${templatePreviewTheme.pill}`}>
                                   {selectedTemplateTask.priority || 'normal'}
                                 </div>
-                                
+                                <button
+                                  type="button"
+                                  onClick={() => setTemplateInspectorOpen(false)}
+                                  aria-label="Close selected task"
+                                  className={`inline-flex h-10 w-10 items-center justify-center rounded-full border transition-all duration-200 hover:-translate-y-0.5 ${templatePreviewTheme.pill}`}
+                                >
+                                  <XCircle className="h-5 w-5" />
+                                </button>
                               </div>
                             </div>
 
@@ -1887,7 +1997,7 @@ const AssignTask: React.FC = () => {
                             </div>
                           </div>
                         ) : (
-                          <div className={`flex h-full items-center justify-center text-center text-sm ${templatePreviewTheme.helper}`}>
+                      <div className={`flex h-full items-center justify-center text-center text-sm ${templatePreviewTheme.helper}`}>
                             {templateSearchQuery.trim()
                               ? 'No tasks match your search. Clear the filter to see all imported tasks.'
                               : 'Select a task from the table to inspect its details.'}
@@ -1898,7 +2008,7 @@ const AssignTask: React.FC = () => {
                   </div>
                 </div>
 
-                <div className={`sticky bottom-0 z-10 border-t px-4 py-3 sm:px-5 ${templatePreviewTheme.footer}`}>
+                <div className={`border-t px-4 py-3 sm:px-5 xl:sticky xl:bottom-0 xl:z-10 ${templatePreviewTheme.footer}`}>
                   <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-2">
                       <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${templatePreviewTheme.pill}`}>

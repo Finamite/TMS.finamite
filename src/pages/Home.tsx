@@ -13,32 +13,32 @@ import {
 const Home = () => {
     const features = [
         {
-            icon: <Users className="w-8 h-8 text-indigo-600" />,
+            icon: <Users className="w-8 h-8 text-sky-600" />,
             title: "Team Collaboration",
             description: "Seamlessly assign tasks to team members, track progress, and manage workloads with intelligent task distribution."
         },
         {
-            icon: <BarChart3 className="w-8 h-8 text-indigo-600" />,
+            icon: <BarChart3 className="w-8 h-8 text-sky-600" />,
             title: "Performance Analytics",
             description: "Get comprehensive insights with automated reports, performance metrics, and data-driven analytics for better decision making."
         },
         {
-            icon: <Clock className="w-8 h-8 text-indigo-600" />,
+            icon: <Clock className="w-8 h-8 text-sky-600" />,
             title: "Revision Tracking",
             description: "Monitor task revisions, track changes, and maintain complete audit trails with detailed version history."
         },
         {
-            icon: <Mail className="w-8 h-8 text-indigo-600" />,
+            icon: <Mail className="w-8 h-8 text-sky-600" />,
             title: "Smart Notifications",
             description: "Stay updated with automated email notifications for task assignments, deadlines, and status changes."
         },
         {
-            icon: <Shield className="w-8 h-8 text-indigo-600" />,
+            icon: <Shield className="w-8 h-8 text-sky-600" />,
             title: "Secure Authentication",
             description: "Enterprise-grade security with Google OAuth integration ensuring safe and seamless access to your workspace."
         },
         {
-            icon: <Zap className="w-8 h-8 text-indigo-600" />,
+            icon: <Zap className="w-8 h-8 text-sky-600" />,
             title: "Automated Workflows",
             description: "Streamline processes with intelligent automation, reducing manual work and increasing productivity."
         }
@@ -62,7 +62,7 @@ const Home = () => {
 
 
                             <div className="flex flex-col leading-tight">
-                                <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                                <h1 className="text-3xl font-bold bg-gradient-to-r from-sky-600 to-sky-700 bg-clip-text text-transparent">
                                     TMS - Task Management System
                                 </h1>
                                 <p className="text-sm text-slate-500 mt-1">
@@ -75,7 +75,7 @@ const Home = () => {
                         <div className="flex items-center space-x-3">
                             <Link
                                 to="/login"
-                                className="inline-flex items-center text-gray-700 hover:text-indigo-600 px-4 py-2 rounded-lg font-medium transition-colors duration-200"
+                                className="inline-flex items-center text-gray-700 hover:text-sky-600 px-4 py-2 rounded-lg font-medium transition-colors duration-200"
                             >
                                 <LogIn className="w-4 h-4 mr-2" />
                                 Login
@@ -86,14 +86,14 @@ const Home = () => {
             </header>
 
             {/* Hero Section */}
-            <section className="bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-24">
+            <section className="bg-gradient-to-br from-sky-50 via-white to-purple-50 py-24">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="grid lg:grid-cols-2 gap-16 items-center">
                         <div className="space-y-8">
                             <div className="space-y-6">
                                 <h1 className="text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
                                     Smart Task &{' '}
-                                    <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                                    <span className="bg-gradient-to-r from-sky-400 to-sky-600 bg-clip-text text-transparent">
                                         Workflow
                                     </span>{' '}
                                     Management
@@ -107,7 +107,7 @@ const Home = () => {
                             <div className="flex flex-col sm:flex-row gap-4">
                                 <Link
                                     to="/login"
-                                    className="inline-flex items-center justify-center border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-lg font-semibold hover:border-indigo-600 hover:text-indigo-600 transition-all duration-200"
+                                    className="inline-flex items-center justify-center border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-lg font-semibold hover:border-sky-600 hover:text-sky-600 transition-all duration-200"
                                 >
                                     Login to Continue
                                 </Link>
@@ -133,7 +133,7 @@ const Home = () => {
                                     className="w-full h-[500px] object-cover rounded-2xl shadow-2xl"
                                 />
                             </div>
-                            <div className="absolute -bottom-6 -right-6 w-full h-full bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl opacity-20"></div>
+                            <div className="absolute -bottom-6 -right-6 w-full h-full bg-gradient-to-br from-sky-200 to-sky-600 rounded-2xl opacity-20"></div>
                         </div>
                     </div>
                 </div>
@@ -156,7 +156,7 @@ const Home = () => {
                         {features.map((feature, index) => (
                             <div
                                 key={index}
-                                className="bg-white p-8 rounded-xl border border-gray-200 hover:border-indigo-300 hover:shadow-lg transition-all duration-200 group"
+                                className="bg-white p-8 rounded-xl border border-gray-200 hover:border-sky-300 hover:shadow-lg transition-all duration-200 group"
                             >
                                 <div className="mb-6 transform group-hover:scale-110 transition-transform duration-200">
                                     {feature.icon}
@@ -174,7 +174,7 @@ const Home = () => {
             </section>
 
             {/* Benefits Section */}
-            <section className="py-24 bg-gradient-to-br from-gray-50 to-indigo-50">
+            <section className="py-24 bg-gradient-to-br from-gray-50 to-sky-50">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="grid lg:grid-cols-2 gap-16 items-center">
                         <div>
@@ -197,7 +197,7 @@ const Home = () => {
                             <div className="space-y-5">
                                 {benefits.map((benefit, index) => (
                                     <div key={index} className="flex items-center space-x-4">
-                                        <div className="w-6 h-6 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                                        <div className="w-6 h-6 bg-gradient-to-r from-sky-600 to-sky-700 rounded-full flex items-center justify-center flex-shrink-0">
                                             <CheckCircle className="w-4 h-4 text-white" />
                                         </div>
                                         <span className="text-gray-700 font-medium text-lg">{benefit}</span>
@@ -210,13 +210,13 @@ const Home = () => {
             </section>
 
             {/* CTA Section */}
-            <section className="py-24 bg-gradient-to-r from-indigo-600 to-purple-600">
+            <section className="py-24 bg-gradient-to-r from-sky-600 to-sky-700">
                 <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
                     <div className="space-y-8">
                         <h2 className="text-4xl lg:text-5xl font-bold text-white">
                             Ready to transform your workflow?
                         </h2>
-                        <p className="text-xl text-indigo-100 leading-relaxed max-w-2xl mx-auto">
+                        <p className="text-xl text-sky-100 leading-relaxed max-w-2xl mx-auto">
                             Join thousands of organizations using TMS to streamline their task management
                             and boost productivity. Get started today.
                         </p>
@@ -231,7 +231,7 @@ const Home = () => {
                         <div className="space-y-6">
                             <div className="flex items-center space-x-3">
 
-                                <div className="w-10 h-10 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center">
+                                <div className="w-10 h-10 bg-gradient-to-r from-sky-600 to-sky-700 rounded-lg flex items-center justify-center">
                                     <CheckCircle className="w-6 h-6 text-white" />
                                 </div>
 

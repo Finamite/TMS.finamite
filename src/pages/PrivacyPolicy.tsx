@@ -148,7 +148,7 @@ const PrivacyPolicy = () => {
         </section>
 
         <div className="mt-10 border-t pt-6 text-sm text-gray-500">
-          <Link to="/" className="text-blue-600 hover:underline">
+          <Link to="/" className="text-sky-600 hover:underline">
             ← Back to Login
           </Link>
         </div>

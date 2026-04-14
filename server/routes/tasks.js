@@ -3823,6 +3823,9 @@ router.get('/delete-logs', async (req, res) => {
     } = req.query;
 
     const query = {};
+    const now = new Date();
+    const defaultFrom = new Date(now);
+    defaultFrom.setMonth(defaultFrom.getMonth() - 3);
 
     if (companyId && companyId !== 'all') query.companyId = companyId;
     if (taskType && taskType !== 'all') query.taskType = taskType;
@@ -3844,6 +3847,11 @@ router.get('/delete-logs', async (req, res) => {
         end.setHours(23, 59, 59, 999);
         query.deletedAt.$lte = end;
       }
+    } else {
+      query.deletedAt = {
+        $gte: defaultFrom,
+        $lte: now
+      };
     }
 
     if (search) {
@@ -3865,14 +3873,82 @@ router.get('/delete-logs', async (req, res) => {
     const pageNumber = Math.max(1, parseInt(page, 10) || 1);
     const pageLimit = Math.max(1, Math.min(200, parseInt(limit, 10) || 25));
 
-    const [logs, total] = await Promise.all([
-      TaskDeleteLog.find(query)
-        .sort({ deletedAt: -1, createdAt: -1 })
-        .skip((pageNumber - 1) * pageLimit)
-        .limit(pageLimit)
-        .lean(),
-      TaskDeleteLog.countDocuments(query)
+    const aggregationResult = await TaskDeleteLog.aggregate([
+      { $match: query },
+      { $sort: { deletedAt: -1, createdAt: -1 } },
+      {
+        $addFields: {
+          groupKey: {
+            $cond: [
+              { $eq: ['$taskFamily', 'recurring'] },
+              {
+                $concat: [
+                  'series:',
+                  { $ifNull: ['$taskGroupId', { $toString: '$_id' }] }
+                ]
+              },
+              {
+                $concat: [
+                  'single:',
+                  { $ifNull: ['$taskId', { $toString: '$_id' }] }
+                ]
+              }
+            ]
+          },
+          normalizedDateFrom: { $ifNull: ['$dateFrom', '$dueDate'] },
+          normalizedDateTo: { $ifNull: ['$dateTo', '$dueDate'] }
+        }
+      },
+      {
+        $group: {
+          _id: '$groupKey',
+          companyId: { $first: '$companyId' },
+          companyName: { $first: '$companyName' },
+          taskId: { $first: '$taskId' },
+          taskGroupId: { $first: '$taskGroupId' },
+          taskType: { $first: '$taskType' },
+          taskFamily: { $first: '$taskFamily' },
+          taskTitle: { $first: '$taskTitle' },
+          taskDescription: { $first: '$taskDescription' },
+          assignedBy: { $first: '$assignedBy' },
+          assignedByName: { $first: '$assignedByName' },
+          assignedByEmail: { $first: '$assignedByEmail' },
+          assignedTo: { $first: '$assignedTo' },
+          assignedToName: { $first: '$assignedToName' },
+          assignedToEmail: { $first: '$assignedToEmail' },
+          deletedBy: { $first: '$deletedBy' },
+          deletedByName: { $first: '$deletedByName' },
+          deletedByEmail: { $first: '$deletedByEmail' },
+          deletedByRole: { $first: '$deletedByRole' },
+          deleteMode: { $first: '$deleteMode' },
+          source: { $first: '$source' },
+          deletedAt: { $first: '$deletedAt' },
+          dueDate: { $first: '$dueDate' },
+          status: { $first: '$status' },
+          priority: { $first: '$priority' },
+          sequenceNumber: { $first: '$sequenceNumber' },
+          dateFrom: { $min: '$normalizedDateFrom' },
+          dateTo: { $max: '$normalizedDateTo' },
+          instanceCount: { $sum: 1 },
+          isRecurringSeries: { $max: '$isRecurringSeries' }
+        }
+      },
+      { $sort: { deletedAt: -1, dateFrom: -1 } },
+      {
+        $facet: {
+          logs: [
+            { $skip: (pageNumber - 1) * pageLimit },
+            { $limit: pageLimit }
+          ],
+          total: [
+            { $count: 'count' }
+          ]
+        }
+      }
     ]);
+
+    const logs = aggregationResult?.[0]?.logs || [];
+    const total = aggregationResult?.[0]?.total?.[0]?.count || 0;
 
     res.json({
       logs,

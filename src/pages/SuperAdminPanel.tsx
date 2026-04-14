@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Building2, Plus, CreditCard as Edit, Save, X, Users, Crown, Mail, Lock, Building, Eye, EyeOff, Key, ChevronUp, ChevronDown, Database, BarChart3, History } from 'lucide-react';
 import axios from 'axios';
+import { format } from 'date-fns';
 import { address } from '../../utils/ipAddress';
 import DataUsagePanel from '../components/DataUsagePanel';
 import DeletedTaskLogsPanel from '../components/DeletedTaskLogsPanel';
@@ -402,6 +403,19 @@ const SuperAdminPanel: React.FC = () => {
     return 'var(--color-success)';
   };
 
+  const formatDateWithOptionalTime = (value?: string) => {
+    if (!value) return '—';
+    const date = new Date(value);
+    const hasTime =
+      date.getHours() !== 0 ||
+      date.getMinutes() !== 0 ||
+      date.getSeconds() !== 0 ||
+      date.getMilliseconds() !== 0;
+
+    const dateLabel = format(date, 'dd/MM/yyyy');
+    return hasTime ? `${dateLabel}, ${format(date, 'h:mm a')}` : dateLabel;
+  };
+
   const permissionEntries = Object.keys(formData.permissions);
   const activePermissionCount = permissionEntries.filter(
     (key) => formData.permissions[key as keyof typeof formData.permissions]
@@ -654,10 +668,7 @@ const SuperAdminPanel: React.FC = () => {
                   </td>
                   <td className="px-6 py-4">
                     <div className="text-sm" style={{ color: 'var(--color-text)' }}>
-                      {new Date(company.createdAt).toLocaleDateString()}
-                    </div>
-                    <div className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>
-                      {new Date(company.createdAt).toLocaleTimeString()}
+                      {formatDateWithOptionalTime(company.createdAt)}
                     </div>
                   </td>
                   <td className="px-6 py-4">

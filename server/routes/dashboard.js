@@ -193,22 +193,6 @@ router.get('/analytics', async (req, res) => {
           }
         },
         {
-          $lookup: {
-            from: 'users',
-            localField: 'assignedTo',
-            foreignField: '_id',
-            as: 'assignedUser'
-          }
-        },
-        {
-          $lookup: {
-            from: 'users',
-            localField: 'assignedBy',
-            foreignField: '_id',
-            as: 'assignedByUser'
-          }
-        },
-        {
           $addFields: {
             activityType: {
               $cond: {
@@ -229,17 +213,89 @@ router.get('/analytics', async (req, res) => {
                 then: '$completedAt',
                 else: '$createdAt'
               }
+            },
+            activityGroupKey: {
+              $cond: [
+                {
+                  $and: [
+                    { $ne: ['$taskType', 'one-time'] },
+                    { $ne: ['$taskGroupId', null] }
+                  ]
+                },
+                '$taskGroupId',
+                { $concat: ['single:', { $toString: '$_id' }] }
+              ]
+            },
+            activityRangeStart: {
+              $ifNull: ['$parentTaskInfo.originalStartDate', '$dueDate']
+            },
+            activityRangeEnd: {
+              $ifNull: ['$parentTaskInfo.originalEndDate', '$dueDate']
+            },
+            isRecurringSeries: {
+              $cond: [
+                { $ne: ['$taskType', 'one-time'] },
+                1,
+                0
+              ]
             }
+          }
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'assignedTo',
+            foreignField: '_id',
+            as: 'assignedUser'
+          }
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'assignedBy',
+            foreignField: '_id',
+            as: 'assignedByUser'
+          }
+        },
+        {
+          $addFields: {
+            assignedUsername: { $arrayElemAt: ['$assignedUser.username', 0] },
+            assignedByUsername: { $arrayElemAt: ['$assignedByUser.username', 0] }
+          }
+        },
+        {
+          $sort: {
+            activityDate: -1,
+            createdAt: -1
+          }
+        },
+        {
+          $group: {
+            _id: '$activityGroupKey',
+            title: { $first: '$title' },
+            taskType: { $first: '$taskType' },
+            type: { $first: '$activityType' },
+            username: { $first: '$assignedUsername' },
+            assignedBy: { $first: '$assignedByUsername' },
+            date: { $first: '$activityDate' },
+            dateFrom: { $min: '$activityRangeStart' },
+            dateTo: { $max: '$activityRangeEnd' },
+            isRecurringSeries: { $max: '$isRecurringSeries' },
+            instanceCount: { $sum: 1 }
           }
         },
         {
           $project: {
             title: 1,
             taskType: 1,
-            type: '$activityType',
-            username: { $arrayElemAt: ['$assignedUser.username', 0] },
-            assignedBy: { $arrayElemAt: ['$assignedByUser.username', 0] },
-            date: '$activityDate'
+            type: 1,
+            username: 1,
+            assignedBy: 1,
+            date: 1,
+            dateFrom: 1,
+            dateTo: 1,
+            isRecurringSeries: 1,
+            instanceCount: 1
           }
         },
         { $sort: { date: -1 } },

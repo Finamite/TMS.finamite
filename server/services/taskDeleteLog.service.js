@@ -95,6 +95,8 @@ export const createTaskDeleteLogs = async ({
       taskGroupId: task.taskGroupId || '',
       taskType: task.taskType || '',
       taskFamily: getTaskFamily(task.taskType),
+      dateFrom: task.parentTaskInfo?.originalStartDate || task.originalStartDate || task.dueDate || null,
+      dateTo: task.parentTaskInfo?.originalEndDate || task.originalEndDate || task.dueDate || null,
       taskTitle: task.title || '',
       taskDescription: task.description || '',
       assignedBy: assignedBySnapshot.id,
@@ -114,6 +116,7 @@ export const createTaskDeleteLogs = async ({
       status: task.status || '',
       priority: task.priority || '',
       sequenceNumber: task.sequenceNumber ?? null,
+      isRecurringSeries: task.taskType && task.taskType !== 'one-time' && Boolean(task.taskGroupId),
       taskSnapshot: {
         _id: resolveId(task._id),
         title: task.title || '',
@@ -124,6 +127,8 @@ export const createTaskDeleteLogs = async ({
         dueDate: task.dueDate || null,
         priority: task.priority || '',
         status: task.status || '',
+        dateFrom: task.parentTaskInfo?.originalStartDate || task.originalStartDate || task.dueDate || null,
+        dateTo: task.parentTaskInfo?.originalEndDate || task.originalEndDate || task.dueDate || null,
         assignedBy: assignedBySnapshot,
         assignedTo: assignedToSnapshot
       }

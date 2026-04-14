@@ -90,6 +90,13 @@ const taskDeleteLogSchema = new mongoose.Schema({
     default: Date.now,
     index: true
   },
+  dateFrom: Date,
+  dateTo: Date,
+  isRecurringSeries: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
   dueDate: Date,
   status: String,
   priority: String,
@@ -105,5 +112,6 @@ const taskDeleteLogSchema = new mongoose.Schema({
 taskDeleteLogSchema.index({ companyId: 1, deletedAt: -1 });
 taskDeleteLogSchema.index({ companyId: 1, taskType: 1, deletedAt: -1 });
 taskDeleteLogSchema.index({ companyId: 1, deleteMode: 1, deletedAt: -1 });
+taskDeleteLogSchema.index({ deletedAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 90 });
 
 export default mongoose.model('TaskDeleteLog', taskDeleteLogSchema);
