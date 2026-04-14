@@ -102,19 +102,19 @@ router.get('/analytics', async (req, res) => {
         },
         { $group: { _id: '$effectiveStatus', count: { $sum: 1 } } },
         { $sort: { count: -1 } }
-      ]).allowDiskUse(true),
+      ]),
       // Type stats
       Task.aggregate([
         { $match: { ...baseQuery, ...dateRangeQueryForStats } },
         { $group: { _id: '$taskType', count: { $sum: 1 } } },
         { $sort: { count: -1 } }
-      ]).allowDiskUse(true),
+      ]),
       // Priority stats
       Task.aggregate([
         { $match: { ...baseQuery, ...dateRangeQueryForStats } },
         { $group: { _id: '$priority', count: { $sum: 1 } } },
         { $sort: { count: -1 } }
-      ]).allowDiskUse(true),
+      ]),
       // Completion trend
       Task.aggregate([
         {
@@ -138,7 +138,7 @@ router.get('/analytics', async (req, res) => {
           }
         },
         { $sort: { '_id.year': 1, '_id.month': 1 } },
-      ]).allowDiskUse(true),
+      ]),
       // Planned trend
       Task.aggregate([
         {
@@ -174,7 +174,7 @@ router.get('/analytics', async (req, res) => {
           }
         },
         { $sort: { '_id.year': 1, '_id.month': 1 } }
-      ]).allowDiskUse(true),
+      ]),
       // Recent activity
       Task.aggregate([
         {
@@ -190,6 +190,22 @@ router.get('/analytics', async (req, res) => {
                 { dueDate: { $gte: new Date(startDate), $lte: new Date(endDate) }, status: 'overdue' }
               ]
             } : {})
+          }
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'assignedTo',
+            foreignField: '_id',
+            as: 'assignedUser'
+          }
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'assignedBy',
+            foreignField: '_id',
+            as: 'assignedByUser'
           }
         },
         {
@@ -213,94 +229,22 @@ router.get('/analytics', async (req, res) => {
                 then: '$completedAt',
                 else: '$createdAt'
               }
-            },
-            activityGroupKey: {
-              $cond: [
-                {
-                  $and: [
-                    { $ne: ['$taskType', 'one-time'] },
-                    { $ne: ['$taskGroupId', null] }
-                  ]
-                },
-                '$taskGroupId',
-                { $concat: ['single:', { $toString: '$_id' }] }
-              ]
-            },
-            activityRangeStart: {
-              $ifNull: ['$parentTaskInfo.originalStartDate', '$dueDate']
-            },
-            activityRangeEnd: {
-              $ifNull: ['$parentTaskInfo.originalEndDate', '$dueDate']
-            },
-            isRecurringSeries: {
-              $cond: [
-                { $ne: ['$taskType', 'one-time'] },
-                1,
-                0
-              ]
             }
-          }
-        },
-        {
-          $lookup: {
-            from: 'users',
-            localField: 'assignedTo',
-            foreignField: '_id',
-            as: 'assignedUser'
-          }
-        },
-        {
-          $lookup: {
-            from: 'users',
-            localField: 'assignedBy',
-            foreignField: '_id',
-            as: 'assignedByUser'
-          }
-        },
-        {
-          $addFields: {
-            assignedUsername: { $arrayElemAt: ['$assignedUser.username', 0] },
-            assignedByUsername: { $arrayElemAt: ['$assignedByUser.username', 0] }
-          }
-        },
-        {
-          $sort: {
-            activityDate: -1,
-            createdAt: -1
-          }
-        },
-        {
-          $group: {
-            _id: '$activityGroupKey',
-            title: { $first: '$title' },
-            taskType: { $first: '$taskType' },
-            type: { $first: '$activityType' },
-            username: { $first: '$assignedUsername' },
-            assignedBy: { $first: '$assignedByUsername' },
-            date: { $first: '$activityDate' },
-            dateFrom: { $min: '$activityRangeStart' },
-            dateTo: { $max: '$activityRangeEnd' },
-            isRecurringSeries: { $max: '$isRecurringSeries' },
-            instanceCount: { $sum: 1 }
           }
         },
         {
           $project: {
             title: 1,
             taskType: 1,
-            type: 1,
-            username: 1,
-            assignedBy: 1,
-            date: 1,
-            dateFrom: 1,
-            dateTo: 1,
-            isRecurringSeries: 1,
-            instanceCount: 1
+            type: '$activityType',
+            username: { $arrayElemAt: ['$assignedUser.username', 0] },
+            assignedBy: { $arrayElemAt: ['$assignedByUser.username', 0] },
+            date: '$activityDate'
           }
         },
         { $sort: { date: -1 } },
         { $limit: 20 }
-      ]).allowDiskUse(true),
+      ]),
       // Total active tasks
       Task.countDocuments({ ...baseQuery, ...dateRangeQueryForStats }),
       // Completed tasks count
@@ -375,7 +319,7 @@ router.get('/analytics', async (req, res) => {
             avgDays: { $avg: '$daysTaken' }
           }
         }
-      ]).allowDiskUse(true)
+      ])
     ]);
 
     // Calculate performance metrics
