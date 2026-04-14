@@ -351,6 +351,7 @@ const MasterRecurringTasks: React.FC = () => {
     taskType: '',
     status: '',
     priority: '',
+    weekOffDays: '',
     assignedBy: '',
     assignedTo: '',
     search: '',
@@ -468,6 +469,16 @@ const MasterRecurringTasks: React.FC = () => {
               (task: MasterTask) => task.taskType !== "one-time"
             );
 
+            if (filter.weekOffDays) {
+              filteredData = filteredData.filter((task: MasterTask) => {
+                const hasWeekOff = resolveWeekOffDays(
+                  task.weekOffDays,
+                  task.parentTaskInfo?.weekOffDays
+                ).length > 0;
+                return filter.weekOffDays === 'with' ? hasWeekOff : !hasWeekOff;
+              });
+            }
+
             filteredData = filteredData.map((task: any) => ({
               ...task,
               tasks:
@@ -528,6 +539,16 @@ const MasterRecurringTasks: React.FC = () => {
         );
       }
 
+      if (filter.weekOffDays) {
+        filteredData = filteredData.filter((task: LightMasterTask) => {
+          const hasWeekOff = resolveWeekOffDays(
+            task.weekOffDays,
+            task.parentTaskInfo?.weekOffDays
+          ).length > 0;
+          return filter.weekOffDays === 'with' ? hasWeekOff : !hasWeekOff;
+        });
+      }
+
       // Filter by assignedBy
       if (filter.assignedBy) {
         filteredData = filteredData.filter(
@@ -585,6 +606,7 @@ const MasterRecurringTasks: React.FC = () => {
     isAdmin,
     filter.taskType,
     filter.priority,
+    filter.weekOffDays,
     filter.assignedBy,
     filter.assignedTo,
     debouncedSearch,
@@ -785,7 +807,7 @@ const MasterRecurringTasks: React.FC = () => {
     } else {
       fetchIndividualTasks(1, false);
     }
-  }, [filter.taskType, filter.status, filter.priority, filter.assignedBy, filter.assignedTo, debouncedSearch, debouncedDateFrom, debouncedDateTo, isEditMode]);
+  }, [filter.taskType, filter.status, filter.priority, filter.weekOffDays, filter.assignedBy, filter.assignedTo, debouncedSearch, debouncedDateFrom, debouncedDateTo, isEditMode]);
 
   // Effect for pagination changes
   useEffect(() => {
@@ -1114,6 +1136,7 @@ const MasterRecurringTasks: React.FC = () => {
       taskType: '',
       status: '',
       priority: '',
+      weekOffDays: '',
       assignedBy: '',
       assignedTo: '',
       search: '',
@@ -2342,6 +2365,21 @@ const MasterRecurringTasks: React.FC = () => {
                 <option value="yearly">Yearly</option>
               </select>
             </div>
+
+            {isEditMode && (
+              <div>
+                <label className="block text-sm font-medium text-[--color-text] mb-1">Week Off</label>
+                <select
+                  value={filter.weekOffDays}
+                  onChange={(e) => setFilter({ ...filter, weekOffDays: e.target.value })}
+                  className="w-full text-sm px-3 py-2 border border-[--color-border] rounded-lg focus:ring-2 focus:ring-[--color-primary] focus:border-[--color-primary] bg-[--color-surface] text-[--color-text]"
+                >
+                  <option value="">All Tasks</option>
+                  <option value="with">With Week Off</option>
+                  <option value="without">Without Week Off</option>
+                </select>
+              </div>
+            )}
 
             {!isEditMode && (
               <div>
