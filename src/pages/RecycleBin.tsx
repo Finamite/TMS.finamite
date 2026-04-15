@@ -1867,7 +1867,7 @@ const RecycleBin: React.FC = () => {
                                 onClick={executeAction}
                                 className={`rounded-2xl px-4 py-2 font-medium text-white transition ${actionConfig.type === "restore"
                                     ? "bg-[var(--color-success)] hover:opacity-95"
-                                    : "bg-[var(--color-danger)] hover:opacity-95"
+                                    : "bg-red-500 hover:opacity-95"
                                     }`}
                             >
                                 {actionConfig.type === "restore" ? "Restore" : "Permanently Delete"}
