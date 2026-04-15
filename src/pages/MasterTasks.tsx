@@ -473,7 +473,7 @@ const MasterTasks: React.FC = () => {
                   {user?.permissions.canDeleteTasks && (
                     <button
                       onClick={() => handleDeleteTask(task._id)}
-                      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-danger)] transition hover:bg-[rgba(239,68,68,0.08)]"
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-error)] transition hover:bg-[rgba(239,68,68,0.08)]"
                       title="Delete task"
                     >
                       <Trash2 size={16} />

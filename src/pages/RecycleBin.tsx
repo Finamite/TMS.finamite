@@ -812,7 +812,7 @@ const RecycleBin: React.FC = () => {
                     <span className="rounded-full border border-[rgba(245,158,11,0.16)] bg-[rgba(245,158,11,0.10)] px-2 py-1 text-xs font-medium text-[var(--color-warning)]">
                         {masterTask.pendingCount} pending
                     </span>
-                    <span className="rounded-full border border-[rgba(239,68,68,0.16)] bg-[rgba(239,68,68,0.10)] px-2 py-1 text-xs font-medium text-[var(--color-danger)]">
+                    <span className="rounded-full border border-[rgba(239,68,68,0.16)] bg-[rgba(239,68,68,0.10)] px-2 py-1 text-xs font-medium text-[var(--color-error)]">
                         {masterTask.deletedCount} deleted
                     </span>
                     {masterTask.parentTaskInfo?.isForever && (
@@ -904,7 +904,7 @@ const RecycleBin: React.FC = () => {
                             </button>
                             <button
                                 onClick={() => handlePermanentDeleteTask(task._id)}
-                                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-danger)] transition hover:bg-[rgba(239,68,68,0.08)]"
+                                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-error)] transition hover:bg-[rgba(239,68,68,0.08)]"
                                 title="Permanently delete task"
                             >
                                 <Trash2 size={16} />
@@ -1327,7 +1327,7 @@ const RecycleBin: React.FC = () => {
                             <Loader className="ml-2 h-3 w-3 animate-spin text-[var(--color-primary)]" />
                         )}
                     </p>
-                    <p className="mt-1 text-xs text-[var(--color-danger)]">
+                    <p className="mt-1 text-xs text-[var(--color-error)]">
                         Auto-delete after {binSettings.retentionDays} days
                     </p>
                 </div>

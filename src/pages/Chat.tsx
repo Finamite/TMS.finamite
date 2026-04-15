@@ -996,7 +996,7 @@ const Chat: React.FC = () => {
 
                                                 const getLucideIcon = () => {
                                                     if (type.includes("pdf") || name.endsWith(".pdf"))
-                                                        return <FileText size={20} className="text-[var(--color-danger)]" />;
+                                                        return <FileText size={20} className="text-[var(--color-error)]" />;
 
                                                     if (
                                                         type.includes("spreadsheet") ||
@@ -1103,8 +1103,8 @@ const Chat: React.FC = () => {
                                             onClick={() => deleteMessage(message._id)}
                                             className={`rounded p-1 transition ${
                                                 isSelectionMode
-                                                    ? 'opacity-100 text-[var(--color-danger)]'
-                                                    : 'opacity-0 group-hover:opacity-100 hover:text-[var(--color-danger)]'
+                                                    ? 'opacity-100 text-[var(--color-error)]'
+                                                    : 'opacity-0 group-hover:opacity-100 hover:text-[var(--color-error)]'
                                             }`}
                                             title="Delete message"
                                         >
@@ -1180,7 +1180,7 @@ const Chat: React.FC = () => {
                                             setSidebarSearch("");
                                             setFreezeSidebarSearch(false);
                                         }}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)] hover:text-[var(--color-danger)]"
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)] hover:text-[var(--color-error)]"
                                     >
                                         <X size={16} />
                                     </button>
@@ -1257,7 +1257,7 @@ const Chat: React.FC = () => {
 
                                     {/* RIGHT SIDE: Unread message count */}
                                     {chat.unreadCount! > 0 && chat._id !== activeChat?._id && (
-                                        <span className="ml-2 shrink-0 rounded-full bg-[var(--color-danger)] px-2 py-1 text-xs text-white">
+                                        <span className="ml-2 shrink-0 rounded-full bg-[var(--color-error)] px-2 py-1 text-xs text-white">
                                             {chat.unreadCount}
                                         </span>
                                     )}
@@ -1336,7 +1336,7 @@ const Chat: React.FC = () => {
                                                 setSearchTerm("");
                                                 searchMessages(""); // 👈 also clear results
                                             }}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)] hover:text-[var(--color-danger)]"
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)] hover:text-[var(--color-error)]"
                                         >
                                             <X size={16} />
                                         </button>
@@ -1383,7 +1383,7 @@ const Chat: React.FC = () => {
                                         onClick={deleteSelectedMessages}
                                         disabled={selectedMessages.length === 0}
                                         className={`rounded-2xl p-2 ${selectedMessages.length > 0
-                                            ? 'bg-[var(--color-danger)] text-red-500 hover:opacity-95'
+                                            ? 'bg-[var(--color-error)] text-red-500 hover:opacity-95'
                                             : 'cursor-not-allowed bg-[var(--color-border)] text-[var(--color-textSecondary)]'
                                             }`}
                                     >
@@ -1409,7 +1409,7 @@ const Chat: React.FC = () => {
                                                         deleteChat();
                                                         setShowChatOptions(false);
                                                     }}
-                                                    className="flex w-full items-center px-4 py-2 text-left text-[var(--color-danger)] hover:bg-[rgba(239,68,68,0.06)]"
+                                                    className="flex w-full items-center px-4 py-2 text-left text-[var(--color-error)] hover:bg-[rgba(239,68,68,0.06)]"
                                                 >
                                                     <Archive size={16} className="mr-2" /> Delete Chat
                                                 </button>
@@ -1451,7 +1451,7 @@ const Chat: React.FC = () => {
                                                 setSearchTerm("");
                                                 searchMessages(""); // 👈 also clear results
                                             }}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)] hover:text-[var(--color-danger)]"
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)] hover:text-[var(--color-error)]"
                                         >
                                             <X size={16} />
                                         </button>
@@ -1557,7 +1557,7 @@ const Chat: React.FC = () => {
                                                     </div>
                                                     <button
                                                         onClick={() => removeFile(index)}
-                                                        className="text-[var(--color-danger)] hover:opacity-90"
+                                                        className="text-[var(--color-error)] hover:opacity-90"
                                                     >
                                                         <X size={12} />
                                                     </button>
@@ -1589,7 +1589,7 @@ const Chat: React.FC = () => {
                                                     <Calendar size={10} className="mr-1" />
                                                     Due: {new Date(selectedTask.dueDate).toLocaleDateString('en-GB')}
                                                 </span>
-                                                <span className={`rounded-full px-2 py-0.5 text-xs ${selectedTask.priority === 'high' ? 'bg-[rgba(239,68,68,0.12)] text-[var(--color-danger)]' : 'bg-[rgba(14,165,233,0.12)] text-[var(--color-primary)]'
+                                                <span className={`rounded-full px-2 py-0.5 text-xs ${selectedTask.priority === 'high' ? 'bg-[rgba(239,68,68,0.12)] text-[var(--color-error)]' : 'bg-[rgba(14,165,233,0.12)] text-[var(--color-primary)]'
                                                     }`}>
                                                     {selectedTask.priority}
                                                 </span>
@@ -1790,7 +1790,7 @@ const Chat: React.FC = () => {
                                                                     {new Date(task.dueDate).toLocaleDateString("en-IN")}
                                                                 </span>
                                                                 <span className={`rounded-full border px-2 py-0.5 text-xs ${task.priority === 'high'
-                                                                    ? 'border-[rgba(239,68,68,0.2)] bg-[rgba(239,68,68,0.12)] text-[var(--color-danger)]'
+                                                                    ? 'border-[rgba(239,68,68,0.2)] bg-[rgba(239,68,68,0.12)] text-[var(--color-error)]'
                                                                     : 'border-[rgba(14,165,233,0.18)] bg-[rgba(14,165,233,0.12)] text-[var(--color-primary)]'
                                                                     }`}>
                                                                     {task.priority}
@@ -1799,7 +1799,7 @@ const Chat: React.FC = () => {
                                                                     {task.taskType || 'one-time'}
                                                                 </span>
                                                                 {task.isOverdue && (
-                                                                    <div className="inline-flex items-center rounded-full border border-[rgba(239,68,68,0.18)] bg-[rgba(239,68,68,0.12)] px-2 py-0.5 text-xs text-[var(--color-danger)]">
+                                                                    <div className="inline-flex items-center rounded-full border border-[rgba(239,68,68,0.18)] bg-[rgba(239,68,68,0.12)] px-2 py-0.5 text-xs text-[var(--color-error)]">
                                                                         <AlertCircle size={12} className="mr-1" />
                                                                         Overdue
                                                                     </div>
@@ -1858,7 +1858,7 @@ const Chat: React.FC = () => {
                         />
                         <button
                             onClick={() => setShowImagePreview(null)}
-                            className="absolute -right-4 -top-4 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] shadow-[0_12px_30px_rgba(15,23,42,0.2)] transition hover:text-[var(--color-danger)]"
+                            className="absolute -right-4 -top-4 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] shadow-[0_12px_30px_rgba(15,23,42,0.2)] transition hover:text-[var(--color-error)]"
                         >
                             <X size={16} />
                         </button>
@@ -1894,7 +1894,7 @@ const Chat: React.FC = () => {
                                 {userSearch && (
                                     <button
                                         onClick={() => setUserSearch("")}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)] transition hover:text-[var(--color-danger)]"
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)] transition hover:text-[var(--color-error)]"
                                     >
                                         <X size={16} />
                                     </button>
@@ -1932,7 +1932,7 @@ const Chat: React.FC = () => {
                                                 <p className="font-medium text-[var(--color-text)]">{u.username}</p>
                                                 <span
                                                     className={`text-xs px-2 py-1 rounded-full ${u.role === "admin"
-                                                        ? "border border-[rgba(239,68,68,0.18)] bg-[rgba(239,68,68,0.12)] text-[var(--color-danger)]"
+                                                        ? "border border-[rgba(239,68,68,0.18)] bg-[rgba(239,68,68,0.12)] text-[var(--color-error)]"
                                                         : u.role === "manager"
                                                             ? "border border-[rgba(14,165,233,0.18)] bg-[rgba(14,165,233,0.12)] text-[var(--color-primary)]"
                                                             : "border border-[rgba(34,197,94,0.18)] bg-[rgba(34,197,94,0.12)] text-[var(--color-success)]"
@@ -1963,7 +1963,7 @@ const Chat: React.FC = () => {
                     <div className="w-full max-w-md rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-[0_24px_80px_rgba(15,23,42,0.18)] animate-fadeIn">
 
                         {/* Icon */}
-                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-[rgba(239,68,68,0.18)] bg-[rgba(239,68,68,0.12)] text-[var(--color-danger)]">
+                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-[rgba(239,68,68,0.18)] bg-[rgba(239,68,68,0.12)] text-[var(--color-error)]">
                             <Trash2 size={28} />
                         </div>
 
@@ -1989,7 +1989,7 @@ const Chat: React.FC = () => {
                                     if (confirmAction) await confirmAction();
                                     setShowConfirmModal(false);
                                 }}
-                                className="rounded-2xl bg-[var(--color-danger)] px-5 py-2 text-white transition hover:opacity-95"
+                                className="rounded-2xl bg-[var(--color-error)] px-5 py-2 text-white transition hover:opacity-95"
                             >
                                 Delete
                             </button>

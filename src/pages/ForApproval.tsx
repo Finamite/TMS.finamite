@@ -70,7 +70,7 @@ const RejectionModal: React.FC<RejectionModalProps> = ({ isOpen, onClose, onNoAc
                         className="flex max-w-[85%] items-center text-xl font-semibold tracking-tight text-[var(--color-text)]"
                         title={task.title}
                     >
-                        <AlertTriangle className="mr-2 shrink-0 text-[var(--color-danger)]" size={20} />
+                        <AlertTriangle className="mr-2 shrink-0 text-[var(--color-error)]" size={20} />
                         Reject Task:{' '}
                         {task.title.split(' ').length > 4
                             ? task.title.split(' ').slice(0, 4).join(' ') + '...'
@@ -153,7 +153,7 @@ const RejectionModal: React.FC<RejectionModalProps> = ({ isOpen, onClose, onNoAc
                             setRemarks('');
                         }}
                         disabled={loading || !remarks.trim()}
-                        className="flex items-center justify-center space-x-2 rounded-2xl bg-[var(--color-danger)] px-4 py-2 text-white transition-colors hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="flex items-center justify-center space-x-2 rounded-2xl bg-[var(--color-error)] px-4 py-2 text-white transition-colors hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {loading ? (
                             <RefreshCw size={16} className="animate-spin" />
@@ -782,7 +782,7 @@ const ForApproval: React.FC = () => {
                                                         className={`inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] transition-colors
                                                            ${disabled
                                                                 ? 'cursor-not-allowed opacity-40'
-                                                                : 'text-[var(--color-danger)] hover:bg-[rgba(239,68,68,0.08)]'
+                                                                : 'text-[var(--color-error)] hover:bg-[rgba(239,68,68,0.08)]'
                                                             }`}
                                                     >
                                                         <X size={16} />
@@ -1171,7 +1171,7 @@ const ForApproval: React.FC = () => {
                         />
                         <button
                             onClick={() => setSelectedImagePreview(null)}
-                            className="absolute -right-2 -top-2 flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-danger)] text-white transition-all hover:opacity-95"
+                            className="absolute -right-2 -top-2 flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-error)] text-white transition-all hover:opacity-95"
                             title="Close"
                         >
                             <X size={16} />

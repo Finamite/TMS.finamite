@@ -743,7 +743,7 @@ const PendingTasks: React.FC = () => {
                     className={`inline-flex h-10 w-10 items-center justify-center rounded-full border transition ${
                       completionDisabled
                         ? 'cursor-not-allowed border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-textSecondary)] opacity-60'
-                        : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-danger)] hover:bg-[rgba(239,68,68,0.08)]'
+                        : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-error)] hover:bg-[rgba(239,68,68,0.08)]'
                     }`}
                     title={isInProgress ? 'Task is under approval' : 'Complete task'}
                   >

@@ -335,7 +335,7 @@ const TaskShift: React.FC = () => {
     const getPriorityColor = (priority: string) => {
         switch (priority.toLowerCase()) {
             case 'high':
-                return 'border border-[rgba(239,68,68,0.2)] bg-[rgba(239,68,68,0.10)] text-[var(--color-danger)]';
+                return 'border border-[rgba(239,68,68,0.2)] bg-[rgba(239,68,68,0.10)] text-[var(--color-error)]';
             case 'medium':
                 return 'border border-[rgba(245,158,11,0.18)] bg-[rgba(245,158,11,0.10)] text-amber-600';
             case 'low':
@@ -420,7 +420,7 @@ const TaskShift: React.FC = () => {
                             >
                                 <Filter className="h-5 w-5" />
                                 {!fromUser && (
-                                    <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[var(--color-danger)]" />
+                                    <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[var(--color-error)]" />
                                 )}
                             </button>
                         </div>
@@ -545,7 +545,7 @@ const TaskShift: React.FC = () => {
                         <div className="flex items-end">
                             <button
                                 onClick={clearFilters}
-                                className="flex h-9 w-full items-center justify-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/75 text-sm font-medium text-[var(--color-textSecondary)] transition hover:bg-[var(--color-background)] hover:text-[var(--color-danger)]"
+                                className="flex h-9 w-full items-center justify-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/75 text-sm font-medium text-[var(--color-textSecondary)] transition hover:bg-[var(--color-background)] hover:text-[var(--color-error)]"
                             >
                                 <X className="w-4 h-4" />
                                 Clear
@@ -949,7 +949,7 @@ const TaskShift: React.FC = () => {
 
                         {/* Assign To */}
                         <div className="flex items-center gap-2">
-                            <label className="whitespace-nowrap text-sm font-semibold text-[var(--color-danger)]">
+                            <label className="whitespace-nowrap text-sm font-semibold text-[var(--color-error)]">
                                 Assign to:
                             </label>
 
@@ -1018,7 +1018,7 @@ const TaskShift: React.FC = () => {
                             </div>
 
                             <div className="flex items-center gap-2">
-                                <label className="text-md font-semibold text-[var(--color-danger)]">
+                                <label className="text-md font-semibold text-[var(--color-error)]">
                                     Assign to:
                                 </label>
 
