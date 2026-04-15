@@ -3392,6 +3392,9 @@ router.post('/bin/restore-permanent-recurring/:taskGroupId', async (req, res) =>
     const priority = firstLog.priority || template.priority || 'normal';
     const assignedBy = pickFirstDefined(firstLog.assignedBy, assignedBySnapshot._id, assignedBySnapshot);
     const assignedTo = pickFirstDefined(firstLog.assignedTo, assignedToSnapshot._id, assignedToSnapshot);
+    const taskCompletedAt = parseDateValue(template.completedAt) || null;
+    const taskCompletionRemarks = template.completionRemarks || '';
+    const taskCompletionAttachments = Array.isArray(template.completionAttachments) ? template.completionAttachments : [];
 
     if (!assignedBy || !assignedTo) {
       return res.status(400).json({
@@ -3457,6 +3460,10 @@ router.post('/bin/restore-permanent-recurring/:taskGroupId', async (req, res) =>
 
     const taskDocs = logs.map((log) => {
       const dueDate = parseDateValue(log.dueDate) || parseDateValue(log.dateTo) || endDate;
+      const restoredStatus = log.status || 'pending';
+      const restoredCompletedAt =
+        taskCompletedAt ||
+        (taskType === 'daily' && restoredStatus === 'completed' ? dueDate : null);
 
       return {
         title,
@@ -3470,7 +3477,10 @@ router.post('/bin/restore-permanent-recurring/:taskGroupId', async (req, res) =>
         taskId: log.taskId || undefined,
         taskGroupId,
         sequenceNumber: log.sequenceNumber ?? undefined,
-        status: log.status || 'pending',
+        status: restoredStatus,
+        completedAt: restoredCompletedAt,
+        completionRemarks: taskCompletionRemarks,
+        completionAttachments: taskCompletionAttachments,
         isActive: true,
         parentTaskInfo: {
           originalStartDate: startDate,
