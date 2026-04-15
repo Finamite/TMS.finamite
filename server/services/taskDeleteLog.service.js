@@ -129,6 +129,16 @@ export const createTaskDeleteLogs = async ({
         status: task.status || '',
         dateFrom: task.parentTaskInfo?.originalStartDate || task.originalStartDate || task.dueDate || null,
         dateTo: task.parentTaskInfo?.originalEndDate || task.originalEndDate || task.dueDate || null,
+        originalStartDate: task.parentTaskInfo?.originalStartDate || task.originalStartDate || null,
+        originalEndDate: task.parentTaskInfo?.originalEndDate || task.originalEndDate || null,
+        includeSunday: task.parentTaskInfo?.includeSunday ?? null,
+        isForever: task.parentTaskInfo?.isForever ?? null,
+        weeklyDays: task.parentTaskInfo?.weeklyDays || task.weeklyDays || [],
+        weekOffDays: task.parentTaskInfo?.weekOffDays || task.weekOffDays || [],
+        monthlyDay: task.parentTaskInfo?.monthlyDay ?? task.monthlyDay ?? null,
+        yearlyDuration: task.parentTaskInfo?.yearlyDuration ?? task.yearlyDuration ?? null,
+        attachments: Array.isArray(task.attachments) ? task.attachments : [],
+        sequenceNumber: task.sequenceNumber ?? null,
         assignedBy: assignedBySnapshot,
         assignedTo: assignedToSnapshot
       }

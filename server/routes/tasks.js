@@ -47,6 +47,16 @@ const PENDING_RECURRING_SELECT =
 const isOneTimeTask = (taskType) => String(taskType || '').trim() === 'one-time';
 const isApprovalEligibleTask = (taskType, requiresApproval) =>
   isOneTimeTask(taskType) && Boolean(requiresApproval);
+const parseDateValue = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+const pickFirstDefined = (...values) => values.find((value) => value !== undefined && value !== null && value !== '');
+const pickLastDefined = (...values) => {
+  const filtered = values.filter((value) => value !== undefined && value !== null && value !== '');
+  return filtered.length > 0 ? filtered[filtered.length - 1] : null;
+};
 
 // Helper function to get all dates for weekly tasks within a range based on selected days
 const getWeeklyTaskDates = (startDate, endDate, selectedDays, weekOffDays = []) => {
@@ -3337,6 +3347,176 @@ router.post('/bin/restore-master/:taskGroupId', async (req, res) => {
   }
 });
 
+router.post('/bin/restore-permanent-recurring/:taskGroupId', async (req, res) => {
+  try {
+    const { taskGroupId } = req.params;
+    const { companyId } = req.body;
+
+    if (!taskGroupId || !companyId) {
+      return res.status(400).json({
+        message: 'taskGroupId and companyId are required'
+      });
+    }
+
+    const logs = await TaskDeleteLog.find({
+      taskGroupId,
+      companyId,
+      taskFamily: 'recurring',
+      deleteMode: 'permanent'
+    })
+      .sort({ sequenceNumber: 1, dueDate: 1, deletedAt: 1, createdAt: 1 })
+      .lean();
+
+    if (!logs.length) {
+      return res.status(404).json({
+        message: 'No permanent recurring delete log found for this task group'
+      });
+    }
+
+    const existingMaster = await MasterTask.findOne({ taskGroupId, companyId }).lean();
+    const existingTask = await Task.findOne({ taskGroupId, companyId, isActive: true }).lean();
+
+    if (existingMaster || existingTask) {
+      return res.status(409).json({
+        message: 'This recurring series already exists'
+      });
+    }
+
+    const firstLog = logs[0];
+    const template = firstLog.taskSnapshot || {};
+    const assignedBySnapshot = template.assignedBy || {};
+    const assignedToSnapshot = template.assignedTo || {};
+    const taskType = firstLog.taskType || template.taskType || 'daily';
+    const title = firstLog.taskTitle || template.title || 'Restored recurring task';
+    const description = firstLog.taskDescription || template.description || '';
+    const priority = firstLog.priority || template.priority || 'normal';
+    const assignedBy = pickFirstDefined(firstLog.assignedBy, assignedBySnapshot._id, assignedBySnapshot);
+    const assignedTo = pickFirstDefined(firstLog.assignedTo, assignedToSnapshot._id, assignedToSnapshot);
+
+    if (!assignedBy || !assignedTo) {
+      return res.status(400).json({
+        message: 'Unable to restore recurring series because assignee data is missing'
+      });
+    }
+
+    const startCandidates = logs
+      .map((log) => pickFirstDefined(
+        parseDateValue(log.taskSnapshot?.originalStartDate),
+        parseDateValue(log.dateFrom),
+        parseDateValue(log.dueDate)
+      ))
+      .filter(Boolean);
+    const endCandidates = logs
+      .map((log) => pickFirstDefined(
+        parseDateValue(log.taskSnapshot?.originalEndDate),
+        parseDateValue(log.dateTo),
+        parseDateValue(log.dueDate)
+      ))
+      .filter(Boolean);
+
+    const fallbackDate = parseDateValue(firstLog.deletedAt) || new Date();
+    const startDate = startCandidates.reduce(
+      (earliest, current) => (!earliest || current < earliest ? current : earliest),
+      fallbackDate
+    );
+    const endDate = endCandidates.reduce(
+      (latest, current) => (!latest || current > latest ? current : latest),
+      startDate
+    );
+
+    const includeSunday = template.includeSunday ?? true;
+    const isForever = template.isForever ?? false;
+    const weeklyDays = Array.isArray(template.weeklyDays) ? template.weeklyDays : [];
+    const weekOffDays = Array.isArray(template.weekOffDays) ? template.weekOffDays : [];
+    const monthlyDay = template.monthlyDay ?? undefined;
+    const yearlyDuration = template.yearlyDuration ?? undefined;
+    const attachments = Array.isArray(template.attachments) ? template.attachments : [];
+
+    const masterDoc = {
+      taskGroupId,
+      title,
+      description,
+      taskType,
+      priority,
+      companyId,
+      assignedTo,
+      assignedBy,
+      startDate,
+      endDate,
+      originalEndDate: endDate,
+      includeSunday,
+      isForever,
+      weeklyDays,
+      weekOffDays,
+      monthlyDay,
+      yearlyDuration,
+      attachments,
+      isActive: true,
+      isDeleted: false
+    };
+
+    const taskDocs = logs.map((log) => {
+      const dueDate = parseDateValue(log.dueDate) || parseDateValue(log.dateTo) || endDate;
+
+      return {
+        title,
+        description,
+        taskType,
+        priority: log.priority || priority,
+        companyId,
+        assignedBy,
+        assignedTo,
+        dueDate,
+        taskId: log.taskId || undefined,
+        taskGroupId,
+        sequenceNumber: log.sequenceNumber ?? undefined,
+        status: log.status || 'pending',
+        isActive: true,
+        parentTaskInfo: {
+          originalStartDate: startDate,
+          originalEndDate: endDate,
+          isForever,
+          includeSunday,
+          weeklyDays,
+          weekOffDays,
+          monthlyDay,
+          yearlyDuration
+        },
+        attachments,
+        originalStartDate: startDate,
+        originalEndDate: endDate,
+        weekOffDays
+      };
+    });
+
+    let createdMaster = null;
+    let createdTasks = [];
+
+    try {
+      [createdMaster] = await MasterTask.create([masterDoc]);
+      createdTasks = await Task.insertMany(taskDocs, { ordered: true });
+    } catch (restoreError) {
+      await MasterTask.deleteOne({ taskGroupId, companyId });
+      await Task.deleteMany({ taskGroupId, companyId });
+      throw restoreError;
+    }
+
+    setImmediate(() => trackDatabaseUsage(companyId));
+
+    return res.json({
+      message: 'Recurring series restored from permanent delete logs',
+      restoredCount: createdTasks.length,
+      taskGroupId
+    });
+  } catch (error) {
+    console.error('Error restoring recurring series from permanent delete logs:', error);
+    return res.status(500).json({
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
 
 // Permanently delete single task
 router.delete('/bin/permanent/:id', async (req, res) => {
@@ -3922,6 +4102,7 @@ router.get('/delete-logs', async (req, res) => {
           deletedByRole: { $first: '$deletedByRole' },
           deleteMode: { $first: '$deleteMode' },
           source: { $first: '$source' },
+          sourceTaskObjectId: { $first: '$taskSnapshot._id' },
           deletedAt: { $first: '$deletedAt' },
           dueDate: { $first: '$dueDate' },
           status: { $first: '$status' },

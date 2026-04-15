@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { format } from 'date-fns';
-import { Building2, Calendar, Filter, History, Loader2, Search, Trash2, Users, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Building2, Calendar, CheckCircle2, Filter, History, Loader2, RefreshCw, Search, Trash2, Users, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X } from 'lucide-react';
 import { address } from '../../utils/ipAddress';
+import { toast } from 'react-toastify';
 
 type CompanyOption = {
   companyId: string;
@@ -25,6 +26,7 @@ type DeleteLog = {
   deletedByRole?: string;
   deleteMode: 'soft' | 'permanent';
   source?: string;
+  sourceTaskObjectId?: string;
   deletedAt: string;
   dateFrom?: string;
   dateTo?: string;
@@ -83,12 +85,17 @@ const DeletedTaskLogsPanel: React.FC<{ companies: CompanyOption[] }> = ({ compan
   const [total, setTotal] = useState(0);
   const [pageLimit, setPageLimit] = useState(25);
   const didMountSearchEffect = useRef(false);
+  const [recoveringLogId, setRecoveringLogId] = useState<string | null>(null);
+  const [recoveredLogIds, setRecoveredLogIds] = useState<Set<string>>(() => new Set());
+  const [pendingRecoverLog, setPendingRecoverLog] = useState<DeleteLog | null>(null);
+  const [successRecoverLog, setSuccessRecoverLog] = useState<DeleteLog | null>(null);
   const [filters, setFilters] = useState({
     search: '',
     companyId: 'all',
     taskType: 'all',
     assignedTo: 'all',
     assignedBy: 'all',
+    deletedBy: 'all',
     dateFrom: '',
     dateTo: ''
   });
@@ -121,6 +128,7 @@ const DeletedTaskLogsPanel: React.FC<{ companies: CompanyOption[] }> = ({ compan
       if (filters.taskType !== 'all') params.taskType = filters.taskType;
       if (filters.assignedTo !== 'all') params.assignedTo = filters.assignedTo;
       if (filters.assignedBy !== 'all') params.assignedBy = filters.assignedBy;
+      if (filters.deletedBy !== 'all') params.deletedBy = filters.deletedBy;
       if (filters.dateFrom) params.dateFrom = filters.dateFrom;
       if (filters.dateTo) params.dateTo = filters.dateTo;
 
@@ -145,7 +153,7 @@ const DeletedTaskLogsPanel: React.FC<{ companies: CompanyOption[] }> = ({ compan
   useEffect(() => {
     fetchLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageLimit, filters.companyId, filters.taskType, filters.assignedTo, filters.assignedBy, filters.dateFrom, filters.dateTo]);
+  }, [page, pageLimit, filters.companyId, filters.taskType, filters.assignedTo, filters.assignedBy, filters.deletedBy, filters.dateFrom, filters.dateTo]);
 
   const debouncedSearch = useMemo(() => filters.search, [filters.search]);
 
@@ -185,10 +193,94 @@ const DeletedTaskLogsPanel: React.FC<{ companies: CompanyOption[] }> = ({ compan
       taskType: 'all',
       assignedTo: 'all',
       assignedBy: 'all',
+      deletedBy: 'all',
       dateFrom: '',
       dateTo: ''
     });
     setPageLimit(25);
+  };
+
+  const normalizeId = (value: unknown) => {
+    if (!value) return '';
+    if (typeof value === 'string') {
+      return value.trim();
+    }
+    if (typeof value === 'object' && value !== null && '_id' in value) {
+      return normalizeId((value as { _id?: unknown })._id);
+    }
+    return String(value).trim();
+  };
+
+  const handleRecoverLog = async (log: DeleteLog) => {
+    if (recoveredLogIds.has(log._id) || recoveringLogId === log._id) {
+      return;
+    }
+
+    const isRecurringSeries = log.taskFamily === 'recurring';
+    const restoreTarget = isRecurringSeries
+      ? normalizeId(log.taskGroupId)
+      : normalizeId(log.sourceTaskObjectId) || normalizeId(log.taskId);
+
+    if (log.deleteMode === 'permanent' && !isRecurringSeries) {
+      toast.info('Permanent one-time deletions cannot be recovered from task delete logs yet.');
+      return;
+    }
+
+    if (!restoreTarget) {
+      toast.error('This log entry does not have enough information to recover the task.');
+      return;
+    }
+
+    try {
+      setRecoveringLogId(log._id);
+
+      if (isRecurringSeries && log.deleteMode === 'permanent') {
+        await axios.post(`${address}/api/tasks/bin/restore-permanent-recurring/${restoreTarget}`, {
+          companyId: log.companyId
+        });
+        toast.success('Recurring series restored successfully');
+      } else if (isRecurringSeries) {
+        await axios.post(`${address}/api/tasks/bin/restore-master/${restoreTarget}`, {
+          companyId: log.companyId
+        });
+        toast.success('Recurring series restored successfully');
+      } else {
+        await axios.post(`${address}/api/tasks/bin/restore/${restoreTarget}`, {
+          companyId: log.companyId
+        });
+        toast.success('Task restored successfully');
+      }
+
+      setRecoveredLogIds((prev) => {
+        const next = new Set(prev);
+        next.add(log._id);
+        return next;
+      });
+      setSuccessRecoverLog(log);
+    } catch (error) {
+      console.error('Failed to recover task from logs:', error);
+      toast.error('Failed to recover task from logs');
+    } finally {
+      setRecoveringLogId(null);
+    }
+  };
+
+  const openRecoverModal = (log: DeleteLog) => {
+    if (recoveredLogIds.has(log._id) || recoveringLogId === log._id) {
+      return;
+    }
+    setPendingRecoverLog(log);
+  };
+
+  const confirmRecoverFromModal = () => {
+    if (!pendingRecoverLog) return;
+    const log = pendingRecoverLog;
+    setPendingRecoverLog(null);
+    void handleRecoverLog(log);
+  };
+
+  const closeSuccessModal = () => {
+    setSuccessRecoverLog(null);
   };
 
   const userLabel = (user: UserOption) => {
@@ -208,7 +300,7 @@ const DeletedTaskLogsPanel: React.FC<{ companies: CompanyOption[] }> = ({ compan
               </h2>
             </div>
             <p className="mt-1 text-sm" style={{ color: 'var(--color-textSecondary)' }}>
-              Company-wise deletion history with search, date, assignee, and assigner filters. Data is kept for the last 3 months.
+              Company-wise deletion history with search, date, assignee, assigner, and deleter filters. Soft-deleted rows can be recovered from here.
             </p>
           </div>
 
@@ -250,7 +342,7 @@ const DeletedTaskLogsPanel: React.FC<{ companies: CompanyOption[] }> = ({ compan
           </button>
         </div>
 
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
           <select
             value={filters.companyId}
             onChange={(e) => handleFilterChange('companyId', e.target.value)}
@@ -322,6 +414,24 @@ const DeletedTaskLogsPanel: React.FC<{ companies: CompanyOption[] }> = ({ compan
             ))}
           </select>
 
+          <select
+            value={filters.deletedBy}
+            onChange={(e) => handleFilterChange('deletedBy', e.target.value)}
+            className="rounded-xl border px-3 py-3 text-sm outline-none"
+            style={{
+              backgroundColor: 'var(--color-background)',
+              borderColor: 'var(--color-border)',
+              color: 'var(--color-text)'
+            }}
+          >
+            <option value="all">All Deleted By</option>
+            {users.map((user) => (
+              <option key={user._id} value={user._id}>
+                {userLabel(user)}
+              </option>
+            ))}
+          </select>
+
           <div className="relative">
             <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--color-textSecondary)' }} />
             <input
@@ -356,7 +466,7 @@ const DeletedTaskLogsPanel: React.FC<{ companies: CompanyOption[] }> = ({ compan
 
       <div className="rounded-2xl border shadow-sm overflow-hidden" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1200px]">
+          <table className="w-full min-w-[1360px]">
             <thead style={{ backgroundColor: 'var(--color-surfacehelp)' }}>
               <tr>
                 <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Task</th>
@@ -368,12 +478,13 @@ const DeletedTaskLogsPanel: React.FC<{ companies: CompanyOption[] }> = ({ compan
                 <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Deleted By</th>
                 <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Deleted At</th>
                 <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Mode</th>
+                <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-textSecondary)' }}>Recover</th>
               </tr>
             </thead>
             <tbody className="divide-y" style={{ borderColor: 'var(--color-border)' }}>
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10">
+                  <td colSpan={10} className="px-4 py-10">
                     <div className="flex items-center justify-center gap-2" style={{ color: 'var(--color-textSecondary)' }}>
                       <Loader2 size={18} className="animate-spin" />
                       Loading delete logs...
@@ -382,7 +493,7 @@ const DeletedTaskLogsPanel: React.FC<{ companies: CompanyOption[] }> = ({ compan
                 </tr>
               ) : logs.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center">
+                  <td colSpan={10} className="px-4 py-10 text-center">
                     <div className="text-sm" style={{ color: 'var(--color-textSecondary)' }}>
                       No deleted task logs found for the selected filters.
                     </div>
@@ -477,6 +588,55 @@ const DeletedTaskLogsPanel: React.FC<{ companies: CompanyOption[] }> = ({ compan
                         {log.deleteMode === 'soft' ? 'Recycle Bin' : 'Permanent'}
                       </span>
                     </td>
+                    <td className="px-4 py-4">
+                      {log.deleteMode === 'soft' || (log.deleteMode === 'permanent' && log.taskFamily === 'recurring') ? (
+                        <button
+                          type="button"
+                          onClick={() => openRecoverModal(log)}
+                          disabled={recoveringLogId === log._id || recoveredLogIds.has(log._id)}
+                          className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                          style={{
+                            borderColor: recoveredLogIds.has(log._id)
+                              ? 'rgba(34, 197, 94, 0.25)'
+                              : 'rgba(59, 130, 246, 0.22)',
+                            color: recoveredLogIds.has(log._id)
+                              ? 'var(--color-success)'
+                              : 'var(--color-primary)',
+                            backgroundColor: recoveredLogIds.has(log._id)
+                              ? 'rgba(34, 197, 94, 0.08)'
+                              : 'rgba(59, 130, 246, 0.08)'
+                          }}
+                        >
+                          {recoveringLogId === log._id ? (
+                            <>
+                              <Loader2 size={14} className="animate-spin" />
+                              Recovering
+                            </>
+                          ) : recoveredLogIds.has(log._id) ? (
+                            <>
+                              <CheckCircle2 size={14} />
+                              Recovered
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw size={14} />
+                              Recover
+                            </>
+                          )}
+                        </button>
+                      ) : (
+                        <span
+                          className="inline-flex items-center rounded-xl border px-3 py-2 text-xs font-medium"
+                          style={{
+                            borderColor: 'rgba(148, 163, 184, 0.25)',
+                            color: 'var(--color-textSecondary)',
+                            backgroundColor: 'rgba(148, 163, 184, 0.08)'
+                          }}
+                        >
+                          Unavailable
+                        </span>
+                      )}
+                    </td>
                   </tr>
                 ))
               )}
@@ -562,6 +722,90 @@ const DeletedTaskLogsPanel: React.FC<{ companies: CompanyOption[] }> = ({ compan
           </div>
         </div>
       </div>
+
+      {pendingRecoverLog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-md">
+          <div className="w-full max-w-lg rounded-[28px] border bg-[var(--color-surface)] p-6 shadow-2xl" style={{ borderColor: 'var(--color-border)' }}>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ borderColor: 'rgba(59, 130, 246, 0.18)', color: 'var(--color-primary)' }}>
+                  Recover Task
+                </div>
+                <h3 className="mt-3 text-2xl font-semibold" style={{ color: 'var(--color-text)' }}>
+                  Recover deleted task?
+                </h3>
+                <p className="mt-2 text-sm leading-6" style={{ color: 'var(--color-textSecondary)' }}>
+                  {pendingRecoverLog.taskFamily === 'recurring'
+                    ? `This will restore the recurring series "${pendingRecoverLog.taskTitle || 'Untitled Task'}" for ${pendingRecoverLog.companyName || pendingRecoverLog.companyId}.`
+                    : `This will restore the task "${pendingRecoverLog.taskTitle || 'Untitled Task'}" for ${pendingRecoverLog.companyName || pendingRecoverLog.companyId}.`}
+                </p>
+                <p className="mt-2 text-xs" style={{ color: 'var(--color-textSecondary)' }}>
+                  Mode: {pendingRecoverLog.deleteMode === 'soft' ? 'Recycle Bin' : 'Permanent'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPendingRecoverLog(null)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border transition-colors hover:opacity-90"
+                style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                aria-label="Close recover modal"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setPendingRecoverLog(null)}
+                className="rounded-2xl border px-5 py-3 text-sm font-medium transition-colors hover:opacity-90"
+                style={{
+                  borderColor: 'var(--color-border)',
+                  backgroundColor: 'var(--color-background)',
+                  color: 'var(--color-text)'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmRecoverFromModal}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-medium text-white transition-colors hover:opacity-95"
+                style={{
+                  backgroundColor: 'var(--color-primary)'
+                }}
+              >
+                <RefreshCw size={16} />
+                Recover Now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {successRecoverLog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-md">
+          <div className="w-full max-w-md rounded-[28px] border bg-[var(--color-surface)] p-6 text-center shadow-2xl" style={{ borderColor: 'var(--color-border)' }}>
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border" style={{ borderColor: 'rgba(34, 197, 94, 0.22)', backgroundColor: 'rgba(34, 197, 94, 0.08)', color: 'var(--color-success)' }}>
+              <CheckCircle2 size={30} />
+            </div>
+            <h3 className="mt-4 text-2xl font-semibold" style={{ color: 'var(--color-text)' }}>
+              Recovered successfully
+            </h3>
+            <p className="mt-2 text-sm leading-6" style={{ color: 'var(--color-textSecondary)' }}>
+              {successRecoverLog.taskTitle || 'The selected task'} has been recovered and is available again in the task list.
+            </p>
+            <button
+              type="button"
+              onClick={closeSuccessModal}
+              className="mt-6 rounded-2xl px-5 py-3 text-sm font-medium text-white transition-colors hover:opacity-95"
+              style={{ backgroundColor: 'var(--color-primary)' }}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
