@@ -37,7 +37,7 @@ interface User {
 interface Chat {
     _id: string;
     participants: Array<{
-        userId: string;
+        userId: string | { _id?: string; id?: string };
         username: string;
         role: string;
     }>;
@@ -50,11 +50,12 @@ interface Chat {
         lastUpdated: string
     };
     isTyping?: boolean;
+    isObserved?: boolean;
 }
 
 interface Message {
     _id: string;
-    senderId: User;
+    senderId: string | User;
     senderInfo: {
         username: string;
         role: string;
@@ -105,7 +106,6 @@ interface Task {
 
 const Chat: React.FC = () => {
     const { user } = useAuth();
-    const currentRole = user?.role ?? "";
     const currentUserId = user?.id ?? "";
     const [chats, setChats] = useState<Chat[]>([]);
     const [activeChat, setActiveChat] = useState<Chat | null>(null);
@@ -159,12 +159,71 @@ const Chat: React.FC = () => {
     const [sidebarSearch, setSidebarSearch] = useState("");
     const [freezeSidebarSearch, setFreezeSidebarSearch] = useState(false);
     const [showMobileSearch, setShowMobileSearch] = useState(false);
+    const [observedUser, setObservedUser] = useState<User | null>(null);
+    const [adminChatScope, setAdminChatScope] = useState<'direct' | 'observe'>('direct');
+    const [userModalMode, setUserModalMode] = useState<'direct' | 'observe'>('direct');
 
     const isAdmin = user?.role === 'admin' || user?.role === 'manager';
+    const activeScopeUserId = isAdmin
+        ? adminChatScope === 'observe'
+            ? observedUser?._id ?? null
+            : currentUserId
+        : currentUserId;
+    const isObservingUserChats = isAdmin && adminChatScope === 'observe' && !!observedUser;
+    const isDirectChatScope = !isAdmin || adminChatScope === 'direct';
+    const getParticipantUserId = (participant: Chat["participants"][number]) => {
+        if (typeof participant.userId === 'string') return participant.userId;
+        return participant.userId?._id || participant.userId?.id || '';
+    };
+    const getMessageSenderId = (message?: Message | null) => {
+        if (!message?.senderId) return '';
+        if (typeof message.senderId === 'string') return message.senderId;
+        return message.senderId._id || message.senderId.id || '';
+    };
+    const canParticipateInActiveChat = !!activeChat?.participants.some(
+        participant => String(getParticipantUserId(participant)) === String(currentUserId)
+    );
+
+    const getContextParticipantId = () => observedUser?._id ?? currentUserId;
+
+    const getDisplayParticipants = (participants: Chat["participants"]) => {
+        const contextParticipantId = getContextParticipantId();
+        const filteredParticipants = participants.filter(
+            participant => String(getParticipantUserId(participant)) !== String(contextParticipantId)
+        );
+
+        return filteredParticipants.length > 0 ? filteredParticipants : participants;
+    };
+
+    const silentRefreshMessages = useCallback(async () => {
+        if (!activeChat || loadingMessages) return;
+
+        try {
+            const response = await axios.get(`${address}/api/chat/${activeChat._id}/messages`, {
+                params: {
+                    limit: 50,
+                    viewerId: user?.id
+                }
+            });
+
+            setMessages(prev => {
+                if (prev.length === response.data.messages.length) return prev;
+                return response.data.messages;
+            });
+
+            if (canParticipateInActiveChat) {
+                await axios.put(`${address}/api/chat/${activeChat._id}/messages/read`, {
+                    userId: user?.id
+                });
+            }
+        } catch (error) {
+            console.error('Silent refresh error:', error);
+        }
+    }, [activeChat, canParticipateInActiveChat, loadingMessages, user?.id]);
 
     // Auto-refresh messages every 2 seconds
     useEffect(() => {
-        if (autoRefresh && activeChat) {
+        if (autoRefresh && activeChatId) {
             refreshIntervalRef.current = setInterval(() => {
                 silentRefreshMessages();
             }, 2000);
@@ -175,34 +234,62 @@ const Chat: React.FC = () => {
                 clearInterval(refreshIntervalRef.current);
             }
         };
-    }, [activeChat, autoRefresh]);
+    }, [activeChatId, autoRefresh, silentRefreshMessages]);
 
-    const silentRefreshMessages = useCallback(async () => {
-        if (!activeChat || loadingMessages) return;
+    const fetchChatsForUser = useCallback(async (targetUserId: string) => {
+        if (!user || !targetUserId) return [];
 
-        try {
-            const response = await axios.get(`${address}/api/chat/${activeChat._id}/messages`, {
-                params: { limit: 50 }
-            });
+        const response = await axios.get(`${address}/api/chat/user/${targetUserId}`, {
+            params: {
+                companyId: user.company?.companyId,
+                viewerId: user.id
+            }
+        });
 
-            setMessages(prev => {
-                if (prev.length === response.data.messages.length) return prev;
-                return response.data.messages;
-            });
-
-            // Mark messages as read silently
-            await axios.put(`${address}/api/chat/${activeChat._id}/messages/read`, {
-                userId: user?.id
-            });
-        } catch (error) {
-            console.error('Silent refresh error:', error);
-        }
-    }, [activeChat, loadingMessages, user?.id]);
+        return response.data;
+    }, [user]);
 
     useEffect(() => {
-        initializeChat();
         loadAllUsers();
     }, [user]);
+
+    useEffect(() => {
+        const initializeChat = async () => {
+            if (!user) return;
+
+            try {
+                setLoading(true);
+
+                if (!activeScopeUserId) {
+                    setChats([]);
+                    setActiveChat(null);
+                    setActiveChatId(null);
+                    setMessages([]);
+                    setSelectedMessages([]);
+                    setIsSelectionMode(false);
+                    return;
+                }
+
+                const userChats = await fetchChatsForUser(activeScopeUserId);
+                setChats(userChats);
+                const matchedActiveChat = activeChatId
+                    ? userChats.find((chat: Chat) => chat._id === activeChatId) || null
+                    : null;
+
+                setActiveChat(prev => matchedActiveChat || (activeChatId ? prev : null));
+                setActiveChatId(prev => matchedActiveChat?._id || (activeChatId ? prev : null));
+                setMessages([]);
+                setSelectedMessages([]);
+                setIsSelectionMode(false);
+            } catch (error) {
+                console.error('Error initializing chat:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        initializeChat();
+    }, [activeChatId, activeScopeUserId, fetchChatsForUser, user]);
 
     useEffect(() => {
         if (!messagesContainerRef.current) return;
@@ -231,7 +318,7 @@ const Chat: React.FC = () => {
     }, [messages]);
 
     useEffect(() => {
-        if (!activeChat) return;
+        if (!activeChatId || !activeChat) return;
 
         const loadAndScroll = async () => {
             await loadMessages();
@@ -243,7 +330,7 @@ const Chat: React.FC = () => {
         };
 
         loadAndScroll();
-    }, [activeChat]);
+    }, [activeChatId]);
 
 
     useEffect(() => {
@@ -258,11 +345,16 @@ const Chat: React.FC = () => {
 
     // 🔄 AUTO REFRESH CHAT LIST EVERY 2 SECONDS
     useEffect(() => {
-        if (!user || freezeSidebarSearch) return;
+        if (!user || !activeScopeUserId || freezeSidebarSearch) return;
 
         const interval = setInterval(() => {
             axios
-                .get(`${address}/api/chat/user/${user.id}?companyId=${user.company?.companyId}`)
+                .get(`${address}/api/chat/user/${activeScopeUserId}`, {
+                    params: {
+                        companyId: user.company?.companyId,
+                        viewerId: user.id
+                    }
+                })
                 .then((res) => {
                     setChats((prev) => {
                         const newChats = res.data;
@@ -272,6 +364,7 @@ const Chat: React.FC = () => {
                             const typingInfo = c.typing;
 
                             c.isTyping =
+                                canParticipateInActiveChat &&
                                 typingInfo &&
                                 typingInfo.userId &&
                                 String(typingInfo.userId) !== String(currentUserId);
@@ -292,12 +385,19 @@ const Chat: React.FC = () => {
 
                         return newChats;
                     });
+
+                    if (activeChatId) {
+                        const refreshedActiveChat = res.data.find((chat: Chat) => chat._id === activeChatId);
+                        if (refreshedActiveChat) {
+                            setActiveChat(refreshedActiveChat);
+                        }
+                    }
                 })
                 .catch((err) => console.error("Chat list refresh error:", err));
         }, 2000);
 
         return () => clearInterval(interval);
-    }, [user, freezeSidebarSearch]);
+    }, [activeChatId, activeScopeUserId, canParticipateInActiveChat, currentUserId, freezeSidebarSearch, user]);
 
     useEffect(() => {
         if (sidebarSearch.trim() === "") {
@@ -308,14 +408,15 @@ const Chat: React.FC = () => {
 
     // 🔄 SILENT AUTO REFRESH MESSAGES EVERY 2 SECONDS
     useEffect(() => {
-        if (!activeChat) return;
+        if (!activeChatId) return;
 
         const interval = setInterval(() => {
-            axios.get(`${address}/api/chat/${activeChat._id}`)
+            axios.get(`${address}/api/chat/${activeChatId}`)
                 .then(res => {
                     const typingInfo = res.data.typing;
 
                     setOtherTyping(
+                        canParticipateInActiveChat &&
                         typingInfo &&
                         typingInfo.userId &&
                         String(typingInfo.userId) !== String(currentUserId)
@@ -326,7 +427,7 @@ const Chat: React.FC = () => {
         }, 1500);
 
         return () => clearInterval(interval);
-    }, [activeChat]);
+    }, [activeChatId, canParticipateInActiveChat, currentUserId]);
 
     const scrollToBottom = () => {
         if (!messagesContainerRef.current) return;
@@ -343,32 +444,6 @@ const Chat: React.FC = () => {
         setTimeout(scrollNow, 150);
         setTimeout(scrollNow, 350);
         setTimeout(scrollNow, 600); // 🔥 mobile needs this final pass
-    };
-
-    const initializeChat = async () => {
-        if (!user) return;
-
-        try {
-            setLoading(true);
-
-            // Get all chats for user
-            const chatsResponse = await axios.get(`${address}/api/chat/user/${user.id}`, {
-                params: {
-                    companyId: user.company?.companyId
-                }
-            });
-
-            const userChats = chatsResponse.data;
-            setChats(userChats);
-            setActiveChat(null);
-            setActiveChatId(null);
-            setActiveChatId(null);
-
-        } catch (error) {
-            console.error('Error initializing chat:', error);
-        } finally {
-            setLoading(false);
-        }
     };
 
     const loadAllUsers = async () => {
@@ -396,7 +471,9 @@ const Chat: React.FC = () => {
         clearTimeout(typingTimeoutRef.current);
 
         typingTimeoutRef.current = setTimeout(() => {
-            axios.post(`${address}/api/chat/${activeChat._id}/typing-stop`);
+            axios.post(`${address}/api/chat/${activeChat._id}/typing-stop`, {
+                userId: user.id
+            });
         }, 1500);
     };
 
@@ -539,12 +616,14 @@ const Chat: React.FC = () => {
 
         try {
             const res = await axios.post(`${address}/api/chat/create-chat`, {
-                adminId: currentUserId,
-                userId: targetUserId,
+                initiatorId: currentUserId,
+                targetUserId,
                 companyId: user.company?.companyId
             });
 
             const newChat = res.data;
+            setAdminChatScope('direct');
+            setObservedUser(null);
 
             setChats(prev => {
                 const exists = prev.some(c => c._id === newChat._id);
@@ -570,6 +649,7 @@ const Chat: React.FC = () => {
             if (searchQuery) {
                 params.search = searchQuery;
             }
+            params.viewerId = user?.id;
 
             const response = await axios.get(`${address}/api/chat/${activeChat._id}/messages`, { params });
 
@@ -577,6 +657,11 @@ const Chat: React.FC = () => {
                 setSearchResults(response.data.messages);
             } else {
                 setMessages(response.data.messages);
+                if (canParticipateInActiveChat) {
+                    await axios.put(`${address}/api/chat/${activeChat._id}/messages/read`, {
+                        userId: user?.id
+                    });
+                }
             }
         } catch (error) {
             console.error('Error loading messages:', error);
@@ -809,7 +894,7 @@ const Chat: React.FC = () => {
 
     const getMessageStatus = (message: Message) => {
         const readCount = message.readBy?.length || 0;
-        if (message.senderId._id !== user?.id) return null;
+        if (String(getMessageSenderId(message)) !== String(user?.id)) return null;
 
         if (readCount > 1) { // More than just sender
             return <CheckCircle size={12} className="ml-1 text-green-100" />;
@@ -817,36 +902,38 @@ const Chat: React.FC = () => {
         return <Check size={12} className="ml-1 text-white" />;
     };
 
-    const createSupportChat = async () => {
-        if (!user) return;
+    const selectObservedUser = (targetUser: User) => {
+        setAdminChatScope('observe');
+        setObservedUser(targetUser);
+        setSidebarSearch("");
+        setFreezeSidebarSearch(false);
+        setShowUserModal(false);
+    };
 
-        try {
-            const chatResponse = await axios.post(`${address}/api/chat/support-chat`, {
-                userId: user.id,
-                companyId: user.company?.companyId
-            });
+    const openStartChatModal = () => {
+        setUserModalMode('direct');
+        setUserSearch("");
+        setShowUserModal(true);
+    };
 
-            const newChat = chatResponse.data;
+    const openViewUserChatsModal = () => {
+        setUserModalMode('observe');
+        setUserSearch("");
+        setShowUserModal(true);
+    };
 
-            setChats(prev => {
-                const exists = prev.some(c => c._id === newChat._id);
-                if (exists) return prev;
-                return [newChat, ...prev];
-            });
-
-            setActiveChat(newChat);
-            setActiveChatId(newChat._id);
-
-        } catch (error) {
-            console.error('Error creating chat:', error);
-            toast.error("Unable to start chat. Try again.");
-        }
+    const exitObservedChatMode = () => {
+        setAdminChatScope('direct');
+        setObservedUser(null);
+        setSidebarSearch("");
+        setFreezeSidebarSearch(false);
+        setActiveChat(null);
+        setActiveChatId(null);
+        setMessages([]);
     };
 
     const formatParticipantNames = (participants: Chat["participants"]) => {
-        const names = participants
-            .filter(p => p.userId !== currentUserId)
-            .map(p => p.username);
+        const names = getDisplayParticipants(participants).map(p => p.username);
 
         if (names.length <= 2) {
             return names.join(", ");
@@ -855,8 +942,17 @@ const Chat: React.FC = () => {
         return `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
     };
 
+    const visibleChats = chats.filter(chat => {
+        const participantNames = getDisplayParticipants(chat.participants)
+            .map(participant => participant.username)
+            .join(" ")
+            .toLowerCase();
+
+        return participantNames.includes(sidebarSearch.toLowerCase());
+    });
+
     const renderMessage = (message: Message) => {
-        const isOwn = message.senderId._id === user?.id;
+        const isOwn = String(getMessageSenderId(message)) === String(user?.id);
         const isDeleted = message.isDeleted;
         const isSelected = selectedMessages.includes(message._id);
 
@@ -1137,72 +1233,113 @@ const Chat: React.FC = () => {
             <div className={`${activeChat ? "hidden sm:flex" : "flex"} h-full min-h-0 w-full flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] sm:w-80 sm:shrink-0`}>
                 {/* Fixed Header */}
                 <div className="border-b border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="mb-4 flex items-center justify-between gap-3">
                         <h2 className="text-lg font-semibold text-[var(--color-text)]">Messages</h2>
+                        <div className="flex items-center gap-2">
+                            {isAdmin && (
+                                <button
+                                    onClick={() => {
+                                        setSidebarSearch("");
+                                        setFreezeSidebarSearch(false);
+                                        openViewUserChatsModal();
+                                    }}
+                                    className="inline-flex items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm font-medium text-[var(--color-textSecondary)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+                                    title="View user chats"
+                                >
+                                    <Users size={16} />
+                                    <span>User's Chats</span>
+                                </button>
+                            )}
                         <button
                             onClick={() => {
-                                if (currentRole === "employee") {
-                                    createSupportChat(); // employee goes direct
-                                } else {
+                                    setUserSearch("");
                                     setSidebarSearch("");     // 🔥 reset sidebar search
                                     setFreezeSidebarSearch(false);
-                                    setShowUserModal(true);
-                                }
+                                    openStartChatModal();
                             }}
                             className="rounded-2xl bg-[var(--color-primary)] p-2 text-white transition-colors hover:opacity-95"
                         >
                             <Plus size={16} />
                         </button>
                     </div>
+                    </div>
 
-                    {/* User Selection for Admins */}
                     {isAdmin && (
-                        <div className="mt-3">
-                            {/* Search Input */}
-                            <div className="relative mb-2">
-                                <Search
-                                    size={16}
-                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)]"
-                                />
-                                <input
-                                    type="text"
-                                    placeholder="Search user..."
-                                    value={sidebarSearch}
-                                    onChange={(e) => {
-                                        setSidebarSearch(e.target.value);
-                                        setFreezeSidebarSearch(true);
-                                    }}
-                                    className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] py-2 pl-10 pr-3 text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
-                                />
-                                {sidebarSearch && (
+                        <div className="mb-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 p-3">
+                            <div className="flex items-center justify-between gap-3">
+                                <div>
+                                    <p className="text-xs uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">
+                                        Chat Mode
+                                    </p>
+                                    <p className="text-sm font-medium text-[var(--color-text)]">
+                                        {adminChatScope === 'observe' && observedUser
+                                            ? `Viewing chats for ${observedUser.username}`
+                                            : 'Showing your direct chats'}
+                                    </p>
+                                </div>
+                                {adminChatScope === 'observe' && (
                                     <button
-                                        onClick={() => {
-                                            setSidebarSearch("");
-                                            setFreezeSidebarSearch(false);
-                                        }}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)] hover:text-[var(--color-error)]"
+                                        onClick={exitObservedChatMode}
+                                        className="rounded-2xl border border-red-500 bg-[var(--color-surface)] px-3 py-2 text-xs text-red-500 font-medium transition hover:text-red-600 hover:border-red-600"
                                     >
-                                        <X size={16} />
+                                        Exit View
                                     </button>
                                 )}
                             </div>
                         </div>
                     )}
+
+                    <div className="mt-3">
+                        {/* Search Input */}
+                        <div className="relative mb-2">
+                            <Search
+                                size={16}
+                                className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)]"
+                            />
+                            <input
+                                type="text"
+                                placeholder="Search chats..."
+                                value={sidebarSearch}
+                                onChange={(e) => {
+                                    setSidebarSearch(e.target.value);
+                                    setFreezeSidebarSearch(true);
+                                }}
+                                className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] py-2 pl-10 pr-3 text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                            />
+                            {sidebarSearch && (
+                                <button
+                                    onClick={() => {
+                                        setSidebarSearch("");
+                                        setFreezeSidebarSearch(false);
+                                    }}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)] hover:text-[var(--color-error)]"
+                                >
+                                    <X size={16} />
+                                </button>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
                 {/* Chat List */}
                 <div className="flex-1 min-h-0 overflow-y-auto">
-                    {chats
-                        .filter(chat => {
-                            const participantNames = chat.participants
-                                .filter(p => p.userId !== currentUserId)
-                                .map(p => p.username)
-                                .join(" ")
-                                .toLowerCase();
-
-                            return participantNames.includes(sidebarSearch.toLowerCase());
-                        })
-                        .map(chat => (
+                    {visibleChats.length === 0 ? (
+                        <div className="flex h-full items-center justify-center p-6 text-center">
+                            <div>
+                                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-background)]">
+                                    <MessageCircle size={24} className="text-[var(--color-primary)]" />
+                                </div>
+                                <h3 className="mb-2 text-lg font-semibold text-[var(--color-text)]">
+                                    {isObservingUserChats ? `No chats for ${observedUser?.username}` : "No chats yet"}
+                                </h3>
+                                <p className="text-sm text-[var(--color-textSecondary)]">
+                                    {isObservingUserChats
+                                        ? "This user has no conversations matching your search."
+                                        : "Start a conversation with anyone in your company, including admin and manager."}
+                                </p>
+                            </div>
+                        </div>
+                    ) : visibleChats.map(chat => (
                             <div
                                 key={chat._id}
                                 onClick={() => {
@@ -1210,12 +1347,17 @@ const Chat: React.FC = () => {
                                     setActiveChatId(chat._id);
                                     setActiveChat(chat);
 
-                                    // reset unread count instantly in UI
-                                    setChats(prev =>
-                                        prev.map(c =>
-                                            c._id === chat._id ? { ...c, unreadCount: 0 } : c
-                                        )
+                                    const isParticipantInClickedChat = chat.participants.some(
+                                        participant => String(getParticipantUserId(participant)) === String(currentUserId)
                                     );
+
+                                    if (isParticipantInClickedChat || isDirectChatScope) {
+                                        setChats(prev =>
+                                            prev.map(c =>
+                                                c._id === chat._id ? { ...c, unreadCount: 0 } : c
+                                            )
+                                        );
+                                    }
                                 }}
                                 className={`cursor-pointer border-b border-[var(--color-border)] p-4 transition-colors ${activeChatId === chat._id ? 'border-r-4 border-r-[var(--color-primary)] bg-[var(--color-background)]/70' : 'hover:bg-[var(--color-background)]/70'}`}
                             >
@@ -1247,7 +1389,9 @@ const Chat: React.FC = () => {
                                         chat.lastMessage && (
                                             <p className="text-sm text-[var(--color-textSecondary)] truncate max-w-[75%]">
                                                 <span className="font-medium">
-                                                    {chat.lastMessage.senderInfo?.username}:
+                                                    {String(getMessageSenderId(chat.lastMessage)) === String(currentUserId)
+                                                        ? 'You'
+                                                        : chat.lastMessage.senderInfo?.username}:
                                                 </span>
                                                 {' '}
                                                 {chat.lastMessage.content || '📎 Attachment'}
@@ -1302,6 +1446,16 @@ const Chat: React.FC = () => {
                                     <h3 className="font-semibold text-[var(--color-text)] text-sm sm:text-base">
                                         {formatParticipantNames(activeChat.participants)}
                                     </h3>
+                                    {!canParticipateInActiveChat && isObservingUserChats && observedUser && (
+                                        <p className="text-xs text-[var(--color-textSecondary)]">
+                                            Viewing {observedUser.username}'s conversation
+                                        </p>
+                                    )}
+                                    {canParticipateInActiveChat && isAdmin && adminChatScope === 'direct' && (
+                                        <p className="text-xs text-[var(--color-textSecondary)]">
+                                            Direct chat as {user?.username}
+                                        </p>
+                                    )}
                                     {otherTyping && (
                                         <p className="text-sm italic text-[var(--color-primary)]">
                                             Typing...
@@ -1499,9 +1653,9 @@ const Chat: React.FC = () => {
                                                     </div>
                                                     <h3 className="text-lg font-semibold text-[var(--color-text)] mb-2">Start the conversation</h3>
                                                     <p className="text-[var(--color-textSecondary)]">
-                                                        {isAdmin
-                                                            ? 'No messages yet. Start communicating with your team!'
-                                                            : 'Send a message to get help from admin or managers.'
+                                                        {canParticipateInActiveChat
+                                                            ? 'Send the first message to start this conversation.'
+                                                            : 'No messages yet in this user conversation.'
                                                         }
                                                     </p>
                                                 </div>
@@ -1516,7 +1670,7 @@ const Chat: React.FC = () => {
                         </div>
 
                         {/* Fixed Message Input Area */}
-                        {!isSearching && (
+                        {!isSearching && canParticipateInActiveChat && (
                             <div className="sticky bottom-0 z-20 shrink-0 border-t border-[var(--color-border)] bg-[var(--color-background)] p-4">
                                 {/* File Preview */}
                                 {showFilePreview && selectedFiles && (
@@ -1678,6 +1832,13 @@ const Chat: React.FC = () => {
                                 />
                             </div>
                         )}
+                        {!isSearching && !canParticipateInActiveChat && (
+                            <div className="sticky bottom-0 z-20 shrink-0 border-t border-[var(--color-border)] bg-[var(--color-background)] p-4">
+                                <div className="rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-textSecondary)]">
+                                    This chat is in view-only mode for admin/manager. Select another user if you want to inspect a different conversation.
+                                </div>
+                            </div>
+                        )}
                     </>
                 ) : (
                     <div className="flex-1 flex items-center justify-center">
@@ -1685,11 +1846,11 @@ const Chat: React.FC = () => {
                             <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-background)]">
                                 <MessageCircle size={32} className="text-[var(--color-primary)]" />
                             </div>
-                            <h3 className="text-xl font-semibold text-[var(--color-text)] mb-2">Welcome to Chat Support</h3>
+                            <h3 className="text-xl font-semibold text-[var(--color-text)] mb-2">Welcome to Team Chat</h3>
                             <p className="text-[var(--color-textSecondary)] max-w-md mx-auto">
                                 {isAdmin
-                                    ? 'Manage team communications and provide support to your employees.'
-                                    : 'Get help and communicate directly with admin and managers.'
+                                    ? 'Choose a user to inspect their conversations without showing every chat by default.'
+                                    : 'Start a direct conversation with anyone in your company.'
                                 }
                             </p>
                         </div>
@@ -1874,7 +2035,11 @@ const Chat: React.FC = () => {
                         <div className="flex items-center justify-between border-b border-[var(--color-border)] p-4">
                             <h3 className="text-lg font-semibold text-[var(--color-text)] flex items-center">
                                 <Users size={18} className="mr-2 text-[var(--color-primary)]" />
-                                Start New Chat
+                                {isAdmin
+                                    ? userModalMode === 'observe'
+                                        ? "View User Chats"
+                                        : "Start Direct Chat"
+                                    : "Start New Chat"}
                             </h3>
                             <button onClick={() => setShowUserModal(false)}>
                                 <X size={20} className="text-[var(--color-textSecondary)] transition hover:text-[var(--color-primary)]" />
@@ -1900,16 +2065,19 @@ const Chat: React.FC = () => {
                                     </button>
                                 )}
                             </div>
+                            {isAdmin && (
+                                <p className="mt-3 text-xs text-[var(--color-textSecondary)]">
+                                    {userModalMode === 'observe'
+                                        ? "Select a user to open all of that user's chats."
+                                        : "Select a user to start or open a direct conversation."}
+                                </p>
+                            )}
                         </div>
 
                         {/* User List */}
                         <div className="max-h-80 overflow-y-auto p-2">
                             {allUsers
                                 .filter(u => u._id !== currentUserId)
-                                .filter(u => {
-                                    if (currentRole === "manager") return u.role === "employee";
-                                    return true;
-                                })
                                 .filter(u =>
                                     u.username.toLowerCase().includes(userSearch.toLowerCase())
                                 )
@@ -1919,6 +2087,10 @@ const Chat: React.FC = () => {
                                         onClick={() => {
                                             setSidebarSearch("");      // 🔥 reset sidebar search so sidebar list doesn't jump
                                             setFreezeSidebarSearch(false);
+                                            if (isAdmin && userModalMode === 'observe') {
+                                                selectObservedUser(u);
+                                                return;
+                                            }
                                             startChatWithUser(u._id);
                                             setShowUserModal(false);
                                         }}
@@ -1942,13 +2114,37 @@ const Chat: React.FC = () => {
                                                 </span>
                                             </div>
                                         </div>
+                                        {isAdmin && userModalMode === 'direct' && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    startChatWithUser(u._id);
+                                                    setShowUserModal(false);
+                                                }}
+                                                className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs font-medium text-[var(--color-text)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+                                            >
+                                                Chat
+                                            </button>
+                                        )}
+                                        {isAdmin && userModalMode === 'observe' && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    selectObservedUser(u);
+                                                }}
+                                                className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs font-medium text-[var(--color-text)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+                                            >
+                                                View
+                                            </button>
+                                        )}
                                     </div>
                                 ))}
 
                             {/* Empty State */}
-                            {allUsers.filter(u =>
-                                u.username.toLowerCase().includes(userSearch.toLowerCase())
-                            ).length === 0 && (
+                            {allUsers
+                                .filter(u => u._id !== currentUserId)
+                                .filter(u => u.username.toLowerCase().includes(userSearch.toLowerCase()))
+                                .length === 0 && (
                                     <div className="text-center py-10 text-[var(--color-textSecondary)]">
                                         No users found
                                     </div>

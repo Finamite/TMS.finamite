@@ -54,27 +54,41 @@ const upload = multer({
 
 router.post('/create-chat', async (req, res) => {
   try {
-    const { adminId, userId, companyId } = req.body;
+    const initiatorId = req.body.initiatorId || req.body.adminId;
+    const targetUserId = req.body.targetUserId || req.body.userId;
+    const { companyId } = req.body;
+
+    if (!initiatorId || !targetUserId || !companyId) {
+      return res.status(400).json({ message: 'initiatorId, targetUserId and companyId are required' });
+    }
+
+    if (String(initiatorId) === String(targetUserId)) {
+      return res.status(400).json({ message: 'Cannot create chat with yourself' });
+    }
 
     // Check if chat already exists
     let chat = await Chat.findOne({
       companyId,
       chatType: 'direct',
-      'participants.userId': { $all: [adminId, userId] },
+      'participants.userId': { $all: [initiatorId, targetUserId] },
       deletedBy: null,
       deletedAt: null
     });
 
     if (!chat) {
-      const admin = await User.findById(adminId);
-      const user = await User.findById(userId);
+      const initiator = await User.findOne({ _id: initiatorId, companyId, isActive: true });
+      const targetUser = await User.findOne({ _id: targetUserId, companyId, isActive: true });
+
+      if (!initiator || !targetUser) {
+        return res.status(404).json({ message: 'One or more users not found in this company' });
+      }
 
       chat = new Chat({
         companyId,
         chatType: "direct",
         participants: [
-          { userId: admin._id, username: admin.username, role: admin.role },
-          { userId: user._id, username: user.username, role: user.role }
+          { userId: initiator._id, username: initiator.username, role: initiator.role },
+          { userId: targetUser._id, username: targetUser.username, role: targetUser.role }
         ]
       });
 
@@ -173,12 +187,24 @@ router.get('/:chatId', async (req, res) => {
 router.get('/user/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    const { companyId } = req.query;
+    const { companyId, viewerId = userId } = req.query;
 
-    // Find current user to check role
-    const currentUser = await User.findById(userId);
+    // Find viewer to check access
+    const currentUser = await User.findById(viewerId);
     if (!currentUser) {
       return res.status(404).json({ message: 'User not found' });
+    }
+
+    const isObserver =
+      ['admin', 'manager'].includes(currentUser.role) &&
+      String(viewerId) !== String(userId);
+
+    if (!isObserver && String(viewerId) !== String(userId)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    if (companyId && currentUser.companyId && String(currentUser.companyId) !== String(companyId)) {
+      return res.status(403).json({ message: 'Access denied for this company' });
     }
 
     // Build query
@@ -188,8 +214,9 @@ router.get('/user/:userId', async (req, res) => {
       deletedBy: null,
       deletedAt: null
     };
-    // Employees only see active chats
-    if (currentUser.role === "employee") {
+
+    // Employees only see active chats for their own chat list
+    if (!isObserver && currentUser.role === "employee") {
       query.isActive = true;
     }
 
@@ -208,6 +235,7 @@ router.get('/user/:userId', async (req, res) => {
         const unreadCount = await Message.countDocuments({
           chatId: chat._id,
           isDeleted: false,
+          senderId: { $ne: userId },
           'readBy.userId': { $ne: userId }
         });
 
@@ -217,7 +245,8 @@ router.get('/user/:userId', async (req, res) => {
         return {
           ...chatObj,
           lastMessage,
-          unreadCount,
+          unreadCount: isObserver ? 0 : unreadCount,
+          isObserved: isObserver,
           typing: chatObj.typing // Now this will exist because of the Schema change
         };
       })
@@ -235,7 +264,27 @@ router.get('/user/:userId', async (req, res) => {
 router.get('/:chatId/messages', async (req, res) => {
   try {
     const { chatId } = req.params;
-    const { page = 1, limit = 50, search } = req.query;
+    const { page = 1, limit = 50, search, viewerId } = req.query;
+    const chat = await Chat.findById(chatId);
+
+    if (!chat) {
+      return res.status(404).json({ message: 'Chat not found' });
+    }
+
+    if (viewerId) {
+      const viewer = await User.findById(viewerId);
+      const isParticipant = chat.participants.some(
+        (participant) => String(participant.userId) === String(viewerId)
+      );
+      const canObserve =
+        viewer &&
+        ['admin', 'manager'].includes(viewer.role) &&
+        String(viewer.companyId) === String(chat.companyId);
+
+      if (!isParticipant && !canObserve) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+    }
 
     let query = {
       chatId,
@@ -385,6 +434,15 @@ router.post('/:chatId/typing', async (req, res) => {
     const { chatId } = req.params;
     const { userId } = req.body;
 
+    const chat = await Chat.findOne({
+      _id: chatId,
+      'participants.userId': userId
+    });
+
+    if (!chat) {
+      return res.status(403).json({ message: 'Chat not found or access denied' });
+    }
+
     await Chat.findByIdAndUpdate(chatId, {
       typing: { userId, lastUpdated: new Date() }
     });
@@ -400,6 +458,18 @@ router.post('/:chatId/typing', async (req, res) => {
 router.post('/:chatId/typing-stop', async (req, res) => {
   try {
     const { chatId } = req.params;
+    const { userId } = req.body;
+
+    if (userId) {
+      const chat = await Chat.findOne({
+        _id: chatId,
+        'participants.userId': userId
+      });
+
+      if (!chat) {
+        return res.status(403).json({ message: 'Chat not found or access denied' });
+      }
+    }
 
     await Chat.findByIdAndUpdate(chatId, {
       typing: null
@@ -483,6 +553,15 @@ router.put('/:chatId/messages/read', async (req, res) => {
   try {
     const { chatId } = req.params;
     const { userId } = req.body;
+
+    const chat = await Chat.findOne({
+      _id: chatId,
+      'participants.userId': userId
+    });
+
+    if (!chat) {
+      return res.status(403).json({ message: 'Chat not found or access denied' });
+    }
 
     await Message.updateMany(
       {
