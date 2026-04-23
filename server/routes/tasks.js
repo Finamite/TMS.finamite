@@ -17,19 +17,18 @@ import { notifyTaskWhatsAppEvent } from '../services/taskWhatsapp.js';
 const router = express.Router();
 
 // Helper function to get all dates for daily tasks within a range
-const getDailyTaskDates = (startDate, endDate, includeSunday, weekOffDays = []) => {
+const getDailyTaskDates = (startDate, endDate, includeSunday, weekOffDays = [], taskCalendar = defaultTaskCalendarSettings) => {
   const dates = [];
   const current = new Date(startDate);
   const end = new Date(endDate);
+  const isBlocked = createDateBlockChecker(includeSunday, weekOffDays, taskCalendar);
 
   while (current <= end) {
-    const dayOfWeek = current.getDay();
-
-    if ((!weekOffDays.includes(dayOfWeek)) && (includeSunday || dayOfWeek !== 0)) {
+    if (!isBlocked(current)) {
       dates.push(new Date(current));
     }
 
-    current.setDate(current.getDate() + 1); // Move to the next day
+    current.setDate(current.getDate() + 1);
   }
 
   return dates;
@@ -58,16 +57,182 @@ const pickLastDefined = (...values) => {
   return filtered.length > 0 ? filtered[filtered.length - 1] : null;
 };
 
+const defaultTaskCalendarSettings = Object.freeze({
+  enabled: false,
+  holidays: [],
+  monthWeekOffRules: []
+});
+
+const normalizeHolidayDate = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const normalizeTaskCalendarSettings = (data = {}) => ({
+  enabled: Boolean(data.enabled),
+  holidays: Array.from(
+    new Map(
+      (Array.isArray(data.holidays) ? data.holidays : [])
+        .map((item) => {
+          if (item && typeof item === 'object' && !Array.isArray(item)) {
+            const date = normalizeHolidayDate(item.date);
+            const name = String(item.name || '').trim();
+            if (!date || !name) return null;
+            return { date, name };
+          }
+
+          const legacyDate = String(item || '').trim();
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(legacyDate)) return null;
+          return { date: legacyDate, name: 'Holiday' };
+        })
+        .filter(Boolean)
+        .map((holiday) => [`${holiday.date}__${holiday.name.toLowerCase()}`, holiday])
+    ).values()
+  ).sort((a, b) => {
+    if (a.date !== b.date) return a.date.localeCompare(b.date);
+    return a.name.localeCompare(b.name);
+  }),
+  monthWeekOffRules: Array.from(
+    new Map(
+      [
+        ...(Array.isArray(data.monthWeekOffRules) ? data.monthWeekOffRules : []),
+        ...[...new Set(
+          (Array.isArray(data.weeklyOffDays) ? data.weeklyOffDays : [])
+            .map((item) => Number(item))
+            .filter((item) => Number.isInteger(item) && item >= 0 && item <= 6)
+        )].flatMap((weekday) =>
+          [1, 2, 3, 4, 5].map((occurrence) => ({ weekday, occurrence }))
+        ),
+        ...[...new Set(
+          (Array.isArray(data.saturdayOffOccurrences) ? data.saturdayOffOccurrences : [])
+            .map((item) => Number(item))
+            .filter((item) => Number.isInteger(item) && item >= 1 && item <= 5)
+        )].map((occurrence) => ({
+          weekday: 6,
+          occurrence
+        }))
+      ]
+        .map((rule) => {
+          const weekday = Number(rule?.weekday);
+          const occurrence = Number(rule?.occurrence);
+          if (
+            !Number.isInteger(weekday) ||
+            weekday < 0 ||
+            weekday > 6 ||
+            !Number.isInteger(occurrence) ||
+            occurrence < 1 ||
+            occurrence > 5
+          ) {
+            return null;
+          }
+
+          return { weekday, occurrence };
+        })
+        .filter(Boolean)
+        .map((rule) => [`${rule.occurrence}-${rule.weekday}`, rule])
+    ).values()
+  ).sort((a, b) => {
+    if (a.occurrence !== b.occurrence) return a.occurrence - b.occurrence;
+    return a.weekday - b.weekday;
+  })
+});
+
+const formatDateKey = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getWeekdayOccurrenceInMonth = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 0;
+  return Math.floor((date.getDate() - 1) / 7) + 1;
+};
+
+const createDateBlockChecker = (includeSunday = true, weekOffDays = [], taskCalendar = defaultTaskCalendarSettings) => {
+  const taskWeekOffDays = new Set(
+    (Array.isArray(weekOffDays) ? weekOffDays : [])
+      .map((item) => Number(item))
+      .filter((item) => Number.isInteger(item) && item >= 0 && item <= 6)
+  );
+  const calendarSettings = taskCalendar?.enabled
+    ? normalizeTaskCalendarSettings(taskCalendar)
+    : defaultTaskCalendarSettings;
+  const holidaySet = new Set(calendarSettings.holidays.map((holiday) => holiday.date));
+  const monthWeekOffRuleSet = new Set(
+    calendarSettings.monthWeekOffRules.map((rule) => `${rule.occurrence}-${rule.weekday}`)
+  );
+
+  return (value) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return false;
+
+    const dayOfWeek = date.getDay();
+    if (!includeSunday && dayOfWeek === 0) return true;
+    if (taskWeekOffDays.has(dayOfWeek)) return true;
+    if (holidaySet.has(formatDateKey(date))) return true;
+    if (monthWeekOffRuleSet.has(`${getWeekdayOccurrenceInMonth(date)}-${dayOfWeek}`)) return true;
+
+    return false;
+  };
+};
+
+const moveToPreviousWorkingDate = (value, isBlocked, options = {}) => {
+  const originalDate = new Date(value);
+  if (Number.isNaN(originalDate.getTime())) return null;
+
+  const { minDate = null, sameMonth = false } = options;
+  const adjustedDate = new Date(originalDate);
+  const maxShifts = 370;
+
+  for (let shift = 0; shift <= maxShifts; shift += 1) {
+    if (!isBlocked(adjustedDate)) {
+      if (sameMonth && adjustedDate.getMonth() !== originalDate.getMonth()) return null;
+      if (minDate && adjustedDate < minDate) return null;
+      return adjustedDate;
+    }
+
+    adjustedDate.setDate(adjustedDate.getDate() - 1);
+
+    if (sameMonth && adjustedDate.getMonth() !== originalDate.getMonth()) return null;
+    if (minDate && adjustedDate < minDate) return null;
+  }
+
+  return null;
+};
+
+const getTaskCalendarSettings = async (companyId) => {
+  if (!companyId) return defaultTaskCalendarSettings;
+
+  const settings = await Settings.findOne({
+    type: 'taskCalendar',
+    companyId
+  }).lean();
+
+  return settings?.data?.enabled
+    ? normalizeTaskCalendarSettings(settings.data)
+    : defaultTaskCalendarSettings;
+};
+
 // Helper function to get all dates for weekly tasks within a range based on selected days
-const getWeeklyTaskDates = (startDate, endDate, selectedDays, weekOffDays = []) => {
+const getWeeklyTaskDates = (startDate, endDate, selectedDays, weekOffDays = [], taskCalendar = defaultTaskCalendarSettings) => {
   const dates = [];
   const current = new Date(startDate);
   const end = new Date(endDate);
+  const isBlocked = createDateBlockChecker(true, weekOffDays, taskCalendar);
+  const allowedDays = Array.isArray(selectedDays) ? selectedDays : [];
 
   while (current <= end) {
     const dayOfWeek = current.getDay();
 
-    if (selectedDays.includes(dayOfWeek) && !weekOffDays.includes(dayOfWeek)) {
+    if (allowedDays.includes(dayOfWeek) && !isBlocked(current)) {
       dates.push(new Date(current));
     }
 
@@ -78,10 +243,11 @@ const getWeeklyTaskDates = (startDate, endDate, selectedDays, weekOffDays = []) 
 };
 
 // Helper function to get all dates for monthly tasks with specific day within a range
-const getMonthlyTaskDates = (startDate, endDate, monthlyDay, includeSunday, weekOffDays = []) => {
+const getMonthlyTaskDates = (startDate, endDate, monthlyDay, includeSunday, weekOffDays = [], taskCalendar = defaultTaskCalendarSettings) => {
   const dates = [];
   const start = new Date(startDate);
   const end = new Date(endDate);
+  const isBlocked = createDateBlockChecker(includeSunday, weekOffDays, taskCalendar);
 
   // Start from the first day of the start month
   const current = new Date(start.getFullYear(), start.getMonth(), 1);
@@ -98,19 +264,14 @@ const getMonthlyTaskDates = (startDate, endDate, monthlyDay, includeSunday, week
 
     // Check if the target date is within our overall date range
     if (targetDate >= start && targetDate <= end) {
-      // Handle Sunday exclusion
-      if (!includeSunday && targetDate.getDay() === 0) { // 0 is Sunday
-        targetDate.setDate(targetDate.getDate() - 1); // move to Saturday
-      }
-
-      // Handle week-off exclusion (shift back until it's not a week-off)
-      while (weekOffDays.includes(targetDate.getDay())) {
-        targetDate.setDate(targetDate.getDate() - 1);
-      }
+      const adjustedDate = moveToPreviousWorkingDate(targetDate, isBlocked, {
+        minDate: start,
+        sameMonth: true
+      });
 
       // Final validation before pushing
-      if (targetDate.getMonth() === current.getMonth() && targetDate <= end) {
-        dates.push(new Date(targetDate));
+      if (adjustedDate && adjustedDate <= end) {
+        dates.push(new Date(adjustedDate));
       }
     }
 
@@ -120,13 +281,21 @@ const getMonthlyTaskDates = (startDate, endDate, monthlyDay, includeSunday, week
   return dates;
 };
 
-const getFortnightlyTaskDates = (startDate, endDate, includeSunday = false, weekOffDays = []) => {
+const getFortnightlyTaskDates = (startDate, endDate, includeSunday = false, weekOffDays = [], taskCalendar = defaultTaskCalendarSettings) => {
   const dates = [];
   let current = new Date(startDate);           // ← use let so we can reassign
+  const start = new Date(startDate);
   const end = new Date(endDate || new Date(2099, 11, 31));
+  const isBlocked = createDateBlockChecker(includeSunday, weekOffDays, taskCalendar);
 
   while (current <= end) {
     let targetDate = new Date(current);
+    const adjustedDate = moveToPreviousWorkingDate(new Date(current), isBlocked, { minDate: start });
+    if (adjustedDate && adjustedDate <= end) {
+      dates.push(new Date(adjustedDate));
+    }
+    current.setDate(current.getDate() + 14);
+    continue;
 
     // Only shift if includeSunday is false AND it's Sunday
     if (!includeSunday && targetDate.getDay() === 0) {
@@ -151,14 +320,20 @@ const getFortnightlyTaskDates = (startDate, endDate, includeSunday = false, week
 };
 
 // Helper function to get all dates for quarterly tasks (4 tasks for one year)
-const getQuarterlyTaskDates = (startDate, includeSunday = true, weekOffDays = []) => {
+const getQuarterlyTaskDates = (startDate, includeSunday = true, weekOffDays = [], taskCalendar = defaultTaskCalendarSettings) => {
   const dates = [];
   const start = new Date(startDate);
+  const isBlocked = createDateBlockChecker(includeSunday, weekOffDays, taskCalendar);
 
   // Create 4 quarterly tasks (every 3 months)
   for (let i = 0; i < 4; i++) {
     const quarterlyDate = new Date(start);
     quarterlyDate.setMonth(start.getMonth() + (i * 3)); // Add 3 months for each quarter
+    const adjustedDate = moveToPreviousWorkingDate(quarterlyDate, isBlocked, { minDate: start });
+    if (adjustedDate) {
+      dates.push(adjustedDate);
+      continue;
+    }
 
     // Handle Sunday exclusion
     if (!includeSunday && quarterlyDate.getDay() === 0) { // 0 is Sunday
@@ -177,13 +352,19 @@ const getQuarterlyTaskDates = (startDate, includeSunday = true, weekOffDays = []
 };
 
 // Helper function to get all dates for yearly tasks based on duration
-const getYearlyTaskDates = (startDate, yearlyDuration, includeSunday = true, weekOffDays = []) => {
+const getYearlyTaskDates = (startDate, yearlyDuration, includeSunday = true, weekOffDays = [], taskCalendar = defaultTaskCalendarSettings) => {
   const dates = [];
   const start = new Date(startDate);
+  const isBlocked = createDateBlockChecker(includeSunday, weekOffDays, taskCalendar);
 
   for (let i = 0; i < yearlyDuration; i++) {
     const yearlyDate = new Date(start);
     yearlyDate.setFullYear(start.getFullYear() + i); // Increment year
+    const adjustedDate = moveToPreviousWorkingDate(yearlyDate, isBlocked, { minDate: start });
+    if (adjustedDate) {
+      dates.push(adjustedDate);
+      continue;
+    }
 
     // Handle Sunday exclusion
     if (!includeSunday && yearlyDate.getDay() === 0) { // 0 is Sunday
@@ -199,6 +380,36 @@ const getYearlyTaskDates = (startDate, yearlyDuration, includeSunday = true, wee
   }
 
   return dates;
+};
+
+const generateTaskDates = ({
+  taskType,
+  startDate,
+  endDate,
+  includeSunday,
+  weekOffDays = [],
+  weeklyDays = [],
+  monthlyDay = 1,
+  yearlyDuration = 1,
+  isForever = false,
+  taskCalendar = defaultTaskCalendarSettings
+}) => {
+  switch (taskType) {
+    case 'daily':
+      return getDailyTaskDates(startDate, endDate, includeSunday, weekOffDays, taskCalendar);
+    case 'weekly':
+      return getWeeklyTaskDates(startDate, endDate, weeklyDays, weekOffDays, taskCalendar);
+    case 'monthly':
+      return getMonthlyTaskDates(startDate, endDate, monthlyDay || 1, includeSunday, weekOffDays, taskCalendar);
+    case 'quarterly':
+      return getQuarterlyTaskDates(startDate, includeSunday, weekOffDays, taskCalendar);
+    case 'fortnightly':
+      return getFortnightlyTaskDates(startDate, endDate, includeSunday, weekOffDays, taskCalendar);
+    case 'yearly':
+      return getYearlyTaskDates(startDate, isForever ? yearlyDuration : 1, includeSunday, weekOffDays || [], taskCalendar);
+    default:
+      return [];
+  }
 };
 
 // ✅ HELPER FUNCTION: Send task assignment email
@@ -1438,6 +1649,14 @@ router.post('/bulk-create', async (req, res) => {
 
     let totalTasksCreated = 0;
     const allBulkOperations = [];
+    const taskCalendarCache = new Map();
+    const getCachedTaskCalendar = async (companyId) => {
+      if (!companyId) return defaultTaskCalendarSettings;
+      if (!taskCalendarCache.has(companyId)) {
+        taskCalendarCache.set(companyId, await getTaskCalendarSettings(companyId));
+      }
+      return taskCalendarCache.get(companyId);
+    };
 
     // ⚡ Process all tasks in parallel for maximum speed
     await Promise.all(tasks.map(async (taskData) => {
@@ -1446,6 +1665,7 @@ router.post('/bulk-create', async (req, res) => {
       // ⚡ Process each assigned user for this task in parallel
       await Promise.all(assignedTo.map(async (assignedUserId) => {
         let taskDates = [];
+        const taskCalendar = await getCachedTaskCalendar(taskData.companyId);
 
         // ⚡ Ultra-fast date generation
         if (taskData.taskType === 'one-time') {
@@ -1466,30 +1686,18 @@ router.post('/bulk-create', async (req, res) => {
           }
 
           // ⚡ Lightning-fast date generation
-          switch (taskData.taskType) {
-            case 'daily':
-              taskDates = getDailyTaskDates(startDate, endDate, taskData.includeSunday, taskData.weekOffDays);
-              break;
-            case 'weekly':
-              taskDates = getWeeklyTaskDates(startDate, endDate, taskData.weeklyDays, taskData.weekOffDays);
-              break;
-            case 'monthly':
-              taskDates = getMonthlyTaskDates(startDate, endDate, taskData.monthlyDay || 1, taskData.includeSunday, taskData.weekOffDays);
-              break;
-            case 'quarterly':
-              taskDates = getQuarterlyTaskDates(startDate, taskData.includeSunday, taskData.weekOffDays);
-              break;
-            case 'fortnightly':
-              taskDates = getFortnightlyTaskDates(startDate, endDate, taskData.includeSunday, taskData.weekOffDays);
-              break;
-            case 'yearly':
-              if (taskData.isForever) {
-                taskDates = getYearlyTaskDates(startDate, taskData.yearlyDuration, taskData.includeSunday, taskData.weekOffDays || []);
-              } else {
-                taskDates = getYearlyTaskDates(startDate, 1, taskData.includeSunday, taskData.weekOffDays || []);
-              }
-              break;
-          }
+          taskDates = generateTaskDates({
+            taskType: taskData.taskType,
+            startDate,
+            endDate,
+            includeSunday: taskData.includeSunday,
+            weekOffDays: taskData.weekOffDays,
+            weeklyDays: taskData.weeklyDays,
+            monthlyDay: taskData.monthlyDay,
+            yearlyDuration: taskData.yearlyDuration,
+            isForever: taskData.isForever,
+            taskCalendar
+          });
         }
 
         // ⚡ Generate ultra-fast unique task group ID
@@ -1663,6 +1871,7 @@ router.post('/create-scheduled', async (req, res) => {
     const taskData = req.body;
     const createdTasks = [];
     let taskDates = [];
+    const taskCalendar = await getTaskCalendarSettings(taskData.companyId);
 
     // Validate companyId is provided (except for superadmin)
     if (!taskData.companyId && taskData.assignedBy) {
@@ -1689,35 +1898,18 @@ router.post('/create-scheduled', async (req, res) => {
         endDate = new Date(taskData.endDate);
       }
 
-      switch (taskData.taskType) {
-        case 'daily':
-          taskDates = getDailyTaskDates(startDate, endDate, taskData.includeSunday, taskData.weekOffDays);
-          break;
-
-        case 'weekly':
-          taskDates = getWeeklyTaskDates(startDate, endDate, taskData.weeklyDays, taskData.weekOffDays);
-          break;
-
-        case 'monthly':
-          taskDates = getMonthlyTaskDates(startDate, endDate, taskData.monthlyDay || 1, taskData.includeSunday, taskData.weekOffDays);
-          break;
-
-        case 'fortnightly':
-          taskDates = getFortnightlyTaskDates(startDate, endDate, taskData.includeSunday, taskData.weekOffDays);
-          break;
-
-        case 'quarterly':
-          taskDates = getQuarterlyTaskDates(startDate, taskData.includeSunday, taskData.weekOffDays);
-          break;
-
-        case 'yearly':
-          if (taskData.isForever) {
-            taskDates = getYearlyTaskDates(startDate, taskData.yearlyDuration, taskData.includeSunday, taskData.weekOffDays || []);
-          } else {
-            taskDates = getYearlyTaskDates(startDate, 1, taskData.includeSunday, taskData.weekOffDays || []);
-          }
-          break;
-      }
+      taskDates = generateTaskDates({
+        taskType: taskData.taskType,
+        startDate,
+        endDate,
+        includeSunday: taskData.includeSunday,
+        weekOffDays: taskData.weekOffDays,
+        weeklyDays: taskData.weeklyDays,
+        monthlyDay: taskData.monthlyDay,
+        yearlyDuration: taskData.yearlyDuration,
+        isForever: taskData.isForever,
+        taskCalendar
+      });
     }
 
     // GROUP ID for recurring
@@ -2451,36 +2643,24 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
     // ✅ 3) Generate new schedule dates
     let taskDates = [];
     const startDate = new Date(updates.startDate);
+    const taskCalendar = await getTaskCalendarSettings(effectiveCompanyId);
 
     const endDate = updates.isForever
       ? new Date(startDate.getFullYear() + 1, startDate.getMonth(), startDate.getDate())
       : new Date(updates.endDate);
 
-    switch (updates.taskType) {
-      case "daily":
-        taskDates = getDailyTaskDates(startDate, endDate, updates.includeSunday, updates.weekOffDays);
-        break;
-
-      case "weekly":
-        taskDates = getWeeklyTaskDates(startDate, endDate, updates.weeklyDays, updates.weekOffDays);
-        break;
-
-      case 'fortnightly':
-        taskDates = getFortnightlyTaskDates(startDate, endDate, updates.includeSunday, updates.weekOffDays);
-        break;
-
-      case "monthly":
-        taskDates = getMonthlyTaskDates(startDate, endDate, updates.monthlyDay, updates.includeSunday, updates.weekOffDays);
-        break;
-
-      case "quarterly":
-        taskDates = getQuarterlyTaskDates(startDate, updates.includeSunday, updates.weekOffDays);
-        break;
-
-      case "yearly":
-        taskDates = getYearlyTaskDates(startDate, updates.yearlyDuration, updates.includeSunday, updates.weekOffDays);
-        break;
-    }
+    taskDates = generateTaskDates({
+      taskType: updates.taskType,
+      startDate,
+      endDate,
+      includeSunday: updates.includeSunday,
+      weekOffDays: updates.weekOffDays,
+      weeklyDays: updates.weeklyDays,
+      monthlyDay: updates.monthlyDay,
+      yearlyDuration: updates.yearlyDuration,
+      isForever: updates.isForever,
+      taskCalendar
+    });
 
     // ✅ Normalize date key to local midnight timestamp
     const normalize = (d) => {
@@ -3634,20 +3814,20 @@ router.post("/reassign/:taskGroupId", async (req, res) => {
 
     // 4️⃣ Generate new task instances
     let dates = [];
+    const taskCalendar = await getTaskCalendarSettings(companyId);
 
-    if (oldMaster.taskType === "daily") {
-      dates = getDailyTaskDates(newStartDate, newEndDate, oldMaster.includeSunday, oldMaster.weekOffDays);
-    } else if (oldMaster.taskType === "weekly") {
-      dates = getWeeklyTaskDates(newStartDate, newEndDate, oldMaster.weeklyDays, oldMaster.weekOffDays);
-    } else if (oldMaster.taskType === "fortnightly") {
-      dates = getFortnightlyTaskDates(newStartDate, newEndDate, oldMaster.includeSunday, oldMaster.weekOffDays);
-    } else if (oldMaster.taskType === "monthly") {
-      dates = getMonthlyTaskDates(newStartDate, newEndDate, oldMaster.monthlyDay, oldMaster.includeSunday, oldMaster.weekOffDays);
-    } else if (oldMaster.taskType === "quarterly") {
-      dates = getQuarterlyTaskDates(newStartDate, oldMaster.includeSunday, oldMaster.weekOffDays);
-    } else if (oldMaster.taskType === "yearly") {
-      dates = getYearlyTaskDates(newStartDate, oldMaster.yearlyDuration, oldMaster.includeSunday, oldMaster.weekOffDays);
-    }
+    dates = generateTaskDates({
+      taskType: oldMaster.taskType,
+      startDate: newStartDate,
+      endDate: newEndDate,
+      includeSunday: oldMaster.includeSunday,
+      weekOffDays: oldMaster.weekOffDays,
+      weeklyDays: oldMaster.weeklyDays,
+      monthlyDay: oldMaster.monthlyDay,
+      yearlyDuration: oldMaster.yearlyDuration,
+      isForever: true,
+      taskCalendar
+    });
 
 
     const newTasks = [];

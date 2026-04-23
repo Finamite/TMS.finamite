@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Settings, Mail, AlertTriangle, Save, X, Loader as Loader2, Send, Calendar, Plus, Pencil, Trash, ClipboardCheck, FileWarning, MessageSquare, Paperclip, RefreshCw, Eye, Archive, GitBranch } from 'lucide-react';
 import axios from 'axios';
 import { address } from '../../utils/ipAddress';
@@ -67,8 +67,23 @@ interface EmailSettings {
     reportRecipients: string[];
 }
 
+interface HolidayEntry {
+    date: string;
+    name: string;
+}
+
+interface TaskCalendarSettings {
+    enabled: boolean;
+    holidays: HolidayEntry[];
+    monthWeekOffRules: Array<{
+        weekday: number;
+        occurrence: number;
+    }>;
+}
+
 interface SettingsData {
     taskCompletion: any;
+    taskCalendar: TaskCalendarSettings;
     pcmIntegration: {
         enabled: boolean;
         pcmApiKey: string;
@@ -96,6 +111,42 @@ interface User {
     email: string;
     role: string;
 }
+
+const getHolidayYear = (date: string) => String(date || '').slice(0, 4);
+const formatHolidayDisplayDate = (date: string) => {
+    if (!date) return '';
+    const parsedDate = new Date(date);
+    if (Number.isNaN(parsedDate.getTime())) {
+        return date;
+    }
+
+    return parsedDate.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+    });
+};
+
+const weekdayOptions = [
+    { value: 0, label: 'Sunday' },
+    { value: 1, label: 'Monday' },
+    { value: 2, label: 'Tuesday' },
+    { value: 3, label: 'Wednesday' },
+    { value: 4, label: 'Thursday' },
+    { value: 5, label: 'Friday' },
+    { value: 6, label: 'Saturday' }
+];
+
+const weekOccurrenceOptions = [
+    { value: 1, label: '1st Week' },
+    { value: 2, label: '2nd Week' },
+    { value: 3, label: '3rd Week' },
+    { value: 4, label: '4th Week' },
+    { value: 5, label: '5th Week' }
+];
+
+const createEmptyHolidayRows = (count = 10): HolidayEntry[] =>
+    Array.from({ length: count }, () => ({ date: '', name: '' }));
 
 // Helper to generate default scoring rule based on limit
 const buildDefaultScoringRule = (limit: number): ScoringRule => {
@@ -164,6 +215,11 @@ const SettingsPage: React.FC = () => {
             enableReports: false,
             reportRecipients: []
         },
+        taskCalendar: {
+            enabled: false,
+            holidays: [],
+            monthWeekOffRules: []
+        },
         bin: {
             enabled: false,
             retentionDays: 15
@@ -211,14 +267,22 @@ const SettingsPage: React.FC = () => {
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
     const [expandedTask, setExpandedTask] = useState(false);
+    const [expandedTaskCalendar, setExpandedTaskCalendar] = useState(false);
     const [expandedAdminApproval, setExpandedAdminApproval] = useState(false);
     const [expandedPcmIntegration, setExpandedPcmIntegration] = useState(false);
+    const [openHolidayModal, setOpenHolidayModal] = useState(false);
+    const [selectedHolidayYear, setSelectedHolidayYear] = useState<string | null>(null);
+    const [holidayDraftRows, setHolidayDraftRows] = useState<HolidayEntry[]>(createEmptyHolidayRows());
+    const [selectedHolidayDraftRows, setSelectedHolidayDraftRows] = useState<number[]>([]);
+    const [holidayRowsToAdd, setHolidayRowsToAdd] = useState('1');
+    const holidayDateRefs = useRef<Array<HTMLInputElement | null>>([]);
 
 
     useEffect(() => {
         fetchSettings();
         fetchUsers();
         fetchTaskSettings();
+        fetchTaskCalendarSettings();
         fetchPcmIntegration();
         fetchBinSettings();
         fetchAdminApproval();
@@ -318,6 +382,24 @@ const SettingsPage: React.FC = () => {
                 pendingRecurringTasks: res.data.pendingRecurringTasks
             }
         }));
+    };
+
+    const fetchTaskCalendarSettings = async () => {
+        if (!currentUser?.companyId) return;
+
+        try {
+            const res = await axios.get(`${address}/api/settings/task-calendar?companyId=${currentUser.companyId}`);
+            setSettings(prev => ({
+                ...prev,
+                taskCalendar: {
+                    enabled: res.data.enabled ?? false,
+                    holidays: Array.isArray(res.data.holidays) ? res.data.holidays : [],
+                    monthWeekOffRules: Array.isArray(res.data.monthWeekOffRules) ? res.data.monthWeekOffRules : []
+                }
+            }));
+        } catch (error) {
+            console.error('Error fetching task calendar settings:', error);
+        }
     };
 
     const fetchPcmIntegration = async () => {
@@ -633,6 +715,13 @@ const SettingsPage: React.FC = () => {
                 pendingRecurringTasks: settings.taskCompletion.pendingRecurringTasks
             });
 
+            await axios.post(`${address}/api/settings/task-calendar`, {
+                companyId: currentUser.companyId,
+                enabled: settings.taskCalendar.enabled,
+                holidays: settings.taskCalendar.holidays,
+                monthWeekOffRules: settings.taskCalendar.monthWeekOffRules
+            });
+
             await axios.post(`${address}/api/settings/admin-approval`, {
                 companyId: currentUser.companyId,
                 enabled: settings.adminApproval.enabled,
@@ -674,6 +763,202 @@ const SettingsPage: React.FC = () => {
         }));
     };
 
+    const removeHoliday = (holidayToRemove: HolidayEntry) => {
+        const holidayYear = getHolidayYear(holidayToRemove.date);
+        let shouldCloseYearModal = false;
+
+        setSettings(prev => {
+            const remainingHolidays = prev.taskCalendar.holidays.filter(
+                (holiday) => !(holiday.date === holidayToRemove.date && holiday.name === holidayToRemove.name)
+            );
+
+            if (
+                selectedHolidayYear === holidayYear &&
+                !remainingHolidays.some((holiday) => getHolidayYear(holiday.date) === holidayYear)
+            ) {
+                shouldCloseYearModal = true;
+            }
+
+            return {
+                ...prev,
+                taskCalendar: {
+                    ...prev.taskCalendar,
+                    holidays: remainingHolidays
+                }
+            };
+        });
+
+        if (shouldCloseYearModal) {
+            setSelectedHolidayYear(null);
+        }
+        setHasUnsavedChanges(true);
+    };
+
+    const holidayYearGroups = Object.entries(
+        settings.taskCalendar.holidays.reduce<Record<string, HolidayEntry[]>>((acc, holiday) => {
+            const year = getHolidayYear(holiday.date) || 'Unknown';
+            if (!acc[year]) {
+                acc[year] = [];
+            }
+            acc[year].push(holiday);
+            return acc;
+        }, {})
+    )
+        .map(([year, holidays]) => ({
+            year,
+            holidays: [...holidays].sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name))
+        }))
+        .sort((a, b) => b.year.localeCompare(a.year));
+
+    const selectedHolidayYearGroup =
+        selectedHolidayYear != null
+            ? holidayYearGroups.find((group) => group.year === selectedHolidayYear) || null
+            : null;
+
+    const openHolidayYearDetails = (year: string) => {
+        setSelectedHolidayYear(year);
+    };
+
+    const closeHolidayYearDetails = () => {
+        setSelectedHolidayYear(null);
+    };
+
+    const openHolidayEntryModal = () => {
+        setHolidayDraftRows(createEmptyHolidayRows(10));
+        setSelectedHolidayDraftRows([]);
+        setHolidayRowsToAdd('1');
+        setOpenHolidayModal(true);
+    };
+
+    const closeHolidayModal = () => {
+        setOpenHolidayModal(false);
+        setHolidayDraftRows(createEmptyHolidayRows());
+        setSelectedHolidayDraftRows([]);
+        setHolidayRowsToAdd('1');
+    };
+
+    const updateHolidayDraftRow = (index: number, field: keyof HolidayEntry, value: string) => {
+        setHolidayDraftRows((prev) =>
+            prev.map((row, rowIndex) =>
+                rowIndex === index
+                    ? {
+                        ...row,
+                        [field]: value
+                    }
+                    : row
+            )
+        );
+    };
+
+    const addHolidayDraftRows = () => {
+        const rowsToAdd = Math.max(1, parseInt(holidayRowsToAdd, 10) || 1);
+        setHolidayDraftRows((prev) => [...prev, ...createEmptyHolidayRows(rowsToAdd)]);
+        setHolidayRowsToAdd('1');
+    };
+
+    const removeHolidayDraftRow = (index: number) => {
+        setHolidayDraftRows((prev) => {
+            if (prev.length <= 1) {
+                return [{ date: '', name: '' }];
+            }
+            return prev.filter((_, rowIndex) => rowIndex !== index);
+        });
+        setSelectedHolidayDraftRows((prev) =>
+            prev
+                .filter((rowIndex) => rowIndex !== index)
+                .map((rowIndex) => (rowIndex > index ? rowIndex - 1 : rowIndex))
+        );
+    };
+
+    const toggleHolidayDraftRowSelection = (index: number) => {
+        setSelectedHolidayDraftRows((prev) =>
+            prev.includes(index)
+                ? prev.filter((rowIndex) => rowIndex !== index)
+                : [...prev, index].sort((a, b) => a - b)
+        );
+    };
+
+    const toggleAllHolidayDraftRows = () => {
+        setSelectedHolidayDraftRows((prev) =>
+            prev.length === holidayDraftRows.length ? [] : holidayDraftRows.map((_, index) => index)
+        );
+    };
+
+    const removeSelectedHolidayDraftRows = () => {
+        if (selectedHolidayDraftRows.length === 0) return;
+
+        setHolidayDraftRows((prev) => {
+            const remainingRows = prev.filter((_, index) => !selectedHolidayDraftRows.includes(index));
+            return remainingRows.length > 0 ? remainingRows : [{ date: '', name: '' }];
+        });
+        setSelectedHolidayDraftRows([]);
+    };
+
+    const saveHolidayDraftRows = () => {
+        const normalizedRows = holidayDraftRows
+            .map((row) => ({
+                date: row.date.trim(),
+                name: row.name.trim()
+            }))
+            .filter((row) => row.date && row.name);
+
+        const uniqueRows = Array.from(
+            new Map(
+                normalizedRows.map((row) => [`${row.date}__${row.name.toLowerCase()}`, row])
+            ).values()
+        ).sort((a, b) => {
+            if (a.date !== b.date) return a.date.localeCompare(b.date);
+            return a.name.localeCompare(b.name);
+        });
+
+        setSettings((prev) => ({
+            ...prev,
+            taskCalendar: {
+                ...prev.taskCalendar,
+                holidays: uniqueRows
+            }
+        }));
+        setHasUnsavedChanges(true);
+        closeHolidayModal();
+    };
+
+    const openHolidayRowPicker = (index: number) => {
+        const input = holidayDateRefs.current[index];
+        if (!input) return;
+
+        if (typeof input.showPicker === 'function') {
+            input.showPicker();
+            return;
+        }
+
+        input.focus();
+        input.click();
+    };
+
+    const toggleMonthWeekOffRule = (occurrence: number, weekday: number) => {
+        setSettings(prev => {
+            const exists = prev.taskCalendar.monthWeekOffRules.some(
+                (rule) => rule.occurrence === occurrence && rule.weekday === weekday
+            );
+            const monthWeekOffRules = exists
+                ? prev.taskCalendar.monthWeekOffRules.filter(
+                    (rule) => !(rule.occurrence === occurrence && rule.weekday === weekday)
+                )
+                : [...prev.taskCalendar.monthWeekOffRules, { occurrence, weekday }].sort((a, b) => {
+                    if (a.occurrence !== b.occurrence) return a.occurrence - b.occurrence;
+                    return a.weekday - b.weekday;
+                });
+
+            return {
+                ...prev,
+                taskCalendar: {
+                    ...prev.taskCalendar,
+                    monthWeekOffRules
+                }
+            };
+        });
+        setHasUnsavedChanges(true);
+    };
 
     // Get scoring preview based on active rule
     const getScoringPreview = (limit: number, rules: ScoringRule[]) => {
@@ -855,6 +1140,7 @@ const SettingsPage: React.FC = () => {
         { id: 'email', label: 'Email Notifications', note: 'Automation and reports' },
         { id: 'reports', label: 'Automated Reports', note: 'Daily summary schedules' },
         { id: 'task', label: 'Task Completion', note: 'Attachments and remarks' },
+        { id: 'calendar', label: 'Task Calendar', note: 'Holidays and weekly offs' },
         { id: 'recycle', label: 'Recycle Bin', note: 'Deletion and retention' },
         { id: 'approval', label: 'Admin Approval', note: 'Approval policy' },
         { id: 'pcm', label: 'PCM Integration', note: 'Company sync and mapping' },
@@ -870,6 +1156,7 @@ const SettingsPage: React.FC = () => {
         setExpandedEmail(id === 'email');
         setExpandedReports(id === 'reports');
         setExpandedTask(id === 'task');
+        setExpandedTaskCalendar(id === 'calendar');
         setExpandedPcmIntegration(id === 'pcm');
         setExpandedBin(id === 'recycle');
         setExpandedAdminApproval(id === 'approval');
@@ -2081,6 +2368,225 @@ const SettingsPage: React.FC = () => {
                         )}
                     </div>
 
+                    <div id="calendar" className={`${sectionCardClass} scroll-mt-6`}>
+                        <div
+                            className={sectionHeaderClass}
+                            onClick={() => setExpandedTaskCalendar(!expandedTaskCalendar)}
+                        >
+                            <div className={sectionHeaderContentClass}>
+                                <div className="p-3 bg-[var(--color-secondary)]/10 rounded-xl">
+                                    <Calendar className="h-6 w-6 text-[var(--color-secondary)]" />
+                                </div>
+
+                                <div className="min-w-0">
+                                    <h2 className={sectionHeaderTitleClass}>
+                                        Task Calendar
+                                    </h2>
+                                    <p className={sectionHeaderSubtitleClass}>
+                                        Skip company holidays, weekly offs, and selected Saturdays while generating recurring tasks
+                                    </p>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSettings(prev => ({
+                                        ...prev,
+                                        taskCalendar: {
+                                            ...prev.taskCalendar,
+                                            enabled: !prev.taskCalendar.enabled
+                                        }
+                                    }));
+                                    setExpandedTaskCalendar(true);
+                                    setHasUnsavedChanges(true);
+                                }}
+                                className={`relative inline-flex h-5 lg:h-7 w-8 lg:w-12 mr-2 lg:mr-0 items-center rounded-full transition-all duration-200 shadow-inner ${settings.taskCalendar.enabled ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border)]'}`}
+                            >
+                                <span
+                                    className={`inline-block h-3 lg:h-5 w-3 lg:w-5 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${settings.taskCalendar.enabled ? 'translate-x-4 lg:translate-x-6' : 'translate-x-1'}`}
+                                />
+                            </button>
+                        </div>
+
+                        {expandedTaskCalendar && (
+                            <div className={sectionBodyClass}>
+                                <div className="space-y-6">
+                                    
+
+                                    <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+                                        <div className={`flex h-full flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 ${!settings.taskCalendar.enabled ? 'opacity-60' : ''}`}>
+                                            <div className="flex items-center justify-between gap-3">
+                                                <div>
+                                                    <h3 className="text-lg font-semibold text-[var(--color-text)]">Holiday Dates</h3>
+                                                    <p className="mt-1 text-xs text-[var(--color-textSecondary)]">
+                                                        Add exact leave dates like public holidays or company shutdown days.
+                                                    </p>
+                                                </div>
+                                                <span className="rounded-full bg-[var(--color-background)] px-3 py-1 text-xs font-medium text-[var(--color-textSecondary)]">
+                                                    {settings.taskCalendar.holidays.length} saved
+                                                </span>
+                                            </div>
+
+                                            <div className="mt-4 flex items-center justify-end">
+                                                <button
+                                                    type="button"
+                                                    onClick={openHolidayEntryModal}
+                                                    disabled={!settings.taskCalendar.enabled}
+                                                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 py-3 text-sm font-semibold text-white transition-all hover:bg-[var(--color-primary)]/90 disabled:cursor-not-allowed disabled:opacity-50"
+                                                >
+                                                    <Plus className="h-4 w-4" />
+                                                    Add Holiday
+                                                </button>
+                                            </div>
+
+                                            <div className="mt-4 h-[360px] overflow-y-auto pr-2">
+                                                {settings.taskCalendar.holidays.length > 0 ? (
+                                                    <div className="space-y-3">
+                                                        {holidayYearGroups.map((group) => (
+                                                            <button
+                                                                key={group.year}
+                                                                type="button"
+                                                                onClick={() => openHolidayYearDetails(group.year)}
+                                                                className="group w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--color-primary)]/35 hover:bg-[var(--color-surface)] hover:shadow-[0_12px_32px_rgba(15,23,42,0.08)]"
+                                                            >
+                                                                <div className="flex items-start justify-between gap-4">
+                                                                    <div className="min-w-0">
+                                                                        <div className="flex flex-wrap items-center gap-3">
+                                                                            <p className="truncate text-xl font-semibold tracking-tight text-[var(--color-text)]">
+                                                                                {group.year}
+                                                                            </p>
+                                                                            <span className="rounded-full bg-[var(--color-primary)]/10 px-3 py-1 text-xs font-semibold text-[var(--color-primary)]">
+                                                                                {group.holidays.length} holiday{group.holidays.length === 1 ? '' : 's'}
+                                                                            </span>
+                                                                        </div>
+
+                                                                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                                                                            <div className="rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)] px-3 py-2">
+                                                                                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-textSecondary)]">
+                                                                                    From
+                                                                                </p>
+                                                                                <p className="mt-1 text-sm font-medium text-[var(--color-text)]">
+                                                                                    {formatHolidayDisplayDate(group.holidays[0]?.date)}
+                                                                                </p>
+                                                                            </div>
+                                                                            <div className="rounded-xl border border-[var(--color-border)]/70 bg-[var(--color-surface)] px-3 py-2">
+                                                                                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-textSecondary)]">
+                                                                                    To
+                                                                                </p>
+                                                                                <p className="mt-1 text-sm font-medium text-[var(--color-text)]">
+                                                                                    {formatHolidayDisplayDate(group.holidays[group.holidays.length - 1]?.date)}
+                                                                                </p>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="shrink-0 text-right">
+                                                                        <div className="inline-flex rounded-full bg-[var(--color-primary)]/10 px-3 py-1.5 text-sm font-semibold text-[var(--color-primary)] transition-all group-hover:bg-[var(--color-primary)]/15">
+                                                                            View Holidays
+                                                                        </div>
+                                                                        <p className="mt-3 text-xs text-[var(--color-textSecondary)]">
+                                                                            Open year details
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-background)]/40">
+                                                        <p className="text-sm text-[var(--color-textSecondary)]">
+                                                            No holiday dates added yet.
+                                                        </p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className={`rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 ${!settings.taskCalendar.enabled ? 'opacity-60' : ''}`}>
+                                            <h3 className="text-lg font-semibold text-[var(--color-text)]">Month-wise Week Off</h3>
+                                            <p className="mt-1 text-xs text-[var(--color-textSecondary)]">
+                                                Select the weekday inside the week number you want to skip every month. Example: 1st Monday, 2nd Saturday, or 3rd Tuesday.
+                                            </p>
+
+                                            <div className="mt-5 overflow-x-auto rounded-2xl border border-[var(--color-border)]">
+                                                <div className="min-w-[720px]">
+                                                    <div className="grid grid-cols-[120px_repeat(7,minmax(90px,1fr))] border-b border-[var(--color-border)] bg-[var(--color-background)]">
+                                                        <div className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-textSecondary)]">
+                                                            Week
+                                                        </div>
+                                                        {weekdayOptions.map((day) => (
+                                                            <div
+                                                                key={day.value}
+                                                                className="border-l border-[var(--color-border)] px-2 py-3 text-center text-[11px] font-semibold uppercase leading-tight tracking-[0.08em] text-[var(--color-textSecondary)] whitespace-normal break-words"
+                                                            >
+                                                                {day.label}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+
+                                                    {weekOccurrenceOptions.map((week, weekIndex) => {
+                                                        const rowActive = settings.taskCalendar.monthWeekOffRules.some(
+                                                            (rule) => rule.occurrence === week.value
+                                                        );
+
+                                                        return (
+                                                        <div
+                                                            key={week.value}
+                                                            className={`grid grid-cols-[120px_repeat(7,minmax(90px,1fr))] transition-colors ${
+                                                                weekIndex !== weekOccurrenceOptions.length - 1 ? 'border-b border-[var(--color-border)]' : ''
+                                                            } ${rowActive ? '' : ''}`}
+                                                        >
+                                                            <div className={`flex items-center px-4 py-4 text-sm font-semibold ${
+                                                                rowActive ? 'bg-sky-50 dark:bg-sky-500/10' : 'text-[var(--color-text)]'
+                                                            }`}>
+                                                                {week.label}
+                                                            </div>
+
+                                                            {weekdayOptions.map((day) => {
+                                                                const active = settings.taskCalendar.monthWeekOffRules.some(
+                                                                    (rule) => rule.occurrence === week.value && rule.weekday === day.value
+                                                                );
+
+                                                                return (
+                                                                    <div
+                                                                        key={`${week.value}-${day.value}`}
+                                                                        className={`border-l border-[var(--color-border)] p-2 ${rowActive ? 'bg-sky-50/85 dark:bg-sky-500/[0.07]' : ''}`}
+                                                                    >
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => toggleMonthWeekOffRule(week.value, day.value)}
+                                                                            disabled={!settings.taskCalendar.enabled}
+                                                                            className={`w-full rounded-xl px-3 py-3 text-sm font-medium transition-all ${
+                                                                                active
+                                                                                    ? 'bg-[var(--color-primary)] text-white shadow-sm'
+                                                                                    : rowActive
+                                                                                        ? ''
+                                                                                        : 'bg-[var(--color-background)] text-[var(--color-textSecondary)] hover:bg-[var(--color-primary)]/8 hover:text-[var(--color-primary)]'
+                                                                            } disabled:cursor-not-allowed`}
+                                                                        >
+                                                                            {active ? 'Skip' : day.label.slice(0, 3)}
+                                                                        </button>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )})}
+                                                </div>
+                                            </div>
+
+                                            <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-background)]/60 p-4">
+                                                <p className="text-xs leading-relaxed text-[var(--color-textSecondary)]">
+                                                    Selected cells mean that weekday will be skipped only in that week of every month.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     {/* Recycle Bin Settings */}
                     <div id="recycle" className={`${sectionCardClass} scroll-mt-6`}>
                         {/* Header */}
@@ -2453,6 +2959,219 @@ const SettingsPage: React.FC = () => {
                 </div>
             </div>
         </div>
+
+            {selectedHolidayYearGroup && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-3xl overflow-hidden rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_24px_80px_rgba(15,23,42,0.18)]">
+                        <div className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-5">
+                            <div>
+                                <h3 className="text-2xl font-semibold tracking-tight text-[var(--color-text)]">
+                                    {selectedHolidayYearGroup.year} Holidays
+                                </h3>
+                                <p className="mt-1 text-sm text-[var(--color-textSecondary)]">
+                                    Showing all holidays saved for {selectedHolidayYearGroup.year}.
+                                </p>
+                            </div>
+                            <button
+                                onClick={closeHolidayYearDetails}
+                                className="rounded-full p-2 transition-colors hover:bg-[var(--color-background)]"
+                            >
+                                <X className="h-5 w-5 text-[var(--color-textSecondary)]" />
+                            </button>
+                        </div>
+
+                        <div className="max-h-[60vh] overflow-y-auto bg-[var(--color-background)]/30 px-6 py-5">
+                            <div className="space-y-3">
+                                {selectedHolidayYearGroup.holidays.map((holiday) => (
+                                    <div
+                                        key={`${holiday.date}-${holiday.name}`}
+                                        className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-4"
+                                    >
+                                        <div className="min-w-0">
+                                            <p className="truncate text-base font-semibold text-[var(--color-text)]">
+                                                {holiday.name}
+                                            </p>
+                                            <p className="mt-1 text-sm text-[var(--color-textSecondary)]">
+                                                {holiday.date}
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => removeHoliday(holiday)}
+                                            disabled={!settings.taskCalendar.enabled}
+                                            className="rounded-lg p-2 text-[var(--color-textSecondary)] transition-colors hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed"
+                                        >
+                                            <Trash className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end border-t border-[var(--color-border)] px-6 py-4">
+                            <button
+                                type="button"
+                                onClick={closeHolidayYearDetails}
+                                className="rounded-xl border border-[var(--color-border)] px-4 py-3 text-sm font-medium text-[var(--color-textSecondary)] transition-colors hover:bg-[var(--color-background)]"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {openHolidayModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-5xl overflow-hidden rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_30px_100px_rgba(15,23,42,0.2)]">
+                        <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-5">
+                            <div>
+                                <h3 className="text-2xl font-semibold tracking-tight text-[var(--color-text)]">
+                                    Holiday Dates
+                                </h3>
+                                <p className="mt-1 text-sm leading-6 text-[var(--color-textSecondary)]">
+                                    Add holiday date and holiday name. 10 rows are ready by default, and you can add more anytime.
+                                </p>
+                            </div>
+                            <button
+                                onClick={closeHolidayModal}
+                                className="rounded-full p-2 transition-colors hover:bg-[var(--color-background)]"
+                            >
+                                <X className="h-5 w-5 text-[var(--color-textSecondary)]" />
+                            </button>
+                        </div>
+
+                        <div className="bg-[var(--color-background)]/35 px-4 py-4">
+                            <div className="overflow-hidden rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
+                                <div className="grid grid-cols-[56px_72px_minmax(0,1fr)_minmax(0,1.2fr)_56px] gap-3 border-b border-[var(--color-border)] bg-[var(--color-background)]/55 px-5 py-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--color-textSecondary)]">
+                                    <label className="flex items-center justify-center">
+                                        <input
+                                            type="checkbox"
+                                            checked={holidayDraftRows.length > 0 && selectedHolidayDraftRows.length === holidayDraftRows.length}
+                                            onChange={toggleAllHolidayDraftRows}
+                                            className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
+                                        />
+                                    </label>
+                                    <span>Row</span>
+                                    <span>Date</span>
+                                    <span>Holiday Name</span>
+                                    <span />
+                                </div>
+
+                                <div className="max-h-[58vh] overflow-y-auto">
+                                    {holidayDraftRows.map((row, index) => (
+                                        <div
+                                            key={`holiday-row-${index}`}
+                                            className={`grid grid-cols-[56px_72px_minmax(0,1fr)_minmax(0,1.2fr)_56px] gap-3 px-5 py-4 transition-colors ${
+                                                index !== holidayDraftRows.length - 1 ? 'border-b border-[var(--color-border)]/70' : ''
+                                            } ${
+                                                selectedHolidayDraftRows.includes(index)
+                                                    ? 'bg-[var(--color-primary)]/6'
+                                                    : 'bg-[var(--color-surface)] hover:bg-[var(--color-background)]/30'
+                                            }`}
+                                        >
+                                            <label className="flex items-center justify-center">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedHolidayDraftRows.includes(index)}
+                                                    onChange={() => toggleHolidayDraftRowSelection(index)}
+                                                    className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
+                                                />
+                                            </label>
+                                            <div className="flex items-center text-sm font-semibold text-[var(--color-textSecondary)]">
+                                                {index + 1}
+                                            </div>
+                                            <div className="relative">
+                                                <input
+                                                    ref={(element) => {
+                                                        holidayDateRefs.current[index] = element;
+                                                    }}
+                                                    type="date"
+                                                    value={row.date}
+                                                    onChange={(e) => updateHolidayDraftRow(index, 'date', e.target.value)}
+                                                    onClick={() => openHolidayRowPicker(index)}
+                                                    onFocus={() => openHolidayRowPicker(index)}
+                                                    className="h-11 w-full cursor-pointer rounded-xl border border-[var(--color-border)]/80 bg-[var(--color-surface)] px-4 pr-11 text-sm text-[var(--color-text)] transition-all focus:border-[var(--color-primary)] focus:bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/15"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => openHolidayRowPicker(index)}
+                                                    className="absolute inset-y-0 right-3 flex items-center text-[var(--color-primary)]/90 transition-opacity hover:opacity-80"
+                                                >
+                                                    <Calendar className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                            <input
+                                                type="text"
+                                                value={row.name}
+                                                onChange={(e) => updateHolidayDraftRow(index, 'name', e.target.value)}
+                                                placeholder="Enter holiday name"
+                                                className="h-11 rounded-xl border border-[var(--color-border)]/80 bg-[var(--color-surface)] px-4 text-sm text-[var(--color-text)] transition-all focus:border-[var(--color-primary)] focus:bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/15"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => removeHolidayDraftRow(index)}
+                                                className="inline-flex h-11 items-center justify-center rounded-xl border border-[var(--color-border)]/80 bg-[var(--color-surface)] text-[var(--color-textSecondary)] transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-500"
+                                            >
+                                                <Trash className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-3 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        value={holidayRowsToAdd}
+                                        onChange={(e) => setHolidayRowsToAdd(e.target.value)}
+                                        className="w-24 rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm text-[var(--color-text)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={addHolidayDraftRows}
+                                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm font-semibold text-[var(--color-text)] transition-all hover:border-[var(--color-primary)]/30 hover:text-[var(--color-primary)]"
+                                    >
+                                        <Plus className="h-4 w-4" />
+                                        Add Rows
+                                    </button>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={removeSelectedHolidayDraftRows}
+                                    disabled={selectedHolidayDraftRows.length === 0}
+                                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600 transition-all hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    <Trash className="h-4 w-4" />
+                                    Delete Selected
+                                </button>
+                            </div>
+
+                            <div className="flex flex-col gap-3 sm:flex-row">
+                                <button
+                                    type="button"
+                                    onClick={closeHolidayModal}
+                                    className="rounded-xl border border-[var(--color-border)] px-4 py-3 text-sm font-medium text-[var(--color-textSecondary)] transition-colors hover:bg-[var(--color-background)]"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={saveHolidayDraftRows}
+                                    className="rounded-xl bg-[var(--color-primary)] px-5 py-3 text-sm font-semibold text-white transition-all hover:bg-[var(--color-primary)]/90"
+                                >
+                                    Save Holidays
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* New Rule Modal */}
             {openNewRuleModal && (

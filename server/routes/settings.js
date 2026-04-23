@@ -44,6 +44,106 @@ const normalizeTaskCompletionSection = (section = {}) => {
   };
 };
 
+const defaultTaskCalendarSettings = {
+  enabled: false,
+  holidays: [],
+  monthWeekOffRules: []
+};
+
+const normalizeNumericArray = (value, allowedValues = []) => {
+  const allowed = new Set(allowedValues);
+  return [...new Set(
+    (Array.isArray(value) ? value : [])
+      .map((item) => Number(item))
+      .filter((item) => Number.isInteger(item) && allowed.has(item))
+  )].sort((a, b) => a - b);
+};
+
+const normalizeHolidayDate = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return raw;
+  }
+
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) {
+    return '';
+  }
+
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, '0');
+  const day = String(parsed.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const normalizeHolidayValue = (value) => {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const date = normalizeHolidayDate(value.date);
+    const name = String(value.name || '').trim();
+    if (!date || !name) return null;
+    return { date, name };
+  }
+
+  const legacyDate = normalizeHolidayDate(value);
+  if (!legacyDate) return null;
+  return {
+    date: legacyDate,
+    name: 'Holiday'
+  };
+};
+
+const normalizeTaskCalendarSettings = (data = {}) => ({
+  enabled: Boolean(data.enabled),
+  holidays: Array.from(
+    new Map(
+      (Array.isArray(data.holidays) ? data.holidays : [])
+        .map(normalizeHolidayValue)
+        .filter(Boolean)
+        .map((holiday) => [`${holiday.date}__${holiday.name.toLowerCase()}`, holiday])
+    ).values()
+  ).sort((a, b) => {
+    if (a.date !== b.date) return a.date.localeCompare(b.date);
+    return a.name.localeCompare(b.name);
+  }),
+  monthWeekOffRules: Array.from(
+    new Map(
+      [
+        ...(Array.isArray(data.monthWeekOffRules) ? data.monthWeekOffRules : []),
+        ...normalizeNumericArray(data.weeklyOffDays, [0, 1, 2, 3, 4, 5, 6]).flatMap((weekday) =>
+          [1, 2, 3, 4, 5].map((occurrence) => ({ weekday, occurrence }))
+        ),
+        ...normalizeNumericArray(data.saturdayOffOccurrences, [1, 2, 3, 4, 5]).map((occurrence) => ({
+          weekday: 6,
+          occurrence
+        }))
+      ]
+        .map((rule) => {
+          const weekday = Number(rule?.weekday);
+          const occurrence = Number(rule?.occurrence);
+          if (
+            !Number.isInteger(weekday) ||
+            weekday < 0 ||
+            weekday > 6 ||
+            !Number.isInteger(occurrence) ||
+            occurrence < 1 ||
+            occurrence > 5
+          ) {
+            return null;
+          }
+
+          return { weekday, occurrence };
+        })
+        .filter(Boolean)
+        .map((rule) => [`${rule.occurrence}-${rule.weekday}`, rule])
+    ).values()
+  ).sort((a, b) => {
+    if (a.occurrence !== b.occurrence) return a.occurrence - b.occurrence;
+    return a.weekday - b.weekday;
+  })
+});
+
 const WHATSAPP_PROVIDER_KEYS = ['interakt', 'wati', 'fichat'];
 const FICHAT_CONNECT_STATE_TTL_MS = 10 * 60 * 1000;
 const FICHAT_TEMPLATE_BODY_CACHE_TTL_MS = 2 * 60 * 1000;
@@ -764,6 +864,63 @@ router.post('/task-completion', async (req, res) => {
 
     res.json({ message: 'Settings saved', data: settings.data });
   } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// ---------------------------
+// Task Calendar endpoints
+// ---------------------------
+router.get('/task-calendar', async (req, res) => {
+  try {
+    const { companyId } = req.query;
+    if (!companyId) return res.status(400).json({ message: 'companyId required' });
+
+    let settings = await Settings.findOne({ type: 'taskCalendar', companyId });
+
+    if (!settings) {
+      settings = new Settings({
+        type: 'taskCalendar',
+        companyId,
+        data: defaultTaskCalendarSettings
+      });
+      await settings.save();
+    }
+
+    res.json({
+      ...defaultTaskCalendarSettings,
+      ...normalizeTaskCalendarSettings(settings.data || {})
+    });
+  } catch (error) {
+    console.error('Error fetching task calendar settings:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.post('/task-calendar', async (req, res) => {
+  try {
+    const { companyId, enabled, holidays, monthWeekOffRules, weeklyOffDays, saturdayOffOccurrences } = req.body;
+
+    if (!companyId) return res.status(400).json({ message: 'companyId required' });
+
+    const payload = normalizeTaskCalendarSettings({
+      ...defaultTaskCalendarSettings,
+      enabled,
+      holidays,
+      monthWeekOffRules,
+      weeklyOffDays,
+      saturdayOffOccurrences
+    });
+
+    const settings = await Settings.findOneAndUpdate(
+      { type: 'taskCalendar', companyId },
+      { $set: { data: payload } },
+      { upsert: true, new: true }
+    );
+
+    res.json({ message: 'Task calendar settings saved', data: settings.data });
+  } catch (error) {
+    console.error('Error saving task calendar settings:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
