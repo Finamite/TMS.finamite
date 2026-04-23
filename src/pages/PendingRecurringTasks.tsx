@@ -753,6 +753,7 @@ const PendingRecurringTasks: React.FC = () => {
             <button
               onClick={() => {
                 setActiveSection('daily');
+                setFilter(prev => ({ ...prev, taskType: '' }));
                 setCurrentPage(1);
               }}
               className={`relative z-10 flex h-8 items-center justify-center gap-1.5 rounded-full px-3 text-[12px] font-semibold transition-colors duration-300 ${
@@ -810,22 +811,23 @@ const PendingRecurringTasks: React.FC = () => {
 
         {showFilters && (
           <div className="mt-4 grid grid-cols-1 gap-4 rounded-[20px] border border-[var(--color-border)] bg-[var(--color-background)] p-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-            <div>
-              <label className="block text-sm font-medium text-[var(--color-text)] mb-1">Task Type</label>
-              <select
-                value={filter.taskType}
-                onChange={(e) => setFilterValue('taskType', e.target.value)}
-                className="w-full text-sm px-1 py-1 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] transition-colors"
-              >
-                <option value="">All Types</option>
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="fortnightly">Fortnightly</option>
-                <option value="monthly">Monthly</option>
-                <option value="quarterly">Quarterly</option>
-                <option value="yearly">Yearly</option>
-              </select>
-            </div>
+            {activeSection === 'cyclic' && (
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-text)] mb-1">Task Type</label>
+                <select
+                  value={filter.taskType}
+                  onChange={(e) => setFilterValue('taskType', e.target.value)}
+                  className="w-full text-sm px-1 py-1 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] transition-colors"
+                >
+                  <option value="">All Types</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="fortnightly">Fortnightly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="quarterly">Quarterly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-[var(--color-text)] mb-1">Priority</label>
               <select

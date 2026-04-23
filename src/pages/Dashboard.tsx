@@ -8,7 +8,7 @@ import {
   CheckSquare, Clock, AlertTriangle, TrendingUp, Calendar,
   Target, Activity, CheckCircle, XCircle, 
   ChevronDown, BarChart3, Sparkles,
-  PieChart as PieChartIcon, Users
+  PieChart as PieChartIcon, Users, RotateCcw
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
@@ -191,6 +191,8 @@ const Dashboard: React.FC = () => {
   const [memberTrendData, setMemberTrendData] = useState<any[]>([]);
   const [teamPendingData, setTeamPendingData] = useState<TeamPendingData>({});
   const [teamPerformance, setTeamPerformance] = useState<TeamPerformanceItem[]>([]);
+  const [activeMasterMenu, setActiveMasterMenu] = useState<'total' | 'completed' | null>(null);
+  const [activePendingMenu, setActivePendingMenu] = useState<'pending' | 'overdue' | null>(null);
   const monthListRef = React.useRef<HTMLDivElement>(null);
   const analyticsCacheRef = React.useRef<Map<string, { data: any; ts: number }>>(new Map());
   const countsCacheRef = React.useRef<Map<string, { data: any; ts: number }>>(new Map());
@@ -406,6 +408,23 @@ const Dashboard: React.FC = () => {
       }
     }
   }, [showMonthFilter]);
+
+  useEffect(() => {
+    if (!activeMasterMenu && !activePendingMenu) return;
+
+    const handleMouseDown = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      const insideMaster = activeMasterMenu && target?.closest(`[data-master-menu="${activeMasterMenu}"]`);
+      const insidePending = activePendingMenu && target?.closest(`[data-pending-menu="${activePendingMenu}"]`);
+      if (!insideMaster && !insidePending) {
+        setActiveMasterMenu(null);
+        setActivePendingMenu(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleMouseDown);
+    return () => document.removeEventListener('mousedown', handleMouseDown);
+  }, [activeMasterMenu, activePendingMenu]);
 
   // Load member trend data when selected team member changes
   useEffect(() => {
@@ -795,66 +814,133 @@ const Dashboard: React.FC = () => {
               value: taskCounts.totalTasks,
               icon: <CheckSquare size={20} />,
               key: 'total' as const,
-              onClick: () => navigate('/master-tasks')
+              onClick: () => setActiveMasterMenu((current) => current === 'total' ? null : 'total')
             },
             {
               label: 'Pending',
               value: taskCounts.pendingTasks,
               icon: <Clock size={20} />,
               key: 'pending' as const,
-              onClick: () => navigate('/pending-tasks')
+              onClick: () => setActivePendingMenu((current) => current === 'pending' ? null : 'pending')
             },
             {
               label: 'Completed',
               value: taskCounts.completedTasks,
               icon: <CheckCircle size={20} />,
               key: 'completed' as const,
-              onClick: () => navigate('/master-tasks')
+              onClick: () => setActiveMasterMenu((current) => current === 'completed' ? null : 'completed')
             },
             {
               label: 'Overdue',
               value: taskCounts.overdueTasks,
               icon: <AlertTriangle size={20} />,
               key: 'overdue' as const,
-              onClick: () => navigate('/pending-tasks')
+              onClick: () => setActivePendingMenu((current) => current === 'overdue' ? null : 'overdue')
             }
           ].map((item) => {
             const color = item.key === 'total' ? '#3b82f6' : item.key === 'pending' ? '#f59e0b' : item.key === 'completed' ? '#10b981' : '#ef4444';
             const toneBg = `${color}18`;
             const trendKey = item.key === 'total' ? taskCounts.trends?.totalTasks : item.key === 'pending' ? taskCounts.trends?.pendingTasks : item.key === 'completed' ? taskCounts.trends?.completedTasks : taskCounts.trends?.overdueTasks;
             const trendGood = item.key === 'pending' || item.key === 'overdue' ? trendKey?.direction === 'down' : trendKey?.direction === 'up';
+            const showMasterMenu = item.key === 'total' || item.key === 'completed';
+            const showPendingMenu = item.key === 'pending' || item.key === 'overdue';
             return (
-              <button
+              <div
                 key={item.label}
-                type="button"
-                onClick={item.onClick}
-                className="rounded-[28px] border p-5 text-left transition hover:-translate-y-0.5 hover:border-[var(--color-primary)]/30"
-                style={cardStyle}
+                className="relative"
+                data-master-menu={showMasterMenu ? item.key : undefined}
+                data-pending-menu={showPendingMenu ? item.key : undefined}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl" style={{ backgroundColor: toneBg, color }}>
-                      {item.icon}
+                <button
+                  type="button"
+                  onClick={item.onClick}
+                  aria-haspopup={showMasterMenu || showPendingMenu ? 'menu' : undefined}
+                  aria-expanded={(showMasterMenu ? activeMasterMenu === item.key : false) || (showPendingMenu ? activePendingMenu === item.key : false)}
+                  className="relative w-full rounded-[28px] border p-5 text-left transition hover:-translate-y-0.5 hover:border-[var(--color-primary)]/30"
+                  style={cardStyle}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl" style={{ backgroundColor: toneBg, color }}>
+                        {item.icon}
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">{item.label}</p>
+                        <p className="mt-2 text-3xl font-semibold text-[var(--color-text)]">{item.value}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-textSecondary)]">{item.label}</p>
-                      <p className="mt-2 text-3xl font-semibold text-[var(--color-text)]">{item.value}</p>
+                    <div className="flex items-center gap-2">
+                     
+                      {trendKey && (
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${trendGood ? 'bg-emerald-500/10 text-emerald-600' : 'bg-rose-500/10 text-rose-600'}`}>
+                          {trendKey.direction === 'up' ? <TrendingUp size={12} /> : <TrendingUp size={12} className="rotate-180" />}
+                          {trendKey.direction === 'up' ? '+' : '-'}{trendKey.value}%
+                        </span>
+                      )}
                     </div>
                   </div>
-                  {trendKey && (
-                    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${trendGood ? 'bg-emerald-500/10 text-emerald-600' : 'bg-rose-500/10 text-rose-600'}`}>
-                      {trendKey.direction === 'up' ? <TrendingUp size={12} /> : <TrendingUp size={12} className="rotate-180" />}
-                      {trendKey.direction === 'up' ? '+' : '-'}{trendKey.value}%
-                    </span>
-                  )}
-                </div>
-                <p className="mt-4 text-sm text-[var(--color-textSecondary)]">
-                  {item.key === 'total' && 'All active work items in the selected scope'}
-                  {item.key === 'pending' && 'Tasks waiting for action'}
-                  {item.key === 'completed' && 'Tasks delivered successfully'}
-                  {item.key === 'overdue' && `${taskCounts.overduePercentage.toFixed(1)}% of active tasks`}
-                </p>
-              </button>
+                  <p className="mt-4 text-sm text-[var(--color-textSecondary)]">
+                    {item.key === 'total' && 'All active work items in the selected scope'}
+                    {item.key === 'pending' && 'Tasks waiting for action'}
+                    {item.key === 'completed' && 'Tasks delivered successfully'}
+                    {item.key === 'overdue' && `${taskCounts.overduePercentage.toFixed(1)}% of active tasks`}
+                  </p>
+                </button>
+
+                {showMasterMenu && activeMasterMenu === item.key && (
+                  <div className="absolute left-0 top-full z-30 mt-2 w-full min-w-[220px] rounded-[20px] border border-[var(--color-border)] bg-[var(--color-surface)] p-2 shadow-[0_20px_50px_rgba(15,23,42,0.16)]">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigate('/master-tasks');
+                        setActiveMasterMenu(null);
+                      }}
+                      className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-background)]"
+                    >
+                      <CheckSquare size={16} className="text-[var(--color-primary)]" />
+                      Single Master
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigate('/master-recurring');
+                        setActiveMasterMenu(null);
+                      }}
+                      className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-background)]"
+                    >
+                      <RotateCcw size={16} className="text-[var(--color-secondary)]" />
+                      Recurring Master
+                    </button>
+                  </div>
+                )}
+
+                {showPendingMenu && activePendingMenu === item.key && (
+                  <div className="absolute left-0 top-full z-30 mt-2 w-full min-w-[220px] rounded-[20px] border border-[var(--color-border)] bg-[var(--color-surface)] p-2 shadow-[0_20px_50px_rgba(15,23,42,0.16)]">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigate('/pending-tasks');
+                        setActivePendingMenu(null);
+                      }}
+                      className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-background)]"
+                    >
+                      <CheckSquare size={16} className="text-[var(--color-primary)]" />
+                      Pending Single
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigate('/pending-recurring');
+                        setActivePendingMenu(null);
+                      }}
+                      className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-semibold text-[var(--color-text)] transition hover:bg-[var(--color-background)]"
+                    >
+                      <RotateCcw size={16} className="text-[var(--color-secondary)]" />
+                      Pending Recurring
+                    </button>
+                  </div>
+                )}
+              </div>
             );
           })}
         </section>

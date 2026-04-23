@@ -597,7 +597,7 @@ const Performance: React.FC = () => {
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            {(user?.role === 'admin' || user?.role === 'manager') && dashboardData?.teamPerformance?.length > 0 && (
+            {(user?.role === 'admin' || user?.role === 'manager') && (dashboardData?.teamPerformance?.length ?? 0) > 0 && (
               <div className="relative w-full sm:w-72">
                 <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)]" />
                 <input

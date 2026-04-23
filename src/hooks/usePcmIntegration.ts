@@ -54,6 +54,7 @@ export interface PcmPendingStep {
   isEscalated?: boolean;
   escalationCount?: number;
   formData?: Record<string, any>;
+  displayData?: Record<string, any> | null;
   formFields?: PcmFormField[];
   formSections?: PcmFormSection[];
   formHeader?: Record<string, any> | null;

@@ -821,11 +821,16 @@ router.get('/pending-recurring', async (req, res) => {
       }
     });
 
-    const cyclicQuery = withSearch({
+    const cyclicBaseQuery = {
       ...baseMatch,
       taskType: { $in: CYCLIC_TASK_TYPES },
       dueDate: { $lte: fiveDaysLater }
-    });
+    };
+
+    const cyclicQuery = withSearch(cyclicBaseQuery);
+    const filteredCyclicQuery = withSearch(
+      taskType ? { ...cyclicBaseQuery, taskType } : cyclicBaseQuery
+    );
 
     // New fast mode used by the PendingRecurringTasks page.
     if (String(paginated) === 'true') {
@@ -854,7 +859,7 @@ router.get('/pending-recurring', async (req, res) => {
         return res.json(pendingRecurringCache[cacheKey]);
       }
 
-      const activeQuery = section === 'cyclic' ? cyclicQuery : dailyQuery;
+      const activeQuery = section === 'cyclic' ? filteredCyclicQuery : dailyQuery;
 
       const [tasks, total, dailyCount, cyclicCount] = await Promise.all([
         Task.find(activeQuery)

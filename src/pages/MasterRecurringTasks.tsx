@@ -70,6 +70,17 @@ interface LightMasterTask {
   priority: string;
   assignedTo?: { _id: string; username?: string };
   assignedBy?: { _id: string; username?: string };
+  parentTaskInfo?: {
+    originalStartDate?: string;
+    originalEndDate?: string;
+    includeSunday: boolean;
+    isForever: boolean;
+    weeklyDays?: number[];
+    weekOffDays?: number[];
+    monthlyDay?: number;
+    yearlyDuration?: number;
+  };
+  weekOffDays?: number[];
   dateRange: { start: string | Date; end: string | Date };
 }
 
@@ -1002,7 +1013,7 @@ const MasterRecurringTasks: React.FC = () => {
     if (!reassignTask || !user?.company?.companyId) return;
 
     try {
-      const res = await axios.post(
+      await axios.post(
         `${address}/api/tasks/reassign/${reassignTask.taskGroupId}`,
         {
           includeFiles,

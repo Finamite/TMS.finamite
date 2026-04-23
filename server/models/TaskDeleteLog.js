@@ -87,8 +87,7 @@ const taskDeleteLogSchema = new mongoose.Schema({
   },
   deletedAt: {
     type: Date,
-    default: Date.now,
-    index: true
+    default: Date.now
   },
   dateFrom: Date,
   dateTo: Date,
