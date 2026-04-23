@@ -197,6 +197,9 @@ const AdminPanel: React.FC = () => {
     showInDashboard: true,
     showInPendingPages: true,
   });
+  const [adminApprovalDefaults, setAdminApprovalDefaults] = useState({
+    defaultForUsers: false,
+  });
   const [pcmIntegrationLoading, setPcmIntegrationLoading] = useState(false);
   const [pcmIntegrationSaving, setPcmIntegrationSaving] = useState(false);
   const [searchName, setSearchName] = useState("");
@@ -211,7 +214,7 @@ const AdminPanel: React.FC = () => {
 
   // Define allowed permissions for each role
   const rolePermissions = {
-    employee: ['canViewTasks', 'canAssignTasks'],
+    employee: ['canViewTasks', 'canAssignTasks', 'canManageApproval'],
     manager: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings', 'canManageIntegrations', 'canManageRecycle', 'canManageApproval'],
     admin: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings', 'canManageIntegrations', 'canManageRecycle', 'canManageApproval'],
     superadmin: ['canViewTasks', 'canViewAllTeamTasks', 'canAssignTasks', 'canDeleteTasks', 'canEditTasks', 'canManageUsers', 'canEditRecurringTaskSchedules', 'canManageSettings', 'canManageIntegrations', 'canManageRecycle', 'canManageApproval']
@@ -291,6 +294,22 @@ const AdminPanel: React.FC = () => {
     }
   };
 
+  const fetchAdminApprovalDefaults = async () => {
+    if (!currentUser?.companyId) return;
+
+    try {
+      const response = await axios.get(`${address}/api/settings/admin-approval`, {
+        params: { companyId: currentUser.companyId }
+      });
+
+      setAdminApprovalDefaults({
+        defaultForUsers: response.data?.defaultForUsers ?? false,
+      });
+    } catch (error) {
+      console.error('Error fetching admin approval defaults:', error);
+    }
+  };
+
   const handlePcmEmailMapChange = (userId: string, value: string) => {
     setPcmIntegration(prev => ({
       ...prev,
@@ -344,6 +363,7 @@ const AdminPanel: React.FC = () => {
   useEffect(() => {
     if (currentUser?.companyId) {
       void fetchPcmIntegration();
+      void fetchAdminApprovalDefaults();
     }
   }, [currentUser?.companyId]);
 
@@ -497,6 +517,20 @@ const AdminPanel: React.FC = () => {
     return allowedPermissions.includes(permissionKey);
   };
 
+  const normalizeApprovalPermissions = (permissions: UserFormData['permissions']) => {
+    const next = { ...permissions };
+
+    if (next.canManageApproval) {
+      next.canAssignTasks = true;
+    }
+
+    if (!next.canAssignTasks) {
+      next.canManageApproval = false;
+    }
+
+    return next;
+  };
+
   const phoneCountryOptions = useMemo(() => {
     const regionNames =
       typeof Intl !== 'undefined' && typeof Intl.DisplayNames !== 'undefined'
@@ -638,6 +672,8 @@ const AdminPanel: React.FC = () => {
       // 👤 USER (employee) → ONLY view tasks
       if (value === 'employee') {
         permissions.canViewTasks = true;
+        permissions.canAssignTasks = adminApprovalDefaults.defaultForUsers;
+        permissions.canManageApproval = adminApprovalDefaults.defaultForUsers;
       }
 
       setFormData(prev => ({
@@ -647,12 +683,25 @@ const AdminPanel: React.FC = () => {
       }));
     } else if (name.startsWith('permissions.')) {
       const permissionKey = name.split('.')[1];
+      const checked = type === 'checkbox' ? (e.target as HTMLInputElement).checked : Boolean(value);
       setFormData(prev => ({
         ...prev,
-        permissions: {
-          ...prev.permissions,
-          [permissionKey]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
-        }
+        permissions: (() => {
+          const nextPermissions = {
+            ...prev.permissions,
+            [permissionKey]: checked
+          } as UserFormData['permissions'];
+
+          if (permissionKey === 'canManageApproval' && checked) {
+            nextPermissions.canAssignTasks = true;
+          }
+
+          if (permissionKey === 'canAssignTasks' && !checked) {
+            nextPermissions.canManageApproval = false;
+          }
+
+          return nextPermissions;
+        })()
       }));
     } else {
       setFormData(prev => ({
@@ -668,6 +717,7 @@ const AdminPanel: React.FC = () => {
     e.preventDefault();
     try {
       const phone = normalizePhoneNumberForSave(formData.phoneCountry as CountryCode, formData.phone);
+      const permissions = normalizeApprovalPermissions(formData.permissions);
       const userData = {
         username: formData.username,
         email: formData.email,
@@ -675,7 +725,7 @@ const AdminPanel: React.FC = () => {
         role: formData.role,
         department: formData.department,
         phone,
-        permissions: formData.permissions,
+        permissions,
         companyId: currentUser?.companyId
       };
       await axios.post(`${address}/api/users`, userData);
@@ -711,11 +761,12 @@ const AdminPanel: React.FC = () => {
     }
 
     try {
+      const permissions = normalizeApprovalPermissions(formData.permissions);
       await axios.put(`${address}/api/users/${editingUser._id}`, {
         username: formData.username,
         email: formData.email,
         role: formData.role,
-        permissions: formData.permissions,
+        permissions,
         department: formData.department,
         phone: normalizePhoneNumberForSave(formData.phoneCountry as CountryCode, formData.phone),
       });
@@ -808,16 +859,60 @@ const AdminPanel: React.FC = () => {
       canViewTasks: 'View Tasks',
       canViewAllTeamTasks: 'View All Team Tasks',
       canAssignTasks: 'Assign Tasks',
+      canManageApproval: 'Manage Approval',
       canDeleteTasks: 'Delete Tasks',
       canEditTasks: 'Edit Tasks',
       canManageUsers: 'Manage Users',
       canEditRecurringTaskSchedules: 'Edit Recurring Task Schedules',
       canManageSettings: 'Manage Settings',
       canManageIntegrations: 'Manage Integrations',
-      canManageRecycle: 'Manage Recycle Bin',
-      canManageApproval: 'Manage Approval'
+      canManageRecycle: 'Manage Recycle Bin'
     };
     return names[key] || null;
+  };
+
+  const getPermissionOrder = (role: string): Array<keyof UserFormData['permissions']> => {
+    if (role === 'employee') {
+      return [
+        'canViewTasks',
+        'canAssignTasks',
+        'canManageApproval',
+        'canViewAllTeamTasks',
+        'canDeleteTasks',
+        'canEditTasks',
+        'canManageUsers',
+        'canEditRecurringTaskSchedules',
+        'canManageSettings',
+        'canManageIntegrations',
+        'canManageRecycle'
+      ];
+    }
+
+    return [
+      'canViewTasks',
+      'canViewAllTeamTasks',
+      'canManageApproval',
+      'canAssignTasks',
+      'canDeleteTasks',
+      'canEditTasks',
+      'canManageUsers',
+      'canEditRecurringTaskSchedules',
+      'canManageSettings',
+      'canManageIntegrations',
+      'canManageRecycle'
+    ];
+  };
+
+  const getRenderedPermissionOrder = (
+    role: string,
+    permissions: UserFormData['permissions']
+  ): Array<keyof UserFormData['permissions']> => {
+    const baseOrder = getPermissionOrder(role);
+    if (role !== 'manager') return baseOrder;
+
+    const selected = baseOrder.filter((key) => Boolean(permissions[key]));
+    const unselected = baseOrder.filter((key) => !Boolean(permissions[key]));
+    return [...selected, ...unselected];
   };
 
   const getActivePermissions = (permissions: any) => {
@@ -1802,7 +1897,8 @@ const AdminPanel: React.FC = () => {
                     Permissions
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {Object.entries(formData.permissions).map(([key, value]) => {
+                    {getRenderedPermissionOrder(formData.role, formData.permissions).map((key) => {
+                      const value = formData.permissions[key];
                       const isAllowed = isPermissionAllowedForRole(key, formData.role);
                       const isDisabled = !isAllowed;
 
@@ -1986,7 +2082,8 @@ const AdminPanel: React.FC = () => {
                     Permissions
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {Object.entries(formData.permissions).map(([key, value]) => {
+                    {getRenderedPermissionOrder(formData.role, formData.permissions).map((key) => {
+                      const value = formData.permissions[key];
                       const displayName = getPermissionDisplayName(key);
                       if (!displayName) return null; // skip unsupported permissions
 

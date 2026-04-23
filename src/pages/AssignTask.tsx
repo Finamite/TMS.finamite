@@ -68,7 +68,11 @@ const AssignTask: React.FC = () => {
   const [taskGroupId, setTaskGroupId] = useState("");
   const [originalTaskId, setOriginalTaskId] = useState(""); // Add this
   const loadedReassignDataRef = useRef(false);
-  const [adminApprovalSettings, setAdminApprovalSettings] = useState({ enabled: false, defaultForOneTime: false });
+  const [adminApprovalSettings, setAdminApprovalSettings] = useState({
+    enabled: false,
+    defaultForOneTime: false,
+    defaultForUsers: false
+  });
   const [templateProcessing, setTemplateProcessing] = useState(false);
   const [templateImportSummary, setTemplateImportSummary] = useState<TemplateImportSummary | null>(null);
   const [templatePreviewOpen, setTemplatePreviewOpen] = useState(false);
@@ -101,14 +105,19 @@ const AssignTask: React.FC = () => {
   useEffect(() => {
     if (!adminApprovalSettings.enabled) return;
 
+    const defaultRequiresApproval =
+      user?.role === 'employee'
+        ? adminApprovalSettings.defaultForUsers
+        : adminApprovalSettings.defaultForOneTime;
+
     setTaskForms(prev =>
       prev.map(task =>
         task.taskType === "one-time"
-          ? { ...task, requiresApproval: adminApprovalSettings.defaultForOneTime }
+          ? { ...task, requiresApproval: defaultRequiresApproval }
           : task
       )
     );
-  }, [adminApprovalSettings]);
+  }, [adminApprovalSettings, user?.role]);
 
 
   useEffect(() => {
@@ -135,7 +144,11 @@ const AssignTask: React.FC = () => {
   useEffect(() => {
     if (user?.company?.companyId) {
       axios.get(`${address}/api/settings/admin-approval?companyId=${user.company.companyId}`)
-        .then(res => setAdminApprovalSettings(res.data))
+        .then(res => setAdminApprovalSettings({
+          enabled: res.data?.enabled ?? false,
+          defaultForOneTime: res.data?.defaultForOneTime ?? false,
+          defaultForUsers: res.data?.defaultForUsers ?? false
+        }))
         .catch(err => console.error('Error fetching admin approval settings:', err));
     }
   }, [user]);
@@ -220,7 +233,9 @@ const AssignTask: React.FC = () => {
     };
 
     if (newTask.taskType === 'one-time') {
-      newTask.requiresApproval = adminApprovalSettings.defaultForOneTime;
+      newTask.requiresApproval = user?.role === 'employee'
+        ? adminApprovalSettings.defaultForUsers
+        : adminApprovalSettings.defaultForOneTime;
     }
 
     setTaskForms([...taskForms, newTask]);

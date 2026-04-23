@@ -95,6 +95,7 @@ interface SettingsData {
     adminApproval: {
         enabled: boolean;
         defaultForOneTime: boolean;
+        defaultForUsers: boolean;
     },
     revision: RevisionSettings;
     email: EmailSettings;
@@ -226,7 +227,8 @@ const SettingsPage: React.FC = () => {
         },
         adminApproval: {
             enabled: false,
-            defaultForOneTime: false
+            defaultForOneTime: false,
+            defaultForUsers: false
         },
         taskCompletion: {
             enabled: false,  // 🔥 MAIN TOGGLE
@@ -345,7 +347,11 @@ const SettingsPage: React.FC = () => {
         const res = await axios.get(`${address}/api/settings/admin-approval?companyId=${currentUser.companyId}`);
         setSettings(prev => ({
             ...prev,
-            adminApproval: res.data
+            adminApproval: {
+                enabled: res.data?.enabled ?? false,
+                defaultForOneTime: res.data?.defaultForOneTime ?? false,
+                defaultForUsers: res.data?.defaultForUsers ?? false
+            }
         }));
     };
 
@@ -725,7 +731,8 @@ const SettingsPage: React.FC = () => {
             await axios.post(`${address}/api/settings/admin-approval`, {
                 companyId: currentUser.companyId,
                 enabled: settings.adminApproval.enabled,
-                defaultForOneTime: settings.adminApproval.defaultForOneTime
+                defaultForOneTime: settings.adminApproval.defaultForOneTime,
+                defaultForUsers: settings.adminApproval.defaultForUsers
             });
 
             await axios.post(`${address}/api/settings/bin`, {
@@ -1306,7 +1313,9 @@ const SettingsPage: React.FC = () => {
                                 </div>
                             </div>
                             <p className="mt-2 text-xs text-[var(--color-textSecondary)]">
-                                {settings.adminApproval.defaultForOneTime ? 'One-time tasks require review' : 'No default approval required'}
+                                {settings.adminApproval.defaultForOneTime || settings.adminApproval.defaultForUsers
+                                    ? `${settings.adminApproval.defaultForOneTime ? 'One-time tasks require review' : ''}${settings.adminApproval.defaultForOneTime && settings.adminApproval.defaultForUsers ? ' · ' : ''}${settings.adminApproval.defaultForUsers ? 'User-created tasks require review' : ''}`
+                                    : 'No default approval required'}
                             </p>
                         </div>
                     </div>
@@ -2823,11 +2832,45 @@ const SettingsPage: React.FC = () => {
                                             </div>
                                         </div>
 
+                                        <div
+                                            className={`p-4 rounded-xl border transition-all
+                            ${settings.adminApproval.enabled
+                                                    ? 'bg-[var(--color-surface)] border-[var(--color-border)] hover:border-[var(--color-primary)]/30'
+                                                    : 'bg-[var(--color-surface)] border-[var(--color-border)] opacity-50'}
+                        `}
+                                        >
+                                            <div className="flex items-center justify-between gap-4">
+                                                <div>
+                                                    <p className="font-medium text-[var(--color-text)]">
+                                                        Default approval for user-created tasks
+                                                    </p>
+                                                    <p className="text-xs text-[var(--color-textSecondary)] mt-1">
+                                                        Tasks created by users with approval access will automatically require review
+                                                    </p>
+                                                </div>
+
+                                                <ToggleSwitch
+                                                    checked={settings.adminApproval.defaultForUsers}
+                                                    disabled={!settings.adminApproval.enabled}
+                                                    onChange={(val) => {
+                                                        setHasUnsavedChanges(true);
+                                                        setSettings(prev => ({
+                                                            ...prev,
+                                                            adminApproval: {
+                                                                ...prev.adminApproval,
+                                                                defaultForUsers: val
+                                                            }
+                                                        }));
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+
                                         {/* Info Box */}
                                         <div className="p-4 bg-[var(--color-info)]/5 rounded-lg border border-[var(--color-info)]/10">
                                             <p className="text-xs text-[var(--color-textSecondary)] leading-relaxed">
                                                 When enabled, completed one-time tasks move to <b>For Approval</b>.
-                                                Admins can approve (mark complete) or reject (send for reassignment).
+                                                Admins and approved users can approve, reject, or reassign those tasks.
                                             </p>
                                         </div>
                                     </div>

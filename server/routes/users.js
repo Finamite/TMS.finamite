@@ -61,6 +61,20 @@ const validateCompanyRoleLimit = async ({ companyId, role, excludeUserId = null 
   return null;
 };
 
+const normalizeApprovalPermissions = (permissions = {}) => {
+  const next = { ...permissions };
+
+  if (next.canManageApproval) {
+    next.canAssignTasks = true;
+  }
+
+  if (!next.canAssignTasks) {
+    next.canManageApproval = false;
+  }
+
+  return next;
+};
+
 router.use(async (req, res, next) => {
   try {
     const userId = req.headers['userid'];
@@ -150,6 +164,7 @@ router.get('/:id/access-logs', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { username, email, password, role, permissions, companyId, department, phone } = req.body;
+    const normalizedPermissions = normalizeApprovalPermissions(permissions);
 
     // Check if email already exists
     const existingUser = await User.findOne({ email });
@@ -181,7 +196,7 @@ router.post('/', async (req, res) => {
       role,
       department,
       phone,
-      permissions
+      permissions: normalizedPermissions
     });
 
     await user.save();
@@ -199,6 +214,7 @@ router.put('/:id', async (req, res) => {
   try {
     const { username, email, role, permissions, department, phone } = req.body;
     const userId = req.params.id;
+    const normalizedPermissions = normalizeApprovalPermissions(permissions);
 
     const user = await User.findById(userId);
     if (!user) {
@@ -241,7 +257,7 @@ router.put('/:id', async (req, res) => {
         username,
         email,
         role,
-        permissions,
+        permissions: normalizedPermissions,
         department,
         phone,
         sessionInvalidated: true   // 🔥 FORCE LOGOUT

@@ -1613,7 +1613,8 @@ router.get('/admin-approval', async (req, res) => {
         companyId,
         data: {
           enabled: false,  // Default disabled
-          defaultForOneTime: false  // Checkbox default when enabled
+          defaultForOneTime: false,  // Checkbox default when enabled
+          defaultForUsers: false
         }
       });
       await settings.save();
@@ -1628,13 +1629,14 @@ router.get('/admin-approval', async (req, res) => {
 
 router.post('/admin-approval', async (req, res) => {
   try {
-    const { companyId, enabled, defaultForOneTime } = req.body;
+    const { companyId, enabled, defaultForOneTime, defaultForUsers } = req.body;
 
     if (!companyId) return res.status(400).json({ message: 'companyId required' });
 
     const payload = {
       enabled: enabled ?? false,
-      defaultForOneTime: defaultForOneTime ?? false
+      defaultForOneTime: defaultForOneTime ?? false,
+      defaultForUsers: defaultForUsers ?? false
     };
 
     const settings = await Settings.findOneAndUpdate(

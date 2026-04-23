@@ -268,7 +268,9 @@ const ForApproval: React.FC = () => {
 
         const allowed =
             user.role === 'admin' ||
-            (user.role === 'manager' && user.permissions?.canManageApproval);
+            user.role === 'superadmin' ||
+            (user.role === 'manager' && user.permissions?.canManageApproval) ||
+            user.permissions?.canManageApproval === true;
 
         if (!allowed) {
             navigate('/dashboard', { replace: true });
@@ -293,6 +295,7 @@ const ForApproval: React.FC = () => {
     const fetchPendingApprovalTasks = async () => {
         try {
             setLoading(true);
+            const isUserLevelApprover = user?.role === 'employee' && user.permissions?.canManageApproval;
             const response = await axios.get(
                 `${address}/api/tasks`,
                 {
@@ -301,13 +304,19 @@ const ForApproval: React.FC = () => {
                         requiresApproval: true,
                         taskType: 'one-time',
                         companyId: user?.company?.companyId,
+                        ...(isUserLevelApprover ? { assignedBy: user.id } : {}),
                         limit: 10000   // âœ… IMPORTANT
                     }
                 }
             );
 
             setTasks(Array.isArray(response.data.tasks)
-                ? response.data.tasks.filter((task: Task) => task.taskType === 'one-time')
+                ? response.data.tasks.filter((task: Task) => {
+                    const isOneTime = task.taskType === 'one-time';
+                    const isUserLevelApprover = user?.role === 'employee' && user.permissions?.canManageApproval;
+                    const isSelfAssigned = isUserLevelApprover && task.assignedTo?._id === user.id;
+                    return isOneTime && !isSelfAssigned;
+                })
                 : []);
         } catch (error) {
             toast.error('Error fetching tasks');
@@ -321,7 +330,6 @@ const ForApproval: React.FC = () => {
         if (!user) return false;
 
         return (
-            user.role === 'manager' &&
             task.assignedTo?._id === user.id
         );
     };
@@ -822,7 +830,7 @@ const ForApproval: React.FC = () => {
                                 Tasks for Approval
                             </h1>
                             <p className="mt-1 text-sm text-[var(--color-textSecondary)]">
-                                {filteredTasks.length} of {tasks.length} task(s) found • Review and approve/reject pending one-time tasks
+                                {filteredTasks.length} of {tasks.length} task(s) found • {user?.role === 'employee' && user.permissions?.canManageApproval ? 'Review tasks assigned by you' : 'Review and approve/reject pending one-time tasks'}
                             </p>
                         </div>
                         {!isMobile && (

@@ -508,6 +508,28 @@ const trackDatabaseUsage = async (companyId) => {
 
 const getRequestActorId = (req) => req.headers.userid || req.headers['x-user-id'] || null;
 
+const canAccessApprovalTask = (actor, task) => {
+  if (!actor || !task) return false;
+
+  if (String(task.assignedTo) === String(actor._id)) {
+    return false;
+  }
+
+  if (['admin', 'superadmin'].includes(actor.role)) {
+    return true;
+  }
+
+  if (actor.role === 'manager' && actor.permissions?.canManageApproval) {
+    return true;
+  }
+
+  if (actor.permissions?.canManageApproval) {
+    return String(task.assignedBy) === String(actor._id);
+  }
+
+  return false;
+};
+
 const logTaskDeleteActivity = async ({ req, tasks, companyId, deleteMode, source, deletedByName, deletedByRole }) => {
   try {
     await createTaskDeleteLogs({
@@ -1531,13 +1553,25 @@ router.get('/approval-count', async (req, res) => {
       return res.json({ count: 0 });
     }
 
-    const count = await Task.countDocuments({
+    const actorId = getRequestActorId(req);
+    const actor = actorId
+      ? await User.findById(actorId).select('role permissions').lean()
+      : null;
+
+    const query = {
       companyId,
       isActive: true,
       status: 'in-progress',
       requiresApproval: true,
       taskType: 'one-time'
-    });
+    };
+
+    if (actor?.role === 'employee' && actor.permissions?.canManageApproval) {
+      query.assignedBy = actor._id;
+      query.assignedTo = { $ne: actor._id };
+    }
+
+    const count = await Task.countDocuments(query);
 
     res.json({ count });
   } catch (err) {
@@ -3408,6 +3442,11 @@ router.get("/pending-approval-count", async (req, res) => {
       return res.status(400).json({ count: 0 });
     }
 
+    const actorId = getRequestActorId(req);
+    const actor = actorId
+      ? await User.findById(actorId).select('role permissions').lean()
+      : null;
+
     const query = {
       companyId,
       isActive: true,
@@ -3416,8 +3455,11 @@ router.get("/pending-approval-count", async (req, res) => {
       taskType: "one-time"
     };
 
-    // 🔒 STRICT USER FILTER
-    if (role === "employee") {
+    // User-level approvers only see tasks they assigned themselves
+    if (actor?.role === 'employee' && actor.permissions?.canManageApproval) {
+      query.assignedBy = actor._id;
+      query.assignedTo = { $ne: actor._id };
+    } else if (role === "employee") {
       if (!userId) {
         return res.json({ count: 0 });
       }
@@ -3901,9 +3943,22 @@ router.post('/:id/approve', async (req, res) => {
     const { userid } = req.headers; // admin user id
     const { remarks } = req.body;
 
+    if (!userid) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const actor = await User.findById(userid).select('role permissions').lean();
+    if (!actor) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
     const task = await Task.findById(id);
     if (!task || task.status !== 'in-progress' || !isApprovalEligibleTask(task.taskType, task.requiresApproval)) {
       return res.status(400).json({ message: 'Invalid task for approval' });
+    }
+
+    if (!canAccessApprovalTask(actor, task)) {
+      return res.status(403).json({ message: 'You do not have permission to approve this task' });
     }
 
     // ✅ FINALIZE TASK
@@ -3957,6 +4012,15 @@ router.post('/:id/reject', async (req, res) => {
     const taskId = req.params.id;
     const { userid } = req.headers;
 
+    if (!userid) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const actor = await User.findById(userid).select('role permissions').lean();
+    if (!actor) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
     // ✅ Validate action
     if (!['noAction', 'reassign', 'finalize-reassign'].includes(action)) {
       return res.status(400).json({ message: 'Invalid reject action' });
@@ -3975,6 +4039,10 @@ router.post('/:id/reject', async (req, res) => {
 
     if (!isApprovalEligibleTask(task.taskType, task.requiresApproval)) {
       return res.status(400).json({ message: 'Invalid task for approval' });
+    }
+
+    if (!canAccessApprovalTask(actor, task)) {
+      return res.status(403).json({ message: 'You do not have permission to reject this task' });
     }
 
     // ✅ Common rejection fields
