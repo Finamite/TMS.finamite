@@ -43,6 +43,10 @@ router.get('/analytics', async (req, res) => {
 
     const companyId = currentUser.companyId;
     const now = new Date();
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setDate(todayStart.getDate() + 1);
 
     let baseQuery = {
       isActive: true,
@@ -375,6 +379,10 @@ router.get('/counts', async (req, res) => {
 
     const companyId = currentUser.companyId;
     const now = new Date();
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setDate(todayStart.getDate() + 1);
 
     let baseQuery = {
       isActive: true,
@@ -390,6 +398,70 @@ router.get('/counts', async (req, res) => {
     if (isAdmin !== 'true' && userObjectId) {
       baseQuery.assignedTo = userObjectId;
     }
+
+    const pendingDueQuery = {
+      $or: [
+        { dueDate: { $lte: now } },
+        { nextDueDate: { $lte: now } }
+      ]
+    };
+
+    const todayDueQuery = {
+      $or: [
+        { dueDate: { $gte: todayStart, $lt: tomorrowStart } },
+        { nextDueDate: { $gte: todayStart, $lt: tomorrowStart } }
+      ]
+    };
+
+    const buildPendingCountQuery = (extraQuery = {}, taskType = null) => {
+      const query = {
+        ...baseQuery,
+        status: 'pending'
+      };
+
+      if (taskType) {
+        query.taskType = taskType;
+      }
+
+      const andClauses = [taskType === 'daily' ? todayDueQuery : pendingDueQuery];
+      if (extraQuery && Object.keys(extraQuery).length > 0) {
+        andClauses.unshift(extraQuery);
+      }
+
+      query.$and = andClauses;
+      return query;
+    };
+
+    const buildOverallPendingCountQuery = (extraQuery = {}) => {
+      const query = {
+        ...baseQuery,
+        status: 'pending'
+      };
+
+      const pendingClauses = [
+        {
+          taskType: 'daily',
+          $or: [
+            { dueDate: { $gte: todayStart, $lt: tomorrowStart } },
+            { nextDueDate: { $gte: todayStart, $lt: tomorrowStart } }
+          ]
+        },
+        {
+          taskType: { $ne: 'daily' },
+          $or: [
+            { dueDate: { $lte: now } },
+            { nextDueDate: { $lte: now } }
+          ]
+        }
+      ];
+
+      query.$and = [
+        ...(extraQuery && Object.keys(extraQuery).length > 0 ? [extraQuery] : []),
+        { $or: pendingClauses }
+      ];
+
+      return query;
+    };
 
     // For all-time view (no startDate/endDate), get all data
     if (startDate && endDate) {
@@ -421,7 +493,6 @@ router.get('/counts', async (req, res) => {
       };
     } else {
       // For all-time view, compare this year with last year
-      const now = new Date();
       const currentYear = now.getFullYear();
       const previousYear = currentYear - 1;
 
@@ -455,7 +526,7 @@ router.get('/counts', async (req, res) => {
         thisYearOverdueTasks
       ] = await Promise.all([
         Task.countDocuments({ ...baseQuery, ...thisYearDateRangeQuery }),
-        Task.countDocuments({ ...baseQuery, ...thisYearDateRangeQuery, status: 'pending' }),
+        Task.countDocuments(buildOverallPendingCountQuery(thisYearDateRangeQuery)),
         Task.countDocuments({ ...baseQuery, ...thisYearDateRangeQuery, status: 'completed' }),
         Task.countDocuments({
           ...baseQuery,
@@ -477,7 +548,7 @@ router.get('/counts', async (req, res) => {
         prevYearOverdueTasks
       ] = await Promise.all([
         Task.countDocuments({ ...baseQuery, ...previousDateRangeQuery }),
-        Task.countDocuments({ ...baseQuery, ...previousDateRangeQuery, status: 'pending' }),
+        Task.countDocuments(buildOverallPendingCountQuery(previousDateRangeQuery)),
         Task.countDocuments({ ...baseQuery, ...previousDateRangeQuery, status: 'completed' }),
         Task.countDocuments({
           ...baseQuery,
@@ -531,7 +602,7 @@ router.get('/counts', async (req, res) => {
         yearlyCompleted
       ] = await Promise.all([
         Task.countDocuments(baseQuery),
-        Task.countDocuments({ ...baseQuery, status: 'pending' }),
+        Task.countDocuments(buildOverallPendingCountQuery()),
         Task.countDocuments({ ...baseQuery, status: 'completed' }),
         Task.countDocuments({
           ...baseQuery,
@@ -546,7 +617,7 @@ router.get('/counts', async (req, res) => {
         Task.countDocuments({ ...baseQuery, taskType: 'one-time', status: 'pending' }),
         Task.countDocuments({ ...baseQuery, taskType: 'one-time', status: 'completed' }),
         Task.countDocuments({ ...baseQuery, taskType: 'daily' }),
-        Task.countDocuments({ ...baseQuery, taskType: 'daily', status: 'pending' }),
+        Task.countDocuments(buildPendingCountQuery({}, 'daily')),
         Task.countDocuments({ ...baseQuery, taskType: 'daily', status: 'completed' }),
         Task.countDocuments({ ...baseQuery, taskType: 'weekly' }),
         Task.countDocuments({ ...baseQuery, taskType: 'weekly', status: 'pending' }),
@@ -621,7 +692,33 @@ router.get('/counts', async (req, res) => {
           $group: {
             _id: null,
             totalTasks: { $sum: 1 },
-            pendingTasks: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
+            pendingTasks: {
+              $sum: {
+                $cond: [
+                  {
+                    $or: [
+                      {
+                        $and: [
+                          { $eq: ['$status', 'pending'] },
+                          { $eq: ['$taskType', 'daily'] },
+                          { $gte: ['$effectiveDue', todayStart] },
+                          { $lt: ['$effectiveDue', tomorrowStart] }
+                        ]
+                      },
+                      {
+                        $and: [
+                          { $eq: ['$status', 'pending'] },
+                          { $ne: ['$taskType', 'daily'] },
+                          { $lte: ['$effectiveDue', now] }
+                        ]
+                      }
+                    ]
+                  },
+                  1,
+                  0
+                ]
+              }
+            },
             completedTasks: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
             overdueTasks: {
               $sum: {
@@ -641,7 +738,17 @@ router.get('/counts', async (req, res) => {
             oneTimeTasks: { $sum: { $cond: [{ $eq: ['$taskType', 'one-time'] }, 1, 0] } },
             oneTimePending: {
               $sum: {
-                $cond: [{ $and: [{ $eq: ['$taskType', 'one-time'] }, { $eq: ['$status', 'pending'] }] }, 1, 0]
+                $cond: [
+                  {
+                    $and: [
+                      { $eq: ['$taskType', 'one-time'] },
+                      { $eq: ['$status', 'pending'] },
+                      { $lte: ['$effectiveDue', now] }
+                    ]
+                  },
+                  1,
+                  0
+                ]
               }
             },
             oneTimeCompleted: {
@@ -652,7 +759,28 @@ router.get('/counts', async (req, res) => {
             dailyTasks: { $sum: { $cond: [{ $eq: ['$taskType', 'daily'] }, 1, 0] } },
             dailyPending: {
               $sum: {
-                $cond: [{ $and: [{ $eq: ['$taskType', 'daily'] }, { $eq: ['$status', 'pending'] }] }, 1, 0]
+                $cond: [
+                  {
+                    $and: [
+                      { $eq: ['$taskType', 'daily'] },
+                      { $eq: ['$status', 'pending'] },
+                      {
+                        $gte: [
+                          '$effectiveDue',
+                          todayStart
+                        ]
+                      },
+                      {
+                        $lt: [
+                          '$effectiveDue',
+                          tomorrowStart
+                        ]
+                      }
+                    ]
+                  },
+                  1,
+                  0
+                ]
               }
             },
             dailyCompleted: {
@@ -663,7 +791,17 @@ router.get('/counts', async (req, res) => {
             weeklyTasks: { $sum: { $cond: [{ $eq: ['$taskType', 'weekly'] }, 1, 0] } },
             weeklyPending: {
               $sum: {
-                $cond: [{ $and: [{ $eq: ['$taskType', 'weekly'] }, { $eq: ['$status', 'pending'] }] }, 1, 0]
+                $cond: [
+                  {
+                    $and: [
+                      { $eq: ['$taskType', 'weekly'] },
+                      { $eq: ['$status', 'pending'] },
+                      { $lte: ['$effectiveDue', now] }
+                    ]
+                  },
+                  1,
+                  0
+                ]
               }
             },
             weeklyCompleted: {
@@ -674,7 +812,17 @@ router.get('/counts', async (req, res) => {
             fortnightlyTasks: { $sum: { $cond: [{ $eq: ['$taskType', 'fortnightly'] }, 1, 0] } },
             fortnightlyPending: {
               $sum: {
-                $cond: [{ $and: [{ $eq: ['$taskType', 'fortnightly'] }, { $eq: ['$status', 'pending'] }] }, 1, 0]
+                $cond: [
+                  {
+                    $and: [
+                      { $eq: ['$taskType', 'fortnightly'] },
+                      { $eq: ['$status', 'pending'] },
+                      { $lte: ['$effectiveDue', now] }
+                    ]
+                  },
+                  1,
+                  0
+                ]
               }
             },
             fortnightlyCompleted: {
@@ -685,7 +833,17 @@ router.get('/counts', async (req, res) => {
             monthlyTasks: { $sum: { $cond: [{ $eq: ['$taskType', 'monthly'] }, 1, 0] } },
             monthlyPending: {
               $sum: {
-                $cond: [{ $and: [{ $eq: ['$taskType', 'monthly'] }, { $eq: ['$status', 'pending'] }] }, 1, 0]
+                $cond: [
+                  {
+                    $and: [
+                      { $eq: ['$taskType', 'monthly'] },
+                      { $eq: ['$status', 'pending'] },
+                      { $lte: ['$effectiveDue', now] }
+                    ]
+                  },
+                  1,
+                  0
+                ]
               }
             },
             monthlyCompleted: {
@@ -696,7 +854,17 @@ router.get('/counts', async (req, res) => {
             quarterlyTasks: { $sum: { $cond: [{ $eq: ['$taskType', 'quarterly'] }, 1, 0] } },
             quarterlyPending: {
               $sum: {
-                $cond: [{ $and: [{ $eq: ['$taskType', 'quarterly'] }, { $eq: ['$status', 'pending'] }] }, 1, 0]
+                $cond: [
+                  {
+                    $and: [
+                      { $eq: ['$taskType', 'quarterly'] },
+                      { $eq: ['$status', 'pending'] },
+                      { $lte: ['$effectiveDue', now] }
+                    ]
+                  },
+                  1,
+                  0
+                ]
               }
             },
             quarterlyCompleted: {
@@ -707,7 +875,17 @@ router.get('/counts', async (req, res) => {
             yearlyTasks: { $sum: { $cond: [{ $eq: ['$taskType', 'yearly'] }, 1, 0] } },
             yearlyPending: {
               $sum: {
-                $cond: [{ $and: [{ $eq: ['$taskType', 'yearly'] }, { $eq: ['$status', 'pending'] }] }, 1, 0]
+                $cond: [
+                  {
+                    $and: [
+                      { $eq: ['$taskType', 'yearly'] },
+                      { $eq: ['$status', 'pending'] },
+                      { $lte: ['$effectiveDue', now] }
+                    ]
+                  },
+                  1,
+                  0
+                ]
               }
             },
             yearlyCompleted: {
