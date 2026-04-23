@@ -36,6 +36,18 @@ const ThemeCard = ({ children, className = "", variant = "default", hover = true
   );
 };
 
+const WhatsAppIcon = ({ size = 18 }: { size?: number }) => (
+  <svg
+    aria-hidden="true"
+    viewBox="0 0 24 24"
+    width={size}
+    height={size}
+    fill="currentColor"
+  >
+    <path d="M19.05 4.95A9.92 9.92 0 0 0 12.01 2C6.49 2 2 6.49 2 12a9.94 9.94 0 0 0 1.34 4.99L2 22l5.16-1.35A9.94 9.94 0 0 0 12 22c5.52 0 10-4.48 10-10 0-2.66-1.04-5.16-2.95-7.05Zm-7.04 15.35a8.22 8.22 0 0 1-4.2-1.15l-.3-.18-3.06.8.82-2.98-.2-.31A8.2 8.2 0 1 1 12.01 20.3Zm4.77-6.52c-.26-.13-1.55-.77-1.79-.86-.24-.09-.42-.13-.6.13-.17.26-.69.86-.84 1.04-.15.17-.31.2-.57.07-.26-.13-1.09-.4-2.08-1.27-.77-.69-1.29-1.53-1.44-1.79-.15-.26-.02-.4.11-.53.11-.11.26-.31.39-.46.13-.15.17-.26.26-.44.09-.17.04-.33-.02-.46-.06-.13-.6-1.45-.82-1.98-.22-.53-.44-.46-.6-.47-.15-.01-.33-.01-.51-.01-.18 0-.46.07-.7.33-.24.26-.92.9-.92 2.2s.95 2.55 1.08 2.73c.13.17 1.86 2.84 4.51 3.98.63.27 1.12.43 1.51.55.63.2 1.2.17 1.65.1.5-.08 1.55-.63 1.77-1.24.22-.61.22-1.13.16-1.24-.06-.11-.24-.17-.5-.3Z" />
+  </svg>
+);
+
 
 const HelpSupport: React.FC = () => {
   const { user } = useAuth();
@@ -354,7 +366,7 @@ const HelpSupport: React.FC = () => {
                     rel="noopener noreferrer"
                     className="flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-600 bg-emerald-600 px-4 py-3 font-semibold text-white shadow-lg shadow-emerald-500/20 transition-all hover:bg-emerald-700"
                   >
-                    <Phone size={18} />
+                    <WhatsAppIcon size={18} />
                     <span>{isMobile ? "Call Now" : "WhatsApp Support"}</span>
                   </a>
 

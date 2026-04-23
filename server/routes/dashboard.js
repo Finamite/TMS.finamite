@@ -517,6 +517,9 @@ router.get('/counts', async (req, res) => {
         weeklyTasks,
         weeklyPending,
         weeklyCompleted,
+        fortnightlyTasks,
+        fortnightlyPending,
+        fortnightlyCompleted,
         monthlyTasks,
         monthlyPending,
         monthlyCompleted,
@@ -548,6 +551,9 @@ router.get('/counts', async (req, res) => {
         Task.countDocuments({ ...baseQuery, taskType: 'weekly' }),
         Task.countDocuments({ ...baseQuery, taskType: 'weekly', status: 'pending' }),
         Task.countDocuments({ ...baseQuery, taskType: 'weekly', status: 'completed' }),
+        Task.countDocuments({ ...baseQuery, taskType: 'fortnightly' }),
+        Task.countDocuments({ ...baseQuery, taskType: 'fortnightly', status: 'pending' }),
+        Task.countDocuments({ ...baseQuery, taskType: 'fortnightly', status: 'completed' }),
         Task.countDocuments({ ...baseQuery, taskType: 'monthly' }),
         Task.countDocuments({ ...baseQuery, taskType: 'monthly', status: 'pending' }),
         Task.countDocuments({ ...baseQuery, taskType: 'monthly', status: 'completed' }),
@@ -559,9 +565,9 @@ router.get('/counts', async (req, res) => {
         Task.countDocuments({ ...baseQuery, taskType: 'yearly', status: 'completed' })
       ]);
 
-      const recurringTasks = dailyTasks + weeklyTasks + monthlyTasks + quarterlyTasks + yearlyTasks;
-      const recurringPending = dailyPending + weeklyPending + monthlyPending + quarterlyPending + yearlyPending;
-      const recurringCompleted = dailyCompleted + weeklyCompleted + monthlyCompleted + quarterlyCompleted + yearlyCompleted;
+      const recurringTasks = dailyTasks + weeklyTasks + fortnightlyTasks + monthlyTasks + quarterlyTasks + yearlyTasks;
+      const recurringPending = dailyPending + weeklyPending + fortnightlyPending + monthlyPending + quarterlyPending + yearlyPending;
+      const recurringCompleted = dailyCompleted + weeklyCompleted + fortnightlyCompleted + monthlyCompleted + quarterlyCompleted + yearlyCompleted;
       const overduePercentage = totalTasks > 0 ? (overdueTasks / totalTasks) * 100 : 0;
 
       const payload = {
@@ -665,6 +671,17 @@ router.get('/counts', async (req, res) => {
                 $cond: [{ $and: [{ $eq: ['$taskType', 'weekly'] }, { $eq: ['$status', 'completed'] }] }, 1, 0]
               }
             },
+            fortnightlyTasks: { $sum: { $cond: [{ $eq: ['$taskType', 'fortnightly'] }, 1, 0] } },
+            fortnightlyPending: {
+              $sum: {
+                $cond: [{ $and: [{ $eq: ['$taskType', 'fortnightly'] }, { $eq: ['$status', 'pending'] }] }, 1, 0]
+              }
+            },
+            fortnightlyCompleted: {
+              $sum: {
+                $cond: [{ $and: [{ $eq: ['$taskType', 'fortnightly'] }, { $eq: ['$status', 'completed'] }] }, 1, 0]
+              }
+            },
             monthlyTasks: { $sum: { $cond: [{ $eq: ['$taskType', 'monthly'] }, 1, 0] } },
             monthlyPending: {
               $sum: {
@@ -716,6 +733,9 @@ router.get('/counts', async (req, res) => {
         weeklyTasks: 0,
         weeklyPending: 0,
         weeklyCompleted: 0,
+        fortnightlyTasks: 0,
+        fortnightlyPending: 0,
+        fortnightlyCompleted: 0,
         monthlyTasks: 0,
         monthlyPending: 0,
         monthlyCompleted: 0,
@@ -747,6 +767,9 @@ router.get('/counts', async (req, res) => {
       weeklyTasks,
       weeklyPending,
       weeklyCompleted,
+      fortnightlyTasks,
+      fortnightlyPending,
+      fortnightlyCompleted,
       monthlyTasks,
       monthlyPending,
       monthlyCompleted,
@@ -774,9 +797,9 @@ router.get('/counts', async (req, res) => {
       };
     };
 
-    const recurringTasks = dailyTasks + weeklyTasks + monthlyTasks + quarterlyTasks + yearlyTasks;
-    const recurringPending = dailyPending + weeklyPending + monthlyPending + quarterlyPending + yearlyPending;
-    const recurringCompleted = dailyCompleted + weeklyCompleted + monthlyCompleted + quarterlyCompleted + yearlyCompleted;
+    const recurringTasks = dailyTasks + weeklyTasks + fortnightlyTasks + monthlyTasks + quarterlyTasks + yearlyTasks;
+    const recurringPending = dailyPending + weeklyPending + fortnightlyPending + monthlyPending + quarterlyPending + yearlyPending;
+    const recurringCompleted = dailyCompleted + weeklyCompleted + fortnightlyCompleted + monthlyCompleted + quarterlyCompleted + yearlyCompleted;
     const overduePercentage = totalTasks > 0 ? (overdueTasks / totalTasks) * 100 : 0;
 
     const payload = {
@@ -797,6 +820,9 @@ router.get('/counts', async (req, res) => {
       weeklyTasks,
       weeklyPending,
       weeklyCompleted,
+      fortnightlyTasks,
+      fortnightlyPending,
+      fortnightlyCompleted,
       monthlyTasks,
       monthlyPending,
       monthlyCompleted,

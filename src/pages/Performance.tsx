@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Calendar, CheckCircle, ChevronDown, Award, Star, BarChart3, Trophy, CalendarRange,
   Clock, CalendarDays, RefreshCw, UserCheck, RotateCcw, Users,
-  XCircle, Download, FileSpreadsheet, FileText
+  XCircle, Download, FileSpreadsheet, FileText, Search
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
@@ -26,6 +26,9 @@ interface DashboardData {
     weeklyTasks: number;
     weeklyPending: number;
     weeklyCompleted: number;
+    fortnightlyTasks: number;
+    fortnightlyPending: number;
+    fortnightlyCompleted: number;
     monthlyTasks: number;
     monthlyPending: number;
     monthlyCompleted: number;
@@ -43,6 +46,7 @@ interface DashboardData {
     onTimeCompletedTasks: number;
     onTimeRecurringCompleted: number;
     rejectedOneTimeTasks?: number;
+    rejectedTasks?: number;
   }>;
   userPerformance?: {
     username: string;
@@ -60,6 +64,9 @@ interface DashboardData {
     weeklyTasks: number;
     weeklyPending: number;
     weeklyCompleted: number;
+    fortnightlyTasks: number;
+    fortnightlyPending: number;
+    fortnightlyCompleted: number;
     monthlyTasks: number;
     monthlyPending: number;
     monthlyCompleted: number;
@@ -76,8 +83,37 @@ interface DashboardData {
     onTimeRate: number;
     onTimeCompletedTasks: number;
     onTimeRecurringCompleted: number;
+    rejectedTasks?: number;
   };
 }
+
+const ThemeCard = ({
+  children,
+  className = "",
+  variant = "default",
+  hover = false,
+  style,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  variant?: 'default' | 'glass' | 'elevated' | 'bordered';
+  hover?: boolean;
+  style?: React.CSSProperties;
+}) => {
+  const baseClasses = "relative overflow-hidden transition-all duration-300 ease-out";
+  const variants = {
+    default: `rounded-[28px] bg-[var(--color-surface)] border border-[var(--color-border)] shadow-[0_12px_34px_rgba(15,23,42,0.06)]`,
+    glass: `rounded-[28px] bg-[var(--color-surface)]/90 backdrop-blur-xl border border-[var(--color-border)] shadow-[0_18px_50px_rgba(15,23,42,0.08)]`,
+    elevated: `rounded-[28px] bg-[var(--color-surface)] border border-[var(--color-border)] shadow-[0_18px_50px_rgba(15,23,42,0.08)]`,
+    bordered: `rounded-[28px] bg-[var(--color-primary)]/8 border border-[var(--color-primary)]/15`
+  };
+  const hoverClasses = hover ? "hover:shadow-xl hover:scale-[1.02] hover:border-[var(--color-primary)]/30" : "";
+  return (
+    <div className={`${baseClasses} ${variants[variant]} ${hoverClasses} ${className}`} style={style}>
+      {children}
+    </div>
+  );
+};
 
 const Performance: React.FC = () => {
   const ANALYTICS_CACHE_TTL_MS = 60 * 1000;
@@ -92,32 +128,11 @@ const Performance: React.FC = () => {
   const [dateTo, setDateTo] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [showDateFilter, setShowDateFilter] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [memberSearch, setMemberSearch] = useState('');
   const monthListRef = React.useRef<HTMLDivElement>(null);
   const analyticsCacheRef = useRef<Map<string, { data: any; ts: number }>>(new Map());
   const fromDateRef = useRef<HTMLInputElement>(null);
   const toDateRef = useRef<HTMLInputElement>(null);
-
-  const ThemeCard = ({ children, className = "", variant = "default", hover = false, style }: {
-    children: React.ReactNode;
-    className?: string;
-    variant?: 'default' | 'glass' | 'elevated' | 'bordered';
-    hover?: boolean;
-    style?: React.CSSProperties;
-  }) => {
-    const baseClasses = "relative overflow-hidden transition-all duration-300 ease-out";
-    const variants = {
-      default: `rounded-[28px] bg-[var(--color-surface)] border border-[var(--color-border)] shadow-[0_12px_34px_rgba(15,23,42,0.06)]`,
-      glass: `rounded-[28px] bg-[var(--color-surface)]/90 backdrop-blur-xl border border-[var(--color-border)] shadow-[0_18px_50px_rgba(15,23,42,0.08)]`,
-      elevated: `rounded-[28px] bg-[var(--color-surface)] border border-[var(--color-border)] shadow-[0_18px_50px_rgba(15,23,42,0.08)]`,
-      bordered: `rounded-[28px] bg-[var(--color-primary)]/8 border border-[var(--color-primary)]/15`
-    };
-    const hoverClasses = hover ? "hover:shadow-xl hover:scale-[1.02] hover:border-[var(--color-primary)]/30" : "";
-    return (
-      <div className={`${baseClasses} ${variants[variant]} ${hoverClasses} ${className}`} style={style}>
-        {children}
-      </div>
-    );
-  };
 
   const handleExportExcel = async () => {
     try {
@@ -255,13 +270,8 @@ const Performance: React.FC = () => {
     };
 
     const badge = rank ? getRankBadge(rank) : { icon: <Users size={18} />, gradient: 'from-blue-400 to-blue-600', bg: 'bg-blue-50', text: 'text-blue-700' };
-    const completed =
-      (member.oneTimeCompleted || 0) +
-      (member.dailyCompleted || 0) +
-      (member.weeklyCompleted || 0) +
-      (member.monthlyCompleted || 0) +
-      (member.quarterlyCompleted || 0) +
-      (member.yearlyCompleted || 0);
+    const completed = Math.max((member.completedTasks || 0) - (member.rejectedTasks || 0), 0);
+    const oneTimeCompleted = member.oneTimeCompleted ?? 0;
 
     const actualCompletionRate = member.completionRate ?? 0;
     const actualOnTimeRate = member.onTimeRate ?? 0;
@@ -270,12 +280,13 @@ const Performance: React.FC = () => {
     const totalPerformanceRate = (actualCompletionRate * 0.5) + (actualOnTimeRate * 0.5);
 
     const taskTypes = [
-      { label: 'One-time', total: member.oneTimeTasks, pending: member.oneTimePending, completed: member.oneTimeCompleted, revised: member.revisedOneTimeTasks, rejected: member.rejectedOneTimeTasks, color: '#3b82f6' },
-      { label: 'Daily', total: member.dailyTasks, pending: member.dailyPending, completed: member.dailyCompleted, icon: <RefreshCw size={16} />, color: '#10b981' },
-      { label: 'Weekly', total: member.weeklyTasks, pending: member.weeklyPending, completed: member.weeklyCompleted, icon: <Calendar size={16} />, color: '#f59e0b' },
-      { label: 'Monthly', total: member.monthlyTasks, pending: member.monthlyPending, completed: member.monthlyCompleted, icon: <CalendarDays size={16} />, color: '#8b5cf6' },
-      { label: 'Quarterly', total: member.quarterlyTasks, pending: member.quarterlyPending, completed: member.quarterlyCompleted, icon: <RotateCcw size={16} />, color: '#ec4899' },
-      { label: 'Yearly', total: member.yearlyTasks, pending: member.yearlyPending, completed: member.yearlyCompleted, icon: <Star size={16} />, color: '#6366f1' },
+      { label: 'One-time', total: member.oneTimeTasks ?? 0, pending: member.oneTimePending ?? 0, completed: oneTimeCompleted, revised: member.revisedOneTimeTasks ?? 0, rejected: member.rejectedOneTimeTasks ?? 0, color: '#3b82f6' },
+      { label: 'Daily', total: member.dailyTasks ?? 0, pending: member.dailyPending ?? 0, completed: member.dailyCompleted ?? 0, icon: <RefreshCw size={16} />, color: '#10b981' },
+      { label: 'Weekly', total: member.weeklyTasks ?? 0, pending: member.weeklyPending ?? 0, completed: member.weeklyCompleted ?? 0, icon: <Calendar size={16} />, color: '#f59e0b' },
+      { label: 'Fortnightly', total: member.fortnightlyTasks ?? 0, pending: member.fortnightlyPending ?? 0, completed: member.fortnightlyCompleted ?? 0, icon: <CalendarRange size={16} />, color: '#14b8a6' },
+      { label: 'Monthly', total: member.monthlyTasks ?? 0, pending: member.monthlyPending ?? 0, completed: member.monthlyCompleted ?? 0, icon: <CalendarDays size={16} />, color: '#8b5cf6' },
+      { label: 'Quarterly', total: member.quarterlyTasks ?? 0, pending: member.quarterlyPending ?? 0, completed: member.quarterlyCompleted ?? 0, icon: <RotateCcw size={16} />, color: '#ec4899' },
+      { label: 'Yearly', total: member.yearlyTasks ?? 0, pending: member.yearlyPending ?? 0, completed: member.yearlyCompleted ?? 0, icon: <Star size={16} />, color: '#6366f1' },
     ];
 
     return (
@@ -347,7 +358,7 @@ const Performance: React.FC = () => {
         </div>
 
         {/* Task Types Compact Display */}
-        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
           {taskTypes.map((item, index) => (
             <div
               key={index}
@@ -533,6 +544,12 @@ const Performance: React.FC = () => {
       .slice(0, 200)
     : [];
 
+  const filteredTopUsers = memberSearch.trim()
+    ? top10Users.filter(member =>
+      member.username.toLowerCase().includes(memberSearch.trim().toLowerCase())
+    )
+    : top10Users;
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[var(--color-background)] flex items-center justify-center">
@@ -580,6 +597,29 @@ const Performance: React.FC = () => {
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            {(user?.role === 'admin' || user?.role === 'manager') && dashboardData?.teamPerformance?.length > 0 && (
+              <div className="relative w-full sm:w-72">
+                <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)]" />
+                <input
+                  type="text"
+                  value={memberSearch}
+                  onChange={(e) => setMemberSearch(e.target.value)}
+                  placeholder="Search user by name"
+                  className="w-full rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] py-2.5 pl-10 pr-10 text-sm font-medium text-[var(--color-text)] shadow-[0_8px_18px_rgba(15,23,42,0.05)] transition focus:border-[var(--color-primary)]/25 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                />
+                {memberSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setMemberSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-[var(--color-textSecondary)] transition hover:bg-[var(--color-border)]/20 hover:text-[var(--color-text)]"
+                    aria-label="Clear search"
+                  >
+                    <XCircle size={16} />
+                  </button>
+                )}
+              </div>
+            )}
+
             {(dashboardData?.teamPerformance?.length || dashboardData?.userPerformance) && (
               <div className="relative">
                 <button
@@ -803,9 +843,19 @@ const Performance: React.FC = () => {
         <div className="space-y-6">
           {top10Users.length > 0 ? (
             <div className="grid grid-cols-1 gap-6">
-              {top10Users.map((member, i) => (
+              {filteredTopUsers.map((member, i) => (
                 <PerformanceCard key={member.username} member={member} rank={i + 1} />
               ))}
+            </div>
+          ) : memberSearch.trim() ? (
+            <div className="text-center py-12">
+              <div className="p-6 rounded-2xl bg-[var(--color-border)]/30 inline-block mb-4">
+                <Search size={48} className="text-[var(--color-textSecondary)]" />
+              </div>
+              <h4 className="text-lg font-semibold text-[var(--color-text)] mb-2">No matching users</h4>
+              <p className="text-[var(--color-textSecondary)]">
+                Try a different name or clear the search to view all team members.
+              </p>
             </div>
           ) : (
             <div className="text-center py-12">

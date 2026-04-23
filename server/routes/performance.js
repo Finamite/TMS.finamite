@@ -12,6 +12,7 @@ applyPlugin(jsPDFModule.jsPDF);
 const router = express.Router();
 const PERFORMANCE_CACHE_TTL_MS = 60 * 1000;
 const performanceRouteCache = new Map();
+const recurringTaskTypes = ['daily', 'weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly'];
 
 const getPerformanceCache = (key) => {
   const cached = performanceRouteCache.get(key);
@@ -101,27 +102,18 @@ const buildUserPerformanceData = async (userId, companyId, dateQuery = {}, revis
   const start = hasDateRange ? new Date(dateQuery.startDate) : null;
   const end = hasDateRange ? new Date(dateQuery.endDate) : null;
 
-  const dueInRangeExpr = hasDateRange
-    ? { $and: [{ $ne: ['$dueDate', null] }, { $gte: ['$dueDate', start] }, { $lte: ['$dueDate', end] }] }
-    : null;
-  const nextDueInRangeExpr = hasDateRange
-    ? { $and: [{ $ne: ['$nextDueDate', null] }, { $gte: ['$nextDueDate', start] }, { $lte: ['$nextDueDate', end] }] }
-    : null;
-  const completedInRangeExpr = hasDateRange
-    ? { $and: [{ $ne: ['$completedAt', null] }, { $gte: ['$completedAt', start] }, { $lte: ['$completedAt', end] }] }
-    : null;
-  const rejectedInRangeExpr = hasDateRange
-    ? { $and: [{ $ne: ['$rejectedAt', null] }, { $gte: ['$rejectedAt', start] }, { $lte: ['$rejectedAt', end] }] }
+  const effectiveDueInRangeExpr = hasDateRange
+    ? { $and: [{ $ne: ['$effectiveDue', null] }, { $gte: ['$effectiveDue', start] }, { $lte: ['$effectiveDue', end] }] }
     : null;
 
   const isTotalExpr = hasDateRange
-    ? { $or: [dueInRangeExpr, nextDueInRangeExpr, completedInRangeExpr, rejectedInRangeExpr] }
+    ? effectiveDueInRangeExpr
     : true;
   const isCompletedExpr = hasDateRange
     ? {
       $and: [
         { $in: ['$status', ['completed', 'rejected']] },
-        { $or: [completedInRangeExpr, rejectedInRangeExpr] }
+        effectiveDueInRangeExpr
       ]
     }
     : {
@@ -134,7 +126,7 @@ const buildUserPerformanceData = async (userId, companyId, dateQuery = {}, revis
     ? {
       $and: [
         { $eq: ['$status', 'pending'] },
-        { $or: [dueInRangeExpr, nextDueInRangeExpr] }
+        effectiveDueInRangeExpr
       ]
     }
     : { $eq: ['$status', 'pending'] };
@@ -145,15 +137,17 @@ const buildUserPerformanceData = async (userId, companyId, dateQuery = {}, revis
       $match: {
         $or: [
           { dueDate: { $gte: start, $lte: end } },
-          { nextDueDate: { $gte: start, $lte: end } },
-          { completedAt: { $gte: start, $lte: end } },
-          { rejectedAt: { $gte: start, $lte: end } }
+          { nextDueDate: { $gte: start, $lte: end } }
         ]
       }
     }] : []),
     {
       $addFields: {
-        effectiveDue: { $ifNull: ['$nextDueDate', '$dueDate'] },
+        effectiveDue: { $ifNull: ['$nextDueDate', '$dueDate'] }
+      }
+    },
+    {
+      $addFields: {
         isTotalTask: isTotalExpr,
         isCompletedTask: isCompletedExpr,
         isPendingTask: isPendingExpr
@@ -177,6 +171,10 @@ const buildUserPerformanceData = async (userId, companyId, dateQuery = {}, revis
         weeklyTasks: { $sum: { $cond: [{ $and: ['$isTotalTask', { $eq: ['$taskType', 'weekly'] }] }, 1, 0] } },
         weeklyPending: { $sum: { $cond: [{ $and: ['$isPendingTask', { $eq: ['$taskType', 'weekly'] }] }, 1, 0] } },
         weeklyCompleted: { $sum: { $cond: [{ $and: ['$isCompletedTask', { $eq: ['$taskType', 'weekly'] }] }, 1, 0] } },
+
+        fortnightlyTasks: { $sum: { $cond: [{ $and: ['$isTotalTask', { $eq: ['$taskType', 'fortnightly'] }] }, 1, 0] } },
+        fortnightlyPending: { $sum: { $cond: [{ $and: ['$isPendingTask', { $eq: ['$taskType', 'fortnightly'] }] }, 1, 0] } },
+        fortnightlyCompleted: { $sum: { $cond: [{ $and: ['$isCompletedTask', { $eq: ['$taskType', 'fortnightly'] }] }, 1, 0] } },
 
         monthlyTasks: { $sum: { $cond: [{ $and: ['$isTotalTask', { $eq: ['$taskType', 'monthly'] }] }, 1, 0] } },
         monthlyPending: { $sum: { $cond: [{ $and: ['$isPendingTask', { $eq: ['$taskType', 'monthly'] }] }, 1, 0] } },
@@ -243,7 +241,7 @@ const buildUserPerformanceData = async (userId, companyId, dateQuery = {}, revis
                 $and: [
                   '$isCompletedTask',
                   { $eq: ['$status', 'completed'] },
-                  { $in: ['$taskType', ['daily', 'weekly', 'monthly', 'quarterly', 'yearly']] },
+                  { $in: ['$taskType', recurringTaskTypes] },
                   { $ne: ['$completedAt', null] },
                   { $ne: ['$effectiveDue', null] },
                   { $lte: ['$completedAt', { $add: ['$effectiveDue', 86400000] }] }
@@ -279,7 +277,7 @@ const buildUserPerformanceData = async (userId, companyId, dateQuery = {}, revis
                 $and: [
                   '$isCompletedTask',
                   { $eq: ['$status', 'rejected'] },
-                  { $in: ['$taskType', ['daily', 'weekly', 'monthly', 'quarterly', 'yearly']] },
+                  { $in: ['$taskType', recurringTaskTypes] },
                   { $ne: ['$rejectedAt', null] },
                   { $ne: ['$effectiveDue', null] },
                   { $lte: ['$rejectedAt', { $add: ['$effectiveDue', 86400000] }] }
@@ -308,6 +306,9 @@ const buildUserPerformanceData = async (userId, companyId, dateQuery = {}, revis
     weeklyTasks: 0,
     weeklyPending: 0,
     weeklyCompleted: 0,
+    fortnightlyTasks: 0,
+    fortnightlyPending: 0,
+    fortnightlyCompleted: 0,
     monthlyTasks: 0,
     monthlyPending: 0,
     monthlyCompleted: 0,
@@ -326,9 +327,9 @@ const buildUserPerformanceData = async (userId, companyId, dateQuery = {}, revis
     onTimeRejectedRecurring: 0
   };
 
-  const recurringTasks = stats.dailyTasks + stats.weeklyTasks + stats.monthlyTasks + stats.quarterlyTasks + stats.yearlyTasks;
-  const recurringPending = stats.dailyPending + stats.weeklyPending + stats.monthlyPending + stats.quarterlyPending + stats.yearlyPending;
-  const recurringCompleted = stats.dailyCompleted + stats.weeklyCompleted + stats.monthlyCompleted + stats.quarterlyCompleted + stats.yearlyCompleted;
+  const recurringTasks = stats.dailyTasks + stats.weeklyTasks + stats.fortnightlyTasks + stats.monthlyTasks + stats.quarterlyTasks + stats.yearlyTasks;
+  const recurringPending = stats.dailyPending + stats.weeklyPending + stats.fortnightlyPending + stats.monthlyPending + stats.quarterlyPending + stats.yearlyPending;
+  const recurringCompleted = stats.dailyCompleted + stats.weeklyCompleted + stats.fortnightlyCompleted + stats.monthlyCompleted + stats.quarterlyCompleted + stats.yearlyCompleted;
 
   const onTimeRejectedTotal = stats.onTimeRejectedOneTime + stats.onTimeRejectedRecurring;
   const effectiveCompleted = stats.completedTasks - (stats.rejectedTasks * 0.5);  // Partial for rates only
@@ -479,6 +480,9 @@ const buildUserPerformanceData = async (userId, companyId, dateQuery = {}, revis
     weeklyTasks: stats.weeklyTasks,
     weeklyPending: stats.weeklyPending,
     weeklyCompleted: stats.weeklyCompleted,
+    fortnightlyTasks: stats.fortnightlyTasks,
+    fortnightlyPending: stats.fortnightlyPending,
+    fortnightlyCompleted: stats.fortnightlyCompleted,
     monthlyTasks: stats.monthlyTasks,
     monthlyPending: stats.monthlyPending,
     monthlyCompleted: stats.monthlyCompleted,

@@ -39,6 +39,9 @@ interface DashboardData {
     weeklyTasks: number;
     weeklyPending: number;
     weeklyCompleted: number;
+    fortnightlyTasks: number;
+    fortnightlyPending: number;
+    fortnightlyCompleted: number;
     monthlyTasks: number;
     monthlyPending: number;
     monthlyCompleted: number;
@@ -55,6 +58,7 @@ interface DashboardData {
     onTimeRate: number;
     onTimeCompletedTasks: number;
     onTimeRecurringCompleted: number;
+    rejectedTasks?: number;
   }>;
   recentActivity: Array<{
     _id: string;
@@ -86,6 +90,9 @@ interface DashboardData {
     weeklyTasks: number;
     weeklyPending: number;
     weeklyCompleted: number;
+    fortnightlyTasks: number;
+    fortnightlyPending: number;
+    fortnightlyCompleted: number;
     monthlyTasks: number;
     monthlyPending: number;
     monthlyCompleted: number;
@@ -102,6 +109,7 @@ interface DashboardData {
     onTimeRate: number;
     onTimeCompletedTasks: number;
     onTimeRecurringCompleted: number;
+    rejectedTasks?: number;
   };
 }
 
@@ -122,6 +130,9 @@ interface TaskCounts {
   weeklyTasks: number;
   weeklyPending: number;
   weeklyCompleted: number;
+  fortnightlyTasks: number;
+  fortnightlyPending: number;
+  fortnightlyCompleted: number;
   monthlyTasks: number;
   monthlyPending: number;
   monthlyCompleted: number;
@@ -181,13 +192,6 @@ const Dashboard: React.FC = () => {
   const [teamPendingData, setTeamPendingData] = useState<TeamPendingData>({});
   const [teamPerformance, setTeamPerformance] = useState<TeamPerformanceItem[]>([]);
   const monthListRef = React.useRef<HTMLDivElement>(null);
-  const [whatsappIntegrationStatus, setWhatsappIntegrationStatus] = useState<{
-    live: boolean;
-    provider: 'interakt' | 'wati' | 'fichat' | null;
-  }>({
-    live: false,
-    provider: null
-  });
   const analyticsCacheRef = React.useRef<Map<string, { data: any; ts: number }>>(new Map());
   const countsCacheRef = React.useRef<Map<string, { data: any; ts: number }>>(new Map());
   const teamPendingCacheRef = React.useRef<Map<string, { data: TeamPendingData; ts: number }>>(new Map());
@@ -403,25 +407,6 @@ const Dashboard: React.FC = () => {
     }
   }, [showMonthFilter]);
 
-  useEffect(() => {
-    if (!user?.companyId) return;
-
-    axios
-      .get(`${address}/api/settings/whatsapp`, {
-        params: { companyId: user.companyId }
-      })
-      .then((res) => {
-        const live = res.data?.enabled === true && Boolean(res.data?.activeProvider);
-        setWhatsappIntegrationStatus({
-          live,
-          provider: live ? res.data?.activeProvider : null
-        });
-      })
-      .catch(() => {
-        setWhatsappIntegrationStatus({ live: false, provider: null });
-      });
-  }, [user?.companyId]);
-
   // Load member trend data when selected team member changes
   useEffect(() => {
     const loadMemberTrendData = async () => {
@@ -543,6 +528,13 @@ const Dashboard: React.FC = () => {
       pending: displayData?.weeklyPending || 0,
       completed: displayData?.weeklyCompleted || 0,
       color: 'var(--color-warning)'
+    },
+    {
+      name: 'Fortnightly',
+      value: displayData?.fortnightlyTasks || 0,
+      pending: displayData?.fortnightlyPending || 0,
+      completed: displayData?.fortnightlyCompleted || 0,
+      color: 'var(--color-secondary)'
     },
     {
       name: 'Monthly',
@@ -938,9 +930,9 @@ const Dashboard: React.FC = () => {
                   </div>
                   <h2 className="mt-3 text-2xl font-semibold text-[var(--color-text)]">Workload by cadence</h2>
                 </div>
-                <div className="text-sm text-[var(--color-textSecondary)]">{totalTaskTypes} tasks across six cadences</div>
+                <div className="text-sm text-[var(--color-textSecondary)]">{totalTaskTypes} tasks across seven cadences</div>
               </div>
-              <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {taskTypeData.map((item) => {
                   const percent = totalTaskTypes > 0 ? (item.value / totalTaskTypes) * 100 : 0;
                   return (
