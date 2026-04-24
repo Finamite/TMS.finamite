@@ -1261,7 +1261,7 @@ const Dashboard: React.FC = () => {
               </section>
             )}
 
-            <section className="rounded-[28px] max-h-[380px] overflow-y-auto border p-5 sm:p-6" style={cardStyle}>
+            <section className="rounded-[28px] max-h-[380px] overflow-y-auto scrollbar-hide border p-5 sm:p-6" style={cardStyle}>
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] px-3 py-1 text-xs font-semibold text-[var(--color-textSecondary)]">

@@ -113,7 +113,7 @@ const Chat: React.FC = () => {
     const [activeChatId, setActiveChatId] = useState<string | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState('');
-    const [loading, setLoading] = useState(true);
+    const [, setLoading] = useState(true);
     const [loadingMessages, setLoadingMessages] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [searchResults, setSearchResults] = useState<Message[]>([]);
@@ -1216,16 +1216,7 @@ const Chat: React.FC = () => {
         );
     };
 
-    if (loading) {
-        return (
-            <div className="min-h-screen bg-[var(--color-background)] flex items-center justify-center">
-                <div className="text-center">
-                    <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-[var(--color-primary)] border-t-transparent"></div>
-                    <p className="text-[var(--color-textSecondary)]">Loading chat...</p>
-                </div>
-            </div>
-        );
-    }
+
 
     return (
         <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--color-background)] text-[var(--color-text)] sm:flex-row">

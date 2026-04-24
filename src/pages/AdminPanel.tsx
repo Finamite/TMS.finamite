@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Users, Plus, Edit, Save, X, ChevronDown, User, LockKeyhole, CreditCard, Info, Building2, UserCheck, UserCog, Loader2, Shield, Search, Activity, Building, Clock, EyeOff, Eye } from 'lucide-react';
+import { Users, Plus, Edit, Save, X, ChevronDown, User, LockKeyhole, CreditCard, Info, Building2, UserCheck, UserCog, Loader2, Shield, Search, Activity, Building, Clock, EyeOff, Eye, ShieldCheck } from 'lucide-react';
 import axios from 'axios';
 import { getCountries, getCountryCallingCode, parsePhoneNumberFromString, type CountryCode } from 'libphonenumber-js';
 import { address } from '../../utils/ipAddress';
@@ -211,6 +211,8 @@ const AdminPanel: React.FC = () => {
   const [showCreatePassword, setShowCreatePassword] = useState(false);
   const [showUpdatePassword, setShowUpdatePassword] = useState(false);
   const [showPcmMappingModal, setShowPcmMappingModal] = useState(false);
+  const [showBulkApprovalModal, setShowBulkApprovalModal] = useState(false);
+  const [bulkApprovalLoading, setBulkApprovalLoading] = useState(false);
 
   // Define allowed permissions for each role
   const rolePermissions = {
@@ -508,6 +510,34 @@ const AdminPanel: React.FC = () => {
       setMessage({ type: "error", text: error.response?.data?.message || "Failed to update password" });
     } finally {
       setPasswordLoading(false);
+    }
+  };
+
+  const handleBulkEnableUserApproval = async () => {
+    if (!currentUser?.companyId) {
+      toast.error('Company information is missing.');
+      return;
+    }
+
+    setBulkApprovalLoading(true);
+    try {
+      const response = await axios.post(`${address}/api/users/bulk-enable-user-approval`, {
+        companyId: currentUser.companyId
+      });
+
+      const updatedCount = response.data?.updatedCount ?? response.data?.matchedCount ?? 0;
+      const messageText = updatedCount > 0
+        ? `Enabled Manage Approval and Assign Tasks for ${updatedCount} active user(s).`
+        : 'No active users needed this update.';
+
+      toast.success(messageText);
+      setShowBulkApprovalModal(false);
+      fetchUsers();
+    } catch (error: any) {
+      const errorText = error.response?.data?.message || 'Failed to enable approval for users';
+      toast.error(errorText);
+    } finally {
+      setBulkApprovalLoading(false);
     }
   };
 
@@ -965,6 +995,13 @@ const AdminPanel: React.FC = () => {
 
         <div className="flex flex-wrap gap-3">
           <button
+            onClick={() => setShowBulkApprovalModal(true)}
+            className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-sm font-medium text-[var(--color-text)] shadow-sm transition-all hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5"
+          >
+            <ShieldCheck size={16} />
+            Enable User Approval
+          </button>
+          <button
             onClick={() => {
               fetchCompanyData(); // always fetch latest data
               setShowPlanModal(true);
@@ -1066,25 +1103,6 @@ const AdminPanel: React.FC = () => {
           </div>
         </div>
       </div>
-      {/* Message */}
-      {message.text && (
-        <div
-          className={`rounded-2xl border px-4 py-3 text-sm shadow-sm ${message.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-rose-200 bg-rose-50 text-rose-800'
-            }`}
-        >
-          {message.text}
-        </div>
-      )}
-
-      {settingsMessage.text && (
-        <div
-          className={`rounded-2xl border px-4 py-3 text-sm shadow-sm ${settingsMessage.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-rose-200 bg-rose-50 text-rose-800'
-            }`}
-        >
-          {settingsMessage.text}
-        </div>
-      )}
-
       {(currentUser?.permissions?.canManageUsers || currentUser?.permissions?.canManageSettings) && pcmIntegration.enabled && (
         <div className="overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_18px_45px_rgba(15,23,42,0.06)]" style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)' }}>
           <div className="flex flex-col gap-3 border-b border-[var(--color-border)] p-4 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: 'var(--color-border)' }}>
@@ -2256,6 +2274,56 @@ const AdminPanel: React.FC = () => {
                 style={{ backgroundColor: "var(--color-error)" }}
               >
                 Yes, Delete Permanently
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBulkApprovalModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div
+            className="w-full max-w-md rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-2xl"
+            style={{
+              backgroundColor: 'var(--color-surface)',
+              color: 'var(--color-text)',
+            }}
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
+                <ShieldCheck size={22} />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold">Enable approval for all active users?</h2>
+                <p className="mt-1 text-sm" style={{ color: 'var(--color-textSecondary)' }}>
+                  This will turn on <b>Manage Approval</b> and <b>Assign Tasks</b> for all active employee users in your company.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-sm" style={{ color: 'var(--color-textSecondary)' }}>
+              This change will apply to every active user role account immediately after you confirm.
+            </div>
+
+            <div className="mt-6 flex justify-end space-x-3">
+              <button
+                onClick={() => setShowBulkApprovalModal(false)}
+                className="py-2 px-4 rounded-lg border font-medium text-sm"
+                style={{
+                  borderColor: 'var(--color-border)',
+                  color: 'var(--color-text)',
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleBulkEnableUserApproval}
+                disabled={bulkApprovalLoading}
+                className="py-2 px-4 rounded-lg text-white font-medium text-sm disabled:opacity-60"
+                style={{ backgroundColor: 'var(--color-primary)' }}
+              >
+                {bulkApprovalLoading ? 'Enabling...' : 'Yes, Enable'}
               </button>
             </div>
           </div>

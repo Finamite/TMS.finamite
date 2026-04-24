@@ -271,6 +271,38 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+router.post('/bulk-enable-user-approval', async (req, res) => {
+  try {
+    const { companyId } = req.body;
+
+    if (!companyId) {
+      return res.status(400).json({ message: 'companyId is required' });
+    }
+
+    const result = await User.updateMany(
+      {
+        companyId,
+        role: 'employee',
+        isActive: true
+      },
+      {
+        $set: {
+          'permissions.canAssignTasks': true,
+          'permissions.canManageApproval': true
+        }
+      }
+    );
+
+    return res.json({
+      message: 'User approval permissions updated successfully',
+      matchedCount: result.matchedCount ?? result.n ?? 0,
+      modifiedCount: result.modifiedCount ?? result.nModified ?? 0
+    });
+  } catch (error) {
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Update user password
 router.put('/:id/password', async (req, res) => {
   try {
