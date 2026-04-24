@@ -29,6 +29,7 @@ import { toast } from 'react-toastify';
 
 interface User {
     _id: string;
+    id?: string;
     username: string;
     email: string;
     role: string;
@@ -67,6 +68,7 @@ interface Message {
         originalName: string;
         mimetype: string;
         size: number;
+        localUrl?: string;
     }>;
     taggedTask?: {
         taskId: string;
@@ -82,6 +84,7 @@ interface Message {
     };
     isDeleted: boolean;
     createdAt: string;
+    isPending?: boolean;
     readBy: Array<{
         userId: string;
         readAt: string;
@@ -113,8 +116,10 @@ const Chat: React.FC = () => {
     const [activeChatId, setActiveChatId] = useState<string | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState('');
-    const [, setLoading] = useState(true);
+    const [isBootstrapping, setIsBootstrapping] = useState(true);
     const [loadingMessages, setLoadingMessages] = useState(false);
+    const [usersLoading, setUsersLoading] = useState(false);
+    const [tasksLoading, setTasksLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [searchResults, setSearchResults] = useState<Message[]>([]);
     const [isSearching, setIsSearching] = useState(false);
@@ -144,6 +149,7 @@ const Chat: React.FC = () => {
     const [showChatOptions, setShowChatOptions] = useState(false);
     const [autoRefresh] = useState(true);
     const [highlightId, setHighlightId] = useState<string | null>(null);
+    const [sendingMessage, setSendingMessage] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -162,6 +168,7 @@ const Chat: React.FC = () => {
     const [observedUser, setObservedUser] = useState<User | null>(null);
     const [adminChatScope, setAdminChatScope] = useState<'direct' | 'observe'>('direct');
     const [userModalMode, setUserModalMode] = useState<'direct' | 'observe'>('direct');
+    const typingActiveRef = useRef(false);
 
     const isAdmin = user?.role === 'admin' || user?.role === 'manager';
     const activeScopeUserId = isAdmin
@@ -212,9 +219,9 @@ const Chat: React.FC = () => {
             });
 
             if (canParticipateInActiveChat) {
-                await axios.put(`${address}/api/chat/${activeChat._id}/messages/read`, {
+                void axios.put(`${address}/api/chat/${activeChat._id}/messages/read`, {
                     userId: user?.id
-                });
+                }).catch(() => {});
             }
         } catch (error) {
             console.error('Silent refresh error:', error);
@@ -250,15 +257,14 @@ const Chat: React.FC = () => {
     }, [user]);
 
     useEffect(() => {
-        loadAllUsers();
-    }, [user]);
-
-    useEffect(() => {
         const initializeChat = async () => {
-            if (!user) return;
+            if (!user) {
+                setIsBootstrapping(false);
+                return;
+            }
 
             try {
-                setLoading(true);
+                setIsBootstrapping(true);
 
                 if (!activeScopeUserId) {
                     setChats([]);
@@ -267,6 +273,7 @@ const Chat: React.FC = () => {
                     setMessages([]);
                     setSelectedMessages([]);
                     setIsSelectionMode(false);
+                    setOtherTyping(false);
                     return;
                 }
 
@@ -276,20 +283,25 @@ const Chat: React.FC = () => {
                     ? userChats.find((chat: Chat) => chat._id === activeChatId) || null
                     : null;
 
-                setActiveChat(prev => matchedActiveChat || (activeChatId ? prev : null));
-                setActiveChatId(prev => matchedActiveChat?._id || (activeChatId ? prev : null));
-                setMessages([]);
+                setActiveChat(matchedActiveChat);
+                setActiveChatId(matchedActiveChat?._id || null);
+
+                if (!matchedActiveChat) {
+                    setMessages([]);
+                }
+
                 setSelectedMessages([]);
                 setIsSelectionMode(false);
+                setOtherTyping(false);
             } catch (error) {
                 console.error('Error initializing chat:', error);
             } finally {
-                setLoading(false);
+                setIsBootstrapping(false);
             }
         };
 
         initializeChat();
-    }, [activeChatId, activeScopeUserId, fetchChatsForUser, user]);
+    }, [activeScopeUserId, fetchChatsForUser, user]);
 
     useEffect(() => {
         if (!messagesContainerRef.current) return;
@@ -335,9 +347,15 @@ const Chat: React.FC = () => {
 
     useEffect(() => {
         if (showTaskModal) {
-            loadAllTasks();
+            void loadAllTasks();
         }
     }, [showTaskModal]);
+
+    useEffect(() => {
+        if (showUserModal) {
+            void loadAllUsers();
+        }
+    }, [showUserModal]);
 
     useEffect(() => {
         filterTasks();
@@ -405,6 +423,15 @@ const Chat: React.FC = () => {
         }
     }, [sidebarSearch]);
 
+    useEffect(() => {
+        return () => {
+            if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current);
+            }
+            typingActiveRef.current = false;
+        };
+    }, []);
+
 
     // 🔄 SILENT AUTO REFRESH MESSAGES EVERY 2 SECONDS
     useEffect(() => {
@@ -446,10 +473,11 @@ const Chat: React.FC = () => {
         setTimeout(scrollNow, 600); // 🔥 mobile needs this final pass
     };
 
-    const loadAllUsers = async () => {
-        if (!user) return;
+    const loadAllUsers = useCallback(async () => {
+        if (!user || usersLoading || allUsers.length > 0) return;
 
         try {
+            setUsersLoading(true);
             const res = await axios.get(`${address}/api/users`, {
                 params: { companyId: user.company?.companyId }
             });
@@ -457,31 +485,38 @@ const Chat: React.FC = () => {
             setAllUsers(res.data);
         } catch (err) {
             console.error("Failed to load users", err);
+        } finally {
+            setUsersLoading(false);
         }
-    };
+    }, [allUsers.length, user, usersLoading]);
 
 
     const sendTypingSignal = () => {
         if (!activeChat || !user) return;
 
-        axios.post(`${address}/api/chat/${activeChat._id}/typing`, {
-            userId: user.id
-        });
+        if (!typingActiveRef.current) {
+            typingActiveRef.current = true;
+            axios.post(`${address}/api/chat/${activeChat._id}/typing`, {
+                userId: user.id
+            }).catch(() => {});
+        }
 
         clearTimeout(typingTimeoutRef.current);
 
         typingTimeoutRef.current = setTimeout(() => {
             axios.post(`${address}/api/chat/${activeChat._id}/typing-stop`, {
                 userId: user.id
-            });
+            }).catch(() => {});
+            typingActiveRef.current = false;
         }, 1500);
     };
 
 
-    const loadAllTasks = async () => {
-        if (!user || !activeChat) return;
+    const loadAllTasks = useCallback(async () => {
+        if (!user || !activeChat || tasksLoading) return;
 
         try {
+            setTasksLoading(true);
             // 1️⃣ DETERMINE WHOSE TASKS TO LOAD
             const employee = activeChat.participants.find(
                 (p: any) => p.role === "employee"
@@ -498,15 +533,10 @@ const Chat: React.FC = () => {
             }
 
             // 2️⃣ FETCH TASKS
-            const allPending = await axios.get(
-                `${address}/api/tasks/pending`,
-                { params }
-            );
-
-            const allRecurring = await axios.get(
-                `${address}/api/tasks/pending-recurring`,
-                { params }
-            );
+            const [allPending, allRecurring] = await Promise.all([
+                axios.get(`${address}/api/tasks/pending`, { params }),
+                axios.get(`${address}/api/tasks/pending-recurring`, { params }),
+            ]);
 
             let tasks = [...allPending.data, ...allRecurring.data];
 
@@ -565,8 +595,10 @@ const Chat: React.FC = () => {
 
         } catch (error) {
             console.error("Error loading tasks:", error);
+        } finally {
+            setTasksLoading(false);
         }
-    };
+    }, [activeChat, tasksLoading, user]);
 
 
 
@@ -658,9 +690,9 @@ const Chat: React.FC = () => {
             } else {
                 setMessages(response.data.messages);
                 if (canParticipateInActiveChat) {
-                    await axios.put(`${address}/api/chat/${activeChat._id}/messages/read`, {
+                    void axios.put(`${address}/api/chat/${activeChat._id}/messages/read`, {
                         userId: user?.id
-                    });
+                    }).catch(() => {});
                 }
             }
         } catch (error) {
@@ -671,28 +703,85 @@ const Chat: React.FC = () => {
     };
 
     const sendMessage = async () => {
-        if ((!newMessage.trim() && !selectedFiles && !selectedTask) || !activeChat || !user) {
+        if (sendingMessage || loadingMessages || ((!newMessage.trim() && !selectedFiles && !selectedTask) || !activeChat || !user)) {
             return;
         }
+
+        setSendingMessage(true);
+
+        const draftMessage = newMessage;
+        const draftFiles = selectedFiles;
+        const draftTask = selectedTask;
+        const draftReplyTo = replyTo;
+        const canOptimisticallySend = !draftFiles && !draftTask;
+        const tempId = `temp-${Date.now()}`;
+        const tempCreatedAt = new Date().toISOString();
+
+        const optimisticMessage: Message = {
+            _id: tempId,
+            senderId: user.id,
+            senderInfo: {
+                username: user.username,
+                role: user.role,
+            },
+            content: draftMessage,
+            messageType: draftTask ? 'task-tag' : draftFiles ? 'file' : 'text',
+            attachments: draftFiles ? Array.from(draftFiles).map(file => ({
+                filename: file.name,
+                originalName: file.name,
+                mimetype: file.type || 'application/octet-stream',
+                size: file.size,
+                localUrl: URL.createObjectURL(file),
+            })) : [],
+            taggedTask: draftTask ? {
+                taskId: draftTask._id,
+                taskTitle: draftTask.title,
+                taskType: draftTask.taskType || 'one-time',
+                dueDate: draftTask.dueDate,
+            } : undefined,
+            replyTo: draftReplyTo ? {
+                messageId: draftReplyTo._id,
+                content: draftReplyTo.content,
+                senderName: draftReplyTo.senderInfo.username,
+                messageType: draftReplyTo.messageType,
+            } : undefined,
+            isDeleted: false,
+            createdAt: tempCreatedAt,
+            readBy: [{
+                userId: user.id,
+                readAt: tempCreatedAt,
+            }],
+            isPending: true,
+        };
+
+        const optimisticAttachmentUrls = optimisticMessage.attachments
+            .map((attachment) => attachment.localUrl)
+            .filter((url): url is string => Boolean(url));
 
         try {
             const formData = new FormData();
             formData.append('senderId', user.id);
-            formData.append('content', newMessage);
+            formData.append('content', draftMessage);
 
-            if (replyTo) {
-                formData.append('replyToMessageId', String(replyTo._id));
+            if (draftReplyTo) {
+                formData.append('replyToMessageId', String(draftReplyTo._id));
             }
 
-            if (selectedTask) {
-                formData.append('taggedTaskId', selectedTask._id);
-                formData.append('taggedTaskType', selectedTask.taskType || 'one-time');
+            if (draftTask) {
+                formData.append('taggedTaskId', draftTask._id);
+                formData.append('taggedTaskType', draftTask.taskType || 'one-time');
             }
 
-            if (selectedFiles) {
-                Array.from(selectedFiles).forEach(file => {
+            if (draftFiles) {
+                Array.from(draftFiles).forEach(file => {
                     formData.append('attachments', file);
                 });
+            }
+
+            if (canOptimisticallySend) {
+                setMessages(prev => [...prev, optimisticMessage]);
+                setNewMessage('');
+                setReplyTo(null);
             }
 
             const response = await axios.post(`${address}/api/chat/${activeChat._id}/messages`, formData, {
@@ -701,8 +790,13 @@ const Chat: React.FC = () => {
                 }
             });
 
-            // Add new message to state
-            setMessages(prev => [...prev, response.data]);
+            optimisticAttachmentUrls.forEach((url) => URL.revokeObjectURL(url));
+
+            if (canOptimisticallySend) {
+                setMessages(prev => prev.map(msg => msg._id === tempId ? response.data : msg));
+            } else {
+                setMessages(prev => [...prev, response.data]);
+            }
 
             // Clear form
             setNewMessage('');
@@ -724,8 +818,16 @@ const Chat: React.FC = () => {
             ));
 
         } catch (error) {
+            optimisticAttachmentUrls.forEach((url) => URL.revokeObjectURL(url));
+            if (canOptimisticallySend) {
+                setMessages(prev => prev.filter(msg => msg._id !== tempId));
+                setNewMessage(draftMessage);
+                setReplyTo(draftReplyTo);
+            }
             console.error('Error sending message:', error);
             toast.error('Failed to send message. Please try again.');
+        } finally {
+            setSendingMessage(false);
         }
     };
 
@@ -1070,6 +1172,13 @@ const Chat: React.FC = () => {
                                 </div>
                             )}
 
+                            {message.isPending && (
+                                <div className={`mb-2 inline-flex items-center gap-2 rounded-full px-2 py-1 text-[10px] font-medium ${isOwn ? 'bg-white/15 text-white' : 'border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-textSecondary)]'}`}>
+                                    <Loader2 size={12} className="animate-spin" />
+                                    Sending...
+                                </div>
+                            )}
+
                             {/* Message Content */}
                             {!isDeleted ? (
                                 <>
@@ -1084,7 +1193,7 @@ const Chat: React.FC = () => {
                                         <div className="flex flex-wrap gap-3 mt-2">
 
                                             {message.attachments.map((file, index) => {
-                                                const fileUrl = `${address}/uploads/chat/${file.filename}`;
+                                                const fileUrl = file.localUrl || `${address}/uploads/chat/${file.filename}`;
                                                 const isImage = file.mimetype.startsWith("image/");
                                                 const name = file.originalName.toLowerCase();
                                                 const type = file.mimetype.toLowerCase();
@@ -1217,6 +1326,17 @@ const Chat: React.FC = () => {
     };
 
 
+
+    if (isBootstrapping) {
+        return (
+            <div className="flex h-full min-h-0 items-center justify-center bg-[var(--color-background)] text-[var(--color-text)]">
+                <div className="text-center">
+                    <Loader2 className="mx-auto mb-4 h-9 w-9 animate-spin text-[var(--color-primary)]" />
+                    <p className="text-sm text-[var(--color-textSecondary)]">Loading chat...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--color-background)] text-[var(--color-text)] sm:flex-row">
@@ -1805,10 +1925,10 @@ const Chat: React.FC = () => {
                                     {/* Send Button */}
                                     <button
                                         onClick={sendMessage}
-                                        disabled={!newMessage.trim() && !selectedFiles && !selectedTask}
+                                        disabled={sendingMessage || loadingMessages || (!newMessage.trim() && !selectedFiles && !selectedTask)}
                                         className="rounded-2xl bg-[var(--color-primary)] p-3 text-white transition-colors hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
                                     >
-                                        <Send size={18} />
+                                        {sendingMessage ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
                                     </button>
                                 </div>
 
@@ -1912,7 +2032,14 @@ const Chat: React.FC = () => {
 
                             {/* Task List */}
                             <div className="max-h-96 overflow-y-auto">
-                                {filteredTasks.length === 0 ? (
+                                {tasksLoading && allTasks.length === 0 ? (
+                                    <div className="flex items-center justify-center py-10">
+                                        <div className="text-center">
+                                            <Loader2 className="mx-auto mb-3 h-7 w-7 animate-spin text-[var(--color-primary)]" />
+                                            <p className="text-sm text-[var(--color-textSecondary)]">Loading tasks...</p>
+                                        </div>
+                                    </div>
+                                ) : filteredTasks.length === 0 ? (
                                     <div className="text-center py-8">
                                         <AlertCircle size={24} className="text-[var(--color-textSecondary)] mx-auto mb-2" />
                                         <h3 className="font-medium text-[var(--color-text)] mb-1">No tasks found</h3>
@@ -2067,7 +2194,14 @@ const Chat: React.FC = () => {
 
                         {/* User List */}
                         <div className="max-h-80 overflow-y-auto p-2">
-                            {allUsers
+                            {usersLoading && allUsers.length === 0 ? (
+                                <div className="flex items-center justify-center py-10">
+                                    <div className="text-center">
+                                        <Loader2 className="mx-auto mb-3 h-7 w-7 animate-spin text-[var(--color-primary)]" />
+                                        <p className="text-sm text-[var(--color-textSecondary)]">Loading users...</p>
+                                    </div>
+                                </div>
+                            ) : allUsers
                                 .filter(u => u._id !== currentUserId)
                                 .filter(u =>
                                     u.username.toLowerCase().includes(userSearch.toLowerCase())
@@ -2132,7 +2266,7 @@ const Chat: React.FC = () => {
                                 ))}
 
                             {/* Empty State */}
-                            {allUsers
+                            {!usersLoading && allUsers
                                 .filter(u => u._id !== currentUserId)
                                 .filter(u => u.username.toLowerCase().includes(userSearch.toLowerCase()))
                                 .length === 0 && (
