@@ -1200,25 +1200,13 @@ const AssignTask: React.FC<AssignTaskProps> = ({
     toast.info('All forms reset!', { theme: isDark ? 'dark' : 'light' });
   };
 
-  const shellClass = isModal
-    ? 'relative min-h-full bg-[var(--color-background)] px-3 py-4 transition-all duration-300 sm:px-5 sm:py-5'
-    : 'relative min-h-screen overflow-hidden bg-[var(--color-background)] px-4 py-6 transition-all duration-300 sm:px-6 lg:px-8';
-
-  const contentClass = isModal
-    ? 'relative mx-auto max-w-4xl'
-    : 'relative mx-auto max-w-7xl';
-
   return (
-    <div className={shellClass}>
-      {!isModal && (
-        <>
-          <div className="absolute -top-24 right-0 h-80 w-80 rounded-full bg-cyan-500/10 blur-3xl" />
-          <div className="absolute left-0 top-1/3 h-96 w-96 rounded-full bg-indigo-500/10 blur-3xl" />
-        </>
-      )}
+    <div className="relative min-h-screen overflow-hidden bg-[var(--color-background)] px-4 py-6 transition-all duration-300 sm:px-6 lg:px-8">
+      <div className="absolute -top-24 right-0 h-80 w-80 rounded-full bg-cyan-500/10 blur-3xl" />
+      <div className="absolute left-0 top-1/3 h-96 w-96 rounded-full bg-indigo-500/10 blur-3xl" />
 
-      <div className={contentClass}>
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="relative mx-auto max-w-7xl ">
+        <form onSubmit={handleSubmit} className="space-y-2">
           <input
             ref={templateFileInputRef}
             type="file"
