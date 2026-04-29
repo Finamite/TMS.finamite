@@ -20,6 +20,7 @@ import {
 dotenv.config();
 
 const router = express.Router();
+const recurringTaskTypes = ['daily', 'weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly'];
 
 const defaultTaskCompletionSettings = {
   enabled: false,
@@ -31,17 +32,32 @@ const defaultTaskCompletionSettings = {
   pendingRecurringTasks: {
     allowAttachments: false,
     mandatoryAttachments: false,
-    mandatoryRemarks: false
+    mandatoryRemarks: false,
+    mandatoryAttachmentTaskTypes: recurringTaskTypes
   }
 };
 
-const normalizeTaskCompletionSection = (section = {}) => {
+const normalizeTaskCompletionSection = (section = {}, options = {}) => {
   const allowAttachments = Boolean(section.allowAttachments);
-  return {
+  const rawTaskTypes = Array.isArray(section.mandatoryAttachmentTaskTypes)
+    ? section.mandatoryAttachmentTaskTypes
+    : recurringTaskTypes;
+
+  const normalized = {
     allowAttachments,
     mandatoryAttachments: allowAttachments ? Boolean(section.mandatoryAttachments) : false,
     mandatoryRemarks: Boolean(section.mandatoryRemarks)
   };
+
+  if (options.includeTaskTypes) {
+    normalized.mandatoryAttachmentTaskTypes = rawTaskTypes
+      .map((taskType) => String(taskType || '').trim())
+      .filter((taskType, index, values) =>
+        recurringTaskTypes.includes(taskType) && values.indexOf(taskType) === index
+      );
+  }
+
+  return normalized;
 };
 
 const defaultTaskCalendarSettings = {
@@ -828,7 +844,7 @@ router.get('/task-completion', async (req, res) => {
       },
       pendingRecurringTasks: {
         ...defaultTaskCompletionSettings.pendingRecurringTasks,
-        ...normalizeTaskCompletionSection(settings.data?.pendingRecurringTasks)
+        ...normalizeTaskCompletionSection(settings.data?.pendingRecurringTasks, { includeTaskTypes: true })
       }
     });
   } catch (error) {
@@ -852,7 +868,7 @@ router.post('/task-completion', async (req, res) => {
       },
       pendingRecurringTasks: {
         ...defaultTaskCompletionSettings.pendingRecurringTasks,
-        ...normalizeTaskCompletionSection(pendingRecurringTasks)
+        ...normalizeTaskCompletionSection(pendingRecurringTasks, { includeTaskTypes: true })
       }
     };
 

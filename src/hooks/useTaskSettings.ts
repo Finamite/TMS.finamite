@@ -3,6 +3,8 @@ import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { address } from '../../utils/ipAddress';
 
+const recurringTaskTypes = ['daily', 'weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly'];
+
 const defaultTaskCompletionSettings = {
   enabled: false,
   pendingTasks: {
@@ -13,7 +15,8 @@ const defaultTaskCompletionSettings = {
   pendingRecurringTasks: {
     allowAttachments: false,
     mandatoryAttachments: false,
-    mandatoryRemarks: false
+    mandatoryRemarks: false,
+    mandatoryAttachmentTaskTypes: recurringTaskTypes
   }
 };
 

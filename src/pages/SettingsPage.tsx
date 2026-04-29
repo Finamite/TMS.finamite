@@ -138,6 +138,15 @@ const weekdayOptions = [
     { value: 6, label: 'Saturday' }
 ];
 
+const recurringTaskTypeOptions = [
+    { value: 'daily', label: 'Daily' },
+    { value: 'weekly', label: 'Weekly' },
+    { value: 'fortnightly', label: 'Fortnightly' },
+    { value: 'monthly', label: 'Monthly' },
+    { value: 'quarterly', label: 'Quarterly' },
+    { value: 'yearly', label: 'Yearly' }
+];
+
 const weekOccurrenceOptions = [
     { value: 1, label: '1st Week' },
     { value: 2, label: '2nd Week' },
@@ -240,7 +249,8 @@ const SettingsPage: React.FC = () => {
             pendingRecurringTasks: {
                 allowAttachments: false,
                 mandatoryAttachments: false,
-                mandatoryRemarks: false
+                mandatoryRemarks: false,
+                mandatoryAttachmentTaskTypes: recurringTaskTypeOptions.map(option => option.value)
             }
         },
         pcmIntegration: {
@@ -375,17 +385,36 @@ const SettingsPage: React.FC = () => {
         });
     };
 
+    const normalizeRecurringAttachmentTaskTypes = (value: any) => {
+        const allowed = recurringTaskTypeOptions.map(option => option.value);
+        const source = Array.isArray(value) ? value : allowed;
+        return source.filter((taskType, index) =>
+            allowed.includes(taskType) && source.indexOf(taskType) === index
+        );
+    };
+
     const fetchTaskSettings = async () => {
         if (!currentUser?.companyId) return;
 
         const res = await axios.get(`${address}/api/settings/task-completion?companyId=${currentUser.companyId}`);
+        const pendingRecurringTasks = {
+            allowAttachments: false,
+            mandatoryAttachments: false,
+            mandatoryRemarks: false,
+            ...(res.data.pendingRecurringTasks || {})
+        };
 
         setSettings(prev => ({
             ...prev,
             taskCompletion: {
                 enabled: res.data.enabled ?? false,        // 🔥 NEW
                 pendingTasks: res.data.pendingTasks,
-                pendingRecurringTasks: res.data.pendingRecurringTasks
+                pendingRecurringTasks: {
+                    ...pendingRecurringTasks,
+                    mandatoryAttachmentTaskTypes: normalizeRecurringAttachmentTaskTypes(
+                        pendingRecurringTasks.mandatoryAttachmentTaskTypes
+                    )
+                }
             }
         }));
     };
@@ -451,6 +480,30 @@ const SettingsPage: React.FC = () => {
                 }
             }
         }));
+    };
+
+    const toggleRecurringMandatoryAttachmentTaskType = (taskType: string) => {
+        setHasUnsavedChanges(true);
+
+        setSettings(prev => {
+            const currentTypes = normalizeRecurringAttachmentTaskTypes(
+                prev.taskCompletion.pendingRecurringTasks.mandatoryAttachmentTaskTypes
+            );
+            const nextTypes = currentTypes.includes(taskType)
+                ? currentTypes.filter(type => type !== taskType)
+                : [...currentTypes, taskType];
+
+            return {
+                ...prev,
+                taskCompletion: {
+                    ...prev.taskCompletion,
+                    pendingRecurringTasks: {
+                        ...prev.taskCompletion.pendingRecurringTasks,
+                        mandatoryAttachmentTaskTypes: nextTypes
+                    }
+                }
+            };
+        });
     };
 
     const fetchBinSettings = async () => {
@@ -2336,6 +2389,71 @@ const SettingsPage: React.FC = () => {
                                                 <p className="text-xs text-[var(--color-textSecondary)]">
                                                     Require at least one uploaded file for recurring tasks.
                                                 </p>
+
+                                                {settings.taskCompletion.pendingRecurringTasks.mandatoryAttachments && (
+                                                    <div className="mt-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 p-3">
+                                                        <div className="mb-2 flex items-center justify-between gap-3">
+                                                            <p className="text-sm font-semibold text-[var(--color-text)]">
+                                                                Mandatory for task types
+                                                            </p>
+                                                            <button
+                                                                type="button"
+                                                                disabled={
+                                                                    !settings.taskCompletion.enabled ||
+                                                                    !settings.taskCompletion.pendingRecurringTasks.allowAttachments
+                                                                }
+                                                                onClick={() => {
+                                                                    setHasUnsavedChanges(true);
+                                                                    setSettings(prev => ({
+                                                                        ...prev,
+                                                                        taskCompletion: {
+                                                                            ...prev.taskCompletion,
+                                                                            pendingRecurringTasks: {
+                                                                                ...prev.taskCompletion.pendingRecurringTasks,
+                                                                                mandatoryAttachmentTaskTypes: recurringTaskTypeOptions.map(option => option.value)
+                                                                            }
+                                                                        }
+                                                                    }));
+                                                                }}
+                                                                className="text-xs font-semibold text-[var(--color-primary)] transition hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                                                            >
+                                                                Select all
+                                                            </button>
+                                                        </div>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {recurringTaskTypeOptions.map(option => {
+                                                                const selected = normalizeRecurringAttachmentTaskTypes(
+                                                                    settings.taskCompletion.pendingRecurringTasks.mandatoryAttachmentTaskTypes
+                                                                ).includes(option.value);
+                                                                const disabled =
+                                                                    !settings.taskCompletion.enabled ||
+                                                                    !settings.taskCompletion.pendingRecurringTasks.allowAttachments;
+
+                                                                return (
+                                                                    <button
+                                                                        key={option.value}
+                                                                        type="button"
+                                                                        disabled={disabled}
+                                                                        onClick={() => toggleRecurringMandatoryAttachmentTaskType(option.value)}
+                                                                        className={`rounded-2xl border px-3 py-1.5 text-xs font-semibold transition ${selected
+                                                                            ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white'
+                                                                            : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:border-[var(--color-primary)]/35'
+                                                                            } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                                                                    >
+                                                                        {option.label}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                        {normalizeRecurringAttachmentTaskTypes(
+                                                            settings.taskCompletion.pendingRecurringTasks.mandatoryAttachmentTaskTypes
+                                                        ).length === 0 && (
+                                                            <p className="mt-2 text-xs font-medium text-[var(--color-error)]">
+                                                                Select at least one recurring task type to enforce mandatory attachments.
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
 
 

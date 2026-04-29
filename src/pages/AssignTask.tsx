@@ -31,6 +31,18 @@ interface User extends TemplateUser {
 
 interface TaskForm extends TemplateTaskForm {}
 
+interface TaskCalendarSettings {
+  enabled: boolean;
+  holidays: Array<{ date: string; name?: string }>;
+  monthWeekOffRules: Array<{ weekday: number; occurrence: number }>;
+}
+
+const defaultTaskCalendarSettings: TaskCalendarSettings = {
+  enabled: false,
+  holidays: [],
+  monthWeekOffRules: []
+};
+
 const AssignTask: React.FC = () => {
   const { user } = useAuth();
   const { isDark } = useTheme();
@@ -82,6 +94,7 @@ const AssignTask: React.FC = () => {
   const [templateSelectedTaskId, setTemplateSelectedTaskId] = useState<string | null>(null);
   const [templateInspectorOpen, setTemplateInspectorOpen] = useState(false);
   const [templateSearchQuery, setTemplateSearchQuery] = useState('');
+  const [taskCalendarSettings, setTaskCalendarSettings] = useState<TaskCalendarSettings>(defaultTaskCalendarSettings);
 
   // Store refs for each task's voice recorder
   const voiceRecorderRefs = useRef<{ [key: string]: VoiceRecorderRef | null }>({});
@@ -97,6 +110,102 @@ const AssignTask: React.FC = () => {
   ];
 
   const monthlyDayOptions = Array.from({ length: 31 }, (_, i) => i + 1);
+
+  const parseLocalDate = (dateString?: string) => {
+    if (!dateString) return null;
+    const match = dateString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) {
+      const parsed = new Date(dateString);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    const [, year, month, day] = match;
+    return new Date(Number(year), Number(month) - 1, Number(day));
+  };
+
+  const formatDateKey = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const getWeekdayOccurrenceInMonth = (date: Date) =>
+    Math.floor((date.getDate() - 1) / 7) + 1;
+
+  const isBlockedPreviewDate = (date: Date, includeSunday: boolean, weekOffDays: number[]) => {
+    const dayOfWeek = date.getDay();
+    if (!includeSunday && dayOfWeek === 0) return true;
+    if (weekOffDays.includes(dayOfWeek)) return true;
+
+    if (!taskCalendarSettings.enabled) return false;
+
+    const dateKey = formatDateKey(date);
+    if (taskCalendarSettings.holidays.some(holiday => holiday.date === dateKey)) return true;
+
+    const occurrence = getWeekdayOccurrenceInMonth(date);
+    return taskCalendarSettings.monthWeekOffRules.some(
+      rule => rule.weekday === dayOfWeek && rule.occurrence === occurrence
+    );
+  };
+
+  const moveToPreviousPreviewWorkingDate = (date: Date, startDate: Date, includeSunday: boolean, weekOffDays: number[]) => {
+    const adjustedDate = new Date(date);
+
+    for (let shift = 0; shift <= 370; shift += 1) {
+      if (!isBlockedPreviewDate(adjustedDate, includeSunday, weekOffDays)) {
+        return adjustedDate >= startDate ? adjustedDate : null;
+      }
+
+      adjustedDate.setDate(adjustedDate.getDate() - 1);
+      if (adjustedDate < startDate) return null;
+    }
+
+    return null;
+  };
+
+  const getQuarterlyYearlyPreviewDates = (task: TaskForm) => {
+    if (task.taskType !== 'quarterly' && task.taskType !== 'yearly') return [];
+
+    const startDate = parseLocalDate(task.startDate);
+    if (!startDate) return [];
+
+    const count = task.taskType === 'quarterly'
+      ? 4
+      : task.isForever
+        ? task.yearlyDuration || 3
+        : 1;
+
+    return Array.from({ length: count }, (_, index) => {
+      const targetDate = new Date(startDate);
+      if (task.taskType === 'quarterly') {
+        targetDate.setMonth(startDate.getMonth() + index * 3);
+      } else {
+        targetDate.setFullYear(startDate.getFullYear() + index);
+      }
+
+      const adjustedDate = moveToPreviousPreviewWorkingDate(
+        targetDate,
+        startDate,
+        task.includeSunday,
+        normalizeWeekOffDays(task.weekOffDays)
+      );
+
+      if (adjustedDate) return adjustedDate;
+
+      const fallbackDate = new Date(targetDate);
+      if (!task.includeSunday && fallbackDate.getDay() === 0) {
+        fallbackDate.setDate(fallbackDate.getDate() - 1);
+      }
+
+      const weekOffDays = normalizeWeekOffDays(task.weekOffDays);
+      while (weekOffDays.includes(fallbackDate.getDay())) {
+        fallbackDate.setDate(fallbackDate.getDate() - 1);
+      }
+
+      return fallbackDate;
+    }).filter((date): date is Date => Boolean(date));
+  };
 
   const normalizeWeekOffDays = (days: Array<number | string> = []) => [
     ...new Set(
@@ -120,6 +229,22 @@ const AssignTask: React.FC = () => {
       fetchUsers();
     }
   }, [user]);
+
+  useEffect(() => {
+    const companyId = user?.company?.companyId || user?.companyId;
+    if (!companyId) return;
+
+    axios.get(`${address}/api/settings/task-calendar?companyId=${companyId}`)
+      .then(res => setTaskCalendarSettings({
+        enabled: res.data?.enabled ?? false,
+        holidays: Array.isArray(res.data?.holidays) ? res.data.holidays : [],
+        monthWeekOffRules: Array.isArray(res.data?.monthWeekOffRules) ? res.data.monthWeekOffRules : []
+      }))
+      .catch(err => {
+        console.error('Error fetching task calendar settings:', err);
+        setTaskCalendarSettings(defaultTaskCalendarSettings);
+      });
+  }, [user?.company?.companyId, user?.companyId]);
 
   useEffect(() => {
     if (!adminApprovalSettings.enabled) return;
@@ -1612,6 +1737,53 @@ const AssignTask: React.FC = () => {
                         </select>
                       </div>
                     )}
+
+                    {(task.taskType === 'quarterly' || task.taskType === 'yearly') && (
+                      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/60 p-4">
+                        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <h5 className="font-semibold text-[var(--color-text)]">
+                              Task Date Preview
+                            </h5>
+                            <p className="text-xs text-[var(--color-textSecondary)]">
+                              {task.taskType === 'quarterly'
+                                ? 'Quarterly tasks will be created every 3 months from the task date.'
+                                : task.isForever
+                                  ? `Yearly tasks will be created for ${task.yearlyDuration || 3} years.`
+                                  : 'One yearly task will be created from the task date.'}
+                            </p>
+                          </div>
+                          {taskCalendarSettings.enabled && (
+                            <span className="rounded-full border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-primary)]">
+                              Calendar rules applied
+                            </span>
+                          )}
+                        </div>
+
+                        {task.startDate ? (
+                          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                            {getQuarterlyYearlyPreviewDates(task).map((date, index) => (
+                              <div
+                                key={`${task.id}-${formatDateKey(date)}-${index}`}
+                                className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2"
+                              >
+                                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-textSecondary)]">
+                                  {task.taskType === 'quarterly' ? `Quarter ${index + 1}` : `Year ${index + 1}`}
+                                </p>
+                                <p className="mt-1 text-sm font-semibold text-[var(--color-text)]">
+                                  {formatPreviewDate(formatDateKey(date))}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="mt-3 text-sm text-[var(--color-textSecondary)]">
+                            Select the task date to preview generated dates.
+                          </p>
+                        )}
+                      </div>
+                    )}
+
                     {task.taskType === 'fortnightly' && (
                       <div className="text-sm text-amber-600 mt-2">
                         {!task.includeSunday

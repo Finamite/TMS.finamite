@@ -155,6 +155,21 @@ const syncUserRecurringWeekOffDays = async ({ userId, companyId, weekOffDays }) 
     }
   );
 
+  await Task.updateMany(
+    {
+      companyId,
+      assignedTo: userId,
+      taskType: { $in: recurringTypes },
+      status: 'completed'
+    },
+    {
+      $set: {
+        weekOffDays: normalizedWeekOffDays,
+        'parentTaskInfo.weekOffDays': normalizedWeekOffDays
+      }
+    }
+  );
+
   if (normalizedWeekOffDays.length > 0) {
     await Task.updateMany(
       {

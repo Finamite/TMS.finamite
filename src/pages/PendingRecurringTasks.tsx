@@ -55,6 +55,8 @@ interface PendingRecurringTasksResponse {
   };
 }
 
+const recurringTaskTypes = ['daily', 'weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly'];
+
 // Function to handle file download
 const downloadFile = async (filename: string, originalName: string) => {
   try {
@@ -715,6 +717,16 @@ const PendingRecurringTasks: React.FC = () => {
   const dailyTasksCount = sectionCounts.daily;
   const cyclicTasksCount = sectionCounts.cyclic;
   const completingTask = getTaskToComplete();
+  const recurringAttachmentTaskTypes = Array.isArray(taskSettings?.pendingRecurringTasks?.mandatoryAttachmentTaskTypes)
+    ? taskSettings.pendingRecurringTasks.mandatoryAttachmentTaskTypes
+    : recurringTaskTypes;
+  const recurringTaskRequiresAttachment = Boolean(
+    taskSettings?.enabled &&
+    taskSettings.pendingRecurringTasks?.allowAttachments &&
+    taskSettings.pendingRecurringTasks?.mandatoryAttachments &&
+    completingTask?.taskType &&
+    recurringAttachmentTaskTypes.includes(completingTask.taskType)
+  );
 
   return (
     <div className="min-h-full bg-[var(--color-background)] p-4 sm:p-6">
@@ -1033,9 +1045,7 @@ const PendingRecurringTasks: React.FC = () => {
               : false
           }
           mandatoryAttachments={
-            taskSettings.enabled
-              ? taskSettings.pendingRecurringTasks?.mandatoryAttachments ?? false
-              : false
+            recurringTaskRequiresAttachment
           }
           mandatoryRemarks={
             taskSettings.enabled
