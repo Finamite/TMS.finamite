@@ -305,7 +305,7 @@ const ForApproval: React.FC = () => {
                         taskType: 'one-time',
                         companyId: user?.company?.companyId,
                         ...(isUserLevelApprover ? { assignedBy: user.id } : {}),
-                        limit: 10000   // âœ… IMPORTANT
+                        limit: 10000   // IMPORTANT
                     }
                 }
             );
@@ -1095,7 +1095,7 @@ const ForApproval: React.FC = () => {
                                                                     {attachment.originalName}
                                                                 </div>
                                                                 <div className="mt-1 text-xs text-[var(--color-textSecondary)]">
-                                                                    Image â€¢ {(attachment.size / 1024).toFixed(1)} KB
+                                                                    Image {(attachment.size / 1024).toFixed(1)} KB
                                                                 </div>
                                                             </div>
                                                         </>
@@ -1109,7 +1109,7 @@ const ForApproval: React.FC = () => {
                                                                     {attachment.originalName}
                                                                 </div>
                                                                 <div className="mt-1 text-xs text-[var(--color-textSecondary)]">
-                                                                    Document â€¢ {(attachment.size / 1024).toFixed(1)} KB
+                                                                    Document {(attachment.size / 1024).toFixed(1)} KB
                                                                 </div>
                                                             </div>
                                                         </>

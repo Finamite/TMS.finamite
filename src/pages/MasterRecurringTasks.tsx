@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { RotateCcw, Calendar, Filter, Search, Trash2, Users, Paperclip, FileText, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CreditCard as Edit, Info, Download, ExternalLink, Settings, Loader, AlertTriangle, XCircle, CreditCard as Edit3, RefreshCw, X, CheckCircle2, Clock3 } from 'lucide-react';
+import { RotateCcw, Calendar, Filter, Search, Trash2, Users, Paperclip, FileText, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CreditCard as Edit, Info, Download, ExternalLink, Settings, Loader, AlertTriangle, XCircle, CreditCard as Edit3, RefreshCw, X, CheckCircle2, Clock3, ArrowDown } from 'lucide-react';
 import axios from 'axios';
 import ViewToggle from '../components/ViewToggle';
 import StatusBadge from '../components/StatusBadge';
@@ -523,7 +523,7 @@ const MasterRecurringTasks: React.FC = () => {
             return;
           }
         } catch (fallbackError) {
-          console.error('âŒ Fallback fetch failed:', fallbackError);
+          console.error('Fallback fetch failed:', fallbackError);
         }
       }
 
@@ -763,7 +763,7 @@ const MasterRecurringTasks: React.FC = () => {
       const res = await axios.get(`${address}/api/tasks/task-activities/${taskGroupId}`);
       setTaskActivities(res.data.activities || []);
     } catch (error) {
-      console.error("âŒ Activity fetch error:", error);
+      console.error("Activity fetch error:", error);
     } finally {
       setActivityLoading(false);
     }
@@ -988,7 +988,7 @@ const MasterRecurringTasks: React.FC = () => {
       setShowBulkReassignModal(false);
 
     } catch (error) {
-      console.error("âŒ Bulk reassign failed:", error);
+      console.error("Bulk reassign failed:", error);
       toast.error("Failed to reassign tasks");
     } finally {
       setIsSaving(false);
@@ -1634,7 +1634,7 @@ const MasterRecurringTasks: React.FC = () => {
         <div className="mt-4 grid gap-3 text-sm">
           <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
             <span className="text-[var(--color-textSecondary)]">Task ID</span>
-            <span className="font-semibold text-[var(--color-text)]">{task.taskId || 'â€”'}</span>
+            <span className="font-semibold text-[var(--color-text)]">{task.taskId || '-'}</span>
           </div>
           <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2">
             <span className="text-[var(--color-textSecondary)]">Assigned by</span>
@@ -2060,7 +2060,7 @@ const MasterRecurringTasks: React.FC = () => {
             <tbody className="divide-y divide-[var(--color-border)] bg-[var(--color-surface)]">
               {individualTasks.map((task: Task) => (
                 <tr key={task._id} className="transition-colors hover:bg-[var(--color-background)]/70">
-                  <td className="px-5 py-4 whitespace-nowrap text-sm text-[var(--color-text)]">{task.taskId || 'â€”'}</td>
+                  <td className="px-5 py-4 whitespace-nowrap text-sm text-[var(--color-text)]">{task.taskId || '-'}</td>
                   <td className="px-5 py-4">
                     <div className="min-w-0">
                       <div className="text-sm font-semibold text-[var(--color-text)] mb-1">
@@ -2986,7 +2986,7 @@ const MasterRecurringTasks: React.FC = () => {
                       setShowDeleteModal(false);
                       setDeleteConfig(null);
                     } catch (err) {
-                      console.error('âŒ Error moving to bin:', err);
+                      console.error('Error moving to bin:', err);
                       toast.error("Error moving to bin");
                     } finally {
                       setIsProcessingDelete(false);
@@ -3064,7 +3064,7 @@ const MasterRecurringTasks: React.FC = () => {
                       setShowDeleteModal(false);
                       setDeleteConfig(null);
                     } catch (err) {
-                      console.error('âŒ Error deleting permanently:', err);
+                      console.error('Error deleting permanently:', err);
                       toast.error("Error deleting permanently");
                     } finally {
                       setIsProcessingDelete(false);
@@ -3263,7 +3263,7 @@ const MasterRecurringTasks: React.FC = () => {
                       >
                         <div className="flex items-center gap-2 truncate">
                           <span className="truncate font-medium">
-                            â€¢ {task?.title || taskGroupId}
+                            • {task?.title || taskGroupId}
                           </span>
 
                           {hasAttachments && (
@@ -3312,7 +3312,7 @@ const MasterRecurringTasks: React.FC = () => {
                                     : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'
                                 }`}
                             >
-                              Donâ€™t Add
+                              Don't Add
                             </button>
                           </div>
                         )}
@@ -3409,7 +3409,7 @@ const MasterRecurringTasks: React.FC = () => {
                 <p className="text-sm mt-2">
                   <span className="text-sm text-[--color-muted]">Task:</span>{" "}
                   <span className="font-extrabold text-[--color-text]">
-                    {selectedActivityTaskTitle || "â€”"}
+                    {selectedActivityTaskTitle || "-"}
                   </span>
                 </p>
               </div>
@@ -3446,7 +3446,7 @@ const MasterRecurringTasks: React.FC = () => {
                         month: "2-digit",
                         year: "2-digit",
                       }).format(new Date(dateStr))
-                      : "â€”";
+                      : "—";
 
                   const formatISTDateTime = (dateStr: string) =>
                     dateStr
@@ -3459,7 +3459,7 @@ const MasterRecurringTasks: React.FC = () => {
                         minute: "2-digit",
                         hour12: true,
                       }).format(new Date(dateStr))
-                      : "â€”";
+                      : "—";
 
                   const sorted = [...taskActivities].sort(
                     (a, b) =>
@@ -3504,9 +3504,6 @@ const MasterRecurringTasks: React.FC = () => {
                                   <p className="text-[11px] text-[--color-muted] break-words">
                                     {formatISTDateTime(a.createdAt)}
                                   </p>
-                                  <p className="text-[11px] text-[--color-muted]/70">
-                                    IST
-                                  </p>
                                 </div>
                               </div>
 
@@ -3526,7 +3523,7 @@ const MasterRecurringTasks: React.FC = () => {
                                       End Date:
                                     </span>{" "}
                                     {formatISTDate(a.oldEndDate)}{" "}
-                                    <span className="text-[--color-muted]">â†’</span>{" "}
+                                    <span className="text-[--color-muted]">→</span>{" "}
                                     <span className="font-semibold text-[--color-error]">
                                       {formatISTDate(a.newEndDate)}
                                     </span>
@@ -3539,7 +3536,7 @@ const MasterRecurringTasks: React.FC = () => {
                                         : "animate-pulse-arrow"
                                       }`}
                                   >
-                                    â†“
+                                    <ArrowDown size={16} />
                                   </span>
                                 </button>
                               )}
@@ -3560,8 +3557,8 @@ const MasterRecurringTasks: React.FC = () => {
                                     )}
 
                                     <div className="pt-2 border-t border-[--color-border] text-xs text-[--color-muted]">
-                                      Updated by {a.performedBy?.username || "Unknown"} Â·{" "}
-                                      {formatISTDateTime(a.createdAt)} IST
+                                      Updated by {a.performedBy?.username || "Unknown"} - {" "}
+                                      {formatISTDateTime(a.createdAt)}
                                     </div>
                                   </div>
                                 </div>

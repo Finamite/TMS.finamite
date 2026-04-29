@@ -896,7 +896,7 @@ const PendingTasks: React.FC = () => {
                     className="transition-all duration-200 hover:bg-[var(--color-background)]/70"
                   >
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--color-text)]">
-                      {task.taskId || 'â€”'}
+                      {task.taskId || '-'}
                     </td>
                     <td className="px-6 py-4">
                       <div className="max-w-[420px]">
