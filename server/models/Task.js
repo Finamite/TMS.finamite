@@ -77,6 +77,21 @@ const taskSchema = new mongoose.Schema({
     min: 1,
     max: 31
   },
+  monthlyMode: {
+    type: String,
+    enum: ['dayOfMonth', 'weekdayOfMonth'],
+    default: 'dayOfMonth'
+  },
+  monthlyWeekday: {
+    type: Number,
+    min: 0,
+    max: 6
+  },
+  monthlyWeekOccurrence: {
+    type: Number,
+    min: 1,
+    max: 5
+  },
   priority: {
     type: String,
     enum: ['low', 'normal', 'high', 'urgent'],
@@ -166,6 +181,9 @@ const taskSchema = new mongoose.Schema({
     weeklyDays: [Number],
     weekOffDays: [Number],
     monthlyDay: Number,
+    monthlyMode: String,
+    monthlyWeekday: Number,
+    monthlyWeekOccurrence: Number,
     yearlyDuration: Number
   }
 }, {

@@ -282,6 +282,9 @@ const applyRecurringPauseWindow = async ({ taskGroupId, companyId, pauseFrom, pa
             weeklyDays: master.weeklyDays || [],
             weekOffDays: master.weekOffDays || [],
             monthlyDay: master.monthlyDay,
+            monthlyMode: master.monthlyMode || 'dayOfMonth',
+            monthlyWeekday: master.monthlyWeekday,
+            monthlyWeekOccurrence: master.monthlyWeekOccurrence,
             yearlyDuration: master.yearlyDuration
           }
         };
@@ -447,6 +450,9 @@ const ensureAssignedTodayDailyInstances = async ({ companyId, assignedTo }) => {
         weeklyDays: master.weeklyDays || [],
         weekOffDays: master.weekOffDays || [],
         monthlyDay: master.monthlyDay,
+        monthlyMode: master.monthlyMode || 'dayOfMonth',
+        monthlyWeekday: master.monthlyWeekday,
+        monthlyWeekOccurrence: master.monthlyWeekOccurrence,
         yearlyDuration: master.yearlyDuration
       }
     });
@@ -593,6 +599,27 @@ const normalizeTaskWeekOffDays = (weekOffDays = []) => [
   )
 ].sort((a, b) => a - b);
 
+const normalizeMonthlyMode = (value) =>
+  value === 'weekdayOfMonth' ? 'weekdayOfMonth' : 'dayOfMonth';
+
+const normalizeMonthlyWeekday = (value) => {
+  const weekday = Number(value);
+  return Number.isInteger(weekday) && weekday >= 0 && weekday <= 6 ? weekday : 1;
+};
+
+const normalizeMonthlyWeekOccurrence = (value) => {
+  const occurrence = Number(value);
+  return Number.isInteger(occurrence) && occurrence >= 1 && occurrence <= 5 ? occurrence : 1;
+};
+
+const getNthWeekdayOfMonth = (year, month, weekday, occurrence) => {
+  const firstOfMonth = new Date(year, month, 1);
+  const offset = (weekday - firstOfMonth.getDay() + 7) % 7;
+  const targetDate = new Date(year, month, 1 + offset + ((occurrence - 1) * 7));
+
+  return targetDate.getMonth() === month ? targetDate : null;
+};
+
 const moveToPreviousWorkingDate = (value, isBlocked, options = {}) => {
   const originalDate = new Date(value);
   if (Number.isNaN(originalDate.getTime())) return null;
@@ -651,28 +678,52 @@ const getWeeklyTaskDates = (startDate, endDate, selectedDays, weekOffDays = [], 
   return dates;
 };
 
-// Helper function to get all dates for monthly tasks with specific day within a range
-const getMonthlyTaskDates = (startDate, endDate, monthlyDay, includeSunday, weekOffDays = [], taskCalendar = defaultTaskCalendarSettings) => {
+// Helper function to get all dates for monthly tasks within a range
+const getMonthlyTaskDates = (
+  startDate,
+  endDate,
+  monthlyDay,
+  includeSunday,
+  weekOffDays = [],
+  taskCalendar = defaultTaskCalendarSettings,
+  monthlyMode = 'dayOfMonth',
+  monthlyWeekday = 1,
+  monthlyWeekOccurrence = 1
+) => {
   const dates = [];
   const start = new Date(startDate);
   const end = new Date(endDate);
   const isBlocked = createDateBlockChecker(includeSunday, weekOffDays, taskCalendar);
+  const normalizedMonthlyMode = normalizeMonthlyMode(monthlyMode);
+  const normalizedMonthlyWeekday = normalizeMonthlyWeekday(monthlyWeekday);
+  const normalizedMonthlyWeekOccurrence = normalizeMonthlyWeekOccurrence(monthlyWeekOccurrence);
 
   // Start from the first day of the start month
   const current = new Date(start.getFullYear(), start.getMonth(), 1);
 
   while (current <= end) {
-    // Set to the target day of month
-    let targetDate = new Date(current.getFullYear(), current.getMonth(), monthlyDay);
+    let targetDate;
 
-    // Handle case where monthlyDay doesn't exist in this month (e.g., Feb 30th)
-    if (targetDate.getMonth() !== current.getMonth()) {
-      // If the day is out of bounds for the current month, set to the last day of the month
-      targetDate = new Date(current.getFullYear(), current.getMonth() + 1, 0);
+    if (normalizedMonthlyMode === 'weekdayOfMonth') {
+      targetDate = getNthWeekdayOfMonth(
+        current.getFullYear(),
+        current.getMonth(),
+        normalizedMonthlyWeekday,
+        normalizedMonthlyWeekOccurrence
+      );
+    } else {
+      // Set to the target day of month
+      targetDate = new Date(current.getFullYear(), current.getMonth(), monthlyDay);
+
+      // Handle case where monthlyDay doesn't exist in this month (e.g., Feb 30th)
+      if (targetDate.getMonth() !== current.getMonth()) {
+        // If the day is out of bounds for the current month, set to the last day of the month
+        targetDate = new Date(current.getFullYear(), current.getMonth() + 1, 0);
+      }
     }
 
     // Check if the target date is within our overall date range
-    if (targetDate >= start && targetDate <= end) {
+    if (targetDate && targetDate >= start && targetDate <= end) {
       const adjustedDate = moveToPreviousWorkingDate(targetDate, isBlocked, {
         minDate: start,
         sameMonth: true
@@ -799,6 +850,9 @@ const generateTaskDates = ({
   weekOffDays = [],
   weeklyDays = [],
   monthlyDay = 1,
+  monthlyMode = 'dayOfMonth',
+  monthlyWeekday = 1,
+  monthlyWeekOccurrence = 1,
   yearlyDuration = 1,
   isForever = false,
   taskCalendar = defaultTaskCalendarSettings
@@ -809,7 +863,17 @@ const generateTaskDates = ({
     case 'weekly':
       return getWeeklyTaskDates(startDate, endDate, weeklyDays, weekOffDays, taskCalendar);
     case 'monthly':
-      return getMonthlyTaskDates(startDate, endDate, monthlyDay || 1, includeSunday, weekOffDays, taskCalendar);
+      return getMonthlyTaskDates(
+        startDate,
+        endDate,
+        monthlyDay || 1,
+        includeSunday,
+        weekOffDays,
+        taskCalendar,
+        monthlyMode,
+        monthlyWeekday,
+        monthlyWeekOccurrence
+      );
     case 'quarterly':
       return getQuarterlyTaskDates(startDate, includeSunday, weekOffDays, taskCalendar);
     case 'fortnightly':
@@ -1776,6 +1840,9 @@ router.get("/master-recurring-light", async (req, res) => {
         weeklyDays: 1,
         weekOffDays: 1,
         monthlyDay: 1,
+        monthlyMode: 1,
+        monthlyWeekday: 1,
+        monthlyWeekOccurrence: 1,
         yearlyDuration: 1,
         attachments: 1,
         endedEarly: 1,
@@ -1841,6 +1908,9 @@ router.get("/master-recurring-light", async (req, res) => {
         weeklyDays: g.parentTaskInfo?.weeklyDays || [],
         weekOffDays: g.parentTaskInfo?.weekOffDays || g.weekOffDays || [],
         monthlyDay: g.parentTaskInfo?.monthlyDay,
+        monthlyMode: g.parentTaskInfo?.monthlyMode || 'dayOfMonth',
+        monthlyWeekday: g.parentTaskInfo?.monthlyWeekday,
+        monthlyWeekOccurrence: g.parentTaskInfo?.monthlyWeekOccurrence,
         yearlyDuration: g.parentTaskInfo?.yearlyDuration || 1,
         attachments: g.attachments || [],
         createdAt: g.createdAt
@@ -1944,6 +2014,9 @@ router.get("/master-recurring-light", async (req, res) => {
           weeklyDays: m.weeklyDays,
           weekOffDays: m.weekOffDays,
           monthlyDay: m.monthlyDay,
+          monthlyMode: m.monthlyMode || 'dayOfMonth',
+          monthlyWeekday: m.monthlyWeekday,
+          monthlyWeekOccurrence: m.monthlyWeekOccurrence,
           yearlyDuration: m.yearlyDuration
         },
         instanceCount: statMap[m.taskGroupId]?.instanceCount || 0,
@@ -2187,6 +2260,9 @@ router.post('/bulk-create', async (req, res) => {
             weekOffDays: effectiveWeekOffDays,
             weeklyDays: taskData.weeklyDays,
             monthlyDay: taskData.monthlyDay,
+            monthlyMode: taskData.monthlyMode,
+            monthlyWeekday: taskData.monthlyWeekday,
+            monthlyWeekOccurrence: taskData.monthlyWeekOccurrence,
             yearlyDuration: taskData.yearlyDuration,
             isForever: taskData.isForever,
             taskCalendar
@@ -2213,6 +2289,9 @@ router.post('/bulk-create', async (req, res) => {
           weeklyDays: taskData.weeklyDays,
           weekOffDays: effectiveWeekOffDays,
           monthlyDay: taskData.monthlyDay,
+          monthlyMode: taskData.monthlyMode,
+          monthlyWeekday: taskData.monthlyWeekday,
+          monthlyWeekOccurrence: taskData.monthlyWeekOccurrence,
           yearlyDuration: taskData.yearlyDuration,
           attachments: taskData.attachments || []
         });
@@ -2238,6 +2317,9 @@ router.post('/bulk-create', async (req, res) => {
                 weeklyDays: taskData.weeklyDays,
                 weekOffDays: effectiveWeekOffDays,
                 monthlyDay: taskData.monthlyDay,
+                monthlyMode: taskData.monthlyMode,
+                monthlyWeekday: taskData.monthlyWeekday,
+                monthlyWeekOccurrence: taskData.monthlyWeekOccurrence,
                 yearlyDuration: taskData.yearlyDuration
               }
             }
@@ -2401,6 +2483,9 @@ router.post('/create-scheduled', async (req, res) => {
         weekOffDays: taskData.weekOffDays,
         weeklyDays: taskData.weeklyDays,
         monthlyDay: taskData.monthlyDay,
+        monthlyMode: taskData.monthlyMode,
+        monthlyWeekday: taskData.monthlyWeekday,
+        monthlyWeekOccurrence: taskData.monthlyWeekOccurrence,
         yearlyDuration: taskData.yearlyDuration,
         isForever: taskData.isForever,
         taskCalendar
@@ -2428,6 +2513,9 @@ router.post('/create-scheduled', async (req, res) => {
         weeklyDays: taskData.weeklyDays,
         weekOffDays: taskData.weekOffDays || [],
         monthlyDay: taskData.monthlyDay,
+        monthlyMode: taskData.monthlyMode,
+        monthlyWeekday: taskData.monthlyWeekday,
+        monthlyWeekOccurrence: taskData.monthlyWeekOccurrence,
         yearlyDuration: taskData.yearlyDuration,
         attachments: taskData.attachments || []
       });
@@ -2471,6 +2559,9 @@ router.post('/create-scheduled', async (req, res) => {
               weeklyDays: taskData.weeklyDays,
               weekOffDays: taskData.weekOffDays || [],
               monthlyDay: taskData.monthlyDay,
+              monthlyMode: taskData.monthlyMode,
+              monthlyWeekday: taskData.monthlyWeekday,
+              monthlyWeekOccurrence: taskData.monthlyWeekOccurrence,
               yearlyDuration: taskData.yearlyDuration
             }
           }
@@ -3143,6 +3234,9 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
       weeklyDays: updates.weeklyDays,
       weekOffDays: updates.weekOffDays || [],
       monthlyDay: updates.monthlyDay,
+      monthlyMode: updates.monthlyMode,
+      monthlyWeekday: updates.monthlyWeekday,
+      monthlyWeekOccurrence: updates.monthlyWeekOccurrence,
       yearlyDuration: updates.yearlyDuration,
       attachments: updates.attachments || []
     };
@@ -3210,6 +3304,9 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
           "parentTaskInfo.includeSunday": updates.includeSunday,
           "parentTaskInfo.weeklyDays": updates.weeklyDays,
           "parentTaskInfo.monthlyDay": updates.monthlyDay,
+          "parentTaskInfo.monthlyMode": updates.monthlyMode,
+          "parentTaskInfo.monthlyWeekday": updates.monthlyWeekday,
+          "parentTaskInfo.monthlyWeekOccurrence": updates.monthlyWeekOccurrence,
           "parentTaskInfo.yearlyDuration": updates.yearlyDuration,
           "parentTaskInfo.isForever": updates.isForever,
           "parentTaskInfo.originalStartDate": updates.startDate,
@@ -3235,6 +3332,9 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
       weekOffDays: updates.weekOffDays,
       weeklyDays: updates.weeklyDays,
       monthlyDay: updates.monthlyDay,
+      monthlyMode: updates.monthlyMode,
+      monthlyWeekday: updates.monthlyWeekday,
+      monthlyWeekOccurrence: updates.monthlyWeekOccurrence,
       yearlyDuration: updates.yearlyDuration,
       isForever: updates.isForever,
       taskCalendar
@@ -3322,6 +3422,9 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
               weeklyDays: updates.weeklyDays,
               weekOffDays: updates.weekOffDays || [],
               monthlyDay: updates.monthlyDay,
+              monthlyMode: updates.monthlyMode,
+              monthlyWeekday: updates.monthlyWeekday,
+              monthlyWeekOccurrence: updates.monthlyWeekOccurrence,
               yearlyDuration: updates.yearlyDuration,
               parentTaskInfo: {
                 originalStartDate: updates.startDate,
@@ -3331,6 +3434,9 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
                 weeklyDays: updates.weeklyDays,
                 weekOffDays: updates.weekOffDays || [],
                 monthlyDay: updates.monthlyDay,
+                monthlyMode: updates.monthlyMode,
+                monthlyWeekday: updates.monthlyWeekday,
+                monthlyWeekOccurrence: updates.monthlyWeekOccurrence,
                 yearlyDuration: updates.yearlyDuration
               }
             }
@@ -4212,6 +4318,9 @@ router.post('/bin/restore-permanent-recurring/:taskGroupId', async (req, res) =>
     const weeklyDays = Array.isArray(template.weeklyDays) ? template.weeklyDays : [];
     const weekOffDays = Array.isArray(template.weekOffDays) ? template.weekOffDays : [];
     const monthlyDay = template.monthlyDay ?? undefined;
+    const monthlyMode = normalizeMonthlyMode(template.monthlyMode);
+    const monthlyWeekday = normalizeMonthlyWeekday(template.monthlyWeekday);
+    const monthlyWeekOccurrence = normalizeMonthlyWeekOccurrence(template.monthlyWeekOccurrence);
     const yearlyDuration = template.yearlyDuration ?? undefined;
     const attachments = Array.isArray(template.attachments) ? template.attachments : [];
 
@@ -4232,6 +4341,9 @@ router.post('/bin/restore-permanent-recurring/:taskGroupId', async (req, res) =>
       weeklyDays,
       weekOffDays,
       monthlyDay,
+      monthlyMode,
+      monthlyWeekday,
+      monthlyWeekOccurrence,
       yearlyDuration,
       attachments,
       isActive: true,
@@ -4270,6 +4382,9 @@ router.post('/bin/restore-permanent-recurring/:taskGroupId', async (req, res) =>
           weeklyDays,
           weekOffDays,
           monthlyDay,
+          monthlyMode,
+          monthlyWeekday,
+          monthlyWeekOccurrence,
           yearlyDuration
         },
         attachments,
@@ -4406,6 +4521,9 @@ router.post("/reassign/:taskGroupId", async (req, res) => {
       weeklyDays: oldMaster.weeklyDays,
       weekOffDays: oldMaster.weekOffDays,
       monthlyDay: oldMaster.monthlyDay,
+      monthlyMode: oldMaster.monthlyMode,
+      monthlyWeekday: oldMaster.monthlyWeekday,
+      monthlyWeekOccurrence: oldMaster.monthlyWeekOccurrence,
       yearlyDuration: oldMaster.yearlyDuration,
 
       attachments: includeFiles ? oldMaster.attachments : []
@@ -4425,6 +4543,9 @@ router.post("/reassign/:taskGroupId", async (req, res) => {
       weekOffDays: oldMaster.weekOffDays,
       weeklyDays: oldMaster.weeklyDays,
       monthlyDay: oldMaster.monthlyDay,
+      monthlyMode: oldMaster.monthlyMode,
+      monthlyWeekday: oldMaster.monthlyWeekday,
+      monthlyWeekOccurrence: oldMaster.monthlyWeekOccurrence,
       yearlyDuration: oldMaster.yearlyDuration,
       isForever: true,
       taskCalendar
@@ -4467,6 +4588,9 @@ router.post("/reassign/:taskGroupId", async (req, res) => {
           weeklyDays: oldMaster.weeklyDays,
           weekOffDays: oldMaster.weekOffDays,
           monthlyDay: oldMaster.monthlyDay,
+          monthlyMode: oldMaster.monthlyMode,
+          monthlyWeekday: oldMaster.monthlyWeekday,
+          monthlyWeekOccurrence: oldMaster.monthlyWeekOccurrence,
           yearlyDuration: oldMaster.yearlyDuration
         },
 
@@ -4677,6 +4801,9 @@ router.post('/:id/reject', async (req, res) => {
         weeklyDays: task.weeklyDays || [],
         weekOffDays: task.weekOffDays || [],
         monthlyDay: task.monthlyDay || 1,
+        monthlyMode: task.monthlyMode || task.parentTaskInfo?.monthlyMode || 'dayOfMonth',
+        monthlyWeekday: task.monthlyWeekday ?? task.parentTaskInfo?.monthlyWeekday,
+        monthlyWeekOccurrence: task.monthlyWeekOccurrence ?? task.parentTaskInfo?.monthlyWeekOccurrence,
         yearlyDuration: task.yearlyDuration || 1,
 
         includeSunday: task.parentTaskInfo?.includeSunday ?? true,

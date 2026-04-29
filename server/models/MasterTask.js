@@ -51,6 +51,13 @@ const masterTaskSchema = new mongoose.Schema({
   weeklyDays: [Number],
   weekOffDays: [Number],
   monthlyDay: Number,
+  monthlyMode: {
+    type: String,
+    enum: ["dayOfMonth", "weekdayOfMonth"],
+    default: "dayOfMonth"
+  },
+  monthlyWeekday: Number,
+  monthlyWeekOccurrence: Number,
   yearlyDuration: Number,
 
   attachments: Array,

@@ -24,6 +24,9 @@ export interface TemplateTaskForm {
   weekOffDays: number[];
   weeklyDays: number[];
   monthlyDay: number;
+  monthlyMode?: 'dayOfMonth' | 'weekdayOfMonth';
+  monthlyWeekday?: number;
+  monthlyWeekOccurrence?: number;
   yearlyDuration: number;
   attachments: File[];
   requiresApproval: boolean;
@@ -335,6 +338,9 @@ const buildTaskForm = (taskType: TaskType): TemplateTaskForm => ({
   weekOffDays: [],
   weeklyDays: [],
   monthlyDay: 1,
+  monthlyMode: 'dayOfMonth',
+  monthlyWeekday: 1,
+  monthlyWeekOccurrence: 1,
   yearlyDuration: 3,
   attachments: [],
   requiresApproval: false,

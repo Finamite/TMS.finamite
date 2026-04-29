@@ -38,6 +38,9 @@ export interface Task {
     weeklyDays?: number[];
     weekOffDays?: number[];
     monthlyDay?: number;
+    monthlyMode?: 'dayOfMonth' | 'weekdayOfMonth';
+    monthlyWeekday?: number;
+    monthlyWeekOccurrence?: number;
     yearlyDuration?: number;
   };
   weekOffDays?: number[];

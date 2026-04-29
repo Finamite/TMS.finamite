@@ -66,6 +66,9 @@ const AssignTask: React.FC = () => {
       weekOffDays: [],
       weeklyDays: [],
       monthlyDay: 1,
+      monthlyMode: 'dayOfMonth',
+      monthlyWeekday: 1,
+      monthlyWeekOccurrence: 1,
       yearlyDuration: 3,
       attachments: [],
       requiresApproval: false,
@@ -110,6 +113,30 @@ const AssignTask: React.FC = () => {
   ];
 
   const monthlyDayOptions = Array.from({ length: 31 }, (_, i) => i + 1);
+  const monthlyWeekOccurrenceOptions = [
+    { value: 1, label: '1st' },
+    { value: 2, label: '2nd' },
+    { value: 3, label: '3rd' },
+    { value: 4, label: '4th' },
+    { value: 5, label: '5th' }
+  ];
+
+  const getOrdinalLabel = (value: number) => {
+    if (value === 1) return '1st';
+    if (value === 2) return '2nd';
+    if (value === 3) return '3rd';
+    return `${value}th`;
+  };
+
+  const getMonthlyScheduleLabel = (task: Pick<TaskForm, 'monthlyDay' | 'monthlyMode' | 'monthlyWeekday' | 'monthlyWeekOccurrence'>) => {
+    if (task.monthlyMode === 'weekdayOfMonth') {
+      const occurrence = monthlyWeekOccurrenceOptions.find(option => option.value === (task.monthlyWeekOccurrence || 1))?.label || '1st';
+      const weekday = weekDays.find(day => day.value === (task.monthlyWeekday ?? 1))?.label || 'Monday';
+      return `${occurrence} ${weekday} of each month`;
+    }
+
+    return `${getOrdinalLabel(task.monthlyDay || 1)} of each month`;
+  };
 
   const parseLocalDate = (dateString?: string) => {
     if (!dateString) return null;
@@ -374,6 +401,9 @@ const AssignTask: React.FC = () => {
       weekOffDays: [],
       weeklyDays: [],
       monthlyDay: 1,
+      monthlyMode: 'dayOfMonth',
+      monthlyWeekday: 1,
+      monthlyWeekOccurrence: 1,
       yearlyDuration: 3,
       attachments: [],
       requiresApproval: false,
@@ -441,6 +471,21 @@ const AssignTask: React.FC = () => {
         data.monthlyDay ||
         data.parentTaskInfo?.monthlyDay ||
         1;
+
+      const monthlyMode =
+        (data.monthlyMode || data.parentTaskInfo?.monthlyMode) === 'weekdayOfMonth'
+          ? 'weekdayOfMonth'
+          : 'dayOfMonth';
+
+      const monthlyWeekday =
+        Number.isInteger(Number(data.monthlyWeekday ?? data.parentTaskInfo?.monthlyWeekday))
+          ? Number(data.monthlyWeekday ?? data.parentTaskInfo?.monthlyWeekday)
+          : 1;
+
+      const monthlyWeekOccurrence =
+        Number.isInteger(Number(data.monthlyWeekOccurrence ?? data.parentTaskInfo?.monthlyWeekOccurrence))
+          ? Number(data.monthlyWeekOccurrence ?? data.parentTaskInfo?.monthlyWeekOccurrence)
+          : 1;
 
       const yearlyDuration =
         data.yearlyDuration ||
@@ -510,6 +555,9 @@ const AssignTask: React.FC = () => {
           weeklyDays,
           weekOffDays,
           monthlyDay,
+          monthlyMode,
+          monthlyWeekday,
+          monthlyWeekOccurrence,
           yearlyDuration,
 
           attachments: convertedAttachments
@@ -1051,6 +1099,9 @@ const AssignTask: React.FC = () => {
           weekOffDays: [],
           weeklyDays: [],
           monthlyDay: 1,
+          monthlyMode: 'dayOfMonth',
+          monthlyWeekday: 1,
+          monthlyWeekOccurrence: 1,
           yearlyDuration: 3,
           attachments: [],
           requiresApproval: false,
@@ -1097,6 +1148,9 @@ const AssignTask: React.FC = () => {
       weekOffDays: [],
       weeklyDays: [],
       monthlyDay: 1,
+      monthlyMode: 'dayOfMonth',
+      monthlyWeekday: 1,
+      monthlyWeekOccurrence: 1,
       yearlyDuration: 3,
       attachments: [],
       requiresApproval: false,
@@ -1716,22 +1770,90 @@ const AssignTask: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Monthly Day Selection */}
+                    {/* Monthly Schedule Selection */}
                     {task.taskType === 'monthly' && (
-                      <div className="space-y-3">
-                        <h5 className="font-semibold text-[var(--color-text)]">Day of Month *</h5>
-                        <select
-                          value={task.monthlyDay}
-                          onChange={(e) => updateTaskForm(task.id, 'monthlyDay', parseInt(e.target.value))}
-                          required
-                          className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-4 py-3 text-[var(--color-text)] outline-none transition-all duration-200 focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary)]/10"
-                        >
-                          {monthlyDayOptions.map(day => (
-                            <option key={day} value={day}>
-                              {day}{day === 1 ? 'st' : day === 2 ? 'nd' : day === 3 ? 'rd' : 'th'} of each month
-                            </option>
-                          ))}
-                        </select>
+                      <div className="space-y-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/50 p-4">
+                        <div>
+                          <h5 className="font-semibold text-[var(--color-text)]">Monthly Schedule *</h5>
+                          <p className="mt-1 text-xs text-[var(--color-textSecondary)]">
+                            Selected: {getMonthlyScheduleLabel(task)}
+                          </p>
+                        </div>
+
+                        <div className="inline-flex flex-wrap gap-1 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] p-1">
+                          {[
+                            { value: 'dayOfMonth', label: 'Day of Month' },
+                            { value: 'weekdayOfMonth', label: 'Weekday of Month' }
+                          ].map(option => {
+                            const selected = (task.monthlyMode || 'dayOfMonth') === option.value;
+                            return (
+                              <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => updateTaskForm(task.id, 'monthlyMode', option.value)}
+                                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${selected
+                                  ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white'
+                                  : 'border-transparent bg-transparent text-[var(--color-text)] hover:bg-[var(--color-background)]'
+                                  }`}
+                              >
+                                {option.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {(task.monthlyMode || 'dayOfMonth') === 'dayOfMonth' ? (
+                          <select
+                            value={task.monthlyDay}
+                            onChange={(e) => updateTaskForm(task.id, 'monthlyDay', parseInt(e.target.value))}
+                            required
+                            className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-4 py-3 text-[var(--color-text)] outline-none transition-all duration-200 focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary)]/10"
+                          >
+                            {monthlyDayOptions.map(day => (
+                              <option key={day} value={day}>
+                                {getOrdinalLabel(day)} of each month
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div>
+                              <label className="mb-2 block text-sm font-medium text-[var(--color-text)]">
+                                Week Count
+                              </label>
+                              <select
+                                value={task.monthlyWeekOccurrence || 1}
+                                onChange={(e) => updateTaskForm(task.id, 'monthlyWeekOccurrence', parseInt(e.target.value))}
+                                required
+                                className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-4 py-3 text-[var(--color-text)] outline-none transition-all duration-200 focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary)]/10"
+                              >
+                                {monthlyWeekOccurrenceOptions.map(option => (
+                                  <option key={option.value} value={option.value}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="mb-2 block text-sm font-medium text-[var(--color-text)]">
+                                Day
+                              </label>
+                              <select
+                                value={task.monthlyWeekday ?? 1}
+                                onChange={(e) => updateTaskForm(task.id, 'monthlyWeekday', parseInt(e.target.value))}
+                                required
+                                className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-4 py-3 text-[var(--color-text)] outline-none transition-all duration-200 focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary)]/10"
+                              >
+                                {weekDays.map(day => (
+                                  <option key={day.value} value={day.value}>
+                                    {day.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -2184,7 +2306,7 @@ const AssignTask: React.FC = () => {
                                                   </p>
                                                 )}
                                                 {selectedTemplateTask.taskType === 'monthly' && (
-                                                  <p>Monthly Day: {selectedTemplateTask.monthlyDay || 1}</p>
+                                                  <p>Monthly Schedule: {getMonthlyScheduleLabel(selectedTemplateTask)}</p>
                                                 )}
                                                 {selectedTemplateTask.taskType === 'yearly' && (
                                                   <p>Yearly Duration: {selectedTemplateTask.yearlyDuration || 3} years</p>
@@ -2302,7 +2424,7 @@ const AssignTask: React.FC = () => {
                                     </p>
                                   )}
                                   {selectedTemplateTask.taskType === 'monthly' && (
-                                    <p>Monthly Day: {selectedTemplateTask.monthlyDay || 1}</p>
+                                    <p>Monthly Schedule: {getMonthlyScheduleLabel(selectedTemplateTask)}</p>
                                   )}
                                   {selectedTemplateTask.taskType === 'yearly' && (
                                     <p>Yearly Duration: {selectedTemplateTask.yearlyDuration || 3} years</p>

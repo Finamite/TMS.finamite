@@ -44,6 +44,9 @@ interface Task {
     weeklyDays?: number[];
     weekOffDays?: number[];
     monthlyDay?: number;
+    monthlyMode?: 'dayOfMonth' | 'weekdayOfMonth';
+    monthlyWeekday?: number;
+    monthlyWeekOccurrence?: number;
     yearlyDuration?: number;
   };
   weekOffDays?: number[];
@@ -78,6 +81,9 @@ interface LightMasterTask {
     weeklyDays?: number[];
     weekOffDays?: number[];
     monthlyDay?: number;
+    monthlyMode?: 'dayOfMonth' | 'weekdayOfMonth';
+    monthlyWeekday?: number;
+    monthlyWeekOccurrence?: number;
     yearlyDuration?: number;
   };
   weekOffDays?: number[];
@@ -115,6 +121,9 @@ interface MasterTask {
     weeklyDays?: number[];
     weekOffDays?: number[];
     monthlyDay?: number;
+    monthlyMode?: 'dayOfMonth' | 'weekdayOfMonth';
+    monthlyWeekday?: number;
+    monthlyWeekOccurrence?: number;
     yearlyDuration?: number;
   };
   weekOffDays?: number[];
@@ -145,6 +154,9 @@ interface EditFormData {
   includeSunday: boolean;
   weeklyDays: number[];
   monthlyDay?: number;
+  monthlyMode?: 'dayOfMonth' | 'weekdayOfMonth';
+  monthlyWeekday?: number;
+  monthlyWeekOccurrence?: number;
   yearlyDuration: number;
   weekOffDays: number[];
   allowEndDateEdit: boolean;
@@ -375,6 +387,9 @@ const MasterRecurringTasks: React.FC = () => {
     includeSunday: true,
     weeklyDays: [],
     monthlyDay: undefined,
+    monthlyMode: 'dayOfMonth',
+    monthlyWeekday: 1,
+    monthlyWeekOccurrence: 1,
     yearlyDuration: 1,
     weekOffDays: [],
     allowEndDateEdit: false,
@@ -905,6 +920,9 @@ const MasterRecurringTasks: React.FC = () => {
       includeSunday: masterTask.parentTaskInfo?.includeSunday ?? true,
       weeklyDays: masterTask.parentTaskInfo?.weeklyDays || [],
       monthlyDay: masterTask.parentTaskInfo?.monthlyDay,
+      monthlyMode: masterTask.parentTaskInfo?.monthlyMode === 'weekdayOfMonth' ? 'weekdayOfMonth' : 'dayOfMonth',
+      monthlyWeekday: masterTask.parentTaskInfo?.monthlyWeekday ?? 1,
+      monthlyWeekOccurrence: masterTask.parentTaskInfo?.monthlyWeekOccurrence ?? 1,
       yearlyDuration: masterTask.parentTaskInfo?.yearlyDuration || 1,
       weekOffDays: resolveWeekOffDays(
         masterTask.weekOffDays,
@@ -1097,6 +1115,9 @@ const MasterRecurringTasks: React.FC = () => {
         includeSunday: editFormData.includeSunday,
         weeklyDays: editFormData.weeklyDays,
         monthlyDay: editFormData.monthlyDay,
+        monthlyMode: editFormData.monthlyMode,
+        monthlyWeekday: editFormData.monthlyWeekday,
+        monthlyWeekOccurrence: editFormData.monthlyWeekOccurrence,
         yearlyDuration: editFormData.yearlyDuration,
         weekOffDays: editFormData.weekOffDays,
         endRecurrenceEarly: endRecurrenceEarly,
@@ -1164,6 +1185,9 @@ const MasterRecurringTasks: React.FC = () => {
         includeSunday: true,
         weeklyDays: [],
         monthlyDay: undefined,
+        monthlyMode: 'dayOfMonth',
+        monthlyWeekday: 1,
+        monthlyWeekOccurrence: 1,
         yearlyDuration: 1,
         weekOffDays: [],
         allowEndDateEdit: false,
@@ -1195,6 +1219,9 @@ const MasterRecurringTasks: React.FC = () => {
       includeSunday: true,
       weeklyDays: [],
       monthlyDay: undefined,
+      monthlyMode: 'dayOfMonth',
+      monthlyWeekday: 1,
+      monthlyWeekOccurrence: 1,
       yearlyDuration: 1,
       weekOffDays: [],
       allowEndDateEdit: false,

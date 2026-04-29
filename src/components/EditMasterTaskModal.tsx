@@ -31,6 +31,9 @@ interface MasterTask {
     weeklyDays?: number[];
     weekOffDays?: number[];
     monthlyDay?: number;
+    monthlyMode?: 'dayOfMonth' | 'weekdayOfMonth';
+    monthlyWeekday?: number;
+    monthlyWeekOccurrence?: number;
     yearlyDuration?: number;
   };
   weekOffDays?: number[];
@@ -63,6 +66,9 @@ interface EditFormData {
   includeSunday: boolean;
   weeklyDays: number[];
   monthlyDay?: number;
+  monthlyMode?: 'dayOfMonth' | 'weekdayOfMonth';
+  monthlyWeekday?: number;
+  monthlyWeekOccurrence?: number;
   yearlyDuration: number;
   weekOffDays: number[];
 
@@ -117,6 +123,40 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
     const [uploadProgress, setUploadProgress] = React.useState(0);
     const pauseFromRef = React.useRef<HTMLInputElement | null>(null);
     const pauseToRef = React.useRef<HTMLInputElement | null>(null);
+    const weekDays = [
+      { value: 1, label: "Monday" },
+      { value: 2, label: "Tuesday" },
+      { value: 3, label: "Wednesday" },
+      { value: 4, label: "Thursday" },
+      { value: 5, label: "Friday" },
+      { value: 6, label: "Saturday" },
+      { value: 0, label: "Sunday" }
+    ];
+    const monthlyDayOptions = Array.from({ length: 31 }, (_, index) => index + 1);
+    const monthlyWeekOccurrenceOptions = [
+      { value: 1, label: "1st" },
+      { value: 2, label: "2nd" },
+      { value: 3, label: "3rd" },
+      { value: 4, label: "4th" },
+      { value: 5, label: "5th" }
+    ];
+
+    const getOrdinalLabel = (value: number) => {
+      if (value === 1) return "1st";
+      if (value === 2) return "2nd";
+      if (value === 3) return "3rd";
+      return `${value}th`;
+    };
+
+    const getMonthlyScheduleLabel = () => {
+      if ((editFormData.monthlyMode || "dayOfMonth") === "weekdayOfMonth") {
+        const occurrence = monthlyWeekOccurrenceOptions.find(option => option.value === (editFormData.monthlyWeekOccurrence || 1))?.label || "1st";
+        const weekday = weekDays.find(day => day.value === (editFormData.monthlyWeekday ?? 1))?.label || "Monday";
+        return `${occurrence} ${weekday} of each month`;
+      }
+
+      return `${getOrdinalLabel(editFormData.monthlyDay || 1)} of each month`;
+    };
 
     // ✅ original end date from master task
     const originalEndDate =
@@ -712,6 +752,116 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
                   })}
                 </div>
               </div>
+
+              {editFormData.taskType === "monthly" && (
+                <div className="md:col-span-2 rounded-3xl border border-[var(--color-border)] bg-[var(--color-background)]/60 p-4">
+                  <div className="mb-4">
+                    <p className="text-sm font-semibold text-[var(--color-text)]">
+                      Monthly Schedule
+                    </p>
+                    <p className="mt-0.5 text-xs text-[var(--color-textSecondary)]">
+                      Selected: {getMonthlyScheduleLabel()}
+                    </p>
+                  </div>
+
+                  <div className="mb-4 inline-flex flex-wrap gap-1 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] p-1">
+                    {[
+                      { value: "dayOfMonth", label: "Day of Month" },
+                      { value: "weekdayOfMonth", label: "Weekday of Month" }
+                    ].map((option) => {
+                      const selected = (editFormData.monthlyMode || "dayOfMonth") === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          disabled={isSaving}
+                          onClick={() =>
+                            setEditFormData({
+                              ...editFormData,
+                              monthlyMode: option.value as "dayOfMonth" | "weekdayOfMonth"
+                            })
+                          }
+                          className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60 ${
+                            selected
+                              ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-white"
+                              : "border-transparent bg-transparent text-[var(--color-text)] hover:bg-[var(--color-background)]"
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {(editFormData.monthlyMode || "dayOfMonth") === "dayOfMonth" ? (
+                    <select
+                      value={editFormData.monthlyDay || 1}
+                      disabled={isSaving}
+                      onChange={(e) =>
+                        setEditFormData({
+                          ...editFormData,
+                          monthlyDay: parseInt(e.target.value)
+                        })
+                      }
+                      className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-[var(--color-text)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]"
+                    >
+                      {monthlyDayOptions.map(day => (
+                        <option key={day} value={day}>
+                          {getOrdinalLabel(day)} of each month
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="mb-2 block text-sm font-medium text-[var(--color-text)]">
+                          Week Count
+                        </label>
+                        <select
+                          value={editFormData.monthlyWeekOccurrence || 1}
+                          disabled={isSaving}
+                          onChange={(e) =>
+                            setEditFormData({
+                              ...editFormData,
+                              monthlyWeekOccurrence: parseInt(e.target.value)
+                            })
+                          }
+                          className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-[var(--color-text)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]"
+                        >
+                          {monthlyWeekOccurrenceOptions.map(option => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="mb-2 block text-sm font-medium text-[var(--color-text)]">
+                          Day
+                        </label>
+                        <select
+                          value={editFormData.monthlyWeekday ?? 1}
+                          disabled={isSaving}
+                          onChange={(e) =>
+                            setEditFormData({
+                              ...editFormData,
+                              monthlyWeekday: parseInt(e.target.value)
+                            })
+                          }
+                          className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-[var(--color-text)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]"
+                        >
+                          {weekDays.map(day => (
+                            <option key={day.value} value={day.value}>
+                              {day.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Attachments Section */}
               <div className="md:col-span-2">
