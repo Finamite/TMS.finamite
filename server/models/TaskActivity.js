@@ -10,13 +10,19 @@ const taskActivitySchema = new mongoose.Schema({
   actionType: {
     type: String,
     enum: [
-      "RECURRING_END_DATE_UPDATED"
+      "RECURRING_END_DATE_UPDATED",
+      "RECURRING_PAUSE_UPDATED",
+      "RECURRING_PAUSE_CLEARED"
     ],
     required: true
   },
 
   oldEndDate: Date,
   newEndDate: Date,
+  oldPauseFrom: Date,
+  oldPauseTo: Date,
+  pauseFrom: Date,
+  pauseTo: Date,
 
   performedBy: {
     type: mongoose.Schema.Types.ObjectId,
@@ -26,7 +32,7 @@ const taskActivitySchema = new mongoose.Schema({
 
   performedRole: {
     type: String,
-    enum: ["admin", "manager"]
+    enum: ["admin", "manager", "employee", "superadmin", "user"]
   },
 
   reason: String,

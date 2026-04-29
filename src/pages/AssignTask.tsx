@@ -224,6 +224,9 @@ const AssignTask: React.FC = () => {
     return normalizeWeekOffDays(selectedDays);
   };
 
+  const getFormWeekOffDaysForAssignees = (userIds: string[]) =>
+    userIds.length === 1 ? getDefaultWeekOffDaysForUsers(userIds) : [];
+
   useEffect(() => {
     if (user) {
       fetchUsers();
@@ -564,7 +567,7 @@ const AssignTask: React.FC = () => {
           }
 
           const defaultWeekOffDays = value !== "one-time"
-            ? getDefaultWeekOffDaysForUsers(task.assignedTo)
+            ? getFormWeekOffDaysForAssignees(task.assignedTo)
             : task.weekOffDays;
 
           return {
@@ -609,8 +612,8 @@ const AssignTask: React.FC = () => {
     updateTaskForm(taskId, 'taskType', taskType);
 
     if (taskType !== 'one-time' && task) {
-      const defaultWeekOffDays = getDefaultWeekOffDaysForUsers(task.assignedTo);
-      if (defaultWeekOffDays.length > 0) {
+      const defaultWeekOffDays = getFormWeekOffDaysForAssignees(task.assignedTo);
+      if (defaultWeekOffDays.length > 0 || task.assignedTo.length > 1) {
         setShowWeekOff(prev => ({ ...prev, [taskId]: true }));
         setWeekOffExpanded(prev => ({ ...prev, [taskId]: false }));
       }
@@ -619,7 +622,7 @@ const AssignTask: React.FC = () => {
 
   const applyAssignedUsers = (taskId: string, userIds: string[]) => {
     const task = taskForms.find(t => t.id === taskId);
-    const defaultWeekOffDays = getDefaultWeekOffDaysForUsers(userIds);
+    const defaultWeekOffDays = getFormWeekOffDaysForAssignees(userIds);
 
     setTaskForms(prev =>
       prev.map(item => {
@@ -638,7 +641,7 @@ const AssignTask: React.FC = () => {
     if (task?.taskType !== 'one-time') {
       setShowWeekOff(prev => ({
         ...prev,
-        [taskId]: defaultWeekOffDays.length > 0 || (userIds.length > 0 && Boolean(prev[taskId]))
+        [taskId]: userIds.length > 1 || defaultWeekOffDays.length > 0 || (userIds.length > 0 && Boolean(prev[taskId]))
       }));
       setWeekOffExpanded(prev => ({
         ...prev,
@@ -649,7 +652,7 @@ const AssignTask: React.FC = () => {
 
   const handleWeekOffToggle = (taskId: string, checked: boolean) => {
     const task = taskForms.find(t => t.id === taskId);
-    const defaultWeekOffDays = task ? getDefaultWeekOffDaysForUsers(task.assignedTo) : [];
+    const defaultWeekOffDays = task ? getFormWeekOffDaysForAssignees(task.assignedTo) : [];
 
     setShowWeekOff(prev => ({ ...prev, [taskId]: checked }));
     setWeekOffExpanded(prev => ({ ...prev, [taskId]: false }));
@@ -1641,38 +1644,48 @@ const AssignTask: React.FC = () => {
                       <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/60 p-3">
                         <div className="mb-2 flex items-center justify-between gap-3">
                           <h5 className="text-sm font-medium text-[var(--color-text)]">Week Off Days</h5>
-                          {task.weekOffDays.length > 0 && (
+                          {task.assignedTo.length > 1 ? (
+                            <span className="text-xs font-medium text-[var(--color-primary)]">
+                              Per user
+                            </span>
+                          ) : task.weekOffDays.length > 0 && (
                             <span className="text-xs text-[var(--color-textSecondary)]">
                               {task.weekOffDays.map(day => weekDays.find(item => item.value === day)?.short || day).join(', ')}
                             </span>
                           )}
                         </div>
-                        <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
-                          {weekDays.map(day => (
-                            <button
-                              key={day.value}
-                              type="button"
-                              onClick={() => {
-                                const currentWeekOff = task.weekOffDays;
-                                const newWeekOff = currentWeekOff.includes(day.value)
-                                  ? currentWeekOff.filter(d => d !== day.value)
-                                  : [...currentWeekOff, day.value];
-                                updateTaskForm(task.id, 'weekOffDays', newWeekOff);
-                              }}
-                              className={`rounded-lg border px-3 py-2 text-center transition-colors ${task.weekOffDays.includes(day.value)
-                                ? 'bg-[var(--color-primary)] border-[var(--color-primary)] text-white'
-                                : 'border-[var(--color-border)] bg-[var(--color-background)]/70 text-[var(--color-text)]'
-                                }`}
-                              style={{
-                                backgroundColor: task.weekOffDays.includes(day.value) ? 'var(--color-primary)' : 'var(--color-background)',
-                                borderColor: task.weekOffDays.includes(day.value) ? 'var(--color-primary)' : 'var(--color-border)',
-                                color: task.weekOffDays.includes(day.value) ? 'white' : 'var(--color-text)'
-                              }}
-                            >
-                              <div className="text-xs font-semibold">{day.short}</div>
-                            </button>
-                          ))}
-                        </div>
+                        {task.assignedTo.length > 1 ? (
+                          <p className="rounded-xl border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/10 px-3 py-2 text-sm text-[var(--color-text)]">
+                            Multiple users selected. Tasks will be generated separately using each user's saved week off days.
+                          </p>
+                        ) : (
+                          <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+                            {weekDays.map(day => (
+                              <button
+                                key={day.value}
+                                type="button"
+                                onClick={() => {
+                                  const currentWeekOff = task.weekOffDays;
+                                  const newWeekOff = currentWeekOff.includes(day.value)
+                                    ? currentWeekOff.filter(d => d !== day.value)
+                                    : [...currentWeekOff, day.value];
+                                  updateTaskForm(task.id, 'weekOffDays', newWeekOff);
+                                }}
+                                className={`rounded-lg border px-3 py-2 text-center transition-colors ${task.weekOffDays.includes(day.value)
+                                  ? 'bg-[var(--color-primary)] border-[var(--color-primary)] text-white'
+                                  : 'border-[var(--color-border)] bg-[var(--color-background)]/70 text-[var(--color-text)]'
+                                  }`}
+                                style={{
+                                  backgroundColor: task.weekOffDays.includes(day.value) ? 'var(--color-primary)' : 'var(--color-background)',
+                                  borderColor: task.weekOffDays.includes(day.value) ? 'var(--color-primary)' : 'var(--color-border)',
+                                  color: task.weekOffDays.includes(day.value) ? 'white' : 'var(--color-text)'
+                                }}
+                              >
+                                <div className="text-xs font-semibold">{day.short}</div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -1751,6 +1764,9 @@ const AssignTask: React.FC = () => {
                                 : task.isForever
                                   ? `Yearly tasks will be created for ${task.yearlyDuration || 3} years.`
                                   : 'One yearly task will be created from the task date.'}
+                              {task.assignedTo.length > 1
+                                ? ' Final dates may differ per user based on their saved week off days.'
+                                : ''}
                             </p>
                           </div>
                           {taskCalendarSettings.enabled && (

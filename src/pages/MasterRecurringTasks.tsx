@@ -320,6 +320,30 @@ const resolveWeekOffDays = (
   return [];
 };
 
+const formatDateInputInIST = (value?: string | Date | null) => {
+  if (!value) return '';
+
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  }).formatToParts(date);
+
+  const day = parts.find(part => part.type === 'day')?.value;
+  const month = parts.find(part => part.type === 'month')?.value;
+  const year = parts.find(part => part.type === 'year')?.value;
+
+  return year && month && day ? `${year}-${month}-${day}` : '';
+};
+
 const MasterRecurringTasks: React.FC = () => {
   const { user } = useAuth();
 
@@ -383,6 +407,8 @@ const MasterRecurringTasks: React.FC = () => {
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [activityLoading, setActivityLoading] = useState(false);
   const [taskActivities, setTaskActivities] = useState<any[]>([]);
+  const [pauseTimeline, setPauseTimeline] = useState<any[]>([]);
+  const [activityModalTab, setActivityModalTab] = useState<'activity' | 'pause'>('activity');
   const [, setSelectedActivityGroupId] = useState<string>("");
 
 
@@ -759,9 +785,12 @@ const MasterRecurringTasks: React.FC = () => {
     try {
       setActivityLoading(true);
       setTaskActivities([]);
+      setPauseTimeline([]);
+      setActivityModalTab('activity');
 
       const res = await axios.get(`${address}/api/tasks/task-activities/${taskGroupId}`);
       setTaskActivities(res.data.activities || []);
+      setPauseTimeline(res.data.pauseTimeline || []);
     } catch (error) {
       console.error("Activity fetch error:", error);
     } finally {
@@ -881,8 +910,8 @@ const MasterRecurringTasks: React.FC = () => {
         masterTask.weekOffDays,
         masterTask.parentTaskInfo?.weekOffDays
       ),
-      pauseFrom: masterTask.pauseFrom?.split("T")[0] || '',
-      pauseTo: masterTask.pauseTo?.split("T")[0] || '',
+      pauseFrom: formatDateInputInIST(masterTask.pauseFrom),
+      pauseTo: formatDateInputInIST(masterTask.pauseTo),
       attachments: masterTask.attachments || []
     };
     setEditFormData(formData);
@@ -3418,6 +3447,8 @@ const MasterRecurringTasks: React.FC = () => {
                 onClick={() => {
                   setShowActivityModal(false);
                   setTaskActivities([]);
+                  setPauseTimeline([]);
+                  setActivityModalTab('activity');
                   setSelectedActivityGroupId("");
                   setSelectedActivityTaskTitle("");
                   setOpenReasonId(null);
@@ -3430,12 +3461,29 @@ const MasterRecurringTasks: React.FC = () => {
 
             {/* Body */}
             <div className="p-5 max-h-[60vh] overflow-y-auto">
+              <div className="mb-4 inline-flex rounded-2xl border border-[--color-border] bg-[--color-background] p-1">
+                {[
+                  { key: 'activity', label: 'Task Activity' },
+                  { key: 'pause', label: 'Pause Timeline' }
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setActivityModalTab(tab.key as 'activity' | 'pause')}
+                    className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${activityModalTab === tab.key
+                      ? 'bg-[--color-primary] text-white'
+                      : 'text-[--color-text] hover:bg-[--color-surface]'
+                      }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
               {activityLoading ? (
                 <div className="text-sm text-[--color-muted] animate-pulse">
                   Loading activity...
                 </div>
-              ) : taskActivities.length === 0 ? (
-                <div className="text-sm text-[--color-muted]">No activity found.</div>
               ) : (
                 (() => {
                   const formatISTDate = (dateStr: string) =>
@@ -3461,16 +3509,94 @@ const MasterRecurringTasks: React.FC = () => {
                       }).format(new Date(dateStr))
                       : "—";
 
-                  const sorted = [...taskActivities].sort(
+                  const pauseActionTypes = ["RECURRING_PAUSE_UPDATED", "RECURRING_PAUSE_CLEARED"];
+                  const sorted = [...taskActivities]
+                    .filter((activity) => !pauseActionTypes.includes(activity.actionType))
+                    .sort(
+                      (a, b) =>
+                        new Date(b.createdAt || 0).getTime() -
+                        new Date(a.createdAt || 0).getTime()
+                    );
+                  const sortedPauseTimeline = [...pauseTimeline].sort(
                     (a, b) =>
                       new Date(b.createdAt || 0).getTime() -
                       new Date(a.createdAt || 0).getTime()
                   );
 
+                  if (activityModalTab === 'pause') {
+                    if (sortedPauseTimeline.length === 0) {
+                      return <div className="text-sm text-[--color-muted]">No pause timeline found.</div>;
+                    }
+
+                    return (
+                      <div className="rounded-2xl border border-[--color-border] bg-[--color-surface] p-4">
+                        <p className="text-sm font-semibold text-[--color-text] mb-3">
+                          Pause Timeline
+                        </p>
+
+                        <div className="space-y-3">
+                          {sortedPauseTimeline.map((item) => (
+                            <div
+                              key={item._id}
+                              className="border border-[--color-border] rounded-2xl p-4 bg-[--color-background]"
+                            >
+                              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-4">
+                                <div>
+                                  <span className={`text-xs px-2 py-1 rounded-full font-semibold ${item.actionType === 'RECURRING_PAUSE_CLEARED'
+                                    ? 'bg-[--color-warning]/15 text-[--color-warning]'
+                                    : 'bg-[--color-primary]/15 text-[--color-primary]'
+                                    }`}>
+                                    {item.actionType === 'RECURRING_PAUSE_CLEARED' ? 'PAUSE CLEARED' : 'PAUSED'}
+                                  </span>
+
+                                  <p className="text-sm text-[--color-text] mt-2">
+                                    <span className="font-semibold">Paused By:</span>{" "}
+                                    {item.performedBy?.username || "Unknown"}
+                                    <span className="text-[--color-muted]">
+                                      {" "}
+                                      ({item.performedRole || "N/A"})
+                                    </span>
+                                  </p>
+                                </div>
+
+                                <p className="text-[11px] text-[--color-muted] break-words">
+                                  {formatISTDateTime(item.createdAt)}
+                                </p>
+                              </div>
+
+                              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <div className="rounded-xl border border-[--color-border] bg-[--color-surface] px-4 py-3">
+                                  <p className="text-xs font-semibold text-[--color-muted]">Pause From</p>
+                                  <p className="mt-1 text-sm font-semibold text-[--color-text]">
+                                    {formatISTDate(item.pauseFrom)}
+                                  </p>
+                                </div>
+                                <div className="rounded-xl border border-[--color-border] bg-[--color-surface] px-4 py-3">
+                                  <p className="text-xs font-semibold text-[--color-muted]">Pause To</p>
+                                  <p className="mt-1 text-sm font-semibold text-[--color-text]">
+                                    {formatISTDate(item.pauseTo)}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {(item.oldPauseFrom || item.oldPauseTo) && (
+                                <p className="mt-3 text-xs text-[--color-muted]">
+                                  Previous: {formatISTDate(item.oldPauseFrom)} to {formatISTDate(item.oldPauseTo)}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (sorted.length === 0) {
+                    return <div className="text-sm text-[--color-muted]">No activity found.</div>;
+                  }
+
                   return (
                     <div className="space-y-4">
-
-                      {/* All Activity Logs */}
                       <div className="rounded-2xl border border-[--color-border] bg-[--color-surface] p-4">
                         <p className="text-sm font-semibold text-[--color-text] mb-3">
                           All Activity Logs
@@ -3482,7 +3608,6 @@ const MasterRecurringTasks: React.FC = () => {
                               key={a._id}
                               className="border border-[--color-border] rounded-2xl p-4 bg-[--color-background]"
                             >
-                              {/* Header row (responsive) */}
                               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-4">
                                 <div>
                                   <span className="text-xs px-2 py-1 rounded-full bg-[--color-primary]/15 text-[--color-primary] font-semibold">
@@ -3499,7 +3624,6 @@ const MasterRecurringTasks: React.FC = () => {
                                   </p>
                                 </div>
 
-                                {/* Timestamp */}
                                 <div className="text-left sm:text-right shrink-0">
                                   <p className="text-[11px] text-[--color-muted] break-words">
                                     {formatISTDateTime(a.createdAt)}
@@ -3507,7 +3631,6 @@ const MasterRecurringTasks: React.FC = () => {
                                 </div>
                               </div>
 
-                              {/* End Date (clickable) */}
                               {a.oldEndDate && a.newEndDate && (
                                 <button
                                   type="button"
@@ -3529,11 +3652,10 @@ const MasterRecurringTasks: React.FC = () => {
                                     </span>
                                   </div>
 
-                                  {/* Bounce Arrow */}
                                   <span
                                     className={`transition-transform duration-200 ${openReasonId === a._id
-                                        ? "rotate-180"
-                                        : "animate-pulse-arrow"
+                                      ? "rotate-180"
+                                      : "animate-pulse-arrow"
                                       }`}
                                   >
                                     <ArrowDown size={16} />
@@ -3541,7 +3663,6 @@ const MasterRecurringTasks: React.FC = () => {
                                 </button>
                               )}
 
-                              {/* Dropdown */}
                               {openReasonId === a._id && (
                                 <div className="mt-2 rounded-xl border border-[--color-border] bg-[--color-surface] animate-dropdown">
                                   <div className="p-4 space-y-2">
@@ -3579,6 +3700,8 @@ const MasterRecurringTasks: React.FC = () => {
                 onClick={() => {
                   setShowActivityModal(false);
                   setTaskActivities([]);
+                  setPauseTimeline([]);
+                  setActivityModalTab('activity');
                   setSelectedActivityGroupId("");
                   setSelectedActivityTaskTitle("");
                   setOpenReasonId(null);

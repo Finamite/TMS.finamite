@@ -136,6 +136,47 @@ const normalizePauseWindow = (source = {}) => {
 
   return { provided: true, pauseFrom, pauseTo };
 };
+const areSameDateValues = (left, right) => {
+  if (!left && !right) return true;
+  if (!left || !right) return false;
+
+  const leftDate = new Date(left);
+  const rightDate = new Date(right);
+  if (Number.isNaN(leftDate.getTime()) || Number.isNaN(rightDate.getTime())) return false;
+
+  return leftDate.getTime() === rightDate.getTime();
+};
+
+const logPauseActivityIfChanged = async ({
+  taskGroupId,
+  companyId,
+  oldPauseFrom,
+  oldPauseTo,
+  pauseFrom,
+  pauseTo,
+  performedBy,
+  performedRole
+}) => {
+  if (!performedBy) return;
+
+  const changed =
+    !areSameDateValues(oldPauseFrom, pauseFrom) ||
+    !areSameDateValues(oldPauseTo, pauseTo);
+
+  if (!changed) return;
+
+  await TaskActivity.create({
+    taskGroupId,
+    actionType: pauseFrom && pauseTo ? "RECURRING_PAUSE_UPDATED" : "RECURRING_PAUSE_CLEARED",
+    oldPauseFrom,
+    oldPauseTo,
+    pauseFrom,
+    pauseTo,
+    performedBy,
+    performedRole,
+    companyId
+  });
+};
 const applyRecurringPauseWindow = async ({ taskGroupId, companyId, pauseFrom, pauseTo }) => {
   const scopedQuery = {
     taskGroupId,
@@ -2101,6 +2142,10 @@ router.post('/bulk-create', async (req, res) => {
     // ⚡ Process all tasks in parallel for maximum speed
     await Promise.all(tasks.map(async (taskData) => {
       const { assignedTo, ...taskTemplate } = taskData;
+      const isMultiAssigneeRecurringTask =
+        taskData.taskType !== 'one-time' &&
+        Array.isArray(assignedTo) &&
+        assignedTo.length > 1;
 
       // ⚡ Process each assigned user for this task in parallel
       await Promise.all(assignedTo.map(async (assignedUserId) => {
@@ -2108,9 +2153,12 @@ router.post('/bulk-create', async (req, res) => {
         const taskCalendar = await getCachedTaskCalendar(taskData.companyId);
         const assignedUser = await User.findById(assignedUserId).select('weekOffDays').lean();
         const submittedWeekOffDays = normalizeTaskWeekOffDays(taskData.weekOffDays);
-        const effectiveWeekOffDays = submittedWeekOffDays.length > 0
-          ? submittedWeekOffDays
-          : normalizeTaskWeekOffDays(assignedUser?.weekOffDays);
+        const assignedUserWeekOffDays = normalizeTaskWeekOffDays(assignedUser?.weekOffDays);
+        const effectiveWeekOffDays = isMultiAssigneeRecurringTask
+          ? assignedUserWeekOffDays
+          : submittedWeekOffDays.length > 0
+            ? submittedWeekOffDays
+            : assignedUserWeekOffDays;
 
         // ⚡ Ultra-fast date generation
         if (taskData.taskType === 'one-time') {
@@ -2991,6 +3039,8 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
       // ✅ MUST be captured BEFORE modifying endDate
       const previousEndDate =
         masterTask.endDate || masterTask.originalEndDate;
+      const previousPauseFrom = masterTask.pauseFrom;
+      const previousPauseTo = masterTask.pauseTo;
 
       // ✅ Update master task ONCE
       masterTask.endDate = newEndDate;
@@ -3006,6 +3056,19 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
       }
 
       await masterTask.save();
+
+      if (pauseWindow.provided) {
+        await logPauseActivityIfChanged({
+          taskGroupId,
+          companyId: masterTask.companyId,
+          oldPauseFrom: previousPauseFrom,
+          oldPauseTo: previousPauseTo,
+          pauseFrom: pauseWindow.pauseFrom,
+          pauseTo: pauseWindow.pauseTo,
+          performedBy: userId,
+          performedRole: userRole
+        });
+      }
 
       // ✅ Activity log with correct chain
       await TaskActivity.create({
@@ -3084,6 +3147,8 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
       attachments: updates.attachments || []
     };
     const masterTaskUnset = {};
+    const previousPauseFrom = masterTask.pauseFrom;
+    const previousPauseTo = masterTask.pauseTo;
 
     if (pauseWindow.provided) {
       if (pauseWindow.pauseFrom && pauseWindow.pauseTo) {
@@ -3114,6 +3179,19 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
     );
 
     // ✅ 2) Update ALL existing tasks fields WITHOUT changing status
+    if (pauseWindow.provided) {
+      await logPauseActivityIfChanged({
+        taskGroupId,
+        companyId: effectiveCompanyId,
+        oldPauseFrom: previousPauseFrom,
+        oldPauseTo: previousPauseTo,
+        pauseFrom: pauseWindow.pauseFrom,
+        pauseTo: pauseWindow.pauseTo,
+        performedBy: userId,
+        performedRole: userRole
+      });
+    }
+
     await Task.updateMany(
       {
         taskGroupId,
@@ -4712,9 +4790,46 @@ router.get("/task-activities/:taskGroupId", async (req, res) => {
 
     const activities = await TaskActivity.find({ taskGroupId })
       .populate("performedBy", "username email")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
-    return res.json({ activities });
+    const masterTask = await MasterTask.findOne({ taskGroupId })
+      .select("pauseFrom pauseTo pausedAt pausedBy")
+      .populate("pausedBy", "username email")
+      .lean();
+
+    const pauseTimeline = activities
+      .filter((activity) => [
+        "RECURRING_PAUSE_UPDATED",
+        "RECURRING_PAUSE_CLEARED"
+      ].includes(activity.actionType))
+      .map((activity) => ({
+        _id: activity._id,
+        actionType: activity.actionType,
+        pauseFrom: activity.pauseFrom,
+        pauseTo: activity.pauseTo,
+        oldPauseFrom: activity.oldPauseFrom,
+        oldPauseTo: activity.oldPauseTo,
+        performedBy: activity.performedBy,
+        performedRole: activity.performedRole,
+        createdAt: activity.createdAt,
+        source: "activity"
+      }));
+
+    if (masterTask?.pauseFrom && masterTask?.pauseTo && pauseTimeline.length === 0) {
+      pauseTimeline.push({
+        _id: `${taskGroupId}-current-pause`,
+        actionType: "RECURRING_PAUSE_UPDATED",
+        pauseFrom: masterTask.pauseFrom,
+        pauseTo: masterTask.pauseTo,
+        performedBy: masterTask.pausedBy,
+        performedRole: "N/A",
+        createdAt: masterTask.pausedAt,
+        source: "current"
+      });
+    }
+
+    return res.json({ activities, pauseTimeline });
   } catch (error) {
     console.error("❌ task-activities fetch error:", error);
     return res.status(500).json({
