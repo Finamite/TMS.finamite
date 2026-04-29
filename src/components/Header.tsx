@@ -5,6 +5,7 @@ import { Menu, LogOut, Moon, UserPlus, Bell, Clock, CheckSquare, Sun, AlertTrian
 import { address } from '../../utils/ipAddress';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useAssignTaskModal } from '../contexts/AssignTaskModalContext';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -20,6 +21,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const APPROVAL_POLL_MS = 30000;
   const { user, logout } = useAuth();
   const { setTheme, isDark } = useTheme();
+  const { openAssignTaskModal } = useAssignTaskModal();
   const [company, setCompany] = useState<CompanyData | null>(null);
 
   const navigate = useNavigate();
@@ -637,7 +639,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
         {/* Assign Task */}
         {canAssignTasks &&
           <button
-            onClick={() => navigate('/assign-task')}
+            onClick={() => openAssignTaskModal()}
             className="p-2 rounded-xl shadow-sm hover:scale-105 transition"
             style={{
               backgroundColor: "var(--color-surface)",

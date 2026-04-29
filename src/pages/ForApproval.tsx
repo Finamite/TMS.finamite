@@ -8,6 +8,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import { useLocation, useNavigate } from 'react-router-dom';
 import ViewToggle from '../components/ViewToggle';
 import PriorityBadge from '../components/PriorityBadge';
+import { useAssignTaskModal } from '../contexts/AssignTaskModalContext';
 
 interface Task {
     _id: string;
@@ -192,6 +193,7 @@ const ForApproval: React.FC = () => {
     const { theme } = useTheme();
     const navigate = useNavigate();
     const location = useLocation();
+    const { openAssignTaskModal } = useAssignTaskModal();
     const [tasks, setTasks] = useState<Task[]>([]);
     const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
     const [loading, setLoading] = useState(true);
@@ -368,8 +370,10 @@ const ForApproval: React.FC = () => {
             toast.success('Task rejected and reassigned');
             setShowRejectionModal(false);
 
-            navigate(`/assign-task?mode=reassign&taskGroupId=${response.data.reassignPayload.taskGroupId}&originalTaskId=${taskId}`, {
-                state: { prefillData: response.data.reassignPayload }
+            openAssignTaskModal({
+                mode: 'reassign',
+                taskGroupId: response.data.reassignPayload.taskGroupId,
+                originalTaskId: taskId
             });
         } catch (error) {
             toast.error('Error reassigning task');

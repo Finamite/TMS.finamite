@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Navigate, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Navigate, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Layout from './components/Layout';
@@ -9,7 +9,6 @@ import PendingRecurringTasks from './pages/PendingRecurringTasks';
 import PcmPendingProcess from './pages/PcmPendingProcess';
 import MasterTasks from './pages/MasterTasks';
 import MasterRecurringTasks from './pages/MasterRecurringTasks';
-import AssignTask from './pages/AssignTask';
 import AdminPanel from './pages/AdminPanel';
 import SuperAdminPanel from './pages/SuperAdminPanel';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -49,6 +48,24 @@ const PcmPendingRoute = () => {
     <ProtectedRoute requirePermission="pendingTasks">
       <PcmPendingProcess />
     </ProtectedRoute>
+  );
+};
+
+const AssignTaskRedirect = () => {
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const assignTaskModalOptions = {
+    mode: params.get('mode') || undefined,
+    taskGroupId: params.get('taskGroupId') || undefined,
+    originalTaskId: params.get('originalTaskId') || undefined,
+  };
+
+  return (
+    <Navigate
+      to="/dashboard"
+      replace
+      state={{ openAssignTaskModal: true, assignTaskModalOptions }}
+    />
   );
 };
 
@@ -131,7 +148,7 @@ function App() {
                   path="assign-task"
                   element={
                     <ProtectedRoute requirePermission="assignTask">
-                      <AssignTask />
+                      <AssignTaskRedirect />
                     </ProtectedRoute>
                   }
                 />

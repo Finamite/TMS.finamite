@@ -10,6 +10,7 @@ import EditMasterTaskModal from '../components/EditMasterTaskModal';
 import { address } from '../../utils/ipAddress';
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from 'react-toastify';
+import { useAssignTaskModal } from '../contexts/AssignTaskModalContext';
 
 interface Attachment {
   filename: string;
@@ -358,6 +359,7 @@ const formatDateInputInIST = (value?: string | Date | null) => {
 
 const MasterRecurringTasks: React.FC = () => {
   const { user } = useAuth();
+  const { openAssignTaskModal } = useAssignTaskModal();
 
   // Cache instance
   const cacheRef = useRef(new CacheManager());
@@ -3236,9 +3238,13 @@ const MasterRecurringTasks: React.FC = () => {
               {/* Reassign With Edit Button */}
               <button
                 className="w-full py-3.5 rounded-xl font-semibold text-white bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 transform hover:scale-[1.02]"
-                onClick={() =>
-                  window.location.href = `/assign-task?mode=reassign&taskGroupId=${reassignTask.taskGroupId}`
-                }
+                onClick={() => {
+                  openAssignTaskModal({
+                    mode: 'reassign',
+                    taskGroupId: reassignTask.taskGroupId
+                  });
+                  setShowReassignModal(false);
+                }}
               >
                 <Edit3 className="w-5 h-5" />
                 <span>Reassign With Edit</span>

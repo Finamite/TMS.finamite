@@ -37,13 +37,27 @@ interface TaskCalendarSettings {
   monthWeekOffRules: Array<{ weekday: number; occurrence: number }>;
 }
 
+interface AssignTaskProps {
+  isModal?: boolean;
+  onClose?: () => void;
+  initialMode?: string;
+  initialTaskGroupId?: string;
+  initialOriginalTaskId?: string;
+}
+
 const defaultTaskCalendarSettings: TaskCalendarSettings = {
   enabled: false,
   holidays: [],
   monthWeekOffRules: []
 };
 
-const AssignTask: React.FC = () => {
+const AssignTask: React.FC<AssignTaskProps> = ({
+  isModal = false,
+  onClose,
+  initialMode = '',
+  initialTaskGroupId = '',
+  initialOriginalTaskId = '',
+}) => {
   const { user } = useAuth();
   const { isDark } = useTheme();
   const [users, setUsers] = useState<User[]>([]);
@@ -81,9 +95,9 @@ const AssignTask: React.FC = () => {
   const [showUserDropdown, setShowUserDropdown] = useState<{ [key: string]: boolean }>({});
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const [mode, setMode] = useState("");
-  const [taskGroupId, setTaskGroupId] = useState("");
-  const [originalTaskId, setOriginalTaskId] = useState(""); // Add this
+  const [mode, setMode] = useState(initialMode);
+  const [taskGroupId, setTaskGroupId] = useState(initialTaskGroupId);
+  const [originalTaskId, setOriginalTaskId] = useState(initialOriginalTaskId);
   const loadedReassignDataRef = useRef(false);
   const [adminApprovalSettings, setAdminApprovalSettings] = useState({
     enabled: false,
@@ -341,15 +355,23 @@ const AssignTask: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (initialMode || initialTaskGroupId || initialOriginalTaskId) {
+      setMode(initialMode);
+      setTaskGroupId(initialTaskGroupId);
+      setOriginalTaskId(initialOriginalTaskId);
+      loadedReassignDataRef.current = false;
+      return;
+    }
+
     const params = new URLSearchParams(window.location.search);
     const m = params.get("mode");
     const id = params.get("taskGroupId");
-    const originalId = params.get("originalTaskId"); // Add this
+    const originalId = params.get("originalTaskId");
 
     if (m) setMode(m);
     if (id) setTaskGroupId(id);
-    if (originalId) setOriginalTaskId(originalId); // Add this
-  }, []);
+    if (originalId) setOriginalTaskId(originalId);
+  }, [initialMode, initialTaskGroupId, initialOriginalTaskId]);
 
   useEffect(() => {
     if (mode === "reassign" && taskGroupId) {
@@ -1114,8 +1136,15 @@ const AssignTask: React.FC = () => {
         Object.values(voiceRecorderRefs.current).forEach(ref => {
           if (ref) ref.resetFromParent();
         });
+
+        if (isModal) {
+          onClose?.();
+        }
       } else {
         clearImportedTemplate();
+        if (isModal) {
+          onClose?.();
+        }
       }
     } catch (error: any) {
       console.error('Error creating tasks:', error);
@@ -1171,13 +1200,25 @@ const AssignTask: React.FC = () => {
     toast.info('All forms reset!', { theme: isDark ? 'dark' : 'light' });
   };
 
-  return (
-    <div className="relative min-h-screen overflow-hidden bg-[var(--color-background)] px-4 py-6 transition-all duration-300 sm:px-6 lg:px-8">
-      <div className="absolute -top-24 right-0 h-80 w-80 rounded-full bg-cyan-500/10 blur-3xl" />
-      <div className="absolute left-0 top-1/3 h-96 w-96 rounded-full bg-indigo-500/10 blur-3xl" />
+  const shellClass = isModal
+    ? 'relative min-h-full bg-[var(--color-background)] px-3 py-4 transition-all duration-300 sm:px-5 sm:py-5'
+    : 'relative min-h-screen overflow-hidden bg-[var(--color-background)] px-4 py-6 transition-all duration-300 sm:px-6 lg:px-8';
 
-      <div className="relative mx-auto max-w-7xl ">
-        <form onSubmit={handleSubmit} className="space-y-2">
+  const contentClass = isModal
+    ? 'relative mx-auto max-w-4xl'
+    : 'relative mx-auto max-w-7xl';
+
+  return (
+    <div className={shellClass}>
+      {!isModal && (
+        <>
+          <div className="absolute -top-24 right-0 h-80 w-80 rounded-full bg-cyan-500/10 blur-3xl" />
+          <div className="absolute left-0 top-1/3 h-96 w-96 rounded-full bg-indigo-500/10 blur-3xl" />
+        </>
+      )}
+
+      <div className={contentClass}>
+        <form onSubmit={handleSubmit} className="space-y-4">
           <input
             ref={templateFileInputRef}
             type="file"
