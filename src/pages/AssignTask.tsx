@@ -26,6 +26,7 @@ interface User extends TemplateUser {
   department: string;
   email: string;
   companyId: string;
+  weekOffDays?: number[];
 }
 
 interface TaskForm extends TemplateTaskForm {}
@@ -60,6 +61,7 @@ const AssignTask: React.FC = () => {
   ]);
 
   const [showWeekOff, setShowWeekOff] = useState<{ [key: string]: boolean }>({});
+  const [weekOffExpanded, setWeekOffExpanded] = useState<{ [key: string]: boolean }>({});
   const [loading, setLoading] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState<{ [key: string]: boolean }>({});
   const [userSearchTerm, setUserSearchTerm] = useState('');
@@ -95,6 +97,23 @@ const AssignTask: React.FC = () => {
   ];
 
   const monthlyDayOptions = Array.from({ length: 31 }, (_, i) => i + 1);
+
+  const normalizeWeekOffDays = (days: Array<number | string> = []) => [
+    ...new Set(
+      days
+        .map(Number)
+        .filter((day) => Number.isInteger(day) && day >= 0 && day <= 6)
+    )
+  ].sort((a, b) => a - b);
+
+  const getDefaultWeekOffDaysForUsers = (userIds: string[]) => {
+    const selectedDays = userIds.flatMap((userId) => {
+      const selectedUser = users.find((item) => item._id === userId);
+      return selectedUser?.weekOffDays || [];
+    });
+
+    return normalizeWeekOffDays(selectedDays);
+  };
 
   useEffect(() => {
     if (user) {
@@ -304,6 +323,10 @@ const AssignTask: React.FC = () => {
         ...prev,
         [taskForms[0].id]: weekOffDays.length > 0
       }));
+      setWeekOffExpanded(prev => ({
+        ...prev,
+        [taskForms[0].id]: false
+      }));
 
       // ----------------------------
       // 3️⃣ Load attachments & voice recordings
@@ -410,6 +433,24 @@ const AssignTask: React.FC = () => {
       prev.map(task => {
         if (task.id !== taskId) return task;
 
+        const nextTask = () => {
+          if (field !== "taskType") {
+            return { ...task, [field]: value };
+          }
+
+          const defaultWeekOffDays = value !== "one-time"
+            ? getDefaultWeekOffDaysForUsers(task.assignedTo)
+            : task.weekOffDays;
+
+          return {
+            ...task,
+            taskType: value,
+            ...(value !== "one-time" && defaultWeekOffDays.length > 0
+              ? { weekOffDays: defaultWeekOffDays }
+              : {})
+          };
+        };
+
         // 🔐 USER: lock task type after first selection
         if (
           field === "taskType" &&
@@ -427,15 +468,67 @@ const AssignTask: React.FC = () => {
           !task.taskTypeLocked
         ) {
           return {
-            ...task,
-            taskType: value,
+            ...nextTask(),
             taskTypeLocked: true
           };
         }
 
-        return { ...task, [field]: value };
+        return nextTask();
       })
     );
+  };
+
+  const handleTaskTypeChange = (taskId: string, taskType: string) => {
+    const task = taskForms.find(t => t.id === taskId);
+
+    updateTaskForm(taskId, 'taskType', taskType);
+
+    if (taskType !== 'one-time' && task) {
+      const defaultWeekOffDays = getDefaultWeekOffDaysForUsers(task.assignedTo);
+      if (defaultWeekOffDays.length > 0) {
+        setShowWeekOff(prev => ({ ...prev, [taskId]: true }));
+        setWeekOffExpanded(prev => ({ ...prev, [taskId]: false }));
+      }
+    }
+  };
+
+  const applyAssignedUsers = (taskId: string, userIds: string[]) => {
+    const task = taskForms.find(t => t.id === taskId);
+    const defaultWeekOffDays = getDefaultWeekOffDaysForUsers(userIds);
+
+    setTaskForms(prev =>
+      prev.map(item => {
+        if (item.id !== taskId) return item;
+
+        return {
+          ...item,
+          assignedTo: userIds,
+          ...(item.taskType !== 'one-time'
+            ? { weekOffDays: defaultWeekOffDays }
+            : {})
+        };
+      })
+    );
+
+    if (task?.taskType !== 'one-time') {
+      setShowWeekOff(prev => ({
+        ...prev,
+        [taskId]: defaultWeekOffDays.length > 0 || (userIds.length > 0 && Boolean(prev[taskId]))
+      }));
+      setWeekOffExpanded(prev => ({
+        ...prev,
+        [taskId]: false
+      }));
+    }
+  };
+
+  const handleWeekOffToggle = (taskId: string, checked: boolean) => {
+    const task = taskForms.find(t => t.id === taskId);
+    const defaultWeekOffDays = task ? getDefaultWeekOffDaysForUsers(task.assignedTo) : [];
+
+    setShowWeekOff(prev => ({ ...prev, [taskId]: checked }));
+    setWeekOffExpanded(prev => ({ ...prev, [taskId]: false }));
+    updateTaskForm(taskId, 'weekOffDays', checked ? defaultWeekOffDays : []);
   };
 
   const handleUserSelection = (taskId: string, userId: string) => {
@@ -444,7 +537,7 @@ const AssignTask: React.FC = () => {
       const newAssignedTo = task.assignedTo.includes(userId)
         ? task.assignedTo.filter(id => id !== userId)
         : [...task.assignedTo, userId];
-      updateTaskForm(taskId, 'assignedTo', newAssignedTo);
+      applyAssignedUsers(taskId, newAssignedTo);
     }
   };
 
@@ -837,6 +930,7 @@ const AssignTask: React.FC = () => {
         setUserSearchTerm('');
         setShowUserDropdown({});
         setShowWeekOff({});
+        setWeekOffExpanded({});
 
         Object.values(voiceRecorderRefs.current).forEach(ref => {
           if (ref) ref.resetFromParent();
@@ -882,6 +976,7 @@ const AssignTask: React.FC = () => {
     setUserSearchTerm('');
       setShowUserDropdown({});
       setShowWeekOff({});
+      setWeekOffExpanded({});
 
       // Reset all voice recorders
       Object.values(voiceRecorderRefs.current).forEach(ref => {
@@ -1007,7 +1102,7 @@ const AssignTask: React.FC = () => {
                       </label>
                       <select
                         value={task.taskType}
-                        onChange={(e) => updateTaskForm(task.id, 'taskType', e.target.value)}
+                        onChange={(e) => handleTaskTypeChange(task.id, e.target.value)}
                         required
                         className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-[var(--color-text)] outline-none transition-all duration-200 focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary)]/10"
                       >
@@ -1124,7 +1219,7 @@ const AssignTask: React.FC = () => {
                                 className="flex items-center gap-1 whitespace-nowrap text-sm font-medium text-[var(--color-primary)] transition hover:scale-105"
                                 onClick={() => {
                                   const allUserIds = filteredUsers.map((u) => u._id);
-                                  updateTaskForm(task.id, "assignedTo", allUserIds);
+                                  applyAssignedUsers(task.id, allUserIds);
                                 }}
                               >
                                 <CheckSquare size={18} />
@@ -1138,7 +1233,7 @@ const AssignTask: React.FC = () => {
                                 type="button"
                                 className="flex items-center gap-1 whitespace-nowrap text-sm font-medium text-[var(--color-error)] transition hover:scale-105"
                                 onClick={() => {
-                                  updateTaskForm(task.id, "assignedTo", []);
+                                  applyAssignedUsers(task.id, []);
                                 }}
                               >
                                 <X size={18} />
@@ -1388,24 +1483,46 @@ const AssignTask: React.FC = () => {
                         )}
 
                         {task.taskType !== "one-time" && (
-                          <label className="flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={showWeekOff[task.id] || false}
-                              onChange={(e) => setShowWeekOff(prev => ({ ...prev, [task.id]: e.target.checked }))}
-                              className="mr-2 w-4 h-4 rounded"
-                            />
-                            <span className="text-sm font-medium text-[var(--color-text)]">Week Off</span>
-                          </label>
+                          <div className="flex items-center gap-1">
+                            <label className="flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={showWeekOff[task.id] || false}
+                                onChange={(e) => handleWeekOffToggle(task.id, e.target.checked)}
+                                className="mr-2 w-4 h-4 rounded"
+                              />
+                              <span className="text-sm font-medium text-[var(--color-text)]">Week Off</span>
+                            </label>
+                            {showWeekOff[task.id] && (
+                              <button
+                                type="button"
+                                onClick={() => setWeekOffExpanded(prev => ({ ...prev, [task.id]: !prev[task.id] }))}
+                                className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--color-border)] text-[var(--color-textSecondary)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+                                aria-label={weekOffExpanded[task.id] ? 'Close week off days' : 'Show week off days'}
+                              >
+                                <ChevronDown
+                                  size={16}
+                                  className={`transition-transform ${weekOffExpanded[task.id] ? 'rotate-180' : ''}`}
+                                />
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
                     )}
 
                     {/* Week Off Days */}
-                    {showWeekOff[task.id] && (
-                      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/60 p-4">
-                        <h5 className="mb-3 text-sm font-medium text-[var(--color-text)]">Select Week Off Days</h5>
-                        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7">
+                    {showWeekOff[task.id] && weekOffExpanded[task.id] && (
+                      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/60 p-3">
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                          <h5 className="text-sm font-medium text-[var(--color-text)]">Week Off Days</h5>
+                          {task.weekOffDays.length > 0 && (
+                            <span className="text-xs text-[var(--color-textSecondary)]">
+                              {task.weekOffDays.map(day => weekDays.find(item => item.value === day)?.short || day).join(', ')}
+                            </span>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
                           {weekDays.map(day => (
                             <button
                               key={day.value}
@@ -1417,13 +1534,13 @@ const AssignTask: React.FC = () => {
                                   : [...currentWeekOff, day.value];
                                 updateTaskForm(task.id, 'weekOffDays', newWeekOff);
                               }}
-                              className={`rounded-2xl border text-center transition-all duration-200 hover:-translate-y-0.5 ${task.weekOffDays.includes(day.value)
-                                ? 'bg-[var(--color-error)] border-[var(--color-error)] text-white'
+                              className={`rounded-lg border px-3 py-2 text-center transition-colors ${task.weekOffDays.includes(day.value)
+                                ? 'bg-[var(--color-primary)] border-[var(--color-primary)] text-white'
                                 : 'border-[var(--color-border)] bg-[var(--color-background)]/70 text-[var(--color-text)]'
                                 }`}
                               style={{
-                                backgroundColor: task.weekOffDays.includes(day.value) ? 'var(--color-error)' : 'var(--color-background)',
-                                borderColor: task.weekOffDays.includes(day.value) ? 'var(--color-error)' : 'var(--color-border)',
+                                backgroundColor: task.weekOffDays.includes(day.value) ? 'var(--color-primary)' : 'var(--color-background)',
+                                borderColor: task.weekOffDays.includes(day.value) ? 'var(--color-primary)' : 'var(--color-border)',
                                 color: task.weekOffDays.includes(day.value) ? 'white' : 'var(--color-text)'
                               }}
                             >

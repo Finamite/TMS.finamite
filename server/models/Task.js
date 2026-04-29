@@ -47,6 +47,10 @@ const taskSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  weekOffAutoDisabled: {
+    type: Boolean,
+    default: false
+  },
   // ADD THIS FIELD
   companyId: {
     type: String,

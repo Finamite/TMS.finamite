@@ -38,6 +38,10 @@ const userSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  weekOffDays: {
+    type: [Number],
+    default: []
+  },
   permissions: {
     canViewTasks: { type: Boolean, default: true },
     canViewAllTeamTasks: { type: Boolean, default: false },

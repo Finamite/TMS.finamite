@@ -544,6 +544,14 @@ const createDateBlockChecker = (includeSunday = true, weekOffDays = [], taskCale
   };
 };
 
+const normalizeTaskWeekOffDays = (weekOffDays = []) => [
+  ...new Set(
+    (Array.isArray(weekOffDays) ? weekOffDays : [])
+      .map((day) => Number(day))
+      .filter((day) => Number.isInteger(day) && day >= 0 && day <= 6)
+  )
+].sort((a, b) => a - b);
+
 const moveToPreviousWorkingDate = (value, isBlocked, options = {}) => {
   const originalDate = new Date(value);
   if (Number.isNaN(originalDate.getTime())) return null;
@@ -2098,6 +2106,11 @@ router.post('/bulk-create', async (req, res) => {
       await Promise.all(assignedTo.map(async (assignedUserId) => {
         let taskDates = [];
         const taskCalendar = await getCachedTaskCalendar(taskData.companyId);
+        const assignedUser = await User.findById(assignedUserId).select('weekOffDays').lean();
+        const submittedWeekOffDays = normalizeTaskWeekOffDays(taskData.weekOffDays);
+        const effectiveWeekOffDays = submittedWeekOffDays.length > 0
+          ? submittedWeekOffDays
+          : normalizeTaskWeekOffDays(assignedUser?.weekOffDays);
 
         // ⚡ Ultra-fast date generation
         if (taskData.taskType === 'one-time') {
@@ -2123,7 +2136,7 @@ router.post('/bulk-create', async (req, res) => {
             startDate,
             endDate,
             includeSunday: taskData.includeSunday,
-            weekOffDays: taskData.weekOffDays,
+            weekOffDays: effectiveWeekOffDays,
             weeklyDays: taskData.weeklyDays,
             monthlyDay: taskData.monthlyDay,
             yearlyDuration: taskData.yearlyDuration,
@@ -2150,7 +2163,7 @@ router.post('/bulk-create', async (req, res) => {
           includeSunday: taskData.includeSunday,
           isForever: taskData.isForever,
           weeklyDays: taskData.weeklyDays,
-          weekOffDays: taskData.weekOffDays || [],
+          weekOffDays: effectiveWeekOffDays,
           monthlyDay: taskData.monthlyDay,
           yearlyDuration: taskData.yearlyDuration,
           attachments: taskData.attachments || []
@@ -2168,13 +2181,14 @@ router.post('/bulk-create', async (req, res) => {
               status: 'pending',
               taskGroupId: taskGroupId,
               sequenceNumber: index + 1,
+              weekOffDays: effectiveWeekOffDays,
               parentTaskInfo: {
                 originalStartDate: taskData.startDate,
                 originalEndDate: taskData.endDate,
                 isForever: taskData.isForever,
                 includeSunday: taskData.includeSunday,
                 weeklyDays: taskData.weeklyDays,
-                weekOffDays: taskData.weekOffDays || [],
+                weekOffDays: effectiveWeekOffDays,
                 monthlyDay: taskData.monthlyDay,
                 yearlyDuration: taskData.yearlyDuration
               }

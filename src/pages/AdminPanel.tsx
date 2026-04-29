@@ -10,6 +10,7 @@ interface User {
   lastAccess: any;
   phone: string;
   department: string;
+  weekOffDays?: number[];
   _id: string;
   companyId?: string;
   username: string;
@@ -76,6 +77,7 @@ interface UserFormData {
   department: string;
   phone: string;
   phoneCountry: CountryCode;
+  weekOffDays: number[];
   permissions: {
     canViewTasks: boolean;
     canViewAllTeamTasks: boolean;
@@ -108,6 +110,16 @@ const formatDateTime = (dateValue: string | number | Date) => {
 };
 
 const DEFAULT_PHONE_COUNTRY: CountryCode = 'IN';
+
+const WEEK_DAYS = [
+  { value: 1, label: 'Monday', short: 'Mon' },
+  { value: 2, label: 'Tuesday', short: 'Tue' },
+  { value: 3, label: 'Wednesday', short: 'Wed' },
+  { value: 4, label: 'Thursday', short: 'Thu' },
+  { value: 5, label: 'Friday', short: 'Fri' },
+  { value: 6, label: 'Saturday', short: 'Sat' },
+  { value: 0, label: 'Sunday', short: 'Sun' }
+];
 
 const countryCodeToFlag = (countryCode: string) =>
   String(countryCode || '')
@@ -175,6 +187,7 @@ const AdminPanel: React.FC = () => {
     department: '',
     phone: '',
     phoneCountry: DEFAULT_PHONE_COUNTRY,
+    weekOffDays: [],
     permissions: {
       canViewTasks: true,
       canViewAllTeamTasks: false,
@@ -662,6 +675,65 @@ const AdminPanel: React.FC = () => {
     </div>
   );
 
+  const toggleWeekOffDay = (dayValue: number) => {
+    setFormData(prev => {
+      const exists = prev.weekOffDays.includes(dayValue);
+      const weekOffDays = exists
+        ? prev.weekOffDays.filter(day => day !== dayValue)
+        : [...prev.weekOffDays, dayValue];
+
+      return {
+        ...prev,
+        weekOffDays: weekOffDays.sort((a, b) => a - b)
+      };
+    });
+  };
+
+  const renderWeekOffField = () => (
+    <div className="sm:col-span-2">
+      <label className="block text-sm font-medium mb-2">
+        Week Off Days
+      </label>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {WEEK_DAYS.map((day) => {
+          const selected = formData.weekOffDays.includes(day.value);
+
+          return (
+            <button
+              key={day.value}
+              type="button"
+              onClick={() => toggleWeekOffDay(day.value)}
+              className="rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200"
+              style={{
+                backgroundColor: selected ? 'var(--color-primary)' : 'var(--color-background)',
+                borderColor: selected ? 'var(--color-primary)' : 'var(--color-border)',
+                color: selected ? 'white' : 'var(--color-text)'
+              }}
+              aria-pressed={selected}
+            >
+              {day.short}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const getWeekOffDaysForDisplay = (weekOffDays: number[] = []) => {
+    const normalizedDays = [
+      ...new Set(
+        weekOffDays
+          .map(Number)
+          .filter((day) => Number.isInteger(day) && day >= 0 && day <= 6)
+      )
+    ];
+
+    return WEEK_DAYS.filter((day) => normalizedDays.includes(day.value));
+  };
+
+  const formatWeekOffDays = (weekOffDays: number[] = []) =>
+    getWeekOffDaysForDisplay(weekOffDays).map((day) => day.short).join(', ');
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
 
@@ -755,6 +827,7 @@ const AdminPanel: React.FC = () => {
         role: formData.role,
         department: formData.department,
         phone,
+        weekOffDays: formData.weekOffDays,
         permissions,
         companyId: currentUser?.companyId
       };
@@ -799,6 +872,7 @@ const AdminPanel: React.FC = () => {
         permissions,
         department: formData.department,
         phone: normalizePhoneNumberForSave(formData.phoneCountry as CountryCode, formData.phone),
+        weekOffDays: formData.weekOffDays,
       });
       setMessage({ type: 'success', text: 'User updated successfully!' });
       setEditingUser(null);
@@ -846,6 +920,7 @@ const AdminPanel: React.FC = () => {
       department: user.department || '',
       phone: parsedPhone.phone,
       phoneCountry: parsedPhone.country,
+      weekOffDays: user.weekOffDays || [],
     });
   };
 
@@ -858,6 +933,7 @@ const AdminPanel: React.FC = () => {
       department: '',
       phone: '',
       phoneCountry: DEFAULT_PHONE_COUNTRY,
+      weekOffDays: [],
       permissions: {
         canViewTasks: true,
         canViewAllTeamTasks: false,
@@ -1185,6 +1261,11 @@ const AdminPanel: React.FC = () => {
                         <p className="font-medium text-sm" style={{ color: 'var(--color-text)' }}>{user.username}</p>
                         <p className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>{user.phone}</p>
                         <p className="text-xs" style={{ color: 'var(--color-textSecondary)' }}>{user.email}</p>
+                        {formatWeekOffDays(user.weekOffDays) && (
+                          <p className="mt-1 text-xs font-medium" style={{ color: 'var(--color-textSecondary)' }}>
+                            Week Off: {formatWeekOffDays(user.weekOffDays)}
+                          </p>
+                        )}
                       </div>
                     </td>
                     <td className="py-3 px-4">
@@ -1481,6 +1562,12 @@ const AdminPanel: React.FC = () => {
                   <span className="inline-flex items-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--color-textSecondary)]">
                     {user.department || '-'}
                   </span>
+
+                  {formatWeekOffDays(user.weekOffDays) && (
+                    <span className="text-xs font-medium text-[var(--color-textSecondary)]">
+                      Week Off: {formatWeekOffDays(user.weekOffDays)}
+                    </span>
+                  )}
                 </div>
 
                 {/* ===== PERMISSIONS (UNCHANGED BELOW) ===== */}
@@ -1908,6 +1995,7 @@ const AdminPanel: React.FC = () => {
                     />
                   </div>
                   {renderPhoneField()}
+                  {renderWeekOffField()}
                 </div>
 
                 <div>
@@ -2093,6 +2181,7 @@ const AdminPanel: React.FC = () => {
                     />
                   </div>
                   {renderPhoneField()}
+                  {renderWeekOffField()}
                 </div>
 
                 <div>

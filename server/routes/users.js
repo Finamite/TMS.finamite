@@ -1,6 +1,8 @@
 import express from 'express';
 import User from '../models/User.js';
 import Company from '../models/Company.js';
+import Task from '../models/Task.js';
+import MasterTask from '../models/MasterTask.js';
 
 const router = express.Router();
 
@@ -73,6 +75,107 @@ const normalizeApprovalPermissions = (permissions = {}) => {
   }
 
   return next;
+};
+
+const normalizeWeekOffDays = (weekOffDays = []) => [
+  ...new Set(
+    (Array.isArray(weekOffDays) ? weekOffDays : [])
+      .map((day) => Number(day))
+      .filter((day) => Number.isInteger(day) && day >= 0 && day <= 6)
+  )
+].sort((a, b) => a - b);
+
+const syncUserRecurringWeekOffDays = async ({ userId, companyId, weekOffDays }) => {
+  if (!userId || !companyId) return;
+
+  const recurringTypes = ['daily', 'weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly'];
+  const normalizedWeekOffDays = normalizeWeekOffDays(weekOffDays);
+  const mongoWeekOffDays = normalizedWeekOffDays.map((day) => day + 1);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  await MasterTask.updateMany(
+    {
+      companyId,
+      assignedTo: userId,
+      taskType: { $in: recurringTypes },
+      isActive: { $ne: false }
+    },
+    {
+      $set: {
+        weekOffDays: normalizedWeekOffDays
+      }
+    }
+  );
+
+  const reactivateFilter = {
+    companyId,
+    assignedTo: userId,
+    taskType: { $in: recurringTypes },
+    isActive: false,
+    status: 'pending',
+    weekOffAutoDisabled: true,
+    dueDate: { $gte: today }
+  };
+
+  if (mongoWeekOffDays.length > 0) {
+    reactivateFilter.$expr = {
+      $not: [{ $in: [{ $dayOfWeek: '$dueDate' }, mongoWeekOffDays] }]
+    };
+  }
+
+  await Task.updateMany(
+    reactivateFilter,
+    {
+      $set: {
+        isActive: true,
+        endedByRecurrence: false,
+        weekOffDays: normalizedWeekOffDays,
+        'parentTaskInfo.weekOffDays': normalizedWeekOffDays
+      },
+      $unset: {
+        weekOffAutoDisabled: ''
+      }
+    }
+  );
+
+  await Task.updateMany(
+    {
+      companyId,
+      assignedTo: userId,
+      taskType: { $in: recurringTypes },
+      isActive: true,
+      status: 'pending'
+    },
+    {
+      $set: {
+        weekOffDays: normalizedWeekOffDays,
+        'parentTaskInfo.weekOffDays': normalizedWeekOffDays
+      }
+    }
+  );
+
+  if (normalizedWeekOffDays.length > 0) {
+    await Task.updateMany(
+      {
+        companyId,
+        assignedTo: userId,
+        taskType: { $in: recurringTypes },
+        isActive: true,
+        status: 'pending',
+        $expr: {
+          $in: [{ $dayOfWeek: '$dueDate' }, mongoWeekOffDays]
+        }
+      },
+      {
+        $set: {
+          isActive: false,
+          endedByRecurrence: true,
+          weekOffAutoDisabled: true
+        }
+      }
+    );
+  }
 };
 
 router.use(async (req, res, next) => {
@@ -163,8 +266,9 @@ router.get('/:id/access-logs', async (req, res) => {
 // Create new user
 router.post('/', async (req, res) => {
   try {
-    const { username, email, password, role, permissions, companyId, department, phone } = req.body;
+    const { username, email, password, role, permissions, companyId, department, phone, weekOffDays } = req.body;
     const normalizedPermissions = normalizeApprovalPermissions(permissions);
+    const normalizedWeekOffDays = normalizeWeekOffDays(weekOffDays);
 
     // Check if email already exists
     const existingUser = await User.findOne({ email });
@@ -196,6 +300,7 @@ router.post('/', async (req, res) => {
       role,
       department,
       phone,
+      weekOffDays: normalizedWeekOffDays,
       permissions: normalizedPermissions
     });
 
@@ -212,9 +317,10 @@ router.post('/', async (req, res) => {
 // Update user
 router.put('/:id', async (req, res) => {
   try {
-    const { username, email, role, permissions, department, phone } = req.body;
+    const { username, email, role, permissions, department, phone, weekOffDays } = req.body;
     const userId = req.params.id;
     const normalizedPermissions = normalizeApprovalPermissions(permissions);
+    const normalizedWeekOffDays = normalizeWeekOffDays(weekOffDays);
 
     const user = await User.findById(userId);
     if (!user) {
@@ -260,10 +366,24 @@ router.put('/:id', async (req, res) => {
         permissions: normalizedPermissions,
         department,
         phone,
+        weekOffDays: normalizedWeekOffDays,
         sessionInvalidated: true   // 🔥 FORCE LOGOUT
       },
       { new: true }
     ).select('-password');
+
+    const previousWeekOffDays = normalizeWeekOffDays(user.weekOffDays);
+    const weekOffChanged =
+      previousWeekOffDays.length !== normalizedWeekOffDays.length ||
+      previousWeekOffDays.some((day, index) => day !== normalizedWeekOffDays[index]);
+
+    if (weekOffChanged) {
+      await syncUserRecurringWeekOffDays({
+        userId,
+        companyId: user.companyId,
+        weekOffDays: normalizedWeekOffDays
+      });
+    }
 
     res.json({ message: 'User updated successfully', user: updatedUser });
   } catch (error) {
