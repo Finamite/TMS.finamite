@@ -82,6 +82,9 @@ interface LightMasterTask {
   };
   weekOffDays?: number[];
   dateRange: { start: string | Date; end: string | Date };
+  pauseFrom?: string;
+  pauseTo?: string;
+  pausedCount?: number;
 }
 
 interface Attachment {
@@ -119,12 +122,15 @@ interface MasterTask {
   instanceCount: number;
   completedCount: number;
   pendingCount: number;
+  pausedCount?: number;
   tasks: Task[];
   dateRange: {
     start: string;
     end: string;
   };
   endedEarly: boolean;
+  pauseFrom?: string;
+  pauseTo?: string;
 }
 
 interface EditFormData {
@@ -144,6 +150,8 @@ interface EditFormData {
   allowEndDateEdit: boolean;
   originalEndDate: string;
   endedEarlyReason?: string;
+  pauseFrom?: string;
+  pauseTo?: string;
   attachments?: any[];
 }
 
@@ -348,6 +356,8 @@ const MasterRecurringTasks: React.FC = () => {
     allowEndDateEdit: false,
     originalEndDate: '',
     endedEarlyReason: "",
+    pauseFrom: '',
+    pauseTo: '',
   });
   const [selectedActivityTaskTitle, setSelectedActivityTaskTitle] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -871,6 +881,8 @@ const MasterRecurringTasks: React.FC = () => {
         masterTask.weekOffDays,
         masterTask.parentTaskInfo?.weekOffDays
       ),
+      pauseFrom: masterTask.pauseFrom?.split("T")[0] || '',
+      pauseTo: masterTask.pauseTo?.split("T")[0] || '',
       attachments: masterTask.attachments || []
     };
     setEditFormData(formData);
@@ -1060,10 +1072,28 @@ const MasterRecurringTasks: React.FC = () => {
         weekOffDays: editFormData.weekOffDays,
         endRecurrenceEarly: endRecurrenceEarly,
         endedEarlyReason: editFormData.endedEarlyReason,
+        pauseFrom: editFormData.pauseFrom || null,
+        pauseTo: editFormData.pauseTo || null,
         attachments: editFormData.attachments || [],
         userId: user?._id || user?.id,
         userRole: user?.role
       };
+
+      if ((editFormData.pauseFrom && !editFormData.pauseTo) || (!editFormData.pauseFrom && editFormData.pauseTo)) {
+        toast.error("Please select both pause from and pause to dates");
+        setIsSaving(false);
+        return;
+      }
+
+      if (
+        editFormData.pauseFrom &&
+        editFormData.pauseTo &&
+        new Date(editFormData.pauseFrom) > new Date(editFormData.pauseTo)
+      ) {
+        toast.error("Pause from date cannot be later than pause to date");
+        setIsSaving(false);
+        return;
+      }
 
       if (endRecurrenceEarly) {
         if (!editFormData.endedEarlyReason?.trim()) {
@@ -1109,6 +1139,8 @@ const MasterRecurringTasks: React.FC = () => {
         weekOffDays: [],
         allowEndDateEdit: false,
         originalEndDate: '',
+        pauseFrom: '',
+        pauseTo: '',
         attachments: []
       });
     } catch (err) {
@@ -1117,7 +1149,7 @@ const MasterRecurringTasks: React.FC = () => {
     } finally {
       setIsSaving(false);
     }
-  }, [editFormData, editingMasterTask, fetchMasterTasksUltraFast]);
+  }, [editFormData, editingMasterTask, fetchMasterTasksUltraFast, endRecurrenceEarly, user]);
 
   const handleCancelEdit = useCallback(() => {
     setShowEditModal(false);
@@ -1138,6 +1170,8 @@ const MasterRecurringTasks: React.FC = () => {
       weekOffDays: [],
       allowEndDateEdit: false,
       originalEndDate: '',
+      pauseFrom: '',
+      pauseTo: '',
       attachments: []
     });
   }, []);
@@ -1260,6 +1294,11 @@ const MasterRecurringTasks: React.FC = () => {
                   Ended Early
                 </span>
               )}
+              {masterTask.pauseFrom && masterTask.pauseTo && (
+                <span className="inline-flex items-center rounded-full border border-[var(--color-textSecondary)]/20 bg-[var(--color-textSecondary)]/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-textSecondary)]">
+                  Paused
+                </span>
+              )}
             </div>
             <h3 className="mt-3 text-[1rem] font-semibold leading-snug text-[var(--color-text)]">
               <ReadMore text={masterTask.title} maxLength={60} />
@@ -1330,6 +1369,22 @@ const MasterRecurringTasks: React.FC = () => {
             <span className="font-medium text-[var(--color-textSecondary)]">Pending:</span>
             <span className="font-semibold text-[var(--color-warning)]">{masterTask.pendingCount}</span>
           </div>
+          {masterTask.pauseFrom && masterTask.pauseTo && (
+            <>
+              <div className="flex items-start justify-between gap-4">
+                <span className="font-medium text-[var(--color-textSecondary)]">Paused:</span>
+                <span className="font-semibold text-[var(--color-textSecondary)]">{masterTask.pausedCount ?? 0}</span>
+              </div>
+              <div className="flex items-start justify-between gap-4">
+                <span className="font-medium text-[var(--color-textSecondary)]">Pause dates:</span>
+                <span className="text-right font-semibold text-[var(--color-text)]">
+                  {new Date(masterTask.pauseFrom).toLocaleDateString('en-GB', { day: '2-digit', month: 'numeric', year: 'numeric' })}
+                  {' '}to{' '}
+                  {new Date(masterTask.pauseTo).toLocaleDateString('en-GB', { day: '2-digit', month: 'numeric', year: 'numeric' })}
+                </span>
+              </div>
+            </>
+          )}
           <div className="flex items-start justify-between gap-4">
             <span className="font-medium text-[var(--color-textSecondary)]">Attachments:</span>
             {masterTask.attachments && masterTask.attachments.length > 0 ? (
@@ -1818,6 +1873,11 @@ const MasterRecurringTasks: React.FC = () => {
                           Ended Early
                         </span>
                       )}
+                      {masterTask.pauseFrom && masterTask.pauseTo && (
+                        <span className="ml-1 inline-flex items-center rounded-full border border-[var(--color-textSecondary)]/20 bg-[var(--color-textSecondary)]/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-textSecondary)]">
+                          Paused
+                        </span>
+                      )}
                       {isSelectionMode && !masterTask.parentTaskInfo?.isForever && (
                         <div className="mt-2 text-xs font-medium text-[var(--color-error)]">
                           Not available for reassign
@@ -1843,6 +1903,11 @@ const MasterRecurringTasks: React.FC = () => {
                         <Clock3 size={11} className="mr-1" />
                         {masterTask.pendingCount ?? 0}
                       </span>
+                      {masterTask.pauseFrom && masterTask.pauseTo && (
+                        <span className="inline-flex items-center rounded-full border border-[var(--color-textSecondary)]/20 bg-[var(--color-textSecondary)]/10 px-1.5 py-0.5 font-semibold uppercase tracking-[0.08em] text-[var(--color-textSecondary)]">
+                          Paused {masterTask.pausedCount ?? 0}
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="px-5 py-4 whitespace-nowrap">
@@ -1881,6 +1946,19 @@ const MasterRecurringTasks: React.FC = () => {
                         year: 'numeric',
                       })}
                     </div>
+                    {masterTask.pauseFrom && masterTask.pauseTo && (
+                      <div className="mt-1 text-xs font-medium text-[var(--color-textSecondary)]">
+                        Paused {new Date(masterTask.pauseFrom).toLocaleDateString('en-GB', {
+                          day: '2-digit',
+                          month: 'numeric',
+                          year: 'numeric',
+                        })} to {new Date(masterTask.pauseTo).toLocaleDateString('en-GB', {
+                          day: '2-digit',
+                          month: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </div>
+                    )}
                   </td>
                   {hasMasterTaskActions && (
                     <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
@@ -2403,6 +2481,7 @@ const MasterRecurringTasks: React.FC = () => {
                 >
                   <option value="">All Statuses</option>
                   <option value="pending">Pending</option>
+                  <option value="paused">Paused</option>
                   <option value="completed">Completed</option>
                 </select>
               </div>

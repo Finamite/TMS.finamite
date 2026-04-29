@@ -41,7 +41,13 @@ let pendingRecurringCache = {};
 let pendingRecurringCacheTime = {};
 const PENDING_RECURRING_CACHE_TTL = 20 * 1000;
 const PENDING_RECURRING_SELECT =
-  'taskId title description taskType assignedBy assignedTo dueDate priority status lastCompletedDate createdAt attachments';
+  'taskId title description taskType assignedBy assignedTo dueDate priority status lastCompletedDate createdAt attachments pauseFrom pauseTo';
+const clearPendingTaskCaches = () => {
+  pendingRecurringCache = {};
+  pendingRecurringCacheTime = {};
+  teamPendingCache = {};
+  teamPendingCacheTime = {};
+};
 
 const isOneTimeTask = (taskType) => String(taskType || '').trim() === 'one-time';
 const isApprovalEligibleTask = (taskType, requiresApproval) =>
@@ -56,7 +62,361 @@ const pickLastDefined = (...values) => {
   const filtered = values.filter((value) => value !== undefined && value !== null && value !== '');
   return filtered.length > 0 ? filtered[filtered.length - 1] : null;
 };
+const startOfLocalDay = (value) => {
+  const date = parseDateValue(value);
+  if (!date) return null;
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+const endOfLocalDay = (value) => {
+  const date = parseDateValue(value);
+  if (!date) return null;
+  date.setHours(23, 59, 59, 999);
+  return date;
+};
+const isSameLocalDate = (left, right) => {
+  const a = parseDateValue(left);
+  const b = parseDateValue(right);
+  if (!a || !b) return false;
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+};
+const getLocalDateRange = (startValue, endValue) => {
+  const start = startOfLocalDay(startValue);
+  const end = startOfLocalDay(endValue);
+  if (!start || !end || start > end) return [];
 
+  const dates = [];
+  const cursor = new Date(start);
+  while (cursor <= end) {
+    dates.push(new Date(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return dates;
+};
+const normalizePauseWindow = (source = {}) => {
+  const pickPauseValue = (keys) => {
+    for (const key of keys) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) {
+        return source[key];
+      }
+    }
+    return undefined;
+  };
+  const rawFrom = pickPauseValue(['pauseFrom', 'pausedFrom', 'pauseStartDate']);
+  const rawTo = pickPauseValue(['pauseTo', 'pausedTo', 'pauseEndDate']);
+  const hasPauseInput = rawFrom !== undefined || rawTo !== undefined;
+
+  if (!hasPauseInput) {
+    return { provided: false, pauseFrom: undefined, pauseTo: undefined };
+  }
+
+  if (!rawFrom && !rawTo) {
+    return { provided: true, pauseFrom: null, pauseTo: null };
+  }
+
+  const pauseFrom = startOfLocalDay(rawFrom);
+  const pauseTo = endOfLocalDay(rawTo);
+
+  if (!pauseFrom || !pauseTo) {
+    const error = new Error("Both pause from and pause to dates are required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (pauseFrom > pauseTo) {
+    const error = new Error("Pause from date cannot be later than pause to date");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return { provided: true, pauseFrom, pauseTo };
+};
+const applyRecurringPauseWindow = async ({ taskGroupId, companyId, pauseFrom, pauseTo }) => {
+  const scopedQuery = {
+    taskGroupId,
+    companyId,
+    isActive: true
+  };
+
+  if (!pauseFrom || !pauseTo) {
+    const cleared = await Task.updateMany(
+      {
+        ...scopedQuery,
+        status: 'paused'
+      },
+      {
+        $set: { status: 'pending' },
+        $unset: { pauseFrom: '', pauseTo: '', pausedAt: '' }
+      }
+    );
+
+    await Task.updateMany(
+      scopedQuery,
+      { $unset: { pauseFrom: '', pauseTo: '', pausedAt: '' } }
+    );
+
+    return { pausedTasks: 0, resumedTasks: cleared.modifiedCount || 0 };
+  }
+
+  const master = await MasterTask.findOne({
+    taskGroupId,
+    companyId,
+    taskType: 'daily',
+    isActive: { $ne: false }
+  }).lean();
+
+  if (master) {
+    const startBoundary = startOfLocalDay(master.startDate);
+    const endBoundary = master.isForever ? null : endOfLocalDay(master.endDate);
+    const taskCalendar = await getTaskCalendarSettings(companyId);
+    const isBlocked = createDateBlockChecker(
+      master.includeSunday,
+      master.weekOffDays || [],
+      taskCalendar
+    );
+    const pauseDates = getLocalDateRange(pauseFrom, pauseTo).filter((date) => {
+      if (startBoundary && date < startBoundary) return false;
+      if (endBoundary && date > endBoundary) return false;
+      if (isBlocked(date)) return false;
+      return true;
+    });
+
+    const missingDates = [];
+    for (const date of pauseDates) {
+      const dayStart = startOfLocalDay(date);
+      const dayEnd = endOfLocalDay(date);
+      if (!dayStart || !dayEnd) continue;
+
+      const exists = await Task.exists({
+        ...scopedQuery,
+        dueDate: { $gte: dayStart, $lte: dayEnd }
+      });
+
+      if (!exists) {
+        missingDates.push(dayStart);
+      }
+    }
+
+    if (missingDates.length > 0 && master.assignedBy && master.assignedTo) {
+      const seqRange = await reserveTaskSequences(companyId, missingDates.length);
+      let nextSeq = seqRange ? seqRange.start : null;
+      const existingCount = await Task.countDocuments({ taskGroupId, companyId });
+
+      const docs = missingDates.map((date, index) => {
+        const taskSeq = nextSeq;
+        if (nextSeq !== null) {
+          nextSeq += 1;
+        }
+
+        return {
+          title: master.title,
+          description: master.description,
+          taskType: 'daily',
+          assignedBy: master.assignedBy,
+          assignedTo: master.assignedTo,
+          priority: master.priority || 'normal',
+          dueDate: date,
+          companyId,
+          taskSeq: taskSeq ?? undefined,
+          taskId: taskSeq != null ? formatTaskId(companyId, taskSeq) : undefined,
+          attachments: master.attachments || [],
+          requiresApproval: false,
+          isActive: true,
+          status: 'paused',
+          pauseFrom,
+          pauseTo,
+          pausedAt: new Date(),
+          taskGroupId,
+          sequenceNumber: existingCount + index + 1,
+          parentTaskInfo: {
+            originalStartDate: master.startDate,
+            originalEndDate: master.endDate,
+            isForever: master.isForever,
+            includeSunday: master.includeSunday,
+            weeklyDays: master.weeklyDays || [],
+            weekOffDays: master.weekOffDays || [],
+            monthlyDay: master.monthlyDay,
+            yearlyDuration: master.yearlyDuration
+          }
+        };
+      });
+
+      await Task.insertMany(docs, { ordered: false });
+    }
+  }
+
+  const pauseMatch = {
+    ...scopedQuery,
+    dueDate: { $gte: pauseFrom, $lte: pauseTo }
+  };
+
+  const pauseResult = await Task.updateMany(
+    {
+      ...pauseMatch,
+      status: { $in: ['pending', 'overdue'] }
+    },
+    {
+      $set: {
+        status: 'paused',
+        pauseFrom,
+        pauseTo,
+        pausedAt: new Date()
+      }
+    }
+  );
+
+  const syncResult = await Task.updateMany(
+    {
+      ...pauseMatch,
+      status: 'paused'
+    },
+    {
+      $set: {
+        pauseFrom,
+        pauseTo
+      }
+    }
+  );
+
+  const resumeResult = await Task.updateMany(
+    {
+      ...scopedQuery,
+      status: 'paused',
+      $or: [
+        { dueDate: { $lt: pauseFrom } },
+        { dueDate: { $gt: pauseTo } }
+      ]
+    },
+    {
+      $set: { status: 'pending' },
+      $unset: { pauseFrom: '', pauseTo: '', pausedAt: '' }
+    }
+  );
+
+  return {
+    pausedTasks: pauseResult.modifiedCount || syncResult.modifiedCount || 0,
+    resumedTasks: resumeResult.modifiedCount || 0
+  };
+};
+const ensureAssignedTodayDailyInstances = async ({ companyId, assignedTo }) => {
+  if (!companyId) return 0;
+
+  const todayStart = startOfLocalDay(new Date());
+  const todayEnd = endOfLocalDay(new Date());
+  if (!todayStart || !todayEnd) return 0;
+
+  const masterQuery = {
+    companyId,
+    taskType: 'daily',
+    isActive: { $ne: false },
+    createdAt: { $gte: todayStart, $lte: todayEnd },
+    startDate: { $lte: todayEnd },
+    $or: [
+      { isForever: true },
+      { endDate: { $exists: false } },
+      { endDate: null },
+      { endDate: { $gte: todayStart } }
+    ]
+  };
+
+  if (assignedTo) {
+    masterQuery.assignedTo = assignedTo;
+  }
+
+  const masters = await MasterTask.find(masterQuery).lean();
+  if (!masters.length) return 0;
+
+  const taskCalendar = await getTaskCalendarSettings(companyId);
+  const missingMasters = [];
+  for (const master of masters) {
+    const isBlocked = createDateBlockChecker(
+      master.includeSunday,
+      master.weekOffDays || [],
+      taskCalendar
+    );
+    if (isBlocked(todayStart)) {
+      continue;
+    }
+
+    if (master.pauseFrom && master.pauseTo) {
+      const pauseFrom = startOfLocalDay(master.pauseFrom);
+      const pauseTo = endOfLocalDay(master.pauseTo);
+      if (pauseFrom && pauseTo && todayStart >= pauseFrom && todayStart <= pauseTo) {
+        continue;
+      }
+    }
+
+    const existingToday = await Task.exists({
+      taskGroupId: master.taskGroupId,
+      companyId,
+      isActive: true,
+      dueDate: { $gte: todayStart, $lte: todayEnd }
+    });
+
+    if (!existingToday) {
+      missingMasters.push(master);
+    }
+  }
+
+  if (!missingMasters.length) return 0;
+
+  const seqRange = await reserveTaskSequences(companyId, missingMasters.length);
+  let nextSeq = seqRange ? seqRange.start : null;
+  const docs = [];
+
+  for (const master of missingMasters) {
+    if (!master.assignedBy || !master.assignedTo) continue;
+
+    const existingCount = await Task.countDocuments({
+      taskGroupId: master.taskGroupId,
+      companyId
+    });
+    const taskSeq = nextSeq;
+    if (nextSeq !== null) {
+      nextSeq += 1;
+    }
+
+    docs.push({
+      title: master.title,
+      description: master.description,
+      taskType: 'daily',
+      assignedBy: master.assignedBy,
+      assignedTo: master.assignedTo,
+      priority: master.priority || 'normal',
+      dueDate: todayStart,
+      companyId,
+      taskSeq: taskSeq ?? undefined,
+      taskId: taskSeq != null ? formatTaskId(companyId, taskSeq) : undefined,
+      attachments: master.attachments || [],
+      requiresApproval: false,
+      isActive: true,
+      status: 'pending',
+      taskGroupId: master.taskGroupId,
+      sequenceNumber: existingCount + 1,
+      parentTaskInfo: {
+        originalStartDate: master.startDate,
+        originalEndDate: master.endDate,
+        isForever: master.isForever,
+        includeSunday: master.includeSunday,
+        weeklyDays: master.weeklyDays || [],
+        weekOffDays: master.weekOffDays || [],
+        monthlyDay: master.monthlyDay,
+        yearlyDuration: master.yearlyDuration
+      }
+    });
+  }
+
+  if (!docs.length) return 0;
+
+  await Task.insertMany(docs, { ordered: false });
+  clearPendingTaskCaches();
+  return docs.length;
+};
 const defaultTaskCalendarSettings = Object.freeze({
   enabled: false,
   holidays: [],
@@ -818,6 +1178,13 @@ router.get('/pending-recurring', async (req, res) => {
       baseMatch.assignedBy = assignedBy;
     }
 
+    if (!taskType || taskType === 'daily') {
+      await ensureAssignedTodayDailyInstances({
+        companyId,
+        assignedTo: userId || assignedTo || null
+      });
+    }
+
     const withSearch = (query) => {
       if (!search || !String(search).trim()) {
         return query;
@@ -1247,6 +1614,9 @@ router.get('/master-recurring', async (req, res) => {
         pendingCount: {
           $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] }
         },
+        pausedCount: {
+          $sum: { $cond: [{ $eq: ['$status', 'paused'] }, 1, 0] }
+        },
         firstDueDate: { $min: '$dueDate' },
         lastDueDate: { $max: '$dueDate' }
       }
@@ -1364,6 +1734,10 @@ router.get("/master-recurring-light", async (req, res) => {
         endedEarlyAt: 1,
         endedEarlyBy: 1,
         endedEarlyReason: 1,
+        pauseFrom: 1,
+        pauseTo: 1,
+        pausedAt: 1,
+        pausedBy: 1,
       }
     ).lean();
 
@@ -1476,6 +1850,9 @@ router.get("/master-recurring-light", async (req, res) => {
           pendingCount: {
             $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] }
           },
+          pausedCount: {
+            $sum: { $cond: [{ $eq: ["$status", "paused"] }, 1, 0] }
+          },
           lastDueDate: { $max: "$dueDate" }
         }
       }
@@ -1522,7 +1899,8 @@ router.get("/master-recurring-light", async (req, res) => {
         },
         instanceCount: statMap[m.taskGroupId]?.instanceCount || 0,
         completedCount: statMap[m.taskGroupId]?.completedCount || 0,
-        pendingCount: statMap[m.taskGroupId]?.pendingCount || 0
+        pendingCount: statMap[m.taskGroupId]?.pendingCount || 0,
+        pausedCount: statMap[m.taskGroupId]?.pausedCount || 0
       });
     }
 
@@ -1613,6 +1991,21 @@ router.get('/recurring-instances', async (req, res) => {
 
     if (companyId) {
       query.companyId = companyId;
+      await Promise.all(
+        (await MasterTask.find({
+          companyId,
+          taskType: 'daily',
+          isActive: { $ne: false },
+          pauseFrom: { $exists: true, $ne: null },
+          pauseTo: { $exists: true, $ne: null }
+        }).select('taskGroupId pauseFrom pauseTo').lean())
+          .map((master) => applyRecurringPauseWindow({
+            taskGroupId: master.taskGroupId,
+            companyId,
+            pauseFrom: master.pauseFrom,
+            pauseTo: master.pauseTo
+          }))
+      );
     }
 
     if (taskType) {
@@ -1850,6 +2243,7 @@ router.post('/bulk-create', async (req, res) => {
       }
 
       // ✅ UPDATE ORIGINAL TASK STATUS TO REJECTED (only after successful task creation)
+      clearPendingTaskCaches();
       if (isReassignMode && originalTaskId) {
         try {
           const updatedTask = await Task.findByIdAndUpdate(
@@ -2026,6 +2420,7 @@ router.post('/create-scheduled', async (req, res) => {
       await Task.bulkWrite(bulkOps, { ordered: false });
       
       // ✅ Track file usage if attachments exist
+      clearPendingTaskCaches();
       if (taskData.attachments && taskData.attachments.length > 0) {
         await trackFileUsage(taskData.companyId, taskData.attachments, taskData.assignedBy);
       }
@@ -2095,6 +2490,7 @@ router.post('/', async (req, res) => {
     await task.save();
 
     // ✅ Track file usage if attachments exist
+    clearPendingTaskCaches();
     if (taskData.attachments && taskData.attachments.length > 0) {
       await trackFileUsage(taskData.companyId, taskData.attachments, taskData.assignedBy);
     }
@@ -2479,6 +2875,15 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
       endRecurrenceEarly = false,
       endedEarlyReason
     } = updates;
+    let pauseWindow;
+
+    try {
+      pauseWindow = normalizePauseWindow(updates);
+    } catch (error) {
+      return res.status(error.statusCode || 400).json({
+        message: error.message
+      });
+    }
 
     // ✅ Fetch userId & role from body (like your other routes)
     const userId = updates.userId || updates.performedBy || null;
@@ -2579,6 +2984,12 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
       masterTask.endedEarlyAt = new Date();
       masterTask.endedEarlyBy = userId;
       masterTask.endedEarlyReason = endedEarlyReason.trim();
+      if (pauseWindow.provided) {
+        masterTask.pauseFrom = pauseWindow.pauseFrom || undefined;
+        masterTask.pauseTo = pauseWindow.pauseTo || undefined;
+        masterTask.pausedAt = pauseWindow.pauseFrom ? new Date() : undefined;
+        masterTask.pausedBy = pauseWindow.pauseFrom ? userId : undefined;
+      }
 
       await masterTask.save();
 
@@ -2613,11 +3024,25 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
       );
 
       // ✅ Track database usage after changes
+      const pauseResult = pauseWindow.provided
+        ? await applyRecurringPauseWindow({
+          taskGroupId,
+          companyId: effectiveCompanyId,
+          pauseFrom: pauseWindow.pauseFrom,
+          pauseTo: pauseWindow.pauseTo
+        })
+        : { pausedTasks: 0, resumedTasks: 0 };
+      pendingRecurringCache = {};
+      pendingRecurringCacheTime = {};
+      teamPendingCache = {};
+      teamPendingCacheTime = {};
+
       await trackDatabaseUsage(effectiveCompanyId);
 
       return res.json({
         message: "Recurring task ended early successfully",
-        deactivatedTasks: result.modifiedCount
+        deactivatedTasks: result.modifiedCount,
+        ...pauseResult
       });
     }
 
@@ -2628,27 +3053,49 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
      */
 
     // ✅ 1) Update MasterTask info (NO deletion)
+    const masterTaskSet = {
+      title: updates.title,
+      description: updates.description,
+      taskType: updates.taskType,
+      priority: updates.priority,
+      assignedTo: updates.assignedTo,
+      startDate: updates.startDate,
+      endDate: updates.endDate,
+      includeSunday: updates.includeSunday,
+      isForever: updates.isForever,
+      weeklyDays: updates.weeklyDays,
+      weekOffDays: updates.weekOffDays || [],
+      monthlyDay: updates.monthlyDay,
+      yearlyDuration: updates.yearlyDuration,
+      attachments: updates.attachments || []
+    };
+    const masterTaskUnset = {};
+
+    if (pauseWindow.provided) {
+      if (pauseWindow.pauseFrom && pauseWindow.pauseTo) {
+        masterTaskSet.pauseFrom = pauseWindow.pauseFrom;
+        masterTaskSet.pauseTo = pauseWindow.pauseTo;
+        masterTaskSet.pausedAt = new Date();
+        masterTaskSet.pausedBy = userId || undefined;
+      } else {
+        masterTaskUnset.pauseFrom = "";
+        masterTaskUnset.pauseTo = "";
+        masterTaskUnset.pausedAt = "";
+        masterTaskUnset.pausedBy = "";
+      }
+    }
+
+    const masterUpdate = { $set: masterTaskSet };
+    if (Object.keys(masterTaskUnset).length > 0) {
+      masterUpdate.$unset = masterTaskUnset;
+    }
+
     await MasterTask.findOneAndUpdate(
       {
         taskGroupId,
         companyId: effectiveCompanyId
       },
-      {
-        title: updates.title,
-        description: updates.description,
-        taskType: updates.taskType,
-        priority: updates.priority,
-        assignedTo: updates.assignedTo,
-        startDate: updates.startDate,
-        endDate: updates.endDate,
-        includeSunday: updates.includeSunday,
-        isForever: updates.isForever,
-        weeklyDays: updates.weeklyDays,
-        weekOffDays: updates.weekOffDays || [],
-        monthlyDay: updates.monthlyDay,
-        yearlyDuration: updates.yearlyDuration,
-        attachments: updates.attachments || []
-      },
+      masterUpdate,
       { new: true }
     );
 
@@ -2805,9 +3252,23 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
     // ✅ Track database usage after changes
     await trackDatabaseUsage(effectiveCompanyId);
 
+    const pauseResult = pauseWindow.provided
+      ? await applyRecurringPauseWindow({
+        taskGroupId,
+        companyId: effectiveCompanyId,
+        pauseFrom: pauseWindow.pauseFrom,
+        pauseTo: pauseWindow.pauseTo
+      })
+      : { pausedTasks: 0, resumedTasks: 0 };
+    pendingRecurringCache = {};
+    pendingRecurringCacheTime = {};
+    teamPendingCache = {};
+    teamPendingCacheTime = {};
+
     return res.json({
       message: "Master Task updated successfully ✅ (old tasks not affected)",
-      insertedFutureTasks: datesToInsert.length
+      insertedFutureTasks: datesToInsert.length,
+      ...pauseResult
     });
   } catch (error) {
     console.error("❌ Ultra-fast reschedule error:", error);
@@ -3780,6 +4241,7 @@ router.delete('/bin/permanent/:id', async (req, res) => {
     } else {
       const tasks = await Task.find({ taskGroupId: id }).lean();
       companyId = tasks[0]?.companyId;
+      clearPendingTaskCaches();
       if (tasks.length > 0) {
         await logTaskDeleteActivity({
           req,

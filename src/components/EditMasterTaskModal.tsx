@@ -1,5 +1,5 @@
 import React, { Dispatch, SetStateAction, memo, useEffect } from "react";
-import { CreditCard as Edit, Save, X, Upload, Trash2, Download, FileText, Paperclip } from "lucide-react";
+import { Calendar, CreditCard as Edit, Save, X, Upload, Trash2, Download, FileText, Paperclip } from "lucide-react";
 import { toast } from "react-toastify";
 import axios from "axios";
 import { address } from "../../utils/ipAddress";
@@ -40,6 +40,8 @@ interface MasterTask {
   };
 attachments: Attachment[];           // ← important
   endedEarly?: boolean;
+  pauseFrom?: string;
+  pauseTo?: string;
 }
 
 interface Attachment {
@@ -66,6 +68,8 @@ interface EditFormData {
 
   // ✅ NEW: store reason for early end
   endedEarlyReason?: string;
+  pauseFrom?: string;
+  pauseTo?: string;
   attachments?: any[];
 }
 
@@ -111,6 +115,8 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
     const [attachments, setAttachments] = React.useState<any[]>([]);
     const [isUploading, setIsUploading] = React.useState(false);
     const [uploadProgress, setUploadProgress] = React.useState(0);
+    const pauseFromRef = React.useRef<HTMLInputElement | null>(null);
+    const pauseToRef = React.useRef<HTMLInputElement | null>(null);
 
     // ✅ original end date from master task
     const originalEndDate =
@@ -135,6 +141,11 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
     }, [attachments, setEditFormData]);
 
     if (!showEditModal || !editingMasterTask) return null;
+
+    const openDatePicker = (input: HTMLInputElement | null) => {
+      if (!input || input.disabled) return;
+      input.showPicker?.();
+    };
 
     const handleSave = async () => {
       await onSave();
@@ -517,6 +528,107 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
               )}
 
 
+              {/* Pause date range */}
+              <div className="md:col-span-2 rounded-3xl border border-[var(--color-border)] bg-[var(--color-background)]/60 p-4">
+                <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-[var(--color-text)]">
+                      Pause recurring task
+                    </p>
+                    <p className="mt-0.5 text-xs text-[var(--color-textSecondary)]">
+                      Paused dates are hidden from users and excluded from pending counts and scoring.
+                    </p>
+                  </div>
+                  {(editFormData.pauseFrom || editFormData.pauseTo) && (
+                    <button
+                      type="button"
+                      disabled={isSaving}
+                      onClick={() =>
+                        setEditFormData({
+                          ...editFormData,
+                          pauseFrom: "",
+                          pauseTo: ""
+                        })
+                      }
+                      className="rounded-full border border-[var(--color-border)] px-3 py-1.5 text-xs font-semibold text-[var(--color-textSecondary)] transition hover:border-[var(--color-primary)]/25 hover:text-[var(--color-primary)]"
+                    >
+                      Clear pause
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-[var(--color-text)]">
+                      Pause From
+                    </label>
+                    <div className="relative">
+                      <input
+                        ref={pauseFromRef}
+                        type="date"
+                        value={editFormData.pauseFrom || ""}
+                        min={editFormData.startDate?.split("T")[0] || undefined}
+                        max={editFormData.endDate?.split("T")[0] || undefined}
+                        disabled={isSaving}
+                        onClick={() => openDatePicker(pauseFromRef.current)}
+                        onFocus={() => openDatePicker(pauseFromRef.current)}
+                        onChange={(e) =>
+                          setEditFormData({
+                            ...editFormData,
+                            pauseFrom: e.target.value
+                          })
+                        }
+                        className="w-full cursor-pointer rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 pr-11 text-[var(--color-text)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]"
+                      />
+                      <button
+                        type="button"
+                        disabled={isSaving}
+                        onClick={() => openDatePicker(pauseFromRef.current)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)] transition hover:text-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+                        title="Open calendar"
+                      >
+                        <Calendar size={18} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-[var(--color-text)]">
+                      Pause To
+                    </label>
+                    <div className="relative">
+                      <input
+                        ref={pauseToRef}
+                        type="date"
+                        value={editFormData.pauseTo || ""}
+                        min={editFormData.pauseFrom || editFormData.startDate?.split("T")[0] || undefined}
+                        max={editFormData.endDate?.split("T")[0] || undefined}
+                        disabled={isSaving}
+                        onClick={() => openDatePicker(pauseToRef.current)}
+                        onFocus={() => openDatePicker(pauseToRef.current)}
+                        onChange={(e) =>
+                          setEditFormData({
+                            ...editFormData,
+                            pauseTo: e.target.value
+                          })
+                        }
+                        className="w-full cursor-pointer rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 pr-11 text-[var(--color-text)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]"
+                      />
+                      <button
+                        type="button"
+                        disabled={isSaving}
+                        onClick={() => openDatePicker(pauseToRef.current)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)] transition hover:text-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+                        title="Open calendar"
+                      >
+                        <Calendar size={18} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+
               {/* Description */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-[--color-text] mb-2">
@@ -754,12 +866,14 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
                 !editFormData.title ||
                 !editFormData.taskType ||
                 !editFormData.priority ||
+                Boolean(editFormData.pauseFrom) !== Boolean(editFormData.pauseTo) ||
                 (endRecurrenceEarly && !editFormData.endedEarlyReason?.trim())
               }
               className={`inline-flex items-center rounded-full px-5 py-2.5 text-sm font-semibold text-white transition ${isSaving ||
                 !editFormData.title ||
                 !editFormData.taskType ||
-                !editFormData.priority
+                !editFormData.priority ||
+                Boolean(editFormData.pauseFrom) !== Boolean(editFormData.pauseTo)
                 ? "cursor-not-allowed bg-[var(--color-primary)] opacity-60"
                 : "bg-[var(--color-primary)] hover:opacity-90"
                 }`}

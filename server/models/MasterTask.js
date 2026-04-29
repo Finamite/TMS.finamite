@@ -38,6 +38,14 @@ const masterTaskSchema = new mongoose.Schema({
     trim: true
   },
 
+  pauseFrom: Date,
+  pauseTo: Date,
+  pausedAt: Date,
+  pausedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User"
+  },
+
   includeSunday: Boolean,
   isForever: Boolean,
   weeklyDays: [Number],

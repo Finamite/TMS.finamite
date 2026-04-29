@@ -73,6 +73,7 @@ const formatDateDDMMYYYY = (dateStr) => {
 const fetchUserTasksForPeriod = async (userId, companyId, startDate, endDate) => {
   const query = {
     isActive: true,
+    status: { $ne: 'paused' },
     companyId,
     assignedTo: userId,
     dueDate: {
@@ -95,6 +96,7 @@ const fetchUserTasksForPeriod = async (userId, companyId, startDate, endDate) =>
 const buildUserPerformanceData = async (userId, companyId, dateQuery = {}, revisionConfig = null) => {
   const baseQuery = {
     isActive: true,
+    status: { $ne: 'paused' },
     companyId,
     assignedTo: userId
   };

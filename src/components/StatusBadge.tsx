@@ -16,6 +16,8 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'sm' }) => {
         return 'bg-[var(--color-error)]/10 text-[var(--color-error)] border-[var(--color-error)]/20';
       case 'in-progress':
         return 'bg-[var(--color-primary)]/10 text-[var(--color-primary)] border-[var(--color-primary)]/20';
+      case 'paused':
+        return 'bg-indigo-100 text-indigo-700 border-indigo-200';
       case 'due today':
         return 'bg-[var(--color-warning)]/10 text-[var(--color-warning)] border-[var(--color-warning)]/20';
       case 'due tomorrow':

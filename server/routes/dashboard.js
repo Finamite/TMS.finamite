@@ -50,6 +50,7 @@ router.get('/analytics', async (req, res) => {
 
     let baseQuery = {
       isActive: true,
+      status: { $ne: 'paused' },
       companyId: companyId
     };
 
@@ -386,10 +387,12 @@ router.get('/counts', async (req, res) => {
 
     let baseQuery = {
       isActive: true,
+      status: { $ne: 'paused' },
       companyId: companyId
     };
     let recentActivityQuery = {
       isActive: true,
+      status: { $ne: 'paused' },
       companyId: companyId,
       ...(isAdmin !== 'true' && userObjectId ? { assignedTo: userObjectId } : {})
     };
@@ -531,7 +534,7 @@ router.get('/counts', async (req, res) => {
         Task.countDocuments({
           ...baseQuery,
           ...thisYearDateRangeQuery,
-          status: { $ne: 'completed' },
+          status: { $nin: ['completed', 'paused'] },
           taskType: { $ne: 'daily' },
           $or: [
             { dueDate: { $lt: now } },
@@ -553,7 +556,7 @@ router.get('/counts', async (req, res) => {
         Task.countDocuments({
           ...baseQuery,
           ...previousDateRangeQuery,
-          status: { $ne: 'completed' },
+          status: { $nin: ['completed', 'paused'] },
           taskType: { $ne: 'daily' },
           $or: [
             { dueDate: { $lt: now } },
@@ -606,7 +609,7 @@ router.get('/counts', async (req, res) => {
         Task.countDocuments({ ...baseQuery, status: 'completed' }),
         Task.countDocuments({
           ...baseQuery,
-          status: { $ne: 'completed' },
+          status: { $nin: ['completed', 'paused'] },
           taskType: { $ne: 'daily' },
           $or: [
             { dueDate: { $lt: now } },
