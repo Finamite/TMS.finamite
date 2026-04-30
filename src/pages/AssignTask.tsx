@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Calendar, Paperclip, X, Users, Clock, ChevronDown, Search, XCircle, CheckSquare, Volume2, Plus, Copy, Trash2, Zap, Download, Upload, RotateCcw } from 'lucide-react';
+import { Calendar, Paperclip, X, Users, Clock, ChevronDown, Search, XCircle, CheckSquare, Volume2, Plus, Copy, Trash2, Zap, Download, Upload, RotateCcw, Flag, Tag, Repeat, ShieldCheck, Mic } from 'lucide-react';
 import axios from 'axios';
 import { useTheme } from '../contexts/ThemeContext';
 import { ToastContainer, toast } from 'react-toastify';
@@ -180,6 +180,8 @@ const AssignTask: React.FC<AssignTaskProps> = ({
 
   const [showWeekOff, setShowWeekOff] = useState<{ [key: string]: boolean }>({});
   const [weekOffExpanded, setWeekOffExpanded] = useState<{ [key: string]: boolean }>({});
+  const [openTaskPanel, setOpenTaskPanel] = useState<{ [key: string]: string | null }>({});
+  const [openTaskMenu, setOpenTaskMenu] = useState<{ [key: string]: string | null }>({});
   const [loading, setLoading] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState<{ [key: string]: boolean }>({});
   const [userSearchTerm, setUserSearchTerm] = useState('');
@@ -913,6 +915,37 @@ const AssignTask: React.FC<AssignTaskProps> = ({
       .join(', ');
   };
 
+  const toggleTaskPanel = (taskId: string, panel: string) => {
+    const isClosing = openTaskPanel[taskId] === panel;
+
+    setOpenTaskPanel(prev => ({
+      ...prev,
+      [taskId]: isClosing ? null : panel
+    }));
+
+    setOpenTaskMenu(prev => ({ ...prev, [taskId]: null }));
+    setShowUserDropdown(prev => ({ ...prev, [taskId]: false }));
+  };
+
+  const getTaskTypeLabel = (taskType: string) =>
+    TASK_TEMPLATE_LABELS[taskType as keyof typeof TASK_TEMPLATE_LABELS] || taskType.replace(/-/g, ' ');
+
+  const getDateActionLabel = (task: TaskForm) => {
+    if (task.taskType === 'one-time') return task.dueDate ? formatPreviewDate(task.dueDate) : 'Due Date';
+    if (task.startDate && task.endDate && !task.isForever) return `${formatPreviewDate(task.startDate)} - ${formatPreviewDate(task.endDate)}`;
+    if (task.startDate) return formatPreviewDate(task.startDate);
+    return task.taskType === 'quarterly' || task.taskType === 'yearly' ? 'Task Date' : 'Start Date';
+  };
+
+  const getRepeatActionLabel = (task: TaskForm) => {
+    if (task.taskType === 'one-time') return 'Repeat';
+    if (task.taskType === 'weekly' && task.weeklyDays.length > 0) {
+      return task.weeklyDays.map(day => weekDays.find(item => item.value === day)?.short || day).join(', ');
+    }
+    if (task.taskType === 'monthly') return getMonthlyScheduleLabel(task);
+    return getTaskTypeLabel(task.taskType);
+  };
+
   const filteredTemplateTasks = templatePreviewTasks.filter(task => {
     const query = templateSearchQuery.trim().toLowerCase();
     if (!query) return true;
@@ -1231,6 +1264,8 @@ const AssignTask: React.FC<AssignTaskProps> = ({
         setShowUserDropdown({});
         setShowWeekOff({});
         setWeekOffExpanded({});
+        setOpenTaskPanel({});
+        setOpenTaskMenu({});
 
         Object.values(voiceRecorderRefs.current).forEach(ref => {
           if (ref) ref.resetFromParent();
@@ -1287,6 +1322,8 @@ const AssignTask: React.FC<AssignTaskProps> = ({
       setShowUserDropdown({});
       setShowWeekOff({});
       setWeekOffExpanded({});
+      setOpenTaskPanel({});
+      setOpenTaskMenu({});
 
       // Reset all voice recorders
       Object.values(voiceRecorderRefs.current).forEach(ref => {
@@ -1301,12 +1338,16 @@ const AssignTask: React.FC<AssignTaskProps> = ({
 
   const totalAssignedUsers = taskForms.reduce((total, task) => total + task.assignedTo.length, 0);
   const shellClass = isModal
-    ? 'assign-task-modern relative min-h-full bg-[var(--color-background)] px-2 py-2 transition-all duration-300 sm:px-3 sm:py-3'
+    ? 'assign-task-modern relative bg-[var(--color-background)] px-2 py-2 transition-all duration-300 sm:px-3 sm:py-3'
     : 'assign-task-modern relative min-h-screen overflow-hidden bg-[var(--color-background)] px-4 py-6 transition-all duration-300 sm:px-6 lg:px-8';
 
   const contentClass = isModal
     ? 'relative mx-auto max-w-none'
     : 'relative mx-auto max-w-7xl';
+
+  const actionBarClass = isModal
+    ? 'floating-actions flex flex-col gap-3 border border-[var(--color-border)] bg-[var(--color-surface)]/95 p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between'
+    : 'floating-actions sticky bottom-0 z-20 flex flex-col gap-3 border border-[var(--color-border)] bg-[var(--color-surface)]/95 p-3 shadow-[0_-14px_34px_rgba(15,23,42,0.08)] backdrop-blur sm:flex-row sm:items-center sm:justify-between';
 
   return (
     <div className={shellClass}>
@@ -1326,21 +1367,21 @@ const AssignTask: React.FC<AssignTaskProps> = ({
           box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 12%, transparent) !important;
         }
         .assign-task-modern .task-form-list > .task-card {
-          border-radius: 28px !important;
-          box-shadow: 0 18px 55px rgba(15, 23, 42, 0.07) !important;
+          border-radius: 22px !important;
+          box-shadow: 0 14px 36px rgba(15, 23, 42, 0.06) !important;
           transform: none !important;
           overflow: visible !important;
         }
         .assign-task-modern .task-card-header {
           background: color-mix(in srgb, var(--color-surface) 92%, var(--color-primary) 4%) !important;
-          border-top-left-radius: 28px;
-          border-top-right-radius: 28px;
+          border-top-left-radius: 22px;
+          border-top-right-radius: 22px;
         }
         .assign-task-modern .task-card-section {
-          border-radius: 24px !important;
+          border-radius: 18px !important;
           border: 1px solid var(--color-border);
           background: color-mix(in srgb, var(--color-surface) 82%, var(--color-background) 18%);
-          padding: 20px;
+          padding: 14px;
           box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
         }
         .assign-task-modern .legacy-template-actions {
@@ -1349,7 +1390,7 @@ const AssignTask: React.FC<AssignTaskProps> = ({
         .assign-task-modern .floating-actions {
           border-color: color-mix(in srgb, var(--color-border) 84%, transparent) !important;
           background: color-mix(in srgb, var(--color-surface) 92%, transparent) !important;
-          border-radius: 24px !important;
+          border-radius: 18px !important;
         }
         @media (max-width: 639px) {
           .assign-task-modern {
@@ -1467,10 +1508,10 @@ const AssignTask: React.FC<AssignTaskProps> = ({
           <div className="task-form-list grid gap-3">
             {taskForms.map((task, index) => (
               <div key={task.id}
-                className="task-card relative overflow-hidden rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_16px_44px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_58px_rgba(15,23,42,0.12)]">
+                className="task-card relative overflow-hidden rounded-[22px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_14px_36px_rgba(15,23,42,0.06)] transition-all duration-300">
 
                 {/* Task Header */}
-                <div className="task-card-header relative border-b border-[var(--color-border)] px-4 py-3 sm:px-5">
+                <div className="task-card-header relative border-b border-[var(--color-border)] px-4 py-2.5 sm:px-5">
                   <div className="relative flex items-center justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-2 sm:gap-3">
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-primary)] text-xs font-bold text-white sm:h-9 sm:w-9 sm:text-sm">
@@ -1537,17 +1578,12 @@ const AssignTask: React.FC<AssignTaskProps> = ({
                 </div>
 
                 {/* Task Content */}
-                <div className="space-y-4 px-4 py-4 sm:px-5">
+                <div className="space-y-3 px-4 py-3 sm:px-5">
                   {/* Basic Info */}
-                  <div className="task-card-section grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(220px,0.55fr)]">
-                    <div className="lg:col-span-2">
-                      <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--color-textSecondary)]">
-                        Details
-                      </p>
-                    </div>
+                  <div className="task-card-section grid grid-cols-1 gap-4">
                     <div className="space-y-2">
-                      <label className="text-sm font-semibold text-[var(--color-text)]">
-                        Task Title *
+                      <label className="text-[11px] font-bold text-[var(--color-textSecondary)]">
+                        Add Title
                       </label>
                       <input
                         type="text"
@@ -1559,7 +1595,7 @@ const AssignTask: React.FC<AssignTaskProps> = ({
                       />
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="hidden space-y-2">
                       <label className="text-sm font-semibold text-[var(--color-text)]">
                         Task Type *
                       </label>
@@ -1583,21 +1619,246 @@ const AssignTask: React.FC<AssignTaskProps> = ({
                       />
                     </div>
 
-                    <div className="lg:col-span-2 space-y-2">
-                      <label className="text-sm font-semibold text-[var(--color-text)]">
-                        Description
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-[var(--color-textSecondary)]">
+                        Add Description
                       </label>
                       <textarea
                         value={task.description}
                         onChange={(e) => updateTaskForm(task.id, 'description', e.target.value)}
-                        rows={3}
+                        rows={2}
                         className="w-full resize-none rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-[var(--color-text)] outline-none transition-all duration-200 placeholder:text-[var(--color-textSecondary)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary)]/10"
                         placeholder="Enter task description"
                       />
                     </div>
                   </div>
 
+                  <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 p-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {isModal && <div className="order-2 h-0 basis-full" />}
+                      {[
+                        {
+                          panel: 'users',
+                          label: task.assignedTo.length > 0 ? `Users [${task.assignedTo.length}]` : 'Users',
+                          icon: <Users size={16} />,
+                          active: task.assignedTo.length > 0,
+                        },
+                        {
+                          panel: 'category',
+                          label: getTaskTypeLabel(task.taskType),
+                          icon: <Tag size={16} />,
+                          active: task.taskType !== 'one-time',
+                        },
+                        {
+                          panel: 'dates',
+                          label: getDateActionLabel(task),
+                          icon: <Calendar size={16} />,
+                          active: Boolean(task.dueDate || task.startDate),
+                        },
+                        {
+                          panel: 'priority',
+                          label: task.priority === 'high' ? 'High' : 'Normal',
+                          icon: <Flag size={16} />,
+                          active: task.priority === 'high',
+                        },
+                        {
+                          panel: 'approval',
+                          label: task.requiresApproval ? 'Approval On' : 'Approval',
+                          icon: <ShieldCheck size={16} />,
+                          active: Boolean(task.requiresApproval),
+                        },
+                        {
+                          panel: 'voice',
+                          label: 'Voice',
+                          icon: <Mic size={16} />,
+                          active: task.attachments.some(isAudioFile),
+                        },
+                        {
+                          panel: 'attachments',
+                          label: task.attachments.length > 0 ? `Files [${task.attachments.length}]` : 'Files',
+                          icon: <Paperclip size={16} />,
+                          active: task.attachments.length > 0,
+                        },
+                      ].map(action => {
+                        const isUserAction = action.panel === 'users';
+                        const isPriorityAction = action.panel === 'priority';
+                        const isCategoryAction = action.panel === 'category';
+                        const isApprovalAction = action.panel === 'approval';
+                        const approvalEnabled = adminApprovalSettings.enabled;
+                        const modalSecondRowAction = isModal && ['users', 'category', 'dates'].includes(action.panel);
+                        const selected =
+                          openTaskPanel[task.id] === action.panel ||
+                          openTaskMenu[task.id] === action.panel ||
+                          (isUserAction && Boolean(showUserDropdown[task.id]));
+
+                        return (
+                          <div
+                            key={action.panel}
+                            className={`relative ${isModal ? (modalSecondRowAction ? 'order-3' : 'order-1') : ''}`}
+                            ref={isUserAction ? dropdownRef : undefined}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (isApprovalAction) {
+                                  if (!approvalEnabled) return;
+                                  setShowUserDropdown(prev => ({ ...prev, [task.id]: false }));
+                                  setOpenTaskPanel(prev => ({ ...prev, [task.id]: null }));
+                                  setTaskForms(prev => prev.map(t => (
+                                    t.id === task.id ? { ...t, requiresApproval: !t.requiresApproval } : t
+                                  )));
+                                  return;
+                                }
+
+                                if (isUserAction) {
+                                  const shouldOpen = !showUserDropdown[task.id];
+                                  setShowUserDropdown(prev => ({ ...prev, [task.id]: shouldOpen }));
+                                  setOpenTaskMenu(prev => ({ ...prev, [task.id]: null }));
+                                  if (shouldOpen) setUserSearchTerm('');
+                                  return;
+                                }
+
+                                if (isPriorityAction || isCategoryAction) {
+                                  if (isPriorityAction) {
+                                    updateTaskForm(task.id, 'priority', task.priority === 'high' ? 'normal' : 'high');
+                                    setOpenTaskMenu(prev => ({ ...prev, [task.id]: null }));
+                                    setShowUserDropdown(prev => ({ ...prev, [task.id]: false }));
+                                    return;
+                                  }
+
+                                  setShowUserDropdown(prev => ({ ...prev, [task.id]: false }));
+                                  setOpenTaskMenu(prev => ({
+                                    ...prev,
+                                    [task.id]: openTaskMenu[task.id] === action.panel ? null : action.panel
+                                  }));
+                                  return;
+                                }
+
+                                toggleTaskPanel(task.id, action.panel);
+                              }}
+                              disabled={isApprovalAction && !approvalEnabled}
+                              className={`inline-flex h-9 items-center justify-center gap-2 rounded-lg border px-3 text-xs font-semibold transition sm:text-sm ${
+                                selected
+                                  ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white'
+                                  : action.active
+                                    ? 'border-[var(--color-primary)]/55 bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
+                                    : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)]'
+                              } ${isApprovalAction && !approvalEnabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                            >
+                              {action.icon}
+                              <span>{action.label}</span>
+                            </button>
+
+                            {isUserAction && showUserDropdown[task.id] && (
+                              <div className="absolute bottom-full left-0 z-50 mb-2 w-[min(250px,calc(100vw-3rem))] overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] shadow-[0_20px_50px_rgba(15,23,42,0.18)]">
+                                <div className="flex items-center gap-2 border-b border-[var(--color-border)] p-2">
+                                  <div className="relative min-w-0 flex-1">
+                                    <Search
+                                      className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)]"
+                                      size={16}
+                                    />
+                                    <input
+                                      type="text"
+                                      placeholder="Search users..."
+                                      className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] py-2 pl-9 pr-8 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
+                                      value={userSearchTerm}
+                                      onChange={(e) => setUserSearchTerm(e.target.value)}
+                                    />
+                                    {userSearchTerm && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setUserSearchTerm("")}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--color-textSecondary)] hover:text-[var(--color-error)]"
+                                      >
+                                        <XCircle size={15} />
+                                      </button>
+                                    )}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => applyAssignedUsers(task.id, filteredUsers.map((item) => item._id))}
+                                    className="shrink-0 text-xs font-semibold text-[var(--color-primary)]"
+                                  >
+                                    All
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => applyAssignedUsers(task.id, [])}
+                                    className="shrink-0 text-xs font-semibold text-[var(--color-error)]"
+                                  >
+                                    Clear
+                                  </button>
+                                </div>
+
+                                <div className="max-h-56 overflow-y-auto py-1">
+                                  {filteredUsers.length === 0 ? (
+                                    <p className="p-4 text-center text-sm text-[var(--color-textSecondary)]">
+                                      No users found.
+                                    </p>
+                                  ) : filteredUsers.map((userItem) => (
+                                    <label
+                                      key={userItem._id}
+                                      className="flex cursor-pointer items-center px-3 py-2.5 transition hover:bg-[var(--color-surface)]"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={task.assignedTo.includes(userItem._id)}
+                                        onChange={() => handleUserSelection(task.id, userItem._id)}
+                                        className="mr-3 h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
+                                      />
+                                      <span className="min-w-0">
+                                        <span className="block truncate text-sm font-medium text-[var(--color-text)]">{userItem.username}</span>
+                                        <span className="block truncate text-xs text-[var(--color-textSecondary)]">{userItem.department}</span>
+                                      </span>
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {isCategoryAction && openTaskMenu[task.id] === 'category' && (
+                              <div className="absolute bottom-full left-0 z-50 mb-2 w-56 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-1.5 shadow-[0_20px_50px_rgba(15,23,42,0.18)]">
+                                {[
+                                  { value: 'one-time', label: 'One Time' },
+                                  ...(user?.role !== 'employee'
+                                    ? [
+                                        { value: 'daily', label: 'Daily' },
+                                        { value: 'weekly', label: 'Weekly' },
+                                        { value: 'fortnightly', label: 'Fortnightly' },
+                                        { value: 'monthly', label: 'Monthly' },
+                                        { value: 'quarterly', label: 'Quarterly' },
+                                        { value: 'yearly', label: 'Yearly' },
+                                      ]
+                                    : []),
+                                ].map(option => (
+                                  <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={() => {
+                                      handleTaskTypeChange(task.id, option.value);
+                                      setOpenTaskMenu(prev => ({ ...prev, [task.id]: null }));
+                                      setOpenTaskPanel(prev => ({ ...prev, [task.id]: 'dates' }));
+                                    }}
+                                    className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold capitalize transition ${
+                                      task.taskType === option.value
+                                        ? 'bg-[var(--color-primary)] text-white'
+                                        : 'text-[var(--color-text)] hover:bg-[var(--color-surface)]'
+                                    }`}
+                                  >
+                                    <Tag size={15} />
+                                    {option.label}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   {/* User Assignment & Priority */}
+                  {false && ['users', 'priority', 'approval'].includes(openTaskPanel[task.id] || '') && (
                   <div className="task-card-section grid grid-cols-1 gap-4 lg:grid-cols-2">
                     <div className="lg:col-span-2">
                       <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--color-textSecondary)]">
@@ -1646,7 +1907,7 @@ const AssignTask: React.FC<AssignTaskProps> = ({
                         {/* Dropdown Content */}
                         {showUserDropdown[task.id] && (
                           <div
-                            className="absolute z-10 mt-2 max-h-64 w-full overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-background)] shadow-[0_20px_50px_rgba(15,23,42,0.14)]"
+                            className="absolute z-50 mt-2 max-h-64 w-full overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-background)] shadow-[0_20px_50px_rgba(15,23,42,0.14)]"
                           >
                             {/* ⭐ COMBINED (Search + Select All + Clear All in one row) */}
                             <div
@@ -1815,8 +2076,10 @@ const AssignTask: React.FC<AssignTaskProps> = ({
                       </div>
                     )}
                   </div>
+                  )}
 
                   {/* Date Configuration */}
+                  {['dates', 'repeat'].includes(openTaskPanel[task.id] || '') && (
                   <div className="task-card-section space-y-4">
                     <div>
                       <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--color-textSecondary)]">
@@ -2207,22 +2470,27 @@ const AssignTask: React.FC<AssignTaskProps> = ({
                       </div>
                     )}
                   </div>
+                  )}
 
                   {/* Voice Recording and Attachments for Each Task */}
+                  {['voice', 'attachments'].includes(openTaskPanel[task.id] || '') && (
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                     {/* Voice Recording */}
-                    <VoiceRecorder
-                      ref={(ref) => {
-                        if (ref) {
-                          voiceRecorderRefs.current[task.id] = ref;
-                        }
-                      }}
-                      onRecordingComplete={(audioFile) => handleVoiceRecordingComplete(task.id, audioFile)}
-                      onRecordingDeleted={(fileName) => handleVoiceRecordingDeleted(task.id, fileName)}
-                      isDark={isDark}
-                    />
+                    {openTaskPanel[task.id] === 'voice' && (
+                      <VoiceRecorder
+                        ref={(ref) => {
+                          if (ref) {
+                            voiceRecorderRefs.current[task.id] = ref;
+                          }
+                        }}
+                        onRecordingComplete={(audioFile) => handleVoiceRecordingComplete(task.id, audioFile)}
+                        onRecordingDeleted={(fileName) => handleVoiceRecordingDeleted(task.id, fileName)}
+                        isDark={isDark}
+                      />
+                    )}
 
                     {/* File Attachments */}
+                    {openTaskPanel[task.id] === 'attachments' && (
                     <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-background)]/55 p-4 shadow-sm">
                       <h3 className="mb-4 flex items-center text-sm font-semibold text-[var(--color-text)]">
                         <Paperclip className="mr-2" size={18} />
@@ -2274,7 +2542,9 @@ const AssignTask: React.FC<AssignTaskProps> = ({
                         )}
                       </div>
                     </div>
+                    )}
                   </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -2282,7 +2552,7 @@ const AssignTask: React.FC<AssignTaskProps> = ({
 
           {/* Action Buttons */}
           <div
-            className="floating-actions sticky bottom-0 z-20 flex flex-col gap-3 border border-[var(--color-border)] bg-[var(--color-surface)]/95 p-3 shadow-[0_-14px_34px_rgba(15,23,42,0.08)] backdrop-blur sm:flex-row sm:items-center sm:justify-between"
+            className={actionBarClass}
           >
             {/* Reset Button (full width on mobile) */}
             <button
