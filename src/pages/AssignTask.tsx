@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Calendar, Paperclip, X, Users, Clock, ChevronDown, Search, XCircle, CheckSquare, Volume2, Plus, Copy, Trash2, Zap, Download, Upload } from 'lucide-react';
+import { Calendar, Paperclip, X, Users, Clock, ChevronDown, Search, XCircle, CheckSquare, Volume2, Plus, Copy, Trash2, Zap, Download, Upload, RotateCcw } from 'lucide-react';
 import axios from 'axios';
 import { useTheme } from '../contexts/ThemeContext';
 import { ToastContainer, toast } from 'react-toastify';
@@ -49,6 +50,94 @@ const defaultTaskCalendarSettings: TaskCalendarSettings = {
   enabled: false,
   holidays: [],
   monthWeekOffRules: []
+};
+
+type StyledSelectValue = string | number;
+
+interface StyledSelectOption {
+  value: StyledSelectValue;
+  label: string;
+}
+
+interface StyledSelectProps {
+  value: StyledSelectValue;
+  options: StyledSelectOption[];
+  onChange: (value: StyledSelectValue) => void;
+  ariaLabel: string;
+}
+
+const StyledSelect: React.FC<StyledSelectProps> = ({ value, options, onChange, ariaLabel }) => {
+  const [open, setOpen] = useState(false);
+  const selectRef = useRef<HTMLDivElement>(null);
+  const selectedOption = options.find(option => String(option.value) === String(value)) || options[0];
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (selectRef.current && !selectRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={selectRef} className="relative">
+      <button
+        type="button"
+        aria-label={ariaLabel}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen(prev => !prev)}
+        className={`flex w-full items-center justify-between gap-3 rounded-2xl border bg-[var(--color-background)] px-4 py-3 text-left text-[var(--color-text)] outline-none transition-all duration-200 ${
+          open
+            ? 'border-[var(--color-primary)] ring-4 ring-[var(--color-primary)]/10'
+            : 'border-[var(--color-border)] hover:border-[var(--color-primary)]/50'
+        }`}
+      >
+        <span className="min-w-0 truncate text-sm font-medium sm:text-base">
+          {selectedOption?.label}
+        </span>
+        <ChevronDown
+          size={18}
+          className={`shrink-0 text-[var(--color-textSecondary)] transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+
+      {open && (
+        <div
+          role="listbox"
+          className="absolute left-0 right-0 top-full z-30 mt-2 max-h-64 overflow-y-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-1.5 shadow-[0_18px_48px_rgba(15,23,42,0.16)]"
+        >
+          {options.map(option => {
+            const selected = String(option.value) === String(value);
+
+            return (
+              <button
+                key={String(option.value)}
+                type="button"
+                role="option"
+                aria-selected={selected}
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                }}
+                className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
+                  selected
+                    ? 'bg-[var(--color-primary)] text-white'
+                    : 'text-[var(--color-text)] hover:bg-[var(--color-surface)]'
+                }`}
+              >
+                <span className="min-w-0 truncate">{option.label}</span>
+                {selected && <CheckSquare size={15} className="ml-3 shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 };
 
 const AssignTask: React.FC<AssignTaskProps> = ({
@@ -112,6 +201,7 @@ const AssignTask: React.FC<AssignTaskProps> = ({
   const [templateInspectorOpen, setTemplateInspectorOpen] = useState(false);
   const [templateSearchQuery, setTemplateSearchQuery] = useState('');
   const [taskCalendarSettings, setTaskCalendarSettings] = useState<TaskCalendarSettings>(defaultTaskCalendarSettings);
+  const [headerActionsRoot, setHeaderActionsRoot] = useState<HTMLElement | null>(null);
 
   // Store refs for each task's voice recorder
   const voiceRecorderRefs = useRef<{ [key: string]: VoiceRecorderRef | null }>({});
@@ -340,6 +430,15 @@ const AssignTask: React.FC<AssignTaskProps> = ({
         .catch(err => console.error('Error fetching admin approval settings:', err));
     }
   }, [user]);
+
+  useEffect(() => {
+    if (!isModal) {
+      setHeaderActionsRoot(null);
+      return;
+    }
+
+    setHeaderActionsRoot(document.getElementById('assign-task-header-actions'));
+  }, [isModal]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -1200,13 +1299,137 @@ const AssignTask: React.FC<AssignTaskProps> = ({
     toast.info('All forms reset!', { theme: isDark ? 'dark' : 'light' });
   };
 
-  return (
-    <div className="relative min-h-screen overflow-hidden bg-[var(--color-background)] px-4 py-6 transition-all duration-300 sm:px-6 lg:px-8">
-      <div className="absolute -top-24 right-0 h-80 w-80 rounded-full bg-cyan-500/10 blur-3xl" />
-      <div className="absolute left-0 top-1/3 h-96 w-96 rounded-full bg-indigo-500/10 blur-3xl" />
+  const totalAssignedUsers = taskForms.reduce((total, task) => total + task.assignedTo.length, 0);
+  const shellClass = isModal
+    ? 'assign-task-modern relative min-h-full bg-[var(--color-background)] px-2 py-2 transition-all duration-300 sm:px-3 sm:py-3'
+    : 'assign-task-modern relative min-h-screen overflow-hidden bg-[var(--color-background)] px-4 py-6 transition-all duration-300 sm:px-6 lg:px-8';
 
-      <div className="relative mx-auto max-w-7xl ">
-        <form onSubmit={handleSubmit} className="space-y-2">
+  const contentClass = isModal
+    ? 'relative mx-auto max-w-none'
+    : 'relative mx-auto max-w-7xl';
+
+  return (
+    <div className={shellClass}>
+      <style>{`
+        .assign-task-modern input:not([type="checkbox"]):not([type="file"]),
+        .assign-task-modern select,
+        .assign-task-modern textarea {
+          border-radius: 18px !important;
+          border-color: var(--color-border) !important;
+          background: color-mix(in srgb, var(--color-surface) 72%, var(--color-background) 28%) !important;
+          box-shadow: none !important;
+        }
+        .assign-task-modern input:not([type="checkbox"]):not([type="file"]):focus,
+        .assign-task-modern select:focus,
+        .assign-task-modern textarea:focus {
+          border-color: color-mix(in srgb, var(--color-primary) 42%, var(--color-border)) !important;
+          box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 12%, transparent) !important;
+        }
+        .assign-task-modern .task-form-list > .task-card {
+          border-radius: 28px !important;
+          box-shadow: 0 18px 55px rgba(15, 23, 42, 0.07) !important;
+          transform: none !important;
+          overflow: visible !important;
+        }
+        .assign-task-modern .task-card-header {
+          background: color-mix(in srgb, var(--color-surface) 92%, var(--color-primary) 4%) !important;
+          border-top-left-radius: 28px;
+          border-top-right-radius: 28px;
+        }
+        .assign-task-modern .task-card-section {
+          border-radius: 24px !important;
+          border: 1px solid var(--color-border);
+          background: color-mix(in srgb, var(--color-surface) 82%, var(--color-background) 18%);
+          padding: 20px;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        }
+        .assign-task-modern .legacy-template-actions {
+          display: none !important;
+        }
+        .assign-task-modern .floating-actions {
+          border-color: color-mix(in srgb, var(--color-border) 84%, transparent) !important;
+          background: color-mix(in srgb, var(--color-surface) 92%, transparent) !important;
+          border-radius: 24px !important;
+        }
+        @media (max-width: 639px) {
+          .assign-task-modern {
+            padding: 6px !important;
+          }
+          .assign-task-modern .task-form-list {
+            gap: 8px !important;
+          }
+          .assign-task-modern .task-form-list > .task-card {
+            border-radius: 18px !important;
+            box-shadow: 0 10px 26px rgba(15, 23, 42, 0.07) !important;
+          }
+          .assign-task-modern .task-card-header {
+            border-top-left-radius: 18px;
+            border-top-right-radius: 18px;
+            padding: 10px !important;
+          }
+          .assign-task-modern .task-card-section {
+            border-radius: 16px !important;
+            padding: 12px !important;
+          }
+          .assign-task-modern input:not([type="checkbox"]):not([type="file"]),
+          .assign-task-modern select,
+          .assign-task-modern textarea {
+            border-radius: 14px !important;
+            font-size: 14px !important;
+          }
+          .assign-task-modern input:not([type="checkbox"]):not([type="file"]),
+          .assign-task-modern select {
+            min-height: 42px !important;
+            padding-top: 8px !important;
+            padding-bottom: 8px !important;
+          }
+          .assign-task-modern .floating-actions {
+            flex-direction: row !important;
+            align-items: center !important;
+            margin-left: -6px;
+            margin-right: -6px;
+            margin-bottom: -6px;
+            border-left: 0;
+            border-right: 0;
+            border-bottom: 0;
+            border-radius: 18px 18px 0 0 !important;
+            gap: 8px !important;
+            padding: 8px 10px calc(8px + env(safe-area-inset-bottom)) !important;
+          }
+          .assign-task-modern .floating-actions button {
+            min-height: 42px;
+            padding: 0 !important;
+          }
+          .assign-task-modern .floating-actions > button {
+            width: 42px !important;
+            flex: 0 0 42px !important;
+          }
+          .assign-task-modern .floating-actions > div {
+            min-width: 0;
+            flex: 1 1 auto;
+            flex-direction: row !important;
+            gap: 8px !important;
+          }
+          .assign-task-modern .floating-actions > div > button:first-child {
+            width: 42px !important;
+            flex: 0 0 42px !important;
+          }
+          .assign-task-modern .floating-actions > div > button:last-child {
+            min-width: 0;
+            flex: 1 1 auto;
+          }
+        }
+      `}</style>
+
+      {!isModal && (
+        <>
+          <div className="absolute -top-24 right-0 h-80 w-80 rounded-full bg-cyan-500/10 blur-3xl" />
+          <div className="absolute left-0 top-1/3 h-96 w-96 rounded-full bg-indigo-500/10 blur-3xl" />
+        </>
+      )}
+
+      <div className={contentClass}>
+        <form onSubmit={handleSubmit} className="space-y-3">
           <input
             ref={templateFileInputRef}
             type="file"
@@ -1215,35 +1438,59 @@ const AssignTask: React.FC<AssignTaskProps> = ({
             className="hidden"
           />
 
+          {headerActionsRoot && createPortal(
+            <>
+              <button
+                type="button"
+                onClick={downloadTaskTemplate}
+                className="inline-flex h-9 w-9 items-center justify-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-background)] text-sm font-semibold text-[var(--color-text)] transition hover:text-[var(--color-primary)] sm:h-10 sm:w-auto sm:px-4"
+                title="Download Template"
+              >
+                <Download size={16} />
+                <span className="hidden sm:inline">Template</span>
+              </button>
+              <button
+                type="button"
+                onClick={openTemplatePicker}
+                disabled={templateProcessing}
+                className="inline-flex h-9 w-9 items-center justify-center gap-2 rounded-full bg-[var(--color-primary)] text-sm font-semibold text-white shadow-lg shadow-[var(--color-primary)]/20 transition disabled:cursor-not-allowed disabled:opacity-60 sm:h-10 sm:w-auto sm:px-4"
+                title="Upload Template"
+              >
+                <Upload size={16} />
+                <span className="hidden sm:inline">{templateProcessing ? 'Reading...' : 'Import'}</span>
+              </button>
+            </>,
+            headerActionsRoot
+          )}
+
           {/* Task Forms */}
-          <div className="grid gap-6">
+          <div className="task-form-list grid gap-3">
             {taskForms.map((task, index) => (
               <div key={task.id}
-                className="relative overflow-hidden rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_16px_44px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_58px_rgba(15,23,42,0.12)]">
+                className="task-card relative overflow-hidden rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_16px_44px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_58px_rgba(15,23,42,0.12)]">
 
                 {/* Task Header */}
-                <div className="relative border-b border-[var(--color-border)] px-5 py-4 sm:px-6">
-                  <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(14,165,233,0.04),rgba(59,130,246,0.02),transparent)]" />
-                  <div className="relative flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,var(--color-primary),var(--color-secondary))] font-bold text-white shadow-[0_14px_30px_rgba(14,165,233,0.28)]">
+                <div className="task-card-header relative border-b border-[var(--color-border)] px-4 py-3 sm:px-5">
+                  <div className="relative flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-primary)] text-xs font-bold text-white sm:h-9 sm:w-9 sm:text-sm">
                         {String(index + 1).padStart(2, '0')}
                       </div>
                       <div className="min-w-0">
-                        <h3 className="truncate text-xl font-bold tracking-tight text-[var(--color-text)]">
+                        <h3 className="truncate text-sm font-semibold tracking-tight text-[var(--color-text)] sm:text-base">
                           {(task.title?.length > 20
                             ? task.title.substring(0, 20) + "..."
                             : task.title) || `Task ${index + 1}`}
                         </h3>
-                        <p className="text-sm text-[var(--color-textSecondary)]">
+                        <p className="text-[11px] font-medium capitalize text-[var(--color-textSecondary)] sm:text-xs">
                           {task.taskType.charAt(0).toUpperCase() + task.taskType.slice(1)} Task
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-2">
+                    <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                       {index === 0 && (
-                        <>
+                        <div className="legacy-template-actions">
                           <button
                             type="button"
                             onClick={downloadTaskTemplate}
@@ -1265,24 +1512,24 @@ const AssignTask: React.FC<AssignTaskProps> = ({
                               {templateProcessing ? 'Reading...' : 'Upload Template'}
                             </span>
                           </button>
-                        </>
+                        </div>
                       )}
                       <button
                         type="button"
                         onClick={() => duplicateTaskForm(task.id)}
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 text-[var(--color-primary)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_20px_rgba(15,23,42,0.08)]"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-background)]/70 text-[var(--color-primary)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_20px_rgba(15,23,42,0.08)] sm:h-10 sm:w-10 sm:rounded-2xl"
                         title="Duplicate Task"
                       >
-                        <Copy size={16} />
+                        <Copy size={15} />
                       </button>
                       {taskForms.length > 1 && (
                         <button
                           type="button"
                           onClick={() => removeTaskForm(task.id)}
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[rgba(239,68,68,0.2)] bg-[rgba(239,68,68,0.08)] text-[var(--color-error)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_20px_rgba(239,68,68,0.12)]"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-[rgba(239,68,68,0.2)] bg-[rgba(239,68,68,0.08)] text-[var(--color-error)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_20px_rgba(239,68,68,0.12)] sm:h-10 sm:w-10 sm:rounded-2xl"
                           title="Remove Task"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={15} />
                         </button>
                       )}
                     </div>
@@ -1290,9 +1537,14 @@ const AssignTask: React.FC<AssignTaskProps> = ({
                 </div>
 
                 {/* Task Content */}
-                <div className="space-y-6 px-5 py-5 sm:px-6">
+                <div className="space-y-4 px-4 py-4 sm:px-5">
                   {/* Basic Info */}
-                  <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                  <div className="task-card-section grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(220px,0.55fr)]">
+                    <div className="lg:col-span-2">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--color-textSecondary)]">
+                        Details
+                      </p>
+                    </div>
                     <div className="space-y-2">
                       <label className="text-sm font-semibold text-[var(--color-text)]">
                         Task Title *
@@ -1311,25 +1563,24 @@ const AssignTask: React.FC<AssignTaskProps> = ({
                       <label className="text-sm font-semibold text-[var(--color-text)]">
                         Task Type *
                       </label>
-                      <select
+                      <StyledSelect
                         value={task.taskType}
-                        onChange={(e) => handleTaskTypeChange(task.id, e.target.value)}
-                        required
-                        className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-[var(--color-text)] outline-none transition-all duration-200 focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary)]/10"
-                      >
-                        <option value="one-time">One Time</option>
-
-                        {user?.role !== 'employee' && (
-                          <>
-                            <option value="daily">Daily</option>
-                            <option value="weekly">Weekly</option>
-                            <option value="fortnightly">Fortnightly (every 14 days)</option>
-                            <option value="monthly">Monthly</option>
-                            <option value="quarterly">Quarterly</option>
-                            <option value="yearly">Yearly</option>
-                          </>
-                        )}
-                      </select>
+                        onChange={(nextValue) => handleTaskTypeChange(task.id, String(nextValue))}
+                        ariaLabel="Task type"
+                        options={[
+                          { value: 'one-time', label: 'One Time' },
+                          ...(user?.role !== 'employee'
+                            ? [
+                                { value: 'daily', label: 'Daily' },
+                                { value: 'weekly', label: 'Weekly' },
+                                { value: 'fortnightly', label: 'Fortnightly (every 14 days)' },
+                                { value: 'monthly', label: 'Monthly' },
+                                { value: 'quarterly', label: 'Quarterly' },
+                                { value: 'yearly', label: 'Yearly' },
+                              ]
+                            : []),
+                        ]}
+                      />
                     </div>
 
                     <div className="lg:col-span-2 space-y-2">
@@ -1347,7 +1598,12 @@ const AssignTask: React.FC<AssignTaskProps> = ({
                   </div>
 
                   {/* User Assignment & Priority */}
-                  <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                  <div className="task-card-section grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    <div className="lg:col-span-2">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--color-textSecondary)]">
+                        Ownership
+                      </p>
+                    </div>
                     {/* User Assignment */}
                     {/* User Assignment */}
                     <div className="space-y-3">
@@ -1502,7 +1758,7 @@ const AssignTask: React.FC<AssignTaskProps> = ({
                           {getSelectedUsers(task.id).map((selectedUser) => (
                             <span
                               key={selectedUser._id}
-                              className="inline-flex items-center rounded-full bg-[linear-gradient(135deg,var(--color-primary),var(--color-secondary))] px-3 py-1.5 text-sm font-medium text-white shadow-[0_10px_20px_rgba(14,165,233,0.2)] transition-all duration-200 hover:-translate-y-0.5"
+                              className="inline-flex items-center rounded-lg border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/10 px-2.5 py-1.5 text-sm font-medium text-[var(--color-primary)] transition"
                             >
                               {selectedUser.username}
                               <button
@@ -1510,7 +1766,7 @@ const AssignTask: React.FC<AssignTaskProps> = ({
                                 onClick={() =>
                                   handleUserSelection(task.id, selectedUser._id)
                                 }
-                                className="ml-2 rounded-full p-1 hover:bg-white/20"
+                                className="ml-2 rounded-md p-1 hover:bg-[var(--color-primary)]/10"
                               >
                                 <X size={12} />
                               </button>
@@ -1527,14 +1783,15 @@ const AssignTask: React.FC<AssignTaskProps> = ({
                         <Clock className="mr-2" size={16} />
                         Priority
                       </label>
-                      <select
+                      <StyledSelect
                         value={task.priority}
-                        onChange={(e) => updateTaskForm(task.id, 'priority', e.target.value)}
-                        className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-[var(--color-text)] outline-none transition-all duration-200 focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary)]/10"
-                      >
-                        <option value="normal">Normal</option>
-                        <option value="high">High</option>
-                      </select>
+                        onChange={(nextValue) => updateTaskForm(task.id, 'priority', String(nextValue))}
+                        ariaLabel="Priority"
+                        options={[
+                          { value: 'normal', label: 'Normal' },
+                          { value: 'high', label: 'High' },
+                        ]}
+                      />
                     </div>
 
                     {task.taskType === 'one-time' && (
@@ -1560,10 +1817,15 @@ const AssignTask: React.FC<AssignTaskProps> = ({
                   </div>
 
                   {/* Date Configuration */}
-                  <div className="space-y-4">
-                    <h4 className="flex items-center text-lg font-semibold text-[var(--color-text)]">
-                      Date Configuration
-                    </h4>
+                  <div className="task-card-section space-y-4">
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--color-textSecondary)]">
+                        Schedule
+                      </p>
+                      <h4 className="text-sm font-semibold text-[var(--color-text)]">
+                        Date configuration
+                      </h4>
+                    </div>
 
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       {task.taskType === 'one-time' ? (
@@ -1695,12 +1957,14 @@ const AssignTask: React.FC<AssignTaskProps> = ({
 
                         {task.taskType !== "one-time" && (
                           <div className="flex items-center gap-1">
-                            <label className="flex items-center cursor-pointer">
+                            <label className="flex items-center cursor-not-allowed">
                               <input
                                 type="checkbox"
                                 checked={showWeekOff[task.id] || false}
                                 onChange={(e) => handleWeekOffToggle(task.id, e.target.checked)}
-                                className="mr-2 w-4 h-4 rounded"
+                                disabled
+                                aria-readonly="true"
+                                className="mr-2 w-4 h-4 rounded cursor-not-allowed opacity-70"
                               />
                               <span className="text-sm font-medium text-[var(--color-text)]">Week Off</span>
                             </label>
@@ -1747,14 +2011,9 @@ const AssignTask: React.FC<AssignTaskProps> = ({
                               <button
                                 key={day.value}
                                 type="button"
-                                onClick={() => {
-                                  const currentWeekOff = task.weekOffDays;
-                                  const newWeekOff = currentWeekOff.includes(day.value)
-                                    ? currentWeekOff.filter(d => d !== day.value)
-                                    : [...currentWeekOff, day.value];
-                                  updateTaskForm(task.id, 'weekOffDays', newWeekOff);
-                                }}
-                                className={`rounded-lg border px-3 py-2 text-center transition-colors ${task.weekOffDays.includes(day.value)
+                                disabled
+                                aria-pressed={task.weekOffDays.includes(day.value)}
+                                className={`cursor-not-allowed rounded-lg border px-3 py-2 text-center opacity-90 ${task.weekOffDays.includes(day.value)
                                   ? 'bg-[var(--color-primary)] border-[var(--color-primary)] text-white'
                                   : 'border-[var(--color-border)] bg-[var(--color-background)]/70 text-[var(--color-text)]'
                                   }`}
@@ -1832,54 +2091,42 @@ const AssignTask: React.FC<AssignTaskProps> = ({
                         </div>
 
                         {(task.monthlyMode || 'dayOfMonth') === 'dayOfMonth' ? (
-                          <select
+                          <StyledSelect
                             value={task.monthlyDay}
-                            onChange={(e) => updateTaskForm(task.id, 'monthlyDay', parseInt(e.target.value))}
-                            required
-                            className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-4 py-3 text-[var(--color-text)] outline-none transition-all duration-200 focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary)]/10"
-                          >
-                            {monthlyDayOptions.map(day => (
-                              <option key={day} value={day}>
-                                {getOrdinalLabel(day)} of each month
-                              </option>
-                            ))}
-                          </select>
+                            onChange={(nextValue) => updateTaskForm(task.id, 'monthlyDay', Number(nextValue))}
+                            ariaLabel="Monthly day"
+                            options={monthlyDayOptions.map(day => ({
+                              value: day,
+                              label: `${getOrdinalLabel(day)} of each month`,
+                            }))}
+                          />
                         ) : (
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div>
                               <label className="mb-2 block text-sm font-medium text-[var(--color-text)]">
                                 Week Count
                               </label>
-                              <select
+                              <StyledSelect
                                 value={task.monthlyWeekOccurrence || 1}
-                                onChange={(e) => updateTaskForm(task.id, 'monthlyWeekOccurrence', parseInt(e.target.value))}
-                                required
-                                className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-4 py-3 text-[var(--color-text)] outline-none transition-all duration-200 focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary)]/10"
-                              >
-                                {monthlyWeekOccurrenceOptions.map(option => (
-                                  <option key={option.value} value={option.value}>
-                                    {option.label}
-                                  </option>
-                                ))}
-                              </select>
+                                onChange={(nextValue) => updateTaskForm(task.id, 'monthlyWeekOccurrence', Number(nextValue))}
+                                ariaLabel="Monthly week count"
+                                options={monthlyWeekOccurrenceOptions}
+                              />
                             </div>
 
                             <div>
                               <label className="mb-2 block text-sm font-medium text-[var(--color-text)]">
                                 Day
                               </label>
-                              <select
+                              <StyledSelect
                                 value={task.monthlyWeekday ?? 1}
-                                onChange={(e) => updateTaskForm(task.id, 'monthlyWeekday', parseInt(e.target.value))}
-                                required
-                                className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-4 py-3 text-[var(--color-text)] outline-none transition-all duration-200 focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary)]/10"
-                              >
-                                {weekDays.map(day => (
-                                  <option key={day.value} value={day.value}>
-                                    {day.label}
-                                  </option>
-                                ))}
-                              </select>
+                                onChange={(nextValue) => updateTaskForm(task.id, 'monthlyWeekday', Number(nextValue))}
+                                ariaLabel="Monthly weekday"
+                                options={weekDays.map(day => ({
+                                  value: day.value,
+                                  label: day.label,
+                                }))}
+                              />
                             </div>
                           </div>
                         )}
@@ -1890,15 +2137,16 @@ const AssignTask: React.FC<AssignTaskProps> = ({
                     {task.taskType === 'yearly' && task.isForever && (
                       <div className="space-y-3">
                         <h5 className="font-semibold text-[var(--color-text)]">Number of Years</h5>
-                        <select
+                        <StyledSelect
                           value={task.yearlyDuration}
-                          onChange={(e) => updateTaskForm(task.id, 'yearlyDuration', parseInt(e.target.value))}
-                          className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-4 py-3 text-[var(--color-text)] outline-none transition-all duration-200 focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary)]/10"
-                        >
-                          <option value={3}>3 years</option>
-                          <option value={5}>5 years</option>
-                          <option value={10}>10 years</option>
-                        </select>
+                          onChange={(nextValue) => updateTaskForm(task.id, 'yearlyDuration', Number(nextValue))}
+                          ariaLabel="Number of years"
+                          options={[
+                            { value: 3, label: '3 years' },
+                            { value: 5, label: '5 years' },
+                            { value: 10, label: '10 years' },
+                          ]}
+                        />
                       </div>
                     )}
 
@@ -1961,7 +2209,7 @@ const AssignTask: React.FC<AssignTaskProps> = ({
                   </div>
 
                   {/* Voice Recording and Attachments for Each Task */}
-                  <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                     {/* Voice Recording */}
                     <VoiceRecorder
                       ref={(ref) => {
@@ -1975,8 +2223,8 @@ const AssignTask: React.FC<AssignTaskProps> = ({
                     />
 
                     {/* File Attachments */}
-                    <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[0_14px_34px_rgba(15,23,42,0.08)] transition-all duration-300 hover:shadow-[0_20px_46px_rgba(15,23,42,0.12)]">
-                      <h3 className="mb-4 flex items-center text-lg font-semibold text-[var(--color-text)]">
+                    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-background)]/55 p-4 shadow-sm">
+                      <h3 className="mb-4 flex items-center text-sm font-semibold text-[var(--color-text)]">
                         <Paperclip className="mr-2" size={18} />
                         Task Attachments (Max 10MB per file)
                       </h3>
@@ -2034,45 +2282,53 @@ const AssignTask: React.FC<AssignTaskProps> = ({
 
           {/* Action Buttons */}
           <div
-            className="flex flex-col gap-4 border-t border-[var(--color-border)] pt-4 sm:flex-row sm:items-center sm:justify-between"
+            className="floating-actions sticky bottom-0 z-20 flex flex-col gap-3 border border-[var(--color-border)] bg-[var(--color-surface)]/95 p-3 shadow-[0_-14px_34px_rgba(15,23,42,0.08)] backdrop-blur sm:flex-row sm:items-center sm:justify-between"
           >
             {/* Reset Button (full width on mobile) */}
             <button
               type="button"
               onClick={resetAllForms}
-              className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)]/70 px-6 py-3 font-medium text-[var(--color-text)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(15,23,42,0.08)] sm:w-auto"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-5 py-3 text-sm font-semibold text-[var(--color-text)] transition hover:text-[var(--color-primary)] sm:w-auto"
+              title="Reset all"
+              aria-label="Reset all"
             >
-              Reset All
+              <RotateCcw size={18} />
+              <span className="hidden sm:inline">Reset All</span>
             </button>
 
             {/* Right side buttons (Add Task + Create Tasks) */}
-            <div className="flex w-full flex-col gap-4 sm:w-auto sm:flex-row sm:items-center">
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
               {/* Add Task Button (moved near Create All Tasks) */}
               <button
                 type="button"
                 onClick={addNewTaskForm}
-                className="inline-flex w-full items-center justify-center rounded-2xl bg-[linear-gradient(135deg,var(--color-success),#16a34a)] px-5 py-3 font-medium text-white shadow-[0_14px_26px_rgba(34,197,94,0.22)] transition-all duration-200 hover:-translate-y-0.5 sm:w-auto"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-5 py-3 text-sm font-semibold text-[var(--color-text)] transition hover:text-[var(--color-success)] sm:w-auto"
+                title="Add task"
+                aria-label="Add task"
               >
                 <Plus size={20} strokeWidth={3.5} />
+                <span className="hidden sm:inline">Add Task</span>
               </button>
 
               {/* Create All Tasks */}
               <button
                 type="submit"
                 disabled={loading}
-                className="flex w-full items-center justify-center space-x-3 rounded-2xl bg-[linear-gradient(135deg,var(--color-primary),var(--color-secondary))] px-6 py-3 font-bold text-white shadow-[0_16px_30px_rgba(14,165,233,0.24)] transition-all duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                className="flex w-full items-center justify-center space-x-3 rounded-full bg-[var(--color-primary)] px-5 py-3 text-sm font-bold text-white shadow-lg shadow-[var(--color-primary)]/20 transition disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                title="Create all tasks"
+                aria-label="Create all tasks"
               >
                 {loading ? (
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    <span>Creating Tasks...</span>
+                    <span className="hidden sm:inline">Creating Tasks...</span>
                   </>
                 ) : (
                   <>
                     <Zap size={20} />
-                    <span>Create All Tasks</span>
-                    <div className="px-2 py-1 rounded-full text-xs font-bold bg-white bg-opacity-20">
-                      {taskForms.reduce((total, task) => total + task.assignedTo.length, 0)}
+                    <span className="hidden sm:inline">Create All Tasks</span>
+                    <div className="rounded-full bg-white/20 px-2.5 py-1 text-xs font-bold">
+                      {totalAssignedUsers}
                     </div>
                   </>
                 )}
