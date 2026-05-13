@@ -1,5 +1,6 @@
 import express from 'express';
 import User from '../models/User.js';
+import Company from '../models/Company.js';
 
 const router = express.Router();
 
@@ -21,7 +22,6 @@ router.post('/login', async (req, res) => {
 
     // Check if user's company is active (for non-superadmin users)
     if (user.role !== 'superadmin' && user.companyId) {
-      const Company = (await import('../models/Company.js')).default;
       const company = await Company.findOne({ companyId: user.companyId });
 
       if (!company || !company.isActive) {
@@ -43,7 +43,6 @@ router.post('/login', async (req, res) => {
     // Company info
     let companyInfo = null;
     if (user.role !== 'superadmin' && user.companyId) {
-      const Company = (await import('../models/Company.js')).default;
       companyInfo = await Company.findOne({ companyId: user.companyId });
     }
 
@@ -80,6 +79,19 @@ router.get('/me/:userId', async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+
+    if (!user.isActive || user.sessionInvalidated) {
+      return res.status(401).json({ message: 'Session expired. Please login again.' });
+    }
+
+    if (user.role !== 'superadmin' && user.companyId) {
+      const company = await Company.findOne({ companyId: user.companyId });
+
+      if (!company || !company.isActive) {
+        return res.status(401).json({ message: 'Company account is inactive. Please login again.' });
+      }
+    }
+
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });

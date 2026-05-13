@@ -100,7 +100,7 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const SESSION_CHECK_MS = 120000;
+  const SESSION_CHECK_MS = 300000;
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 

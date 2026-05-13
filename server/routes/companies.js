@@ -259,7 +259,10 @@ router.patch('/:companyId/status', async (req, res) => {
     // When activating a company, reactivate all its users
     await User.updateMany(
       { companyId },
-      { isActive }
+      {
+        isActive,
+        sessionInvalidated: !isActive
+      }
     );
 
     const statusText = isActive ? 'activated' : 'deactivated';
