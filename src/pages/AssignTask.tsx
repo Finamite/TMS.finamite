@@ -228,10 +228,12 @@ const AssignTask: React.FC<AssignTaskProps> = ({
   ];
 
   const getOrdinalLabel = (value: number) => {
-    if (value === 1) return '1st';
-    if (value === 2) return '2nd';
-    if (value === 3) return '3rd';
-    return `${value}th`;
+    const suffixes: Record<number, string> = { 1: 'st', 2: 'nd', 3: 'rd' };
+    const lastTwoDigits = value % 100;
+    const suffix = lastTwoDigits >= 11 && lastTwoDigits <= 13
+      ? 'th'
+      : suffixes[value % 10] || 'th';
+    return `${value}${suffix}`;
   };
 
   const getMonthlyScheduleLabel = (task: Pick<TaskForm, 'monthlyDay' | 'monthlyMode' | 'monthlyWeekday' | 'monthlyWeekOccurrence'>) => {

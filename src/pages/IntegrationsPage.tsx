@@ -2,7 +2,7 @@
 import axios from 'axios';
 import { ArrowRight, CheckCircle2, ChevronDown, Eye, EyeOff, LockKeyhole, Plug, RefreshCw, Save, Shield, Sparkles, Trash2 } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { toast } from 'react-toastify';
+import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { address } from '../../utils/ipAddress';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,6 +10,8 @@ import { useTheme } from '../contexts/ThemeContext';
 
 type ProviderKey = 'interakt' | 'wati' | 'fichat';
 type EventKey = 'oneTimeAssigned' | 'oneTimeCompleted' | 'oneTimeOverdue' | 'recurringAssigned' | 'recurringCompleted' | 'recurringOverdue';
+
+const INTEGRATIONS_TOAST_CONTAINER_ID = 'integrations-page-toast';
 
 interface TemplateConfig { enabled: boolean; templateName: string; templateVariables: string[]; placeholderCount?: number; }
 interface RecipientConfig { assignee: boolean; admins: boolean; }
@@ -210,6 +212,7 @@ const IntegrationsPage: React.FC = () => {
   const modalTextSecondary = isDark ? 'rgba(255,255,255,0.96)' : 'var(--color-textSecondary)';
   const notify = (type: 'success' | 'error' | 'info' | 'warning', message: string) => {
     toast[type](message, {
+      containerId: INTEGRATIONS_TOAST_CONTAINER_ID,
       theme: isDark ? 'dark' : 'light',
       autoClose: 4000
     });
@@ -1376,6 +1379,12 @@ const IntegrationsPage: React.FC = () => {
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center bg-[var(--color-background)]">
+        <ToastContainer
+          containerId={INTEGRATIONS_TOAST_CONTAINER_ID}
+          position="top-right"
+          autoClose={4000}
+          theme={isDark ? 'dark' : 'light'}
+        />
         <div className="text-center">
           <div className="h-12 w-12 animate-spin rounded-full border-b-2 mx-auto" style={{ borderColor: 'var(--color-primary)' }} />
           <p className="mt-4 text-sm font-medium" style={{ color: 'var(--color-textSecondary)' }}>Loading integrations workspace...</p>
@@ -1386,6 +1395,12 @@ const IntegrationsPage: React.FC = () => {
 
   return (
     <div className={pageShellClass}>
+      <ToastContainer
+        containerId={INTEGRATIONS_TOAST_CONTAINER_ID}
+        position="top-right"
+        autoClose={4000}
+        theme={isDark ? 'dark' : 'light'}
+      />
       <div className="mx-auto w-full max-w-[1800px] space-y-5 px-4 py-5 pb-10 sm:px-6 lg:px-8">
         <div className="rounded-[32px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_22px_70px_rgba(15,23,42,0.08)]">
           <div className="px-6 py-6 sm:px-8 sm:py-7">

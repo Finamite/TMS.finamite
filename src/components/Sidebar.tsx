@@ -194,7 +194,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           taskType: string;
           status: string;
           limit: number;
-          userId?: string;
+          assignedTo?: string;
         } = {
           companyId,
           taskType: "one-time",
@@ -204,7 +204,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
         // same rule as PendingTasks page
         if (!user.permissions.canViewAllTeamTasks && user.id) {
-          params.userId = user.id;
+          params.assignedTo = user.id;
         }
 
         if (document.visibilityState !== "visible") return;
