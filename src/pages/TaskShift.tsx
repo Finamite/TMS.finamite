@@ -98,6 +98,21 @@ const TaskShift: React.FC = () => {
     const [showFilters, setShowFilters] = useState(false);
     const [showBulkPanel, setShowBulkPanel] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
+    const companyId = user?.company?.companyId || user?.companyId;
+
+    const loadUsers = useCallback(async () => {
+        if (!companyId) return;
+
+        try {
+            const response = await axios.get(`${address}/api/taskshift/users`, {
+                params: { companyId }
+            });
+            setUsers(response.data || []);
+        } catch (error) {
+            console.error('Error loading users:', error);
+            toast.error('Failed to load users');
+        }
+    }, [companyId]);
 
     // Check screen size
     useEffect(() => {
@@ -119,7 +134,7 @@ const TaskShift: React.FC = () => {
     // Load users on component mount
     useEffect(() => {
         loadUsers();
-    }, []);
+    }, [loadUsers]);
 
     // Load tasks when filters change
     useEffect(() => {
@@ -127,21 +142,6 @@ const TaskShift: React.FC = () => {
             loadTasks();
         }
     }, [fromUser, taskCategory, taskType, priority, dateFrom, dateTo]);
-
-    const loadUsers = useCallback(async () => {
-        try {
-            const response = await axios.get(`${address}/api/taskshift/users`, {
-                params: {
-                    companyId: user?.company?.companyId,
-                    excludeUserId: user?.id
-                }
-            });
-            setUsers(response.data || []);
-        } catch (error) {
-            console.error('Error loading users:', error);
-            toast.error('Failed to load users');
-        }
-    }, [user]);
 
     const TASK_CATEGORIES = ['one-time', 'recurring'] as const;
 
@@ -165,7 +165,7 @@ const TaskShift: React.FC = () => {
 
     const loadOneTimeTasks = useCallback(async () => {
         const params: any = {
-            companyId: user?.company?.companyId,
+            companyId,
             assignedTo: fromUser
         };
 
@@ -176,13 +176,13 @@ const TaskShift: React.FC = () => {
 
         const response = await axios.get(`${address}/api/taskshift/one-time-tasks`, { params });
         setOneTimeTasks(response.data || []);
-    }, [fromUser, dateFrom, dateTo, priority, user]);
+    }, [fromUser, dateFrom, dateTo, priority, companyId]);
 
     const loadRecurringTasks = useCallback(async () => {
         if (!fromUser) return;
 
         const params: any = {
-            companyId: user?.company?.companyId,
+            companyId,
             assignedTo: fromUser
         };
 
@@ -222,7 +222,7 @@ const TaskShift: React.FC = () => {
         }));
 
         setMasterTasks(normalized);
-    }, [fromUser, taskType, priority, dateFrom, dateTo, user]);
+    }, [fromUser, taskType, priority, dateFrom, dateTo, companyId]);
 
     const handleTaskSelection = useCallback((taskId: string, isSelected: boolean) => {
         setSelectedTasks(prev => {
@@ -298,7 +298,7 @@ const TaskShift: React.FC = () => {
                     taskIds: Array.from(selectedTasks),
                     fromUser,
                     toUser,
-                    companyId: user?.company?.companyId
+                    companyId
                 });
                 toast.success(`Successfully shifted ${selectedTasks.size} one-time task(s)`);
             } else {
@@ -306,7 +306,7 @@ const TaskShift: React.FC = () => {
                     taskGroupIds: Array.from(selectedMasterTasks),
                     fromUser,
                     toUser,
-                    companyId: user?.company?.companyId
+                    companyId
                 });
                 toast.success(`Successfully shifted ${selectedMasterTasks.size} recurring task series`);
             }
@@ -322,7 +322,7 @@ const TaskShift: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [toUser, selectedTasks, selectedMasterTasks, fromUser, taskCategory, user, loadTasks]);
+    }, [toUser, selectedTasks, selectedMasterTasks, fromUser, taskCategory, companyId, loadTasks]);
 
     const clearFilters = () => {
         setTaskType('all');
