@@ -3080,6 +3080,9 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
       await masterTask.save();
     }
 
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     // ✅ Lock original end date once (first time only)
     if (!masterTask.originalEndDate && masterTask.endDate) {
       masterTask.originalEndDate = masterTask.endDate;
@@ -3289,7 +3292,8 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
     await Task.updateMany(
       {
         taskGroupId,
-        companyId: effectiveCompanyId
+        companyId: effectiveCompanyId,
+        dueDate: { $gte: today }
       },
       {
         $set: {
@@ -3298,7 +3302,7 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
           priority: updates.priority,
           assignedTo: updates.assignedTo,
           attachments: updates.attachments || [],
-          // Keep schedule metadata in sync for all existing tasks
+          // Keep schedule metadata in sync for current and future tasks.
           weekOffDays: updates.weekOffDays || [],
           "parentTaskInfo.weekOffDays": updates.weekOffDays || [],
           "parentTaskInfo.includeSunday": updates.includeSunday,
@@ -3348,9 +3352,6 @@ router.put("/reschedule/:taskGroupId", async (req, res) => {
     };
 
     // ✅ Only affect FUTURE tasks (so old history stays safe)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
     const newDateSet = new Set(taskDates.map(normalize));
 
     // ✅ Get active tasks from today onward

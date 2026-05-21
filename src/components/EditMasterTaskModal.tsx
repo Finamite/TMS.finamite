@@ -707,7 +707,12 @@ const EditMasterTaskModal: React.FC<EditMasterTaskModalProps> = memo(
                     <input
                       type="checkbox"
                       checked={editFormData.includeSunday ?? true}
-                      disabled
+                      onChange={(e) =>
+                        setEditFormData({
+                          ...editFormData,
+                          includeSunday: e.target.checked
+                        })
+                      }
                       className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
                     />
                     <span className="ml-2 text-sm font-medium text-[--color-text]">
