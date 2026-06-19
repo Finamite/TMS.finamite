@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CheckSquare, Paperclip, X, Upload, File } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 import { address } from '../../utils/ipAddress';
 
 interface TaskCompletionModalProps {
@@ -115,8 +116,10 @@ const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
 
       await axios.post(`${address}/api/tasks/${taskId}/complete`, payload);
       onComplete();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error completing task:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to complete task';
+      toast.error(errorMessage);
     } finally {
       setSubmitting(false);
     }

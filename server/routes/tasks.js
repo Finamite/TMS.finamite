@@ -10,7 +10,7 @@ import TaskDeleteLog from "../models/TaskDeleteLog.js";
 import { createTaskDeleteLogs } from '../services/taskDeleteLog.service.js';
 import mongoose from "mongoose";
 // ✅ ADD THIS IMPORT FOR DATA USAGE TRACKING
-import {updateFileUsage, updateDatabaseUsage} from '../services/dataUsage.service.js';
+import {updateFileUsage, updateDatabaseUsage, checkStorageLimit} from '../services/dataUsage.service.js';
 import { reserveTaskSequences, formatTaskId } from '../services/taskId.service.js';
 import { notifyTaskWhatsAppEvent } from '../services/taskWhatsapp.js';
 
@@ -946,24 +946,37 @@ const queueTaskWhatsAppNotification = (taskLike, eventType) => {
   });
 };
 
-const trackFileUsage = async (companyId, attachments, uploadedBy) => {
-  try {
-    if (!attachments || !Array.isArray(attachments) || attachments.length === 0) {
-      return;
-    }
-
-    for (const attachment of attachments) {
-      const fileInfo = {
-        filename: attachment.filename || attachment.name || 'unknown',
-        originalName: attachment.originalName || attachment.name || 'unknown',
-        size: attachment.size || 0
-      };
-
-      await updateFileUsage(companyId, fileInfo, uploadedBy);
-    }
-  } catch (error) {
-    console.error('Error tracking file usage:', error);
+class StorageLimitError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'StorageLimitError';
+    this.statusCode = 400;
   }
+}
+
+const trackFileUsage = async (companyId, attachments, uploadedBy) => {
+  if (!attachments || !Array.isArray(attachments) || attachments.length === 0) {
+    return true;
+  }
+
+  // Check storage limit first
+  const totalSize = attachments.reduce((sum, att) => sum + (att.size || 0), 0);
+  const limitCheck = await checkStorageLimit(companyId, totalSize);
+  
+  if (!limitCheck.allowed) {
+    throw new StorageLimitError(limitCheck.message);
+  }
+
+  for (const attachment of attachments) {
+    const fileInfo = {
+      filename: attachment.filename || attachment.name || 'unknown',
+      originalName: attachment.originalName || attachment.name || 'unknown',
+      size: attachment.size || 0
+    };
+
+    await updateFileUsage(companyId, fileInfo, uploadedBy);
+  }
+  return true;
 };
 
 // ✅ ADD DATABASE USAGE TRACKING FUNCTION
@@ -2434,6 +2447,9 @@ router.post('/bulk-create', async (req, res) => {
 
   } catch (error) {
     console.error('❌ Error in lightning bulk create:', error);
+    if (error.name === 'StorageLimitError') {
+      return res.status(400).json({ message: error.message });
+    }
     res.status(500).json({
       message: 'Lightning bulk task creation failed',
       error: error.message,
@@ -2605,6 +2621,9 @@ router.post('/create-scheduled', async (req, res) => {
 
   } catch (error) {
     console.error('Error creating scheduled tasks:', error);
+    if (error.name === 'StorageLimitError') {
+      return res.status(400).json({ message: error.message });
+    }
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -2663,6 +2682,9 @@ router.post('/', async (req, res) => {
     res.status(201).json(populatedTask);
   } catch (error) {
     console.error('Error creating task:', error);
+    if (error.name === 'StorageLimitError') {
+      return res.status(400).json({ message: error.message });
+    }
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -2856,6 +2878,9 @@ https://tms.finamite.in
 
   } catch (error) {
     console.error('Error completing task:', error);
+    if (error.name === 'StorageLimitError') {
+      return res.status(400).json({ message: error.message });
+    }
     res.status(500).json({
       message: 'Server error',
       error: error.message

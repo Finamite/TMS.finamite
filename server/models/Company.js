@@ -25,6 +25,10 @@ const companySchema = new mongoose.Schema({
       default: 50
     }
   },
+  storageLimit: {
+    type: Number,
+    default: 5368709120 // 5GB in bytes
+  },
   taskSequence: {
     type: Number,
     default: 0

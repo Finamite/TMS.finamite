@@ -275,6 +275,109 @@ router.post('/export-pdf', async (req, res) => {
   }
 });
 
+// Get storage usage for a specific company (for admin panel)
+router.get('/company-usage/:companyId', async (req, res) => {
+  try {
+    const { companyId } = req.params;
+
+    // Get total file storage usage across all records for this company
+    const fileUsage = await DataUsage.aggregate([
+      { $match: { companyId } },
+      {
+        $group: {
+          _id: null,
+          totalFileStorage: { $sum: '$fileStorage.totalSize' },
+          totalFileCount: { $sum: '$fileStorage.fileCount' }
+        }
+      }
+    ]);
+
+    // Get latest database usage
+    const latestDbUsage = await DataUsage.findOne({ companyId })
+      .sort({ date: -1 })
+      .select('databaseUsage')
+      .lean();
+
+    const totalFileStorage = fileUsage.length > 0 ? fileUsage[0].totalFileStorage : 0;
+    const totalFileCount = fileUsage.length > 0 ? fileUsage[0].totalFileCount : 0;
+    const totalDatabaseSize = latestDbUsage?.databaseUsage?.totalSize || 0;
+    const totalDocuments = latestDbUsage?.databaseUsage?.totalDocuments || 0;
+
+    // Get company storage limit
+    const company = await Company.findOne({ companyId }).select('storageLimit').lean();
+    const storageLimit = company?.storageLimit || 5368709120; // default 5GB
+
+    res.json({
+      companyId,
+      storageLimit,
+      usage: {
+        fileStorage: totalFileStorage,
+        fileCount: totalFileCount,
+        databaseSize: totalDatabaseSize,
+        totalDocuments
+      },
+      totalUsage: totalFileStorage + totalDatabaseSize,
+      usagePercentage: storageLimit > 0 ? Math.round(((totalFileStorage + totalDatabaseSize) / storageLimit) * 100) : 0
+    });
+  } catch (error) {
+    console.error('Error fetching company storage usage:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Get storage usage status for a company (lightweight - for header alert)
+router.get('/company-usage-status/:companyId', async (req, res) => {
+  try {
+    const { companyId } = req.params;
+
+    // Get total file storage
+    const fileUsage = await DataUsage.aggregate([
+      { $match: { companyId } },
+      {
+        $group: {
+          _id: null,
+          totalFileStorage: { $sum: '$fileStorage.totalSize' }
+        }
+      }
+    ]);
+
+    const latestDbUsage = await DataUsage.findOne({ companyId })
+      .sort({ date: -1 })
+      .select('databaseUsage.totalSize')
+      .lean();
+
+    const company = await Company.findOne({ companyId }).select('storageLimit').lean();
+
+    const currentFileStorage = fileUsage.length > 0 ? fileUsage[0].totalFileStorage : 0;
+    const currentDbSize = latestDbUsage?.databaseUsage?.totalSize || 0;
+    const totalUsage = currentFileStorage + currentDbSize;
+    const storageLimit = company?.storageLimit !== undefined && company?.storageLimit !== null 
+      ? Number(company.storageLimit) 
+      : 5368709120;
+    const usagePercentage = storageLimit > 0 ? Math.round((totalUsage / storageLimit) * 100) : 0;
+
+    const formatBytes = (bytes) => {
+      if (!bytes) return '0 B';
+      const gb = bytes / 1073741824;
+      if (gb >= 1) return gb.toFixed(1) + ' GB';
+      const mb = bytes / 1048576;
+      if (mb >= 1) return mb.toFixed(1) + ' MB';
+      return bytes + ' B';
+    };
+
+    res.json({
+      totalUsage,
+      storageLimit,
+      usagePercentage,
+      usedFormatted: formatBytes(totalUsage),
+      limitFormatted: formatBytes(storageLimit)
+    });
+  } catch (error) {
+    console.error('Error fetching storage usage status:', error);
+    res.json({ usagePercentage: 0, totalUsage: 0, storageLimit: 0, usedFormatted: '0 B', limitFormatted: '0 B' });
+  }
+});
+
 // Update file usage (called when files are uploaded)
 export const updateFileUsage = async (companyId, fileInfo, uploadedBy) => {
   try {

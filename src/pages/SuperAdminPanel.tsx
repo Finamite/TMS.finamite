@@ -32,6 +32,7 @@ interface Company {
     managerLimit: number;
     userLimit: number;
   };
+  storageLimit: number;
   userCounts: {
     admin: number;
     manager: number;
@@ -110,6 +111,7 @@ const SuperAdminPanel: React.FC = () => {
     adminNewName: '',
     adminNewEmail: '',
     adminNewPhone: '',
+    storageLimit: 5368709120, // 5GB in bytes
     limits: {
       adminLimit: 1,
       managerLimit: 5,
@@ -117,6 +119,7 @@ const SuperAdminPanel: React.FC = () => {
     },
     permissions: { ...defaultPermissions }   // ✅ fixed
   });
+  const [storageUnit, setStorageUnit] = useState<'GB' | 'MB'>('GB');
   const [message, setMessage] = useState({ type: '', text: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [generatingTaskIds, setGeneratingTaskIds] = useState<Record<string, boolean>>({});
@@ -201,7 +204,8 @@ const SuperAdminPanel: React.FC = () => {
       const updateData: any = {
         companyName: formData.companyName,
         limits: formData.limits,
-        permissions: formData.permissions
+        permissions: formData.permissions,
+        storageLimit: formData.storageLimit
       };
 
       // Add admin details if they were provided
@@ -327,6 +331,7 @@ const SuperAdminPanel: React.FC = () => {
       adminNewPhone: company.admin?.phone || '',
       adminNewName: company.admin?.username || '',
       adminNewEmail: company.admin?.email || '',
+      storageLimit: company.storageLimit || 5368709120,
       limits: company.limits,
       permissions: {
         dashboard: company.permissions?.dashboard ?? true,
@@ -364,6 +369,7 @@ const SuperAdminPanel: React.FC = () => {
       adminNewName: '',
       adminNewEmail: '',
       adminNewPhone: '',
+      storageLimit: 5368709120,
       limits: {
         adminLimit: 1,
         managerLimit: 5,
@@ -980,7 +986,7 @@ const SuperAdminPanel: React.FC = () => {
                     User Limits
                   </h4>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                     <div>
                       <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>
                         Admin Limit
@@ -1039,6 +1045,53 @@ const SuperAdminPanel: React.FC = () => {
                           color: 'var(--color-text)'
                         }}
                       />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>
+                        Storage Limit
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          name="storageLimit"
+                          value={storageUnit === 'GB' ? Math.round(formData.storageLimit / 1073741824) : Math.round(formData.storageLimit / 1048576)}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 0;
+                            let bytes: number;
+                            if (storageUnit === 'GB') {
+                              bytes = val * 1073741824;
+                            } else {
+                              bytes = val * 1048576;
+                            }
+                            setFormData(prev => ({
+                              ...prev,
+                              storageLimit: bytes
+                            }));
+                          }}
+                          min="0"
+                          required
+                          className="w-full rounded-2xl border px-4 py-3 outline-none transition-shadow focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                          style={{
+                            backgroundColor: 'var(--color-background)',
+                            borderColor: 'var(--color-border)',
+                            color: 'var(--color-text)'
+                          }}
+                        />
+                        <select
+                          value={storageUnit}
+                          onChange={(e) => setStorageUnit(e.target.value as 'GB' | 'MB')}
+                          className="rounded-2xl border px-3 py-3 outline-none transition-shadow focus:ring-2 focus:ring-[var(--color-primary)]/20 min-w-[72px]"
+                          style={{
+                            backgroundColor: 'var(--color-background)',
+                            borderColor: 'var(--color-border)',
+                            color: 'var(--color-text)'
+                          }}
+                        >
+                          <option value="GB">GB</option>
+                          <option value="MB">MB</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
                   <div className="mt-4 space-y-4 rounded-2xl border p-4 sm:p-5" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>
@@ -1274,7 +1327,7 @@ const SuperAdminPanel: React.FC = () => {
                     User Limits
                   </h4>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                     <div>
                       <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>
                         Admin Limit
@@ -1333,6 +1386,53 @@ const SuperAdminPanel: React.FC = () => {
                           color: 'var(--color-text)'
                         }}
                       />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>
+                        Storage Limit
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          name="storageLimit"
+                          value={storageUnit === 'GB' ? Math.round(formData.storageLimit / 1073741824) : Math.round(formData.storageLimit / 1048576)}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 0;
+                            let bytes: number;
+                            if (storageUnit === 'GB') {
+                              bytes = val * 1073741824;
+                            } else {
+                              bytes = val * 1048576;
+                            }
+                            setFormData(prev => ({
+                              ...prev,
+                              storageLimit: bytes
+                            }));
+                          }}
+                          min="0"
+                          required
+                          className="w-full rounded-2xl border px-4 py-3 outline-none transition-shadow focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                          style={{
+                            backgroundColor: 'var(--color-background)',
+                            borderColor: 'var(--color-border)',
+                            color: 'var(--color-text)'
+                          }}
+                        />
+                        <select
+                          value={storageUnit}
+                          onChange={(e) => setStorageUnit(e.target.value as 'GB' | 'MB')}
+                          className="rounded-2xl border px-3 py-3 outline-none transition-shadow focus:ring-2 focus:ring-[var(--color-primary)]/20 min-w-[72px]"
+                          style={{
+                            backgroundColor: 'var(--color-background)',
+                            borderColor: 'var(--color-border)',
+                            color: 'var(--color-text)'
+                          }}
+                        >
+                          <option value="GB">GB</option>
+                          <option value="MB">MB</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
                   <div className="mt-4 space-y-4 rounded-2xl border p-4 sm:p-5" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-background)' }}>

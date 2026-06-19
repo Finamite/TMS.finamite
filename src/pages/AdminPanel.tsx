@@ -49,6 +49,7 @@ interface CompanyData {
     managerLimit: number;
     userLimit: number;
   };
+  storageLimit: number;
   userCounts: {
     admin: number;
     manager: number;
@@ -60,6 +61,19 @@ interface CompanyData {
   } | null;
   isActive: boolean;
   createdAt: string;
+}
+
+interface StorageUsageData {
+  companyId: string;
+  storageLimit: number;
+  usage: {
+    fileStorage: number;
+    fileCount: number;
+    databaseSize: number;
+    totalDocuments: number;
+  };
+  totalUsage: number;
+  usagePercentage: number;
 }
 
 interface PcmIntegrationSettings {
@@ -226,6 +240,8 @@ const AdminPanel: React.FC = () => {
   const [showPcmMappingModal, setShowPcmMappingModal] = useState(false);
   const [showBulkApprovalModal, setShowBulkApprovalModal] = useState(false);
   const [bulkApprovalLoading, setBulkApprovalLoading] = useState(false);
+  const [storageUsage, setStorageUsage] = useState<StorageUsageData | null>(null);
+  const [loadingStorageUsage, setLoadingStorageUsage] = useState(false);
 
   // Define allowed permissions for each role
   const rolePermissions = {
@@ -237,6 +253,19 @@ const AdminPanel: React.FC = () => {
   const [passwordUser, setPasswordUser] = useState<User | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
+
+  const fetchStorageUsage = async () => {
+    if (!currentUser?.companyId) return;
+    setLoadingStorageUsage(true);
+    try {
+      const response = await axios.get(`${address}/api/data-usage/company-usage/${currentUser.companyId}`);
+      setStorageUsage(response.data);
+    } catch (error) {
+      console.error('Error fetching storage usage:', error);
+    } finally {
+      setLoadingStorageUsage(false);
+    }
+  };
 
   const fetchCompanyData = async () => {
     if (!currentUser?.companyId) {
@@ -1080,6 +1109,7 @@ const AdminPanel: React.FC = () => {
           <button
             onClick={() => {
               fetchCompanyData(); // always fetch latest data
+              fetchStorageUsage(); // fetch storage usage
               setShowPlanModal(true);
             }}
             className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-sm font-medium text-[var(--color-text)] shadow-sm transition-all hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5"
@@ -1705,6 +1735,59 @@ const AdminPanel: React.FC = () => {
                           ></div>
                         </div>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Storage Usage */}
+                  <div className="mt-6">
+                    <h3 className="mb-4 text-lg font-semibold text-[var(--color-text)]">Storage Usage</h3>
+                    <div className="rounded-2xl border border-cyan-200 bg-cyan-50/70 p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="rounded-full bg-cyan-100 p-2">
+                            <svg className="h-5 w-5 text-cyan-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+                            </svg>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-[var(--color-text)]">Total Storage</p>
+                            <p className="text-sm text-[var(--color-textSecondary)]">
+                              {loadingStorageUsage ? (
+                                <span className="flex items-center gap-1">
+                                  <Loader2 className="w-3 h-3 animate-spin" /> Loading...
+                                </span>
+                              ) : storageUsage ? (
+                                `${(storageUsage.totalUsage / 1073741824).toFixed(2)} GB / ${(storageUsage.storageLimit / 1073741824).toFixed(0)} GB used`
+                              ) : (
+                                `${(companyData.storageLimit / 1073741824).toFixed(0)} GB limit`
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-cyan-600">
+                            {storageUsage ? `${storageUsage.usagePercentage}%` : '—'}
+                          </p>
+                          <p className="text-xs text-[var(--color-textSecondary)]">Usage</p>
+                        </div>
+                      </div>
+                      {storageUsage && (
+                        <div className="mt-3">
+                          <div className="h-2 rounded-full bg-cyan-200">
+                            <div
+                              className="h-2 rounded-full transition-all duration-300"
+                              style={{
+                                width: `${Math.min(storageUsage.usagePercentage, 100)}%`,
+                                backgroundColor: storageUsage.usagePercentage >= 90 ? '#ef4444' : storageUsage.usagePercentage >= 75 ? '#eab308' : '#0891b2'
+                              }}
+                            ></div>
+                          </div>
+                          <div className="mt-2 flex justify-between text-xs text-[var(--color-textSecondary)]">
+                            <span>Files: {(storageUsage.usage.fileStorage / 1073741824).toFixed(2)} GB</span>
+                            <span>Database: {(storageUsage.usage.databaseSize / 1073741824).toFixed(2)} GB</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </>

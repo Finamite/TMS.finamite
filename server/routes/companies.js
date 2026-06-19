@@ -71,7 +71,7 @@ router.get('/', async (req, res) => {
 // Create new company with admin
 router.post('/', async (req, res) => {
   try {
-    const { companyName, adminName, adminEmail, adminPhone, adminPassword, limits, permissions } = req.body;
+    const { companyName, adminName, adminEmail, adminPhone, adminPassword, limits, permissions, storageLimit } = req.body;
 
     // Generate unique company ID
     const companyId = `comp_${uuidv4().replace(/-/g, '').substring(0, 12)}`;
@@ -82,6 +82,8 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ message: 'Email already exists' });
     }
 
+    let companyStorageLimit = storageLimit ? parseInt(storageLimit) : 5368709120;
+
     // Create company
     const company = new Company({
       companyId,
@@ -91,6 +93,7 @@ router.post('/', async (req, res) => {
         managerLimit: limits?.managerLimit || 5,
         userLimit: limits?.userLimit || 50
       },
+      storageLimit: companyStorageLimit,
       permissions: permissions ? { ...defaultCompanyPermissions, ...permissions } : defaultCompanyPermissions
     });
 
@@ -140,7 +143,7 @@ router.post('/', async (req, res) => {
 router.put('/:companyId', async (req, res) => {
   try {
     const { companyId } = req.params;
-    const { companyName, limits, adminDetails, permissions} = req.body;
+    const { companyName, limits, adminDetails, permissions, storageLimit} = req.body;
 
     // Update company details
     const existingCompany = await Company.findOne({ companyId }).lean();
@@ -148,9 +151,14 @@ router.put('/:companyId', async (req, res) => {
       ? { ...(existingCompany?.permissions || defaultCompanyPermissions), ...permissions }
       : existingCompany?.permissions;
 
+    const updateFields = { companyName, limits, permissions: nextPermissions };
+    if (storageLimit !== undefined && storageLimit !== null) {
+      updateFields.storageLimit = parseInt(storageLimit);
+    }
+
     const company = await Company.findOneAndUpdate(
       { companyId },
-      { companyName, limits, permissions: nextPermissions },
+      updateFields,
       { new: true }
     );
 

@@ -42,6 +42,60 @@ export const updateFileUsage = async (companyId, fileInfo, uploadedBy) => {
   );
 };
 
+/**
+ * Check if adding files of given total size would exceed the company storage limit
+ * Returns { allowed: boolean, message: string, usagePercentage: number }
+ */
+export const checkStorageLimit = async (companyId, additionalBytes = 0) => {
+  try {
+    if (!companyId) return { allowed: true, message: '', usagePercentage: 0 };
+
+    const company = await Company.findOne({ companyId }).select('storageLimit').lean();
+    if (!company) return { allowed: true, message: '', usagePercentage: 0 };
+
+    const storageLimit = company.storageLimit !== undefined && company.storageLimit !== null 
+      ? Number(company.storageLimit) 
+      : 5368709120; // default 5GB
+
+    // Get total file storage
+    const fileUsage = await DataUsage.aggregate([
+      { $match: { companyId } },
+      {
+        $group: {
+          _id: null,
+          totalFileStorage: { $sum: '$fileStorage.totalSize' }
+        }
+      }
+    ]);
+
+    // Get latest database usage
+    const latestDbUsage = await DataUsage.findOne({ companyId })
+      .sort({ date: -1 })
+      .select('databaseUsage.totalSize')
+      .lean();
+
+    const currentFileStorage = fileUsage.length > 0 ? fileUsage[0].totalFileStorage : 0;
+    const currentDbSize = latestDbUsage?.databaseUsage?.totalSize || 0;
+    const totalUsage = currentFileStorage + currentDbSize + additionalBytes;
+    const usagePercentage = storageLimit > 0 ? Math.round((totalUsage / storageLimit) * 100) : 0;
+
+    if (totalUsage > storageLimit) {
+      const gbLimit = storageLimit > 0 ? (storageLimit / 1073741824).toFixed(1) : '0';
+      const displayLimit = storageLimit > 0 ? `${gbLimit}GB` : '0 (No storage)';
+      return {
+        allowed: false,
+        message: `Storage limit exceeded! Your company storage limit is ${displayLimit}. Please contact Team Finamite to increase storage.`,
+        usagePercentage
+      };
+    }
+
+    return { allowed: true, message: '', usagePercentage };
+  } catch (error) {
+    console.error('Error checking storage limit:', error);
+    return { allowed: true, message: '', usagePercentage: 0 };
+  }
+};
+
 export const updateDatabaseUsage = async (companyId, options = {}) => {
   if (!companyId) return;
   const force = options.force === true;
